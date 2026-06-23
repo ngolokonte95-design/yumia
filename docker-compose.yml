@@ -1,0 +1,65 @@
+# Dépendances locales de YUMIA (dev).
+# Démarrer : docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: yumia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: yumia
+      POSTGRES_PASSWORD: yumia
+      POSTGRES_DB: yumia
+    ports:
+      - '5434:5432'
+    volumes:
+      - yumia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U yumia']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: yumia-redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: yumia-es
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - '9200:9200'
+    volumes:
+      - yumia_esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:9200/_cluster/health || exit 1']
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: yumia-mailpit
+    restart: unless-stopped
+    ports:
+      - '1025:1025'   # SMTP
+      - '8025:8025'   # Web UI — http://localhost:8025
+    environment:
+      MP_MAX_MESSAGES: 500
+
+volumes:
+  yumia_pgdata:
+  yumia_esdata:

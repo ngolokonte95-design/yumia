@@ -1,0 +1,252 @@
+// YUMIA — Schéma PostgreSQL (source de vérité).
+// PostgreSQL = vérité ; Elasticsearch = index de recherche dérivé ; Redis = cache.
+// Conçu multi-pays / multi-langue dès le départ.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Utilisateurs & authentification
+// ----------------------------------------------------------------------------
+
+enum Plan {
+  free
+  plus
+}
+
+enum AuthProvider {
+  password
+  google
+  apple
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  displayName  String
+  bio          String?
+  photoUrl     String?
+  authProvider AuthProvider @default(password)
+  passwordHash String?
+  appleId      String?      @unique
+
+  // i18n / contexte
+  locale       String       @default("fr")
+  currency     String       @default("EUR")
+  countryCode  String?
+  timezone     String?
+
+  plan         Plan         @default(free)
+  totalXp      Int          @default(0)
+  level        Int          @default(1)
+
+  // Préférences (restrictions, univers favoris) — flexibles, donc JSON.
+  preferences    Json         @default("{}")
+  expoPushToken  String?
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  visits              Visit[]
+  savedPlaces         SavedPlace[]
+  earnedBadges        EarnedBadge[]
+  streak              Streak?
+  groupSessions       GroupMember[]
+
+  @@index([countryCode])
+  // Optimise le cron daily-digest qui filtre sur expoPushToken IS NOT NULL
+  @@index([expoPushToken])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Lieux (POI) — 14 univers
+// ----------------------------------------------------------------------------
+
+enum Universe {
+  restaurant
+  cafe
+  bakery
+  dessert
+  bar
+  bubble_tea
+  local_specialty
+  ice_cream
+  chocolatier
+  wine_cellar
+  tourist_activity
+  rooftop
+  cultural_outing
+  nightlife
+}
+
+model Place {
+  id          String   @id @default(uuid())
+  name        String
+  universe    Universe
+
+  lat         Float
+  lng         Float
+  city        String
+  countryCode String
+
+  rating      Float    @default(0)
+  priceTier   Int      @default(2) // 1..4
+  photoUrls   String[] @default([])
+
+  // Attributs exploités par les moteurs IA (terrasse, kid_friendly, halal…).
+  tags        String[] @default([])
+  metadata    Json     @default("{}")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  visits      Visit[]
+  savedBy     SavedPlace[]
+
+  @@index([universe])
+  @@index([city, universe])
+  @@index([countryCode])
+  // Bounding-box pre-filter for geo queries (nearbyViaPg, trending)
+  @@index([lat, lng])
+}
+
+// ----------------------------------------------------------------------------
+// Activité utilisateur : visites, sauvegardes
+// ----------------------------------------------------------------------------
+
+enum VisitFeedback {
+  loved // 😍
+  neutral // 😐
+  disliked // 😕
+}
+
+model Visit {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placeId   String
+  place     Place          @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  visitedAt DateTime       @default(now())
+  feedback  VisitFeedback?
+  xpAwarded Int            @default(0)
+  notes     String?
+
+  @@index([userId, visitedAt])
+  @@index([placeId])
+}
+
+model SavedPlace {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placeId   String
+  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  listName  String   @default("a_essayer")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, placeId, listName])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Gamification : badges, streaks
+// ----------------------------------------------------------------------------
+
+model EarnedBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeKey  String
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, badgeKey])
+  @@index([userId])
+}
+
+model Streak {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  current         Int      @default(0)
+  best            Int      @default(0)
+  lastActivityDay DateTime?
+  freezesLeft     Int      @default(0) // YUMIA Plus
+  updatedAt       DateTime @updatedAt
+
+  // Optimise la requête cron "danger de streak" qui filtre sur current > 0 + lastActivityDay
+  @@index([current, lastActivityDay])
+}
+
+// ----------------------------------------------------------------------------
+// Réinitialisation de mot de passe
+// ----------------------------------------------------------------------------
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Group Mode (viralité intégrée)
+// ----------------------------------------------------------------------------
+
+enum GroupStatus {
+  waiting    // en attente que d'autres rejoignent
+  voting     // l'hôte a lancé les suggestions, vote en cours
+  done       // un lieu a été choisi
+}
+
+model GroupSession {
+  id             String      @id @default(uuid())
+  inviteCode     String      @unique
+  status         GroupStatus @default(waiting)
+  createdById    String?
+  suggestions    Json        @default("[]") // PlaceId[]
+  decidedPlaceId String?
+  createdAt      DateTime    @default(now())
+  members        GroupMember[]
+
+  @@index([inviteCode])
+  // Optimise le cron de nettoyage : filtre sur status + createdAt
+  @@index([status, createdAt])
+}
+
+model GroupMember {
+  id        String       @id @default(uuid())
+  sessionId String
+  session   GroupSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Votes : { placeId: 'like' | 'dislike' }
+  votes     Json         @default("{}")
+  joinedAt  DateTime     @default(now())
+
+  @@index([sessionId])
+}

@@ -1,0 +1,87 @@
+version: '3.9'
+
+# Production compose — utiliser avec un fichier .env.prod ou des secrets Docker.
+# Lancement : docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yumia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing}
+      POSTGRES_DB: ${POSTGRES_DB:-yumia}
+    volumes:
+      - yumia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:?missing}
+    volumes:
+      - yumia_redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '$$REDIS_PASSWORD', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${API_IMAGE:-ghcr.io/yumia/api:latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-yumia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-yumia}?schema=public&connection_limit=10&pool_timeout=10
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?missing}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?missing}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-2592000}
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?missing}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@yumia.app}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
+      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-https://cdn.yumia.app}
+      AWS_REGION: ${AWS_REGION:-eu-west-3}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-yumia-uploads}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://yumia.app}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '${API_PORT:-4000}:4000'
+    # Liveness (et non readiness) : le conteneur n'est marqué unhealthy/redémarré
+    # que si le PROCESS ne répond plus. Une panne transitoire de Postgres/Redis/ES
+    # ne doit pas tuer l'API (qui a un fallback gracieux). La readiness (/api/health,
+    # qui ping les dépendances) est réservée au routage load-balancer.
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/api/health/live || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  yumia_pgdata:
+  yumia_redis:

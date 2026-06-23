@@ -1,0 +1,97 @@
+{
+  "expo": {
+    "name": "YUMIA",
+    "slug": "yumia",
+    "scheme": "yumia",
+    "version": "0.1.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0E0E12"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yumia.app",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi."
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0E0E12"
+      },
+      "package": "com.yumia.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "yumia" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-apple-authentication",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "REPLACE_WITH_SENTRY_ORG",
+          "project": "yumia-mobile"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "YUMIA aimerait accéder à ta galerie pour que tu puisses partager tes photos de visite.",
+          "cameraPermission": "YUMIA aimerait utiliser ta caméra pour prendre une photo de ce lieu."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      },
+      "apiBaseUrl": "http://localhost:4000/api",
+      "googleMapsApiKey": "",
+      "googleClientIdWeb": "",
+      "googleClientIdIos": "",
+      "googleClientIdAndroid": "",
+      "revenueCatIosKey": "",
+      "revenueCatAndroidKey": ""
+    }
+  }
+}
