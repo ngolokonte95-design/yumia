@@ -8,6 +8,7 @@ import { ApiError, registerTokenRefresher, unregisterTokenRefresher } from './ap
 import { clearSentryUser, setSentryUser } from './sentry';
 import { loginPurchases, logoutPurchases } from './purchases';
 import {
+  activatePremiumRequest,
   googleAuthRequest,
   loginRequest,
   logoutRequest,
@@ -36,6 +37,8 @@ interface AuthContextValue {
   applyAuthResult: (result: AuthResult) => Promise<void>;
   /** Recharge le profil depuis l'API — utile après un changement de plan (ex : RestorePurchases). */
   reloadUser: () => Promise<void>;
+  /** Active le Premium côté serveur (après achat RevenueCat) et met à jour l'état. */
+  activatePremium: (plan: 'monthly' | 'annual') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -217,9 +220,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken]);
 
+  const activatePremium = useCallback(
+    async (plan: 'monthly' | 'annual') => {
+      if (!accessToken) throw new Error('Non authentifié.');
+      const updated = await activatePremiumRequest(accessToken, plan);
+      setUser(updated);
+    },
+    [accessToken],
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, accessToken, login, register, logout, updateProfile, applyAuthResult, reloadUser }),
-    [status, user, accessToken, login, register, logout, updateProfile, applyAuthResult, reloadUser],
+    () => ({ status, user, accessToken, login, register, logout, updateProfile, applyAuthResult, reloadUser, activatePremium }),
+    [status, user, accessToken, login, register, logout, updateProfile, applyAuthResult, reloadUser, activatePremium],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

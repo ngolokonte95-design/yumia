@@ -81,6 +81,7 @@ function AuthGate() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(onboarding)" />
+      <Stack.Screen name="(premium)" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group-session" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="search" />

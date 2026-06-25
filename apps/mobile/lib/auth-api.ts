@@ -29,6 +29,8 @@ export interface PublicUser {
   currency: string;
   countryCode: string | null;
   plan: 'free' | 'plus';
+  isPremium: boolean;
+  premiumPlan: string | null;
   totalXp: number;
   level: number;
   preferences: UserPreferences;
@@ -106,6 +108,26 @@ export function resetPasswordRequest(token: string, newPassword: string): Promis
 
 export function deleteAccountRequest(accessToken: string): Promise<void> {
   return request<void>('/auth/me', { method: 'DELETE', token: accessToken });
+}
+
+/** Active le Premium côté serveur après un achat RevenueCat validé. */
+export function activatePremiumRequest(
+  accessToken: string,
+  plan: 'monthly' | 'annual',
+): Promise<PublicUser> {
+  return request<PublicUser>('/auth/premium/activate', {
+    method: 'POST',
+    body: { plan },
+    token: accessToken,
+  });
+}
+
+/** Désactive le Premium côté serveur (annulation / expiration). */
+export function deactivatePremiumRequest(accessToken: string): Promise<PublicUser> {
+  return request<PublicUser>('/auth/premium/deactivate', {
+    method: 'POST',
+    token: accessToken,
+  });
 }
 
 export function exportDataRequest(accessToken: string): Promise<Record<string, unknown>> {

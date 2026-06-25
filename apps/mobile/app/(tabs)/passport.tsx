@@ -8,6 +8,8 @@ import { useAuth } from '../../lib/auth-context';
 import { usePassport } from '../../lib/usePassport';
 import { freezeStreak } from '../../lib/passport-api';
 import { ActivityHeatmap } from '../../components/ActivityHeatmap';
+import { usePlanLimits } from '../../lib/usePlanLimits';
+import { FREE_LIMITS } from '../../lib/constants/plan-limits';
 import type { UniverseCount } from '../../lib/passport-api';
 
 /**
@@ -19,7 +21,9 @@ export default function PassportScreen() {
   const router = useRouter();
   const { accessToken, user } = useAuth();
   const { stats, passport, heatmap, universeBreakdown, loading, error, reload } = usePassport();
+  const { isPremium } = usePlanLimits();
   const [freezing, setFreezing] = useState(false);
+  const passportFull = !isPremium && (passport?.totalVisits ?? 0) >= FREE_LIMITS.passportMaxEntries;
 
   const level = stats?.level.current;
   const earned = new Set<string>(stats?.badges.earned ?? []);
@@ -56,6 +60,20 @@ export default function PassportScreen() {
         <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
       }
     >
+      {passportFull ? (
+        <Pressable
+          style={styles.passportFullBanner}
+          onPress={() => router.push('/(premium)' as never)}
+        >
+          <Text style={styles.passportFullEmoji}>👑</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.passportFullTitle}>Passeport plein ({FREE_LIMITS.passportMaxEntries} visites)</Text>
+            <Text style={styles.passportFullSub}>Passe en Premium pour une mémoire illimitée → 2.99€/mois</Text>
+          </View>
+          <Text style={styles.passportFullArrow}>›</Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.section}>
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
@@ -299,6 +317,22 @@ const styles = StyleSheet.create({
   freezeIcon: { fontSize: 24 },
   freezeTitle: { ...typography.body, color: colors.brandSoft, fontWeight: '700' },
   freezeSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  passportFullBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: '#7C3AED18',
+    borderColor: '#7C3AED',
+    borderWidth: 1,
+    borderRadius: radius.md,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+  },
+  passportFullEmoji: { fontSize: 24 },
+  passportFullTitle: { ...typography.body, color: '#C4B5FD', fontWeight: '700' },
+  passportFullSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  passportFullArrow: { ...typography.title, color: '#7C3AED', lineHeight: 22 },
   historyBtn: {
     flexDirection: 'row',
     alignItems: 'center',

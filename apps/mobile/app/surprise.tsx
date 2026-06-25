@@ -21,6 +21,8 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchTop3 } from '../lib/api';
 import { placeStore } from '../lib/place-store';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { Suggestion } from '@yumia/shared';
 
 export default function SurpriseScreen() {
@@ -33,6 +35,8 @@ export default function SurpriseScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [spins, setSpins] = useState(0);
+  const [upsell, setUpsell] = useState<string | null>(null);
+  const { checkLimit, recordUsage } = usePlanLimits();
 
   // Shake animation for the dice
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -51,6 +55,8 @@ export default function SurpriseScreen() {
 
   const spin = useCallback(async () => {
     if (loading) return;
+    const { allowed, message } = await checkLimit('predictivePerWeek');
+    if (!allowed) { setUpsell(message); return; }
     setLoading(true);
     setError(null);
     setResult(null);
@@ -77,6 +83,7 @@ export default function SurpriseScreen() {
       const pick = data.suggestions[Math.floor(Math.random() * data.suggestions.length)];
       setResult(pick);
       setSpins((n) => n + 1);
+      await recordUsage('predictivePerWeek');
 
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     } catch (err) {
@@ -84,7 +91,7 @@ export default function SurpriseScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loading, coords, city, user, shake, fadeAnim]);
+  }, [loading, coords, city, user, shake, fadeAnim, checkLimit, recordUsage]);
 
   function goToDetail() {
     if (!result) return;
@@ -101,6 +108,7 @@ export default function SurpriseScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
         <Text style={styles.backText}>← Retour</Text>
       </Pressable>

@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  TextInput,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +17,10 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useLocation } from '../../lib/useLocation';
 import { useNearby } from '../../lib/useNearby';
 import { placeStore } from '../../lib/place-store';
+import { fetchByCity } from '../../lib/places-api';
 import type { NearbyPlace } from '../../lib/places-api';
+import { usePlanLimits } from '../../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 
 const MAP_DELTA = 0.025; // ~2.5 km de côté
 
@@ -33,6 +37,12 @@ export default function MapScreen() {
   const { coords, resolving } = useLocation();
   const [universe, setUniverse] = useState<Universe | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [cityQuery, setCityQuery] = useState('');
+  const [cityResults, setCityResults] = useState<NearbyPlace[] | null>(null);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [citiesSearchedCount, setCitiesSearchedCount] = useState(0);
+  const [upsell, setUpsell] = useState<string | null>(null);
+  const { checkLimit, recordUsage } = usePlanLimits();
 
   const { places, loading, error } = useNearby({
     lat: coords.lat,
@@ -51,6 +61,35 @@ export default function MapScreen() {
     }),
     [coords.lat, coords.lng],
   );
+
+  const handleCitySearch = useCallback(async () => {
+    const q = cityQuery.trim();
+    if (!q) return;
+    const { allowed, message } = await checkLimit('travelCities', citiesSearchedCount);
+    if (!allowed) { setUpsell(message); return; }
+    setCityLoading(true);
+    try {
+      const results = await fetchByCity(q, universe ?? undefined, 20);
+      setCityResults(results.map((p) => ({ ...p, distanceMeters: 0 })));
+      setCitiesSearchedCount((n) => n + 1);
+      await recordUsage('travelCities');
+      if (results[0]) {
+        mapRef.current?.animateToRegion(
+          { latitude: results[0].lat, longitude: results[0].lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
+          500,
+        );
+      }
+    } catch {
+      // silent — drawer stays with nearby results
+    } finally {
+      setCityLoading(false);
+    }
+  }, [cityQuery, citiesSearchedCount, universe, checkLimit, recordUsage]);
+
+  function clearCitySearch() {
+    setCityQuery('');
+    setCityResults(null);
+  }
 
   function selectPlace(place: NearbyPlace) {
     setSelectedId(place.id);
@@ -91,10 +130,44 @@ export default function MapScreen() {
 
   const provider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
+  const displayPlaces = cityResults ?? places;
+  const drawerTitle = cityResults !== null
+    ? `${cityResults.length} lieu${cityResults.length > 1 ? 'x' : ''} à « ${cityQuery} »`
+    : `${places.length} lieu${places.length > 1 ? 'x' : ''} autour de toi`;
+
   return (
     <View style={styles.screen}>
-      {/* Filtre univers (flottant au-dessus de la carte) */}
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
+
+      {/* Barre de recherche par ville + filtre univers */}
       <View style={[styles.filtersContainer, { paddingTop: insets.top + spacing.xs }]}>
+        {/* Search bar */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Cherche une ville…"
+              placeholderTextColor={colors.textMuted}
+              value={cityQuery}
+              onChangeText={setCityQuery}
+              returnKeyType="search"
+              onSubmitEditing={handleCitySearch}
+              autoCorrect={false}
+            />
+            {cityLoading ? (
+              <ActivityIndicator size="small" color={colors.brand} style={{ marginRight: spacing.sm }} />
+            ) : cityResults !== null ? (
+              <Pressable onPress={clearCitySearch} hitSlop={8} style={{ paddingRight: spacing.sm }}>
+                <Text style={styles.clearBtn}>✕</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable style={styles.searchGo} onPress={handleCitySearch}>
+            <Text style={styles.searchGoText}>→</Text>
+          </Pressable>
+        </View>
+
+        {/* Universe chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -154,23 +227,41 @@ export default function MapScreen() {
       {/* Drawer */}
       <View style={[styles.drawer, { paddingBottom: insets.bottom + spacing.md }]}>
         <View style={styles.drawerHandle} />
-        <Text style={styles.drawerTitle}>
-          {places.length} lieu{places.length > 1 ? 'x' : ''} autour de toi
-        </Text>
+        <Text style={styles.drawerTitle}>{drawerTitle}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {places.map((place) => (
-            <PlaceRow
-              key={place.id}
-              place={place}
-              selected={place.id === selectedId}
-              onPress={() => selectPlace(place)}
-              onDetail={() => openDetail(place)}
-            />
-          ))}
-          {!loading && places.length === 0 ? (
-            <Text style={styles.empty}>Aucun lieu dans ce rayon. Élargis ou change de filtre.</Text>
-          ) : null}
+          {cityResults !== null ? (
+            <>
+              {cityResults.map((place) => (
+                <PlaceRow
+                  key={place.id}
+                  place={place}
+                  selected={place.id === selectedId}
+                  onPress={() => selectPlace(place)}
+                  onDetail={() => openDetail(place)}
+                  hideDist
+                />
+              ))}
+              {cityResults.length === 0 ? (
+                <Text style={styles.empty}>Aucun lieu trouvé pour « {cityQuery} ». Essaie une autre ville.</Text>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {displayPlaces.map((place) => (
+                <PlaceRow
+                  key={place.id}
+                  place={place}
+                  selected={place.id === selectedId}
+                  onPress={() => selectPlace(place)}
+                  onDetail={() => openDetail(place)}
+                />
+              ))}
+              {!loading && places.length === 0 ? (
+                <Text style={styles.empty}>Aucun lieu dans ce rayon. Élargis ou change de filtre.</Text>
+              ) : null}
+            </>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -190,11 +281,13 @@ function PlaceRow({
   selected,
   onPress,
   onDetail,
+  hideDist = false,
 }: {
   place: NearbyPlace;
   selected: boolean;
   onPress: () => void;
   onDetail: () => void;
+  hideDist?: boolean;
 }) {
   const meta = UNIVERSE_META[place.universe];
   return (
@@ -203,7 +296,8 @@ function PlaceRow({
       <View style={{ flex: 1 }}>
         <Text style={styles.rowName} numberOfLines={1}>{place.name}</Text>
         <Text style={styles.rowMeta}>
-          {meta.labelFr} · ⭐ {place.rating.toFixed(1)} · {formatDistance(place.distanceMeters)}
+          {meta.labelFr} · ⭐ {place.rating.toFixed(1)}
+          {!hideDist ? ` · ${formatDistance(place.distanceMeters)}` : ''}
         </Text>
       </View>
       <Pressable style={styles.detailBtn} onPress={onDetail} hitSlop={8}>
@@ -239,6 +333,39 @@ const styles = StyleSheet.create({
     zIndex: 10,
     backgroundColor: 'transparent',
   },
+  searchRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${colors.surface}F0`,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingLeft: spacing.md,
+    height: 40,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.body,
+    color: colors.textPrimary,
+    height: 40,
+  },
+  clearBtn: { ...typography.body, color: colors.textMuted, fontSize: 14 },
+  searchGo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchGoText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   filtersRow: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   filterChip: {
     backgroundColor: `${colors.surface}EE`,

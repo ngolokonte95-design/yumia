@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import { haptics } from '../../lib/useHaptics';
 import { XpToast } from '../../components/XpToast';
 import { PaywallModal } from '../../components/PaywallModal';
 import { PlacePhoto } from '../../components/PlacePhoto';
+import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
+import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { VisitResult } from '../../lib/passport-api';
 
 /**
@@ -38,7 +40,9 @@ export default function ForYouScreen() {
   const { user, accessToken } = useAuth();
   const router = useRouter();
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
+  const { checkLimit, recordUsage } = usePlanLimits();
   const [mood, setMood] = useState<(typeof MOODS)[number] | null>(null);
+  const [upsell, setUpsell] = useState<string | null>(null);
 
   const { suggestions, loading, loadingMore, error, reload, loadMore } = useFeed({
     lat: coords.lat,
@@ -52,9 +56,21 @@ export default function ForYouScreen() {
 
   const busy = resolving || loading;
 
+  // Quota Gratuit : on ouvre l'upsell au lieu de charger davantage au-delà de la limite.
+  const handleEndReached = useCallback(async () => {
+    const { allowed, message } = await checkLimit('suggestionsPerDay');
+    if (!allowed) {
+      setUpsell(message);
+      return;
+    }
+    await recordUsage('suggestionsPerDay');
+    loadMore();
+  }, [checkLimit, recordUsage, loadMore]);
+
   return (
     <View style={styles.screen}>
       <PaywallModal visible={limitError !== null} onClose={clearLimitError} />
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
       {busy && suggestions.length === 0 ? (
         <View style={styles.center}>
@@ -80,7 +96,7 @@ export default function ForYouScreen() {
           snapToInterval={height}
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
-          onEndReached={loadMore}
+          onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: 24 }} /> : null}
           renderItem={({ item }) => (

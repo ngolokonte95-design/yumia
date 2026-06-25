@@ -28,6 +28,9 @@ import { searchPlaces } from '../lib/search-api';
 import { createGroupRequest, joinGroupRequest } from '../lib/groups-api';
 import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
+import { FREE_LIMITS } from '../lib/constants/plan-limits';
 import { SuggestionCard } from '../components/SuggestionCard';
 import type { Top3Response } from '../lib/api';
 
@@ -50,6 +53,8 @@ export default function GroupScreen() {
   const { coords } = useLocation();
   const { accessToken } = useAuth();
   const { savedIds, save, unsave } = useSaved(accessToken);
+  const { isPremium } = usePlanLimits();
+  const [upsell, setUpsell] = useState<string | null>(null);
 
   const { code: deepLinkCode } = useLocalSearchParams<{ code?: string }>();
 
@@ -128,6 +133,7 @@ export default function GroupScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       <ScrollView
         style={styles.screen}
         contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
@@ -247,15 +253,26 @@ export default function GroupScreen() {
             <View style={styles.section}>
               <Text style={styles.label}>Nombre de personnes</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-                {SIZES.map((n) => (
-                  <Pressable
-                    key={n}
-                    style={[styles.sizeChip, size === n && styles.chipActive]}
-                    onPress={() => setSize(n)}
-                  >
-                    <Text style={[styles.sizeText, size === n && styles.chipLabelActive]}>{n}</Text>
-                  </Pressable>
-                ))}
+                {SIZES.map((n) => {
+                  const locked = !isPremium && n > FREE_LIMITS.circleMaxMembers;
+                  return (
+                    <Pressable
+                      key={n}
+                      style={[styles.sizeChip, size === n && !locked && styles.chipActive, locked && styles.sizeChipLocked]}
+                      onPress={() => {
+                        if (locked) {
+                          setUpsell(`Ton cercle est limité à ${FREE_LIMITS.circleMaxMembers} personnes. Invite jusqu'à 20 proches pour seulement 2.99€/mois avec le forfait Premium. 👑`);
+                          return;
+                        }
+                        setSize(n);
+                      }}
+                    >
+                      <Text style={[styles.sizeText, size === n && !locked && styles.chipLabelActive, locked && styles.sizeTextLocked]}>
+                        {n}{locked ? ' 👑' : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
             </View>
 
@@ -431,7 +448,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sizeChipLocked: { opacity: 0.5, borderColor: '#7C3AED44' },
   sizeText: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
+  sizeTextLocked: { fontSize: 11, color: '#A78BFA' },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

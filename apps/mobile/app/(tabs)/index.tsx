@@ -8,6 +8,7 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { SuggestionCard } from '../../components/SuggestionCard';
 import { ExperienceCard } from '../../components/ExperienceCard';
 import { PaywallModal } from '../../components/PaywallModal';
+import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { useTop3 } from '../../lib/useTop3';
 import { useExperience } from '../../lib/useExperience';
 import { useLocation } from '../../lib/useLocation';
@@ -19,6 +20,7 @@ import { placeStore } from '../../lib/place-store';
 import { useWeather } from '../../lib/useWeather';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { useTrending } from '../../lib/useTrending';
+import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace } from '../../lib/places-api';
 
 type TFn = (key: Parameters<ReturnType<typeof import('../../lib/useI18n').useI18n>['t']>[0]) => string;
@@ -47,7 +49,9 @@ export default function HomeScreen() {
   const { coords, resolving, isFallback, city } = useLocation();
   const weather = useWeather(coords.lat, coords.lng);
   const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
+  const [upsell, setUpsell] = useState<string | null>(null);
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
+  const { checkLimit, recordUsage } = usePlanLimits();
 
   const isItinerary = selectedMode !== null && ITINERARY_MODES.includes(selectedMode);
   const prefs = {
@@ -109,12 +113,23 @@ export default function HomeScreen() {
     !resolving && isItinerary,
   );
 
-  function toggleMode(m: Mode) {
+  async function toggleMode(m: Mode) {
     if (m === 'group') {
       router.push('/group');
       return;
     }
-    setSelectedMode((prev) => (prev === m ? null : m));
+    // Désactive si déjà actif
+    if (selectedMode === m) {
+      setSelectedMode(null);
+      return;
+    }
+    // Gate planifier (date / travel) pour les forfaits Gratuits
+    if (ITINERARY_MODES.includes(m)) {
+      const { allowed, message } = await checkLimit('plannerPerWeek');
+      if (!allowed) { setUpsell(message); return; }
+      await recordUsage('plannerPerWeek');
+    }
+    setSelectedMode(m);
   }
 
   const sectionTitle = isItinerary
@@ -122,6 +137,8 @@ export default function HomeScreen() {
     : t('top3_title');
 
   return (
+    <>
+    <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
     <ScrollView
       style={styles.screen}
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
@@ -313,6 +330,7 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
     </ScrollView>
+    </>
   );
 }
 

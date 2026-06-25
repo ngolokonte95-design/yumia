@@ -64,6 +64,30 @@ export function fetchTrending(params: TrendingParams): Promise<TrendingPlace[]> 
   return request<TrendingPlace[]>(`/places/trending?${q.toString()}`);
 }
 
+/** Lieu renvoyé par `/places/city` (sans distance). */
+export interface CityPlace {
+  id: string;
+  name: string;
+  universe: Universe;
+  lat: number;
+  lng: number;
+  city: string;
+  countryCode: string;
+  rating: number;
+  priceTier: number;
+  photoUrls: string[];
+  tags: string[];
+}
+
+/** Recherche de lieux par ville (sans géolocalisation), filtrable par univers. */
+export function fetchByCity(name: string, universe?: Universe, limit?: number): Promise<CityPlace[]> {
+  const q = new URLSearchParams();
+  q.set('name', name);
+  if (universe) q.set('universe', universe);
+  if (limit != null) q.set('limit', String(limit));
+  return request<CityPlace[]>(`/places/city?${q.toString()}`);
+}
+
 export interface PlaceStats {
   loved: number;
   neutral: number;
