@@ -162,6 +162,40 @@ export class GooglePlacesProvider implements PlacesProvider {
   }
 
   /**
+   * Retrouve les références photo d'un lieu par son nom + position (Text Search),
+   * pour enrichir a posteriori les lieux seed dépourvus de photos.
+   * Renvoie au plus {@link MAX_PHOTOS} références (vide si rien trouvé).
+   */
+  async findPhotoRefs(textQuery: string, lat: number, lng: number): Promise<string[]> {
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': this.apiKey,
+        'X-Goog-FieldMask': 'places.id,places.photos',
+      },
+      body: JSON.stringify({
+        textQuery,
+        maxResultCount: 1,
+        locationBias: {
+          circle: { center: { latitude: lat, longitude: lng }, radius: 500 },
+        },
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      this.logger.warn(`findPhotoRefs ${res.status} pour "${textQuery}"`);
+      return [];
+    }
+    const data = (await res.json()) as { places?: GooglePlace[] };
+    const photos = data.places?.[0]?.photos ?? [];
+    return photos
+      .slice(0, MAX_PHOTOS)
+      .map((p) => p.name)
+      .filter((n): n is string => typeof n === 'string' && n.length > 0);
+  }
+
+  /**
    * Résout une référence photo Google en URL d'image directe (googleusercontent),
    * SANS exposer la clé : on demande `skipHttpRedirect` pour récupérer `photoUri`
    * (une URL signée, sans clé), que le proxy renverra au client.
