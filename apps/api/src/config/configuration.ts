@@ -74,11 +74,14 @@ export default (): AppConfig => ({
     clientId: process.env.GOOGLE_CLIENT_ID ?? '',
   },
   places: {
-    // Provider explicite, sinon déduit de la présence d'une clé Google.
+    // Provider explicite (non vide), sinon déduit de la présence d'une clé.
+    // `||` et non `??` : une variable vide ('' injectée par compose) doit être
+    // ignorée, pas considérée comme une valeur. La clé est trimée (espaces
+    // parasites dans un .env → clé invalide).
     provider:
-      (process.env.PLACES_PROVIDER as 'google' | 'none' | undefined) ??
-      (process.env.GOOGLE_PLACES_API_KEY ? 'google' : 'none'),
-    googleApiKey: process.env.GOOGLE_PLACES_API_KEY ?? '',
+      (process.env.PLACES_PROVIDER as 'google' | 'none' | undefined) ||
+      (process.env.GOOGLE_PLACES_API_KEY?.trim() ? 'google' : 'none'),
+    googleApiKey: (process.env.GOOGLE_PLACES_API_KEY ?? '').trim(),
     hydrate: process.env.PLACES_HYDRATE !== 'false',
     publicBaseUrl: (process.env.API_PUBLIC_BASE_URL ?? process.env.STORAGE_PUBLIC_BASE_URL ?? '').replace(/\/$/, ''),
   },
