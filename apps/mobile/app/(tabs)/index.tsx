@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -63,19 +63,40 @@ export default function HomeScreen() {
     enabled: !resolving,
   });
 
-  const top3 = useTop3(
-    {
-      lat: coords.lat,
-      lng: coords.lng,
-      locale: user?.locale ?? 'fr',
-      localTimeIso: new Date().toISOString(),
-      mode: selectedMode ?? undefined,
-      weather: weather ?? undefined,
-      city: city ?? undefined,
-      ...prefs,
+  // Params mémoïsés et STABLES : sans ça, `localTimeIso: new Date()` (qui change
+  // à chaque render) faisait re-fetcher le Top 3 en boucle → écran qui "vibre" +
+  // ThrottlerException (429). On arrondit l'heure à l'heure pleine et on ne
+  // dépend que de valeurs primitives.
+  const top3Params = useMemo(
+    () => {
+      const hour = new Date();
+      hour.setMinutes(0, 0, 0);
+      return {
+        lat: coords.lat,
+        lng: coords.lng,
+        locale: user?.locale ?? 'fr',
+        localTimeIso: hour.toISOString(),
+        mode: selectedMode ?? undefined,
+        weather: weather ?? undefined,
+        city: city ?? undefined,
+        favoriteUniverses: user?.preferences?.favoriteUniverses,
+        restrictions: user?.preferences?.restrictions,
+      };
     },
-    !resolving && !isItinerary,
+    [
+      coords.lat,
+      coords.lng,
+      user?.locale,
+      selectedMode,
+      weather?.tempC,
+      weather?.condition,
+      city,
+      user?.preferences?.favoriteUniverses,
+      user?.preferences?.restrictions,
+    ],
   );
+
+  const top3 = useTop3(top3Params, !resolving && !isItinerary);
 
   const experience = useExperience(
     {

@@ -37,7 +37,7 @@ function AuthGate() {
 
 
   useEffect(() => startNotificationListener(), []);
-  useEffect(() => startNotificationResponseListener(router.push), [router]);
+  useEffect(() => startNotificationResponseListener((path) => router.push(path as never)), [router]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -53,10 +53,13 @@ function AuthGate() {
     // Authentifié — vérifie si l'onboarding est terminé.
     const onboardingDone = user?.preferences?.onboardingComplete === true;
 
+    // Chemins de GROUPE explicites : '/' est ambigu entre (tabs)/index et
+    // (onboarding)/index → expo-router peut renvoyer à l'onboarding. On cible
+    // donc explicitement chaque groupe.
     if (!onboardingDone && !inOnboarding) {
-      router.replace('/onboarding');
+      router.replace('/(onboarding)');
     } else if (onboardingDone && (inAuthGroup || inOnboarding)) {
-      router.replace('/');
+      router.replace('/(tabs)');
     }
   }, [status, user, segments, router]);
 

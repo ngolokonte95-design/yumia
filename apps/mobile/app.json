@@ -85,7 +85,7 @@
       "eas": {
         "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
       },
-      "apiBaseUrl": "http://localhost:4000/api",
+      "apiBaseUrl": "http://207.154.198.77:4000/api",
       "googleMapsApiKey": "",
       "googleClientIdWeb": "",
       "googleClientIdIos": "",

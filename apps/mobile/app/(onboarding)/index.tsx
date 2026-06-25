@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
 import { useAuth } from '../../lib/auth-context';
@@ -38,6 +39,7 @@ type Step = 'universes' | 'restrictions';
 export default function OnboardingScreen() {
   const { updateProfile, user } = useAuth();
   const { t } = useI18n();
+  const router = useRouter();
   const [step, setStep] = useState<Step>('universes');
   const [selectedUniverses, setSelectedUniverses] = useState<Universe[]>([]);
   const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>([]);
@@ -67,7 +69,9 @@ export default function OnboardingScreen() {
           onboardingComplete: true,
         },
       });
-      // AuthGate reacts to user.preferences.onboardingComplete → redirects to /
+      // Navigation explicite et déterministe vers l'app principale.
+      // (En complément de l'AuthGate, pour ne pas dépendre du timing de l'effet.)
+      router.replace('/(tabs)');
     } catch {
       setError(t('error_generic'));
       setLoading(false);

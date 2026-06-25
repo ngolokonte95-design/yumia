@@ -928,6 +928,24 @@ const PLACES: PlaceSeed[] = [
     tags: ['champs-elysées', 'liste', 'dj'],
     photoUrls: [],
   },
+  // ───────────────────────────────────────────────────────────
+  // CERGY / CERGY-PONTOISE (95) — données de démo pour tests locaux
+  // Regroupées autour du centre (~49.037, 2.071) pour tomber dans le rayon ~3 km.
+  // ───────────────────────────────────────────────────────────
+  { name: 'Le Carré des Sens', universe: 'restaurant', lat: 49.0361, lng: 2.0779, city: 'Cergy', countryCode: 'FR', rating: 4.5, priceTier: 2, tags: ['bistronomique', 'terrasse'], photoUrls: [] },
+  { name: "Bistrot de l'Axe Majeur", universe: 'restaurant', lat: 49.0388, lng: 2.0512, city: 'Cergy', countryCode: 'FR', rating: 4.4, priceTier: 2, tags: ['traditionnel', 'vue'], photoUrls: [] },
+  { name: 'Sushi Cergy Préfecture', universe: 'restaurant', lat: 49.0345, lng: 2.0801, city: 'Cergy', countryCode: 'FR', rating: 4.3, priceTier: 2, tags: ['japonais', 'sushi'], photoUrls: [] },
+  { name: 'Café de la Préfecture', universe: 'cafe', lat: 49.0352, lng: 2.0772, city: 'Cergy', countryCode: 'FR', rating: 4.2, priceTier: 1, tags: ['cosy', 'wifi'], photoUrls: [] },
+  { name: 'Le Comptoir Cergyssois', universe: 'cafe', lat: 49.0340, lng: 2.0815, city: 'Cergy', countryCode: 'FR', rating: 4.4, priceTier: 1, tags: ['brunch', 'terrasse'], photoUrls: [] },
+  { name: 'Boulangerie des 3 Fontaines', universe: 'bakery', lat: 49.0357, lng: 2.0786, city: 'Cergy', countryCode: 'FR', rating: 4.6, priceTier: 1, tags: ['artisanal', 'viennoiseries'], photoUrls: [] },
+  { name: 'Le Fournil Sucré', universe: 'dessert', lat: 49.0366, lng: 2.0748, city: 'Cergy', countryCode: 'FR', rating: 4.5, priceTier: 1, tags: ['pâtisserie', 'maison'], photoUrls: [] },
+  { name: "L'Annexe Bar", universe: 'bar', lat: 49.0348, lng: 2.0796, city: 'Cergy', countryCode: 'FR', rating: 4.3, priceTier: 2, tags: ['cocktails', 'ambiance'], photoUrls: [] },
+  { name: "Skyline Rooftop Cergy", universe: 'rooftop', lat: 49.0333, lng: 2.0709, city: 'Cergy', countryCode: 'FR', rating: 4.5, priceTier: 3, tags: ['vue', 'cocktails'], photoUrls: [] },
+  { name: 'Tasty Bubble Cergy', universe: 'bubble_tea', lat: 49.0354, lng: 2.0789, city: 'Cergy', countryCode: 'FR', rating: 4.2, priceTier: 1, tags: ['bubble tea', 'à emporter'], photoUrls: [] },
+  { name: "Glacier de l'Oise", universe: 'ice_cream', lat: 49.0312, lng: 2.0641, city: 'Cergy', countryCode: 'FR', rating: 4.6, priceTier: 1, tags: ['glaces', 'artisanal'], photoUrls: [] },
+  { name: 'Théâtre 95', universe: 'cultural_outing', lat: 49.0349, lng: 2.0768, city: 'Cergy', countryCode: 'FR', rating: 4.7, priceTier: 2, tags: ['spectacle', 'culture'], photoUrls: [] },
+  { name: 'Île de Loisirs de Cergy-Pontoise', universe: 'tourist_activity', lat: 49.0205, lng: 2.0566, city: 'Cergy', countryCode: 'FR', rating: 4.5, priceTier: 2, tags: ['plein air', 'famille', 'nautique'], photoUrls: [] },
+  { name: 'La Cave de Cergy', universe: 'wine_cellar', lat: 49.0363, lng: 2.0763, city: 'Cergy', countryCode: 'FR', rating: 4.4, priceTier: 2, tags: ['vins', 'dégustation'], photoUrls: [] },
 ];
 
 async function seed() {

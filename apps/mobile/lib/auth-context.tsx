@@ -184,7 +184,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (patch: { displayName?: string; bio?: string; locale?: string; preferences?: UserPreferences }) => {
       if (!accessToken) throw new Error('Non authentifié.');
       const updated = await updateProfileRequest(accessToken, patch);
-      setUser(updated);
+      // Fusion défensive : on garde les préférences renvoyées par l'API, mais on
+      // réapplique celles qu'on vient d'envoyer si la réponse les omet (ex. build
+      // d'API périmé qui retire un champ via whitelist). Sans ça, l'AuthGate
+      // pourrait renvoyer à l'onboarding après "C'est parti !".
+      setUser((prev) => ({
+        ...updated,
+        preferences: {
+          ...(prev?.preferences ?? {}),
+          ...(patch.preferences ?? {}),
+          ...(updated.preferences ?? {}),
+        },
+      }));
     },
     [accessToken],
   );

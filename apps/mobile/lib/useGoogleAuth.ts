@@ -22,7 +22,7 @@ export function useGoogleAuth(onSuccess: (result: Awaited<ReturnType<typeof goog
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE_CLIENT_IDS.web || undefined,
-    iosClientId: GOOGLE_CLIENT_IDS.ios || undefined,
+    iosClientId: GOOGLE_CLIENT_IDS.ios || "not-configured",
     androidClientId: GOOGLE_CLIENT_IDS.android || undefined,
   });
 
