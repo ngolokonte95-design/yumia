@@ -1,0 +1,56 @@
+# ============================================================================
+# YUMIA — reverse-proxy HTTPS (Caddy)
+# Certificats Let's Encrypt obtenus et renouvelés automatiquement par Caddy.
+#
+# Pré-requis DNS (chez ton registrar), pointant vers le VPS 207.154.198.77 :
+#   A   api.yumia.app   ->  207.154.198.77
+#   A   yumia.app       ->  207.154.198.77
+#   A   www.yumia.app   ->  207.154.198.77
+#
+# Installation (Ubuntu/Debian, sur le VPS) :
+#   sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+#   sudo apt update && sudo apt install caddy
+#   sudo cp /root/yumia/deploy/Caddyfile /etc/caddy/Caddyfile
+#   sudo mkdir -p /var/www/yumia && sudo cp /root/yumia/legal/*.html /var/www/yumia/
+#   sudo systemctl reload caddy
+# ============================================================================
+
+# --- API ---------------------------------------------------------------------
+api.yumia.app {
+	reverse_proxy localhost:4000
+
+	# En-têtes de sécurité (Caddy ajoute déjà HSTS via HTTPS)
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	# Journaux d'accès
+	log {
+		output file /var/log/caddy/api.access.log
+		format json
+	}
+}
+
+# --- Site vitrine + pages légales -------------------------------------------
+# Sert les fichiers de /var/www/yumia (privacy.html, terms.html, et plus tard
+# une landing index.html). URLs propres :
+#   https://yumia.app/privacy   ->  privacy.html
+#   https://yumia.app/terms     ->  terms.html
+yumia.app, www.yumia.app {
+	root * /var/www/yumia
+	try_files {path} {path}.html {path}/index.html /index.html
+	file_server
+
+	# Redirige www -> apex (optionnel mais propre)
+	@www host www.yumia.app
+	redir @www https://yumia.app{uri} permanent
+
+	log {
+		output file /var/log/caddy/web.access.log
+		format json
+	}
+}
