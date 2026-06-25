@@ -66,6 +66,24 @@ export class PlacesController {
     });
   }
 
+  /** GET /api/places/city?name=...&universe=... — recherche par ville, sans géoloc. 30/60s. */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('city')
+  searchByCity(
+    @Query('name') name: string,
+    @Query('universe') universe?: string,
+    @Query('limit') limit?: string,
+  ): Promise<Place[]> {
+    if (!name || name.trim().length < 2) {
+      throw new BadRequestException('Paramètre « name » requis (ville).');
+    }
+    return this.places.searchByCity({
+      city: name.trim(),
+      universe: universe as Parameters<typeof this.places.searchByCity>[0]['universe'],
+      limit: limit ? Math.min(parseInt(limit, 10) || 20, 50) : 20,
+    });
+  }
+
   /** GET /api/places/trending — lieux tendance près de vous (dernières 24h). 30/60s. */
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('trending')

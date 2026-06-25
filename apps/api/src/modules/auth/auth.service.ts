@@ -384,6 +384,38 @@ export class AuthService {
   }
 
   /**
+   * Active l'abonnement Premium (après achat RevenueCat validé côté client).
+   * Synchronise aussi le champ `plan` historique (plus). `plan` ∈ {monthly, annual}.
+   */
+  async activatePremium(userId: string, plan: 'monthly' | 'annual'): Promise<PublicUser> {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isPremium: true,
+        premiumSince: new Date(),
+        premiumPlan: plan,
+        plan: 'plus',
+      },
+    });
+    this.logger.log(`Premium activé (${plan}) pour userId=${userId}`);
+    return toPublicUser(updated);
+  }
+
+  /** Désactive l'abonnement Premium (expiration / annulation / remboursement). */
+  async deactivatePremium(userId: string): Promise<PublicUser> {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isPremium: false,
+        premiumPlan: null,
+        plan: 'free',
+      },
+    });
+    this.logger.log(`Premium désactivé pour userId=${userId}`);
+    return toPublicUser(updated);
+  }
+
+  /**
    * Supprime définitivement le compte et toutes les données associées.
    * Prisma cascade supprime les relations liées (RefreshToken, Visit, Passport, etc.)
    * à condition que les FK aient onDelete: Cascade dans le schéma.
@@ -446,6 +478,8 @@ function toPublicUser(user: User): PublicUser {
     currency: user.currency,
     countryCode: user.countryCode,
     plan: user.plan,
+    isPremium: user.isPremium,
+    premiumPlan: user.premiumPlan,
     totalXp: user.totalXp,
     level: user.level,
     preferences: (user.preferences as PublicUser['preferences'] | null) ?? {},

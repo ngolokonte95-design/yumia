@@ -28,6 +28,8 @@ export interface PublicUser {
   currency: string;
   countryCode: string | null;
   plan: Plan;
+  isPremium: boolean;
+  premiumPlan: string | null;
   totalXp: number;
   level: number;
   preferences: UserPreferences;

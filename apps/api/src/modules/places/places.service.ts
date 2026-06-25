@@ -291,8 +291,9 @@ export class PlacesService {
     }
   }
 
-  /** Upsert (dédup par providerPlaceId) des lieux importés + réindexation ES. */
-  private async persistProviderPlaces(places: ProviderPlace[]): Promise<void> {
+  /** Upsert (dédup par providerPlaceId) des lieux importés + réindexation ES. Retourne les lieux sauvegardés. */
+  private async persistProviderPlaces(places: ProviderPlace[]): Promise<Place[]> {
+    const saved: Place[] = [];
     for (const p of places) {
       try {
         const photoUrls = this.buildPhotoUrls(p.photoRefs);
@@ -301,7 +302,7 @@ export class PlacesService {
             ? { source: 'google', openingHours: p.openingHours }
             : { source: 'google' };
 
-        const saved = await this.prisma.place.upsert({
+        const place = await this.prisma.place.upsert({
           where: { providerPlaceId: p.providerPlaceId },
           create: {
             name: p.name,
@@ -327,10 +328,61 @@ export class PlacesService {
             ...(p.address ? { address: p.address } : {}),
           },
         });
-        this.es.indexPlace(saved).catch(() => {});
+        this.es.indexPlace(place).catch(() => {});
+        saved.push(place);
       } catch {
         // best-effort par lieu — un échec ne bloque pas les autres
       }
+    }
+    return saved;
+  }
+
+  /**
+   * Recherche de lieux par ville (sans géolocalisation). Sert d'abord les lieux
+   * locaux ; si la base est pauvre et qu'un provider est actif, hydrate via
+   * Text Search Google puis fusionne. Cache Redis par (ville+univers) — 7 jours.
+   */
+  async searchByCity(params: {
+    city: string;
+    universe?: Universe;
+    limit: number;
+  }): Promise<Place[]> {
+    const local = await this.list({
+      city: params.city,
+      universe: params.universe,
+      limit: params.limit,
+      offset: 0,
+    });
+
+    if (
+      local.length >= params.limit ||
+      !this.provider.isEnabled ||
+      !this.provider.searchByText
+    ) {
+      return local;
+    }
+
+    const cacheKey = `places:city:${params.city.toLowerCase()}:${params.universe ?? 'all'}`;
+    const already = await this.redis.getJson<boolean>(cacheKey).catch(() => null);
+    if (already) return local;
+    await this.redis.setJson(cacheKey, true, HYDRATE_TILE_TTL_SECONDS).catch(() => undefined);
+
+    try {
+      const query = params.universe ? `${params.universe} in ${params.city}` : params.city;
+      const found = await this.provider.searchByText(query, params.universe, 20);
+      if (found.length === 0) return local;
+      const saved = await this.persistProviderPlaces(found);
+      this.logger.log(`Recherche ville « ${params.city} » : ${saved.length} lieux importés.`);
+      // Fusion locale + importés, dédup par id, tri par note décroissante.
+      const byId = new Map<string, Place>();
+      for (const p of [...local, ...saved]) byId.set(p.id, p);
+      return [...byId.values()]
+        .sort((a, b) => b.rating - a.rating)
+        .slice(0, params.limit);
+    } catch (err) {
+      this.logger.warn(`Recherche ville « ${params.city} » échouée : ${(err as Error).message}`);
+      await this.redis.del(cacheKey).catch(() => undefined);
+      return local;
     }
   }
 

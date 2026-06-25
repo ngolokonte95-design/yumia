@@ -31,6 +31,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
+import { ActivatePremiumDto } from './dto/premium.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { AuthResult, AuthTokens, JwtPayload, PublicUser } from './types';
 
@@ -187,6 +188,29 @@ export class AuthController {
     @Body() dto: PushTokenDto,
   ): Promise<void> {
     await this.notifications.registerToken(user.sub, dto.token);
+  }
+
+  /** POST /api/auth/premium/activate — active le Premium après achat RevenueCat validé. */
+  @ApiOperation({ summary: 'Activer le Premium' })
+  @ApiBearerAuth('access-token')
+  @Post('premium/activate')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  activatePremium(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ActivatePremiumDto,
+  ): Promise<PublicUser> {
+    return this.auth.activatePremium(user.sub, dto.plan);
+  }
+
+  /** POST /api/auth/premium/deactivate — désactive le Premium (annulation / expiration). */
+  @ApiOperation({ summary: 'Désactiver le Premium' })
+  @ApiBearerAuth('access-token')
+  @Post('premium/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  deactivatePremium(@CurrentUser() user: JwtPayload): Promise<PublicUser> {
+    return this.auth.deactivatePremium(user.sub);
   }
 
   /** DELETE /api/auth/me — supprime définitivement le compte et toutes les données. */

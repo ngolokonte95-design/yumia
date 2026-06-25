@@ -21,6 +21,9 @@ import { MailerModule } from './modules/mailer/mailer.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SavedModule } from './modules/saved/saved.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { VenuesModule } from './modules/venues/venues.module';
+import { TicketsModule } from './modules/tickets/tickets.module';
+import { GuidesModule } from './modules/guides/guides.module';
 
 @Module({
   imports: [
@@ -68,6 +71,9 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     SavedModule,
     SuggestionsModule,
     WebhooksModule,
+    VenuesModule,
+    TicketsModule,
+    GuidesModule,
   ],
   providers: [
     // Rate-limit par utilisateur (sub JWT) avec repli sur IP

@@ -43,6 +43,10 @@ model User {
   timezone     String?
 
   plan         Plan         @default(free)
+  // Abonnement Premium (RevenueCat). `plan` reste synchro (plus = premium).
+  isPremium    Boolean      @default(false)
+  premiumSince DateTime?
+  premiumPlan  String?      // 'monthly' | 'annual'
   totalXp      Int          @default(0)
   level        Int          @default(1)
 
@@ -255,4 +259,83 @@ model GroupMember {
   joinedAt  DateTime     @default(now())
 
   @@index([sessionId])
+}
+
+// ----------------------------------------------------------------------------
+// Modèle économique : partenariats établissements, billetterie, guides
+// ----------------------------------------------------------------------------
+
+/// Établissement partenaire — boost payant des suggestions + billetterie.
+model Venue {
+  id             String    @id @default(uuid())
+  placeId        String?   // lien optionnel vers un Place existant
+  name           String
+  city           String?
+  countryCode    String?
+  // Boost des suggestions : 0 = aucun, 3 = maximal. Expire à boostExpiresAt.
+  boostLevel     Int       @default(0)
+  boostExpiresAt DateTime?
+  businessPlan   String    @default("basic") // basic | pro | enterprise
+  commissionRate Float     @default(0.15)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tickets        Ticket[]
+
+  @@index([boostLevel])
+  @@index([placeId])
+}
+
+/// Billet de club / soirée vendu via YUMIA (commission 15%).
+model Ticket {
+  id         String   @id @default(uuid())
+  venueId    String
+  venue      Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  eventId    String
+  userId     String?
+  quantity   Int      @default(1)
+  unitPrice  Float
+  totalPrice Float
+  commission Float    // part YUMIA (15%)
+  // paiement réel branché plus tard (Stripe) — statut applicatif pour l'instant
+  status     String   @default("pending") // pending | paid | cancelled
+  createdAt  DateTime @default(now())
+
+  @@index([venueId])
+  @@index([userId])
+  @@index([eventId])
+}
+
+/// Guide de randonnée local certifié — réservable (commission 20%).
+model Guide {
+  id             String         @id @default(uuid())
+  name           String
+  city           String
+  countryCode    String
+  certified      Boolean        @default(false)
+  pricePerPerson Float
+  rating         Float          @default(0)
+  bio            String?
+  createdAt      DateTime       @default(now())
+
+  bookings       GuideBooking[]
+
+  @@index([city])
+}
+
+/// Réservation d'un guide de randonnée (commission 20%).
+model GuideBooking {
+  id         String   @id @default(uuid())
+  guideId    String
+  guide      Guide    @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  userId     String?
+  date       DateTime
+  people     Int      @default(1)
+  totalPrice Float
+  commission Float    // part YUMIA (20%)
+  status     String   @default("pending") // pending | confirmed | cancelled
+  createdAt  DateTime @default(now())
+
+  @@index([guideId])
+  @@index([userId])
 }

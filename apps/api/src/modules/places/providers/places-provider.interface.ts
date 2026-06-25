@@ -44,6 +44,8 @@ export interface PlacesProvider {
   /** `false` = aucun fournisseur configuré → l'hydratation est désactivée. */
   readonly isEnabled: boolean;
   searchNearby(params: ProviderNearbyParams): Promise<ProviderPlace[]>;
+  /** Recherche textuelle (par ville, sans géoloc). Optionnelle selon le provider. */
+  searchByText?(textQuery: string, universe?: Universe, limit?: number): Promise<ProviderPlace[]>;
   /**
    * Résout une référence photo en URL d'image directe (sans clé API), pour le
    * proxy `GET /places/photo`. `null` si non supporté ou indisponible.
