@@ -4,6 +4,7 @@ import { PlacesService } from '../places.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { ElasticsearchService } from '../../../infra/elasticsearch/elasticsearch.service';
 import { RedisService } from '../../../infra/redis/redis.service';
+import { PLACES_PROVIDER } from '../providers/places-provider.interface';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ const makePrisma = () => ({
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    upsert: jest.fn(),
     findMany: jest.fn(),
   },
   visit: {
@@ -54,6 +56,13 @@ const makeEs = () => ({
   ping: jest.fn().mockResolvedValue(null),
 });
 
+// Provider externe inactif par défaut : l'hydratation est court-circuitée,
+// le comportement testé reste 100 % local.
+const makeProvider = () => ({
+  isEnabled: false,
+  searchNearby: jest.fn().mockResolvedValue([]),
+});
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('PlacesService', () => {
@@ -61,11 +70,13 @@ describe('PlacesService', () => {
   let prisma: ReturnType<typeof makePrisma>;
   let redis: ReturnType<typeof makeRedis>;
   let es: ReturnType<typeof makeEs>;
+  let provider: ReturnType<typeof makeProvider>;
 
   beforeEach(async () => {
     prisma = makePrisma();
     redis = makeRedis();
     es = makeEs();
+    provider = makeProvider();
 
     const module = await Test.createTestingModule({
       providers: [
@@ -73,6 +84,7 @@ describe('PlacesService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: RedisService, useValue: redis },
         { provide: ElasticsearchService, useValue: es },
+        { provide: PLACES_PROVIDER, useValue: provider },
       ],
     }).compile();
 
@@ -251,6 +263,60 @@ describe('PlacesService', () => {
 
       const result = await service.nearby({ lat: 48.856, lng: 2.352, radius: 3000, limit: 5 });
 
+      expect(result).toEqual([]);
+    });
+
+    it('n\'hydrate pas quand le provider est inactif (isEnabled=false)', async () => {
+      es.isAvailable = false;
+      prisma.$queryRaw.mockResolvedValue([]); // base vide localement
+
+      const result = await service.nearby({ lat: 35.68, lng: 139.69, radius: 3000, limit: 5 });
+
+      expect(result).toEqual([]);
+      expect(provider.searchNearby).not.toHaveBeenCalled();
+      expect(prisma.place.upsert).not.toHaveBeenCalled();
+    });
+
+    it('hydrate via le provider quand la base locale est pauvre, puis relit en PG', async () => {
+      es.isAvailable = false;
+      provider.isEnabled = true;
+      provider.searchNearby.mockResolvedValue([
+        {
+          providerPlaceId: 'g-1',
+          name: 'Tokyo Ramen',
+          universe: 'restaurant',
+          lat: 35.68,
+          lng: 139.69,
+          city: 'Tokyo',
+          countryCode: 'JP',
+          rating: 4.6,
+          priceTier: 2,
+          tags: ['restaurant'],
+        },
+      ]);
+      const imported = { ...makePlace({ id: 'g-1', city: 'Tokyo' }), distanceMeters: 120 };
+      // 1er appel (pré-hydratation) : vide ; 2e appel (relecture PG) : le lieu importé.
+      prisma.$queryRaw.mockResolvedValueOnce([]).mockResolvedValueOnce([imported]);
+      prisma.place.upsert.mockResolvedValue(imported);
+
+      const result = await service.nearby({ lat: 35.68, lng: 139.69, radius: 3000, limit: 5 });
+
+      expect(provider.searchNearby).toHaveBeenCalled();
+      expect(prisma.place.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { providerPlaceId: 'g-1' } }),
+      );
+      expect(result).toEqual([imported]);
+    });
+
+    it('ne réhydrate pas une tuile déjà marquée dans Redis', async () => {
+      es.isAvailable = false;
+      provider.isEnabled = true;
+      prisma.$queryRaw.mockResolvedValue([]); // base vide
+      redis.getJson.mockResolvedValue(true); // tuile déjà hydratée
+
+      const result = await service.nearby({ lat: 35.68, lng: 139.69, radius: 3000, limit: 5 });
+
+      expect(provider.searchNearby).not.toHaveBeenCalled();
       expect(result).toEqual([]);
     });
   });

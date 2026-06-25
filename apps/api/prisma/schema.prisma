@@ -117,6 +117,12 @@ model Place {
   tags        String[] @default([])
   metadata    Json     @default("{}")
 
+  // Provenance : 'seed' (données locales) ou 'google' (hydraté à la demande).
+  // providerPlaceId déduplique les lieux importés (NULL pour les lieux seed).
+  provider        String  @default("seed")
+  providerPlaceId String? @unique
+  address         String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

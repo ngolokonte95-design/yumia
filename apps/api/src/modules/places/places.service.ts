@@ -1,14 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, type Place } from '@prisma/client';
 import type { Universe } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { ElasticsearchService } from '../../infra/elasticsearch/elasticsearch.service';
 import { RedisService } from '../../infra/redis/redis.service';
 import type { CreatePlaceDto } from './dto/create-place.dto';
+import {
+  PLACES_PROVIDER,
+  type PlacesProvider,
+  type ProviderPlace,
+} from './providers/places-provider.interface';
 
 const TRENDING_CACHE_TTL_SECONDS = 2 * 60; // 2 min — assez frais, réduit la pression DB
 const PLACE_STATS_CACHE_TTL_SECONDS = 60; // 1 min — les avis communautaires sont peu fréquents
 const PLACE_DETAIL_CACHE_TTL_SECONDS = 10 * 60; // 10 min — les lieux sont quasi-immuables
+
+// En dessous de ce nombre de résultats locaux, on hydrate depuis le fournisseur
+// externe (Google Places) pour offrir une couverture mondiale.
+const HYDRATE_MIN_LOCAL_RESULTS = 5;
+// Une tuile (zone + univers) hydratée n'est pas ré-interrogée avant ce délai →
+// évite de rappeler l'API (coût) pour la même zone. 7 jours.
+const HYDRATE_TILE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 /** Lieu enrichi de sa distance (mètres) par rapport au point de recherche. */
 export type PlaceWithDistance = Place & { distanceMeters: number };
@@ -25,10 +37,13 @@ const EARTH_RADIUS_M = 6_371_000;
  */
 @Injectable()
 export class PlacesService {
+  private readonly logger = new Logger(PlacesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly es: ElasticsearchService,
     private readonly redis: RedisService,
+    @Inject(PLACES_PROVIDER) private readonly provider: PlacesProvider,
   ) {}
 
   /** Crée un lieu et l'indexe dans Elasticsearch si disponible. */
@@ -184,6 +199,10 @@ export class PlacesService {
   /**
    * Lieux les plus proches d'un point, triés par distance croissante.
    * Utilise Elasticsearch si disponible (geo_distance), sinon PostgreSQL Haversine.
+   *
+   * Si la base locale est pauvre dans la zone (< {@link HYDRATE_MIN_LOCAL_RESULTS})
+   * et qu'un fournisseur externe est actif, on hydrate la base à la volée
+   * (couverture mondiale) puis on relit. PostgreSQL reste la source de vérité.
    */
   async nearby(params: {
     lat: number;
@@ -192,10 +211,109 @@ export class PlacesService {
     universe?: Universe;
     limit: number;
   }): Promise<PlaceWithDistance[]> {
-    if (this.es.isAvailable) {
-      return this.nearbyViaEs(params);
+    let results = await this.queryNearby(params);
+
+    if (this.provider.isEnabled && results.length < HYDRATE_MIN_LOCAL_RESULTS) {
+      const hydrated = await this.maybeHydrate(params);
+      if (hydrated) {
+        // Relecture en PG : les lieux fraîchement importés y sont garantis
+        // (l'indexation ES est asynchrone et peut ne pas être prête).
+        results = await this.nearbyViaPg(params);
+      }
     }
-    return this.nearbyViaPg(params);
+
+    return results;
+  }
+
+  private queryNearby(params: {
+    lat: number;
+    lng: number;
+    radius: number;
+    universe?: Universe;
+    limit: number;
+  }): Promise<PlaceWithDistance[]> {
+    return this.es.isAvailable ? this.nearbyViaEs(params) : this.nearbyViaPg(params);
+  }
+
+  /**
+   * Interroge le fournisseur externe pour la zone et persiste les lieux, au plus
+   * une fois par tuile (zone arrondie + univers) et par fenêtre TTL.
+   * Best-effort : toute erreur est avalée (l'app fonctionne sans hydratation).
+   * @returns `true` si des lieux ont été importés (→ relecture utile).
+   */
+  private async maybeHydrate(params: {
+    lat: number;
+    lng: number;
+    radius: number;
+    universe?: Universe;
+  }): Promise<boolean> {
+    const tileKey = [
+      'places:hydrated',
+      params.universe ?? 'all',
+      params.lat.toFixed(2),
+      params.lng.toFixed(2),
+      Math.max(1, Math.round(params.radius / 1000)),
+    ].join(':');
+
+    const already = await this.redis.getJson<boolean>(tileKey).catch(() => null);
+    if (already) return false;
+
+    // Marqueur posé AVANT l'appel : évite le stampede si plusieurs requêtes
+    // concurrentes ciblent la même zone vide.
+    await this.redis.setJson(tileKey, true, HYDRATE_TILE_TTL_SECONDS).catch(() => undefined);
+
+    try {
+      const found = await this.provider.searchNearby({
+        lat: params.lat,
+        lng: params.lng,
+        radius: params.radius,
+        universe: params.universe,
+        limit: 20,
+      });
+      if (found.length === 0) return false;
+      await this.persistProviderPlaces(found);
+      this.logger.log(`Hydratation : ${found.length} lieux importés (${tileKey}).`);
+      return true;
+    } catch (err) {
+      this.logger.warn(`Hydratation échouée (${tileKey}) : ${(err as Error).message}`);
+      // On retire le marqueur pour autoriser une nouvelle tentative plus tard.
+      await this.redis.del(tileKey).catch(() => undefined);
+      return false;
+    }
+  }
+
+  /** Upsert (dédup par providerPlaceId) des lieux importés + réindexation ES. */
+  private async persistProviderPlaces(places: ProviderPlace[]): Promise<void> {
+    for (const p of places) {
+      try {
+        const saved = await this.prisma.place.upsert({
+          where: { providerPlaceId: p.providerPlaceId },
+          create: {
+            name: p.name,
+            universe: p.universe as Place['universe'],
+            lat: p.lat,
+            lng: p.lng,
+            city: p.city,
+            countryCode: p.countryCode,
+            rating: p.rating,
+            priceTier: p.priceTier,
+            tags: p.tags,
+            photoUrls: [],
+            provider: 'google',
+            providerPlaceId: p.providerPlaceId,
+            ...(p.address ? { address: p.address } : {}),
+          },
+          update: {
+            rating: p.rating,
+            priceTier: p.priceTier,
+            ...(p.address ? { address: p.address } : {}),
+          },
+        });
+        this.es.indexPlace(saved).catch(() => {});
+      } catch {
+        // best-effort par lieu — un échec ne bloque pas les autres
+      }
+    }
   }
 
   private async nearbyViaEs(params: {

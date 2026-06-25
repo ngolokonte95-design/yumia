@@ -18,6 +18,12 @@ export interface AppConfig {
     publicBaseUrl: string;
   };
   google: { clientId: string };
+  places: {
+    provider: 'google' | 'none';
+    googleApiKey: string;
+    /** Hydratation à la demande depuis le fournisseur externe (kill-switch). */
+    hydrate: boolean;
+  };
   ai: {
     provider: 'anthropic' | 'mock';
     anthropicApiKey: string;
@@ -64,5 +70,13 @@ export default (): AppConfig => ({
   },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+  },
+  places: {
+    // Provider explicite, sinon déduit de la présence d'une clé Google.
+    provider:
+      (process.env.PLACES_PROVIDER as 'google' | 'none' | undefined) ??
+      (process.env.GOOGLE_PLACES_API_KEY ? 'google' : 'none'),
+    googleApiKey: process.env.GOOGLE_PLACES_API_KEY ?? '',
+    hydrate: process.env.PLACES_HYDRATE !== 'false',
   },
 });

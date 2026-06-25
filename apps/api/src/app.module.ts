@@ -35,7 +35,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
           ? { target: 'pino-pretty', options: { colorize: true } }
           : undefined,
         redact: ['req.headers.authorization', 'req.headers.cookie'],
-        genReqId: (req) => req.headers['x-request-id'] as string,
+        genReqId: (req: import('http').IncomingMessage) => req.headers['x-request-id'] as string,
         customProps: (req: import('http').IncomingMessage) => ({
           requestId: req.headers['x-request-id'],
         }),

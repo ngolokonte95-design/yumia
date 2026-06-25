@@ -51,6 +51,10 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-anthropic}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?missing}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Couverture mondiale des lieux : clé Google Places API (New). Vide = off.
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      PLACES_PROVIDER: ${PLACES_PROVIDER:-}
+      PLACES_HYDRATE: ${PLACES_HYDRATE:-true}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

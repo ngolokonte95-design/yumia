@@ -1,0 +1,176 @@
+import { Logger } from '@nestjs/common';
+import type { Universe } from '@yumia/shared';
+import {
+  googleTypesToUniverse,
+  universeToGoogleTypes,
+} from './place-types';
+import type {
+  PlacesProvider,
+  ProviderNearbyParams,
+  ProviderPlace,
+} from './places-provider.interface';
+
+const ENDPOINT = 'https://places.googleapis.com/v1/places:searchNearby';
+const REQUEST_TIMEOUT_MS = 8_000;
+const MAX_RADIUS_M = 50_000;
+const MAX_RESULTS = 20;
+
+// Champs demandés (FieldMask) — pilote le coût (SKU). On reste sur le strict
+// nécessaire : identité, position, note, prix, types et adresse structurée.
+const FIELD_MASK = [
+  'places.id',
+  'places.displayName',
+  'places.location',
+  'places.rating',
+  'places.priceLevel',
+  'places.types',
+  'places.formattedAddress',
+  'places.addressComponents',
+].join(',');
+
+const PRICE_LEVEL_MAP: Record<string, number> = {
+  PRICE_LEVEL_FREE: 1,
+  PRICE_LEVEL_INEXPENSIVE: 1,
+  PRICE_LEVEL_MODERATE: 2,
+  PRICE_LEVEL_EXPENSIVE: 3,
+  PRICE_LEVEL_VERY_EXPENSIVE: 4,
+};
+
+interface GoogleAddressComponent {
+  longText?: string;
+  shortText?: string;
+  types?: string[];
+}
+
+interface GooglePlace {
+  id?: string;
+  displayName?: { text?: string };
+  location?: { latitude?: number; longitude?: number };
+  rating?: number;
+  priceLevel?: string;
+  types?: string[];
+  formattedAddress?: string;
+  addressComponents?: GoogleAddressComponent[];
+}
+
+/** Erreur interne : `includedTypes` refusé par Google (400 INVALID_ARGUMENT). */
+class InvalidArgumentError extends Error {}
+
+/**
+ * Fournisseur Google Places API (« New ») — `places:searchNearby`.
+ * Couverture mondiale en direct ; les résultats sont normalisés en
+ * {@link ProviderPlace} puis persistés par `PlacesService`.
+ */
+export class GooglePlacesProvider implements PlacesProvider {
+  readonly isEnabled = true;
+  private readonly logger = new Logger(GooglePlacesProvider.name);
+
+  constructor(private readonly apiKey: string) {}
+
+  async searchNearby(params: ProviderNearbyParams): Promise<ProviderPlace[]> {
+    const includedTypes = universeToGoogleTypes(params.universe);
+    try {
+      return await this.request(params, includedTypes);
+    } catch (err) {
+      // Type Google refusé → repli en recherche large puis filtrage local.
+      if (err instanceof InvalidArgumentError && includedTypes.length > 0) {
+        this.logger.warn(`includedTypes refusé, repli large : ${err.message}`);
+        const all = await this.request(params, []);
+        return params.universe ? all.filter((p) => p.universe === params.universe) : all;
+      }
+      throw err;
+    }
+  }
+
+  private async request(
+    params: ProviderNearbyParams,
+    includedTypes: string[],
+  ): Promise<ProviderPlace[]> {
+    const body: Record<string, unknown> = {
+      maxResultCount: Math.min(params.limit, MAX_RESULTS),
+      locationRestriction: {
+        circle: {
+          center: { latitude: params.lat, longitude: params.lng },
+          radius: Math.min(Math.max(params.radius, 1), MAX_RADIUS_M),
+        },
+      },
+    };
+    if (includedTypes.length > 0) body.includedTypes = includedTypes;
+
+    const res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': this.apiKey,
+        'X-Goog-FieldMask': FIELD_MASK,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      if (res.status === 400 && text.includes('INVALID_ARGUMENT')) {
+        throw new InvalidArgumentError(text.slice(0, 200));
+      }
+      throw new Error(`Google Places ${res.status} : ${text.slice(0, 200)}`);
+    }
+
+    const data = (await res.json()) as { places?: GooglePlace[] };
+    return (data.places ?? []).flatMap((g) => {
+      const mapped = this.mapPlace(g, params.universe);
+      return mapped ? [mapped] : [];
+    });
+  }
+
+  private mapPlace(g: GooglePlace, requested?: Universe): ProviderPlace | null {
+    const name = g.displayName?.text;
+    const lat = g.location?.latitude;
+    const lng = g.location?.longitude;
+    if (!g.id || !name || typeof lat !== 'number' || typeof lng !== 'number') return null;
+
+    const types = g.types ?? [];
+    const { city, countryCode } = extractLocality(g.addressComponents ?? [], g.formattedAddress);
+
+    return {
+      providerPlaceId: g.id,
+      name,
+      universe: googleTypesToUniverse(types, requested ?? 'restaurant'),
+      lat,
+      lng,
+      city,
+      countryCode,
+      ...(g.formattedAddress ? { address: g.formattedAddress } : {}),
+      rating: typeof g.rating === 'number' ? g.rating : 0,
+      priceTier: g.priceLevel ? PRICE_LEVEL_MAP[g.priceLevel] ?? 2 : 2,
+      tags: types.slice(0, 6),
+    };
+  }
+}
+
+/** Extrait ville + code pays des composants d'adresse Google (avec repli). */
+function extractLocality(
+  components: GoogleAddressComponent[],
+  formattedAddress?: string,
+): { city: string; countryCode: string } {
+  let city = '';
+  let countryCode = '';
+  for (const c of components) {
+    const t = c.types ?? [];
+    if (!city && (t.includes('locality') || t.includes('postal_town'))) {
+      city = c.longText ?? c.shortText ?? '';
+    }
+    if (!city && t.includes('administrative_area_level_2')) {
+      city = c.longText ?? c.shortText ?? '';
+    }
+    if (!countryCode && t.includes('country')) {
+      countryCode = (c.shortText ?? '').toUpperCase();
+    }
+  }
+  // Repli ville : avant-dernier segment de l'adresse formatée ("…, Ville, Pays").
+  if (!city && formattedAddress) {
+    const parts = formattedAddress.split(',').map((s) => s.trim()).filter(Boolean);
+    city = parts.length >= 2 ? parts[parts.length - 2] : parts[0] ?? 'Inconnu';
+  }
+  return { city: city || 'Inconnu', countryCode };
+}
