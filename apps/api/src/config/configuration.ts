@@ -23,6 +23,8 @@ export interface AppConfig {
     googleApiKey: string;
     /** Hydratation à la demande depuis le fournisseur externe (kill-switch). */
     hydrate: boolean;
+    /** URL publique de l'API, pour construire les liens du proxy photo. */
+    publicBaseUrl: string;
   };
   ai: {
     provider: 'anthropic' | 'mock';
@@ -78,5 +80,6 @@ export default (): AppConfig => ({
       (process.env.GOOGLE_PLACES_API_KEY ? 'google' : 'none'),
     googleApiKey: process.env.GOOGLE_PLACES_API_KEY ?? '',
     hydrate: process.env.PLACES_HYDRATE !== 'false',
+    publicBaseUrl: (process.env.API_PUBLIC_BASE_URL ?? process.env.STORAGE_PUBLIC_BASE_URL ?? '').replace(/\/$/, ''),
   },
 });

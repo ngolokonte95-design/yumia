@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { PlacesService } from '../places.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { ElasticsearchService } from '../../../infra/elasticsearch/elasticsearch.service';
@@ -61,6 +62,12 @@ const makeEs = () => ({
 const makeProvider = () => ({
   isEnabled: false,
   searchNearby: jest.fn().mockResolvedValue([]),
+  resolvePhotoUrl: jest.fn().mockResolvedValue(null),
+});
+
+// ConfigService minimal : renvoie la config 'places' (URL publique vide par défaut).
+const makeConfig = (places: Record<string, unknown> = {}) => ({
+  get: jest.fn((key: string) => (key === 'places' ? { publicBaseUrl: '', ...places } : undefined)),
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -71,12 +78,14 @@ describe('PlacesService', () => {
   let redis: ReturnType<typeof makeRedis>;
   let es: ReturnType<typeof makeEs>;
   let provider: ReturnType<typeof makeProvider>;
+  let config: ReturnType<typeof makeConfig>;
 
   beforeEach(async () => {
     prisma = makePrisma();
     redis = makeRedis();
     es = makeEs();
     provider = makeProvider();
+    config = makeConfig();
 
     const module = await Test.createTestingModule({
       providers: [
@@ -85,6 +94,7 @@ describe('PlacesService', () => {
         { provide: RedisService, useValue: redis },
         { provide: ElasticsearchService, useValue: es },
         { provide: PLACES_PROVIDER, useValue: provider },
+        { provide: ConfigService, useValue: config },
       ],
     }).compile();
 
@@ -318,6 +328,34 @@ describe('PlacesService', () => {
 
       expect(provider.searchNearby).not.toHaveBeenCalled();
       expect(result).toEqual([]);
+    });
+  });
+
+  // ── resolvePhotoUrl ────────────────────────────────────────────────────────────
+
+  describe('resolvePhotoUrl', () => {
+    it('retourne l\'URL depuis le cache sans appeler le provider', async () => {
+      redis.getJson.mockResolvedValue('https://lh3.googleusercontent.com/cached');
+
+      const result = await service.resolvePhotoUrl('places/x/photos/y', 800);
+
+      expect(result).toBe('https://lh3.googleusercontent.com/cached');
+      expect(provider.resolvePhotoUrl).not.toHaveBeenCalled();
+    });
+
+    it('résout via le provider puis met en cache si absent', async () => {
+      redis.getJson.mockResolvedValue(null);
+      provider.resolvePhotoUrl.mockResolvedValue('https://lh3.googleusercontent.com/fresh');
+
+      const result = await service.resolvePhotoUrl('places/x/photos/y', 800);
+
+      expect(result).toBe('https://lh3.googleusercontent.com/fresh');
+      expect(provider.resolvePhotoUrl).toHaveBeenCalledWith('places/x/photos/y', 800);
+      expect(redis.setJson).toHaveBeenCalledWith(
+        'gphoto:places/x/photos/y:800',
+        'https://lh3.googleusercontent.com/fresh',
+        expect.any(Number),
+      );
     });
   });
 

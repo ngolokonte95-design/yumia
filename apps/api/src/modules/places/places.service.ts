@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma, type Place } from '@prisma/client';
 import type { Universe } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
@@ -21,6 +22,10 @@ const HYDRATE_MIN_LOCAL_RESULTS = 5;
 // Une tuile (zone + univers) hydratée n'est pas ré-interrogée avant ce délai →
 // évite de rappeler l'API (coût) pour la même zone. 7 jours.
 const HYDRATE_TILE_TTL_SECONDS = 7 * 24 * 60 * 60;
+// URL photo (googleusercontent) résolue, mise en cache pour éviter un appel
+// Google à chaque chargement d'image. 6 h.
+const PHOTO_URL_CACHE_TTL_SECONDS = 6 * 60 * 60;
+const PHOTO_DEFAULT_WIDTH = 800;
 
 /** Lieu enrichi de sa distance (mètres) par rapport au point de recherche. */
 export type PlaceWithDistance = Place & { distanceMeters: number };
@@ -38,13 +43,17 @@ const EARTH_RADIUS_M = 6_371_000;
 @Injectable()
 export class PlacesService {
   private readonly logger = new Logger(PlacesService.name);
+  private readonly photoBaseUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly es: ElasticsearchService,
     private readonly redis: RedisService,
     @Inject(PLACES_PROVIDER) private readonly provider: PlacesProvider,
-  ) {}
+    private readonly config: ConfigService,
+  ) {
+    this.photoBaseUrl = this.config.get<{ publicBaseUrl?: string }>('places')?.publicBaseUrl ?? '';
+  }
 
   /** Crée un lieu et l'indexe dans Elasticsearch si disponible. */
   async create(dto: CreatePlaceDto): Promise<Place> {
@@ -286,6 +295,12 @@ export class PlacesService {
   private async persistProviderPlaces(places: ProviderPlace[]): Promise<void> {
     for (const p of places) {
       try {
+        const photoUrls = this.buildPhotoUrls(p.photoRefs);
+        const metadata =
+          p.openingHours && p.openingHours.length > 0
+            ? { source: 'google', openingHours: p.openingHours }
+            : { source: 'google' };
+
         const saved = await this.prisma.place.upsert({
           where: { providerPlaceId: p.providerPlaceId },
           create: {
@@ -298,7 +313,8 @@ export class PlacesService {
             rating: p.rating,
             priceTier: p.priceTier,
             tags: p.tags,
-            photoUrls: [],
+            photoUrls,
+            metadata,
             provider: 'google',
             providerPlaceId: p.providerPlaceId,
             ...(p.address ? { address: p.address } : {}),
@@ -306,6 +322,8 @@ export class PlacesService {
           update: {
             rating: p.rating,
             priceTier: p.priceTier,
+            metadata,
+            ...(photoUrls.length > 0 ? { photoUrls } : {}),
             ...(p.address ? { address: p.address } : {}),
           },
         });
@@ -314,6 +332,36 @@ export class PlacesService {
         // best-effort par lieu — un échec ne bloque pas les autres
       }
     }
+  }
+
+  /**
+   * Construit les URL de photos pointant vers notre proxy `GET /places/photo`
+   * (la clé Google reste côté serveur). Vide si l'URL publique de l'API n'est
+   * pas configurée (évite des liens cassés).
+   */
+  private buildPhotoUrls(photoRefs?: string[]): string[] {
+    if (!this.photoBaseUrl || !photoRefs || photoRefs.length === 0) return [];
+    return photoRefs.map(
+      (ref) =>
+        `${this.photoBaseUrl}/api/places/photo?ref=${encodeURIComponent(ref)}&w=${PHOTO_DEFAULT_WIDTH}`,
+    );
+  }
+
+  /**
+   * Résout une référence photo en URL d'image directe (pour le proxy), avec
+   * cache Redis pour éviter un appel Google à chaque affichage.
+   */
+  async resolvePhotoUrl(ref: string, maxWidthPx = PHOTO_DEFAULT_WIDTH): Promise<string | null> {
+    if (!this.provider.resolvePhotoUrl) return null;
+    const cacheKey = `gphoto:${ref}:${maxWidthPx}`;
+    const cached = await this.redis.getJson<string>(cacheKey).catch(() => null);
+    if (cached) return cached;
+
+    const url = await this.provider.resolvePhotoUrl(ref, maxWidthPx).catch(() => null);
+    if (url) {
+      await this.redis.setJson(cacheKey, url, PHOTO_URL_CACHE_TTL_SECONDS).catch(() => undefined);
+    }
+    return url;
   }
 
   private async nearbyViaEs(params: {

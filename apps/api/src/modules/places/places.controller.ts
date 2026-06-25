@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -18,6 +19,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 import type { Place } from '@prisma/client';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -81,6 +83,33 @@ export class PlacesController {
       limit: limit ? parseInt(limit, 10) : 10,
       hours: hours ? parseInt(hours, 10) : 24,
     });
+  }
+
+  /**
+   * GET /api/places/photo?ref=...&w=800 — proxy photo Google.
+   * Redirige vers l'URL d'image directe (googleusercontent) résolue côté
+   * serveur : la clé Google n'est jamais exposée au client. 120/60s.
+   * Déclaré AVANT `:id` pour ne pas être capté par la route paramétrée.
+   */
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  @Get('photo')
+  async photo(
+    @Query('ref') ref: string,
+    @Query('w') width: string | undefined,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!ref) {
+      res.status(HttpStatus.BAD_REQUEST).end();
+      return;
+    }
+    const url = await this.places.resolvePhotoUrl(ref, width ? parseInt(width, 10) : undefined);
+    if (!url) {
+      res.status(HttpStatus.NOT_FOUND).end();
+      return;
+    }
+    // Cache navigateur/app : l'URL résolue est stable quelques heures.
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.redirect(url);
   }
 
   /** GET /api/places/:id/stats — avis communautaires agrégés. */

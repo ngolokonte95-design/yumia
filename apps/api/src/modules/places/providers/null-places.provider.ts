@@ -9,4 +9,7 @@ export class NullPlacesProvider implements PlacesProvider {
   async searchNearby(): Promise<ProviderPlace[]> {
     return [];
   }
+  async resolvePhotoUrl(): Promise<string | null> {
+    return null;
+  }
 }

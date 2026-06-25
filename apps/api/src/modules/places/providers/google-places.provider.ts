@@ -26,7 +26,11 @@ const FIELD_MASK = [
   'places.types',
   'places.formattedAddress',
   'places.addressComponents',
+  'places.photos',
+  'places.regularOpeningHours',
 ].join(',');
+
+const MAX_PHOTOS = 3;
 
 const PRICE_LEVEL_MAP: Record<string, number> = {
   PRICE_LEVEL_FREE: 1,
@@ -51,6 +55,8 @@ interface GooglePlace {
   types?: string[];
   formattedAddress?: string;
   addressComponents?: GoogleAddressComponent[];
+  photos?: { name?: string }[];
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
 }
 
 /** Erreur interne : `includedTypes` refusé par Google (400 INVALID_ARGUMENT). */
@@ -132,6 +138,12 @@ export class GooglePlacesProvider implements PlacesProvider {
     const types = g.types ?? [];
     const { city, countryCode } = extractLocality(g.addressComponents ?? [], g.formattedAddress);
 
+    const photoRefs = (g.photos ?? [])
+      .slice(0, MAX_PHOTOS)
+      .map((p) => p.name)
+      .filter((n): n is string => typeof n === 'string' && n.length > 0);
+    const openingHours = g.regularOpeningHours?.weekdayDescriptions;
+
     return {
       providerPlaceId: g.id,
       name,
@@ -144,7 +156,29 @@ export class GooglePlacesProvider implements PlacesProvider {
       rating: typeof g.rating === 'number' ? g.rating : 0,
       priceTier: g.priceLevel ? PRICE_LEVEL_MAP[g.priceLevel] ?? 2 : 2,
       tags: types.slice(0, 6),
+      ...(photoRefs.length > 0 ? { photoRefs } : {}),
+      ...(openingHours && openingHours.length > 0 ? { openingHours } : {}),
     };
+  }
+
+  /**
+   * Résout une référence photo Google en URL d'image directe (googleusercontent),
+   * SANS exposer la clé : on demande `skipHttpRedirect` pour récupérer `photoUri`
+   * (une URL signée, sans clé), que le proxy renverra au client.
+   */
+  async resolvePhotoUrl(ref: string, maxWidthPx: number): Promise<string | null> {
+    const width = Math.min(Math.max(maxWidthPx || 800, 1), 4_800);
+    const url = `https://places.googleapis.com/v1/${ref}/media?maxWidthPx=${width}&skipHttpRedirect=true`;
+    const res = await fetch(url, {
+      headers: { 'X-Goog-Api-Key': this.apiKey },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      this.logger.warn(`Résolution photo échouée (${res.status}) pour ${ref}`);
+      return null;
+    }
+    const data = (await res.json()) as { photoUri?: string };
+    return data.photoUri ?? null;
   }
 }
 

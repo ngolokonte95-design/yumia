@@ -34,10 +34,19 @@ export interface ProviderPlace {
   rating: number;
   priceTier: number;
   tags: string[];
+  /** Références opaques des photos côté fournisseur (résolues via proxy). */
+  photoRefs?: string[];
+  /** Horaires lisibles par jour (ex. "lundi : 09:00 – 18:00"). */
+  openingHours?: string[];
 }
 
 export interface PlacesProvider {
   /** `false` = aucun fournisseur configuré → l'hydratation est désactivée. */
   readonly isEnabled: boolean;
   searchNearby(params: ProviderNearbyParams): Promise<ProviderPlace[]>;
+  /**
+   * Résout une référence photo en URL d'image directe (sans clé API), pour le
+   * proxy `GET /places/photo`. `null` si non supporté ou indisponible.
+   */
+  resolvePhotoUrl?(ref: string, maxWidthPx: number): Promise<string | null>;
 }
