@@ -26,7 +26,10 @@
       "bundleIdentifier": "com.yumia.app",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi."
+        "NSLocationWhenInUseUsageDescription": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "web": {

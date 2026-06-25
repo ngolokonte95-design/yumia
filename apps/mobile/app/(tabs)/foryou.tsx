@@ -23,6 +23,7 @@ import { recordVisit, type VisitFeedback } from '../../lib/passport-api';
 import { haptics } from '../../lib/useHaptics';
 import { XpToast } from '../../components/XpToast';
 import { PaywallModal } from '../../components/PaywallModal';
+import { PlacePhoto } from '../../components/PlacePhoto';
 import type { VisitResult } from '../../lib/passport-api';
 
 /**
@@ -193,7 +194,7 @@ const FeedCard = memo(function FeedCard({
   return (
     <Pressable style={[styles.card, { height }]} onPress={onOpenDetail}>
       <View style={styles.media}>
-        <Text style={styles.mediaEmoji}>{meta.emoji}</Text>
+        <PlacePhoto photoUrls={place.photoUrls} emoji={meta.emoji} emojiSize={120} scrim />
       </View>
 
       {xpResult ? (

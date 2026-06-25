@@ -6,6 +6,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { haptics } from '../lib/useHaptics';
 import type { VisitFeedback, VisitResult } from '../lib/passport-api';
 import { XpToast } from './XpToast';
+import { PlacePhoto } from './PlacePhoto';
 
 interface Props {
   suggestion: Suggestion;
@@ -87,7 +88,7 @@ export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved =
     <Pressable style={styles.card} onPress={onPress}>
       <XpToast result={xpResult} onDone={() => setXpResult(null)} />
       <View style={styles.photo}>
-        <Text style={styles.photoEmoji}>{meta.emoji}</Text>
+        <PlacePhoto photoUrls={place.photoUrls} emoji={meta.emoji} emojiSize={56} />
         <View style={[styles.compatBadge, { borderColor: compatColor }]}>
           <Text style={[styles.compatText, { color: compatColor }]}>❤️ {compatibility}%</Text>
         </View>

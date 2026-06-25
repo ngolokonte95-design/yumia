@@ -4,7 +4,7 @@
  * Chaque étape expose : sauvegarder, « J'y vais », ouvrir la fiche lieu.
  */
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Image } from 'react-native';
 import { UNIVERSE_META } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import type { ExperienceResult, ExperienceStep } from '../lib/api';
@@ -110,6 +110,9 @@ function StepCard({
   return (
     <Pressable style={styles.stepCard} onPress={onPress}>
       <XpToast result={xpResult} onDone={() => setXpResult(null)} />
+      {step.place.photoUrls && step.place.photoUrls.length > 0 ? (
+        <Image source={{ uri: step.place.photoUrls[0] }} style={styles.stepPhoto} resizeMode="cover" />
+      ) : null}
       <View style={styles.stepHeader}>
         <Text style={styles.stepLabel}>{step.labelFr}</Text>
         <Text style={styles.stepUniverse}>{meta?.emoji} {meta?.labelFr}</Text>
@@ -189,6 +192,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: 4,
     marginBottom: spacing.md,
+  },
+  stepPhoto: {
+    width: '100%',
+    height: 120,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceElevated,
+    marginBottom: spacing.xs,
   },
   stepHeader: {
     flexDirection: 'row',
