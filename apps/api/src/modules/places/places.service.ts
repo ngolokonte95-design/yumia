@@ -19,9 +19,15 @@ const PLACE_DETAIL_CACHE_TTL_SECONDS = 10 * 60; // 10 min — les lieux sont qua
 // En dessous de ce nombre de résultats locaux, on hydrate depuis le fournisseur
 // externe (Google Places) pour offrir une couverture mondiale.
 const HYDRATE_MIN_LOCAL_RESULTS = 5;
-// Une tuile (zone + univers) hydratée n'est pas ré-interrogée avant ce délai →
-// évite de rappeler l'API (coût) pour la même zone. 7 jours.
+// Une tuile (zone + univers) hydratée avec succès n'est pas ré-interrogée avant
+// ce délai → évite de rappeler l'API (coût) pour la même zone. 7 jours.
 const HYDRATE_TILE_TTL_SECONDS = 7 * 24 * 60 * 60;
+// Verrou court anti-stampede pendant l'appel réseau (plusieurs requêtes
+// concurrentes sur la même zone vide ne déclenchent qu'un seul appel).
+const HYDRATE_LOCK_TTL_SECONDS = 60;
+// Zone où le fournisseur n'a (pour l'instant) rien renvoyé : on retente après ce
+// délai au lieu de la bloquer une semaine entière (couverture mondiale).
+const HYDRATE_EMPTY_RETRY_TTL_SECONDS = 6 * 60 * 60; // 6 h
 // URL photo (googleusercontent) résolue, mise en cache pour éviter un appel
 // Google à chaque chargement d'image. 6 h.
 const PHOTO_URL_CACHE_TTL_SECONDS = 6 * 60 * 60;
@@ -267,9 +273,9 @@ export class PlacesService {
     const already = await this.redis.getJson<boolean>(tileKey).catch(() => null);
     if (already) return false;
 
-    // Marqueur posé AVANT l'appel : évite le stampede si plusieurs requêtes
-    // concurrentes ciblent la même zone vide.
-    await this.redis.setJson(tileKey, true, HYDRATE_TILE_TTL_SECONDS).catch(() => undefined);
+    // Verrou COURT posé AVANT l'appel : évite le stampede si plusieurs requêtes
+    // concurrentes ciblent la même zone vide, sans la bloquer durablement.
+    await this.redis.setJson(tileKey, true, HYDRATE_LOCK_TTL_SECONDS).catch(() => undefined);
 
     try {
       const found = await this.provider.searchNearby({
@@ -279,8 +285,15 @@ export class PlacesService {
         universe: params.universe,
         limit: 20,
       });
-      if (found.length === 0) return false;
+      if (found.length === 0) {
+        // Rien trouvé cette fois : on retentera dans quelques heures plutôt que
+        // de condamner la zone pendant une semaine (clé/quota transitoire…).
+        await this.redis.setJson(tileKey, true, HYDRATE_EMPTY_RETRY_TTL_SECONDS).catch(() => undefined);
+        return false;
+      }
       await this.persistProviderPlaces(found);
+      // Succès : on évite de rappeler l'API pour cette zone pendant 7 jours.
+      await this.redis.setJson(tileKey, true, HYDRATE_TILE_TTL_SECONDS).catch(() => undefined);
       this.logger.log(`Hydratation : ${found.length} lieux importés (${tileKey}).`);
       return true;
     } catch (err) {
@@ -365,13 +378,18 @@ export class PlacesService {
     const cacheKey = `places:city:${params.city.toLowerCase()}:${params.universe ?? 'all'}`;
     const already = await this.redis.getJson<boolean>(cacheKey).catch(() => null);
     if (already) return local;
-    await this.redis.setJson(cacheKey, true, HYDRATE_TILE_TTL_SECONDS).catch(() => undefined);
+    // Verrou court pendant l'appel (anti-stampede), prolongé seulement en cas de succès.
+    await this.redis.setJson(cacheKey, true, HYDRATE_LOCK_TTL_SECONDS).catch(() => undefined);
 
     try {
       const query = params.universe ? `${params.universe} in ${params.city}` : params.city;
       const found = await this.provider.searchByText(query, params.universe, 20);
-      if (found.length === 0) return local;
+      if (found.length === 0) {
+        await this.redis.setJson(cacheKey, true, HYDRATE_EMPTY_RETRY_TTL_SECONDS).catch(() => undefined);
+        return local;
+      }
       const saved = await this.persistProviderPlaces(found);
+      await this.redis.setJson(cacheKey, true, HYDRATE_TILE_TTL_SECONDS).catch(() => undefined);
       this.logger.log(`Recherche ville « ${params.city} » : ${saved.length} lieux importés.`);
       // Fusion locale + importés, dédup par id, tri par note décroissante.
       const byId = new Map<string, Place>();

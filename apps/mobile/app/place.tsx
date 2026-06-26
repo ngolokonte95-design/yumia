@@ -34,9 +34,10 @@ import { askAboutPlace } from '../lib/chat-api';
 import { XpToast } from '../components/XpToast';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { usePlaceStats } from '../lib/usePlaceStats';
-import { fetchPlaceById, uploadPlacePhoto } from '../lib/places-api';
+import { fetchPlaceById, fetchNearby, uploadPlacePhoto } from '../lib/places-api';
+import type { NearbyPlace } from '../lib/places-api';
 import type { VisitResult } from '../lib/passport-api';
-import type { Suggestion } from '@yumia/shared';
+import type { Suggestion, Universe } from '@yumia/shared';
 import * as StoreReview from 'expo-store-review';
 
 interface ChatMessage {
@@ -340,6 +341,21 @@ export default function PlaceScreen() {
             </Pressable>
           </View>
 
+          {/* Réserver autour de ce lieu (guides / sorties) */}
+          <View style={bizStyles.row}>
+            <Pressable
+              style={bizStyles.btn}
+              onPress={() => router.push(`/guides${place.city ? `?city=${encodeURIComponent(place.city)}` : ''}` as never)}
+            >
+              <Text style={bizStyles.emoji}>🧭</Text>
+              <Text style={bizStyles.label}>Un guide ici</Text>
+            </Pressable>
+            <Pressable style={bizStyles.btn} onPress={() => router.push('/sorties' as never)}>
+              <Text style={bizStyles.emoji}>🎟️</Text>
+              <Text style={bizStyles.label}>Sorties & billets</Text>
+            </Pressable>
+          </View>
+
           {accessToken ? (
             visitState === 'feedback' || visitState === 'submitting' ? (
               <View style={styles.feedbackBox}>
@@ -409,6 +425,28 @@ export default function PlaceScreen() {
               )}
             </Pressable>
           ) : null}
+
+          <SimilarPlaces
+            currentId={place.id}
+            lat={place.location.lat}
+            lng={place.location.lng}
+            universe={place.universe}
+            onOpen={(np) => {
+              placeStore.set({
+                place: {
+                  id: np.id, name: np.name, universe: np.universe,
+                  location: { lat: np.lat, lng: np.lng }, city: np.city, countryCode: np.countryCode,
+                  rating: np.rating, priceTier: Math.min(4, Math.max(1, np.priceTier)) as 1 | 2 | 3 | 4,
+                  photoUrls: np.photoUrls, tags: np.tags,
+                },
+                compatibility: 0,
+                distanceMeters: np.distanceMeters,
+                reason: `${UNIVERSE_META[np.universe].emoji} ${UNIVERSE_META[np.universe].labelFr} · ⭐ ${np.rating.toFixed(1)}`,
+                engine: 'mood',
+              });
+              router.push('/place');
+            }}
+          />
         </View>
 
         {/* Mini-chat IA */}
@@ -539,6 +577,69 @@ const reviewStyles = StyleSheet.create({
   fillNeutral: { backgroundColor: '#8a8a9a' },
   fillDisliked: { backgroundColor: '#5b8dd9' },
   pct: { ...typography.label, color: colors.textMuted, width: 36, textAlign: 'right' },
+});
+
+function SimilarPlaces({
+  currentId, lat, lng, universe, onOpen,
+}: {
+  currentId: string;
+  lat: number;
+  lng: number;
+  universe: Universe;
+  onOpen: (np: NearbyPlace) => void;
+}) {
+  const [items, setItems] = useState<NearbyPlace[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetchNearby({ lat, lng, radius: 4000, universe, limit: 8 })
+      .then((res) => { if (active) setItems(res.filter((p) => p.id !== currentId).slice(0, 6)); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [currentId, lat, lng, universe]);
+
+  if (items.length === 0) return null;
+  return (
+    <View style={similarStyles.wrap}>
+      <Text style={similarStyles.title}>Dans le même esprit</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={similarStyles.row}>
+        {items.map((p) => (
+          <Pressable key={p.id} style={similarStyles.card} onPress={() => onOpen(p)}>
+            {p.photoUrls?.[0] ? (
+              <Image source={{ uri: p.photoUrls[0] }} style={similarStyles.img} resizeMode="cover" />
+            ) : (
+              <View style={[similarStyles.img, similarStyles.imgPlaceholder]}>
+                <Text style={{ fontSize: 28 }}>{UNIVERSE_META[p.universe].emoji}</Text>
+              </View>
+            )}
+            <Text style={similarStyles.name} numberOfLines={1}>{p.name}</Text>
+            <Text style={similarStyles.meta}>⭐ {p.rating.toFixed(1)}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+const bizStyles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  btn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
+    backgroundColor: `${colors.brand}14`, borderColor: colors.brand, borderWidth: 1,
+    borderRadius: radius.pill, paddingVertical: spacing.sm,
+  },
+  emoji: { fontSize: 16 },
+  label: { ...typography.caption, color: colors.brandSoft, fontWeight: '600' },
+});
+
+const similarStyles = StyleSheet.create({
+  wrap: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  title: { ...typography.heading, color: colors.textPrimary, marginBottom: spacing.sm },
+  row: { gap: spacing.sm, paddingVertical: spacing.xs },
+  card: { width: 130 },
+  img: { width: 130, height: 90, borderRadius: radius.md, backgroundColor: colors.surfaceElevated },
+  imgPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  name: { ...typography.caption, color: colors.textPrimary, fontWeight: '600', marginTop: 4 },
+  meta: { ...typography.label, color: colors.textMuted },
 });
 
 function formatDistance(m: number): string {

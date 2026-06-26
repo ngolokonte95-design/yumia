@@ -17,7 +17,6 @@ import { PlacesService, type PlaceWithDistance } from '../places/places.service'
 import { RedisService } from '../../infra/redis/redis.service';
 
 const TOP3_CACHE_TTL_SECONDS = 5 * 60; // 5 min
-const FEED_CACHE_TTL_SECONDS = 5 * 60; // 5 min
 const EXPERIENCE_CACHE_TTL_SECONDS = 10 * 60; // 10 min (plus stable que le top3)
 
 /** Plan brut renvoyé par le moteur `experience_builder`. */
@@ -217,35 +216,19 @@ export class RecommendationsService {
       },
     };
 
-    const feedCacheKey = [
-      'reco:feed',
-      input.lat.toFixed(2),
-      input.lng.toFixed(2),
-      input.radius,
-      input.mood ?? '',
-      locale,
-      input.limit,
-    ].join(':');
-
-    const cachedFeed = await this.redis.getJson<Top3Result>(feedCacheKey).catch(() => null);
-    if (cachedFeed) {
-      this.logger.debug('Feed servi depuis le cache Redis');
-      return cachedFeed;
-    }
-
+    // PAS de cache Redis sur le feed : chaque appel (ouverture, pull-to-refresh,
+    // "load more") doit renvoyer un échantillon frais. Le client déduplique déjà
+    // par id et garde son propre cache offline (useFeed). Caché → on verrait
+    // toujours les 20 mêmes lieux et "load more" n'ajouterait rien.
     const { reason, suggestions } = await this.rank(ctx, input.radius, input.limit, 'discovery');
     this.logger.debug(`Feed généré : ${suggestions.length} lieux (mood: ${input.mood ?? '∅'})`);
 
-    const feedResult: Top3Result = {
+    return {
       generatedAtIso: new Date().toISOString(),
       context: { mode: undefined, mood: input.mood, city: undefined },
       reason: reason || defaultReason(locale),
       suggestions,
     };
-
-    void this.redis.setJson(feedCacheKey, feedResult, FEED_CACHE_TTL_SECONDS).catch(() => undefined);
-
-    return feedResult;
   }
 
   /**
@@ -400,27 +383,59 @@ export class RecommendationsService {
       lat: ctx.location!.lat,
       lng: ctx.location!.lng,
       radius,
-      limit: 40,
+      limit: Math.max(40, limit * 3),
     });
 
     const candidates = this.filterByRestrictions(raw, restrictions);
 
-    const suggestions: Suggestion[] = candidates
-      .map((place) => ({
-        place,
-        compatibility: this.scoreOf(place, radius, suggestedUniverses, favoriteUniverses),
-      }))
-      .sort((a, b) => b.compatibility - a.compatibility)
-      .slice(0, limit)
-      .map(({ place, compatibility }) => ({
-        place: toDomainPlace(place),
-        compatibility,
-        distanceMeters: Math.round(place.distanceMeters),
-        reason: this.buildReason(place),
-        engine,
-      }));
+    const scored = candidates.map((place) => ({
+      place,
+      compatibility: this.scoreOf(place, radius, suggestedUniverses, favoriteUniverses),
+    }));
+
+    // Variété : on ne prend PAS strictement le top-N (qui serait toujours
+    // identique → effet "toujours les mêmes suggestions"), mais un échantillon
+    // aléatoire pondéré par le score, dans un pool de qualité. Le feed pioche
+    // large (découverte), le Top 3 dans un pool resserré (qualité).
+    const poolSize = engine === 'discovery' ? Math.max(limit * 3, 24) : Math.max(limit * 3, 12);
+    const picked = this.diversifiedPick(scored, limit, poolSize);
+
+    const suggestions: Suggestion[] = picked.map(({ place, compatibility }) => ({
+      place: toDomainPlace(place),
+      compatibility,
+      distanceMeters: Math.round(place.distanceMeters),
+      reason: this.buildReason(place),
+      engine,
+    }));
 
     return { reason: mood.reason, suggestions };
+  }
+
+  /**
+   * Sélection diversifiée : échantillonnage aléatoire pondéré par le score, sans
+   * remise, depuis les `poolSize` meilleurs candidats. Garantit de la variété
+   * entre deux générations tout en privilégiant les lieux les mieux adaptés.
+   */
+  private diversifiedPick<T extends { compatibility: number }>(
+    scored: T[],
+    limit: number,
+    poolSize: number,
+  ): T[] {
+    const sorted = [...scored].sort((a, b) => b.compatibility - a.compatibility);
+    const pool = sorted.slice(0, Math.max(limit, Math.min(sorted.length, poolSize)));
+    const available = [...pool];
+    const chosen: T[] = [];
+    while (chosen.length < limit && available.length > 0) {
+      // Poids = score² → favorise nettement les meilleurs sans jamais les imposer.
+      const weights = available.map((c) => Math.pow(Math.max(1, c.compatibility), 2));
+      const total = weights.reduce((a, b) => a + b, 0);
+      let r = Math.random() * total;
+      let idx = 0;
+      while (idx < weights.length - 1 && (r -= weights[idx]) > 0) idx++;
+      chosen.push(available[idx]);
+      available.splice(idx, 1);
+    }
+    return chosen.sort((a, b) => b.compatibility - a.compatibility);
   }
 
   /** Exclut les lieux dont l'univers est incompatible avec une restriction. */

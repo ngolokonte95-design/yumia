@@ -39,6 +39,15 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
 
 const ITINERARY_MODES: Mode[] = ['date', 'travel'];
 
+/** Raccourcis d'orientation : montrent d'un coup l'étendue des fonctionnalités. */
+const HOME_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
+  { key: 'explorer', emoji: '🧭', label: 'Explorer', route: '/(tabs)/explorer' },
+  { key: 'sorties', emoji: '🎟️', label: 'Sorties', route: '/sorties' },
+  { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
+  { key: 'group', emoji: '👥', label: 'Groupe', route: '/group' },
+  { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
+];
+
 /** HOME — « Que faire maintenant ? ». Point de départ de chaque session. */
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -175,6 +184,18 @@ export default function HomeScreen() {
         <Pressable style={styles.search} onPress={() => router.push('/search')}>
           <Text style={styles.searchText}>{t('home_search_placeholder')}</Text>
         </Pressable>
+      </View>
+
+      {/* Raccourcis fonctionnalités — orientation rapide */}
+      <View style={styles.section}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
+          {HOME_SHORTCUTS.map((s) => (
+            <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
+              <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
+              <Text style={styles.shortcutLabel}>{s.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Modes rapides */}
@@ -419,6 +440,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   searchText: { ...typography.body, color: colors.textMuted },
+  shortcutsRow: { gap: spacing.sm, paddingRight: spacing.md },
+  shortcut: {
+    width: 72,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    gap: 4,
+  },
+  shortcutEmoji: { fontSize: 24 },
+  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 11 },
   chipsRow: { gap: spacing.sm, paddingRight: spacing.md },
   modeChip: {
     backgroundColor: colors.surfaceElevated,
