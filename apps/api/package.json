@@ -14,8 +14,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed": "node dist/scripts/seed-places.js",
+    "seed:business": "node dist/scripts/seed-business.js",
     "enrich:photos": "node dist/scripts/enrich-photos.js",
     "seed:dev": "npx ts-node -r tsconfig-paths/register src/scripts/seed-places.ts",
+    "seed:business:dev": "npx ts-node -r tsconfig-paths/register src/scripts/seed-business.ts",
     "es:reindex": "npx ts-node -r tsconfig-paths/register src/scripts/reindex-elasticsearch.ts",
     "test:e2e": "jest --config jest.e2e.config.js"
   },

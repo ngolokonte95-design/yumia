@@ -96,6 +96,8 @@ function AuthGate() {
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="plus" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="guides" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="sorties" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="visits" />
       <Stack.Screen name="join" options={{ animation: 'slide_from_bottom' }} />
     </Stack>

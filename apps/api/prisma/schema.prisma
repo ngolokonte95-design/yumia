@@ -277,6 +277,11 @@ model Venue {
   boostExpiresAt DateTime?
   businessPlan   String    @default("basic") // basic | pro | enterprise
   commissionRate Float     @default(0.15)
+  /// Événement mis en avant pour la billetterie (optionnel).
+  eventName      String?
+  eventDate      DateTime?
+  ticketPrice    Float?
+  photoUrl       String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
