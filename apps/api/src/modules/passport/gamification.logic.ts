@@ -9,7 +9,6 @@ import {
   levelForXp,
   type Badge,
   type Level,
-  type Universe,
   type XpAction,
 } from '@yumia/shared';
 
@@ -91,7 +90,7 @@ export interface BadgeEvalInput {
   distinctCountries: number;
   /** Heure UTC de la visite (0–23) et univers, pour les badges horaires. */
   visitHourUtc: number;
-  universe: Universe;
+  universe: string;
 }
 
 /** Renvoie les badges *candidats* déclenchés par cette visite (avant dédup DB). */

@@ -106,6 +106,13 @@ enum Universe {
   cheese_shop
   beach
   place_of_worship
+  spa
+  park
+  cinema
+  market
+  fitness
+  live_music
+  escape_game
 }
 
 model Place {

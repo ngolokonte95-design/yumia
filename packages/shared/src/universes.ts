@@ -1,7 +1,7 @@
 /**
- * Les 14 univers YUMIA disponibles au lancement.
+ * Univers YUMIA — expériences du quotidien.
  * RÈGLE ABSOLUE : YUMIA n'est PAS une app de restaurants — « restaurant » n'est
- * qu'un univers parmi quatorze expériences du quotidien.
+ * qu'un univers parmi toutes les expériences proposées.
  */
 
 export const UNIVERSES = [
@@ -21,9 +21,15 @@ export const UNIVERSES = [
   'nightlife',
   'nightclub',
   'pub',
-  'cheese_shop',
   'beach',
   'place_of_worship',
+  'spa',
+  'park',
+  'cinema',
+  'market',
+  'fitness',
+  'live_music',
+  'escape_game',
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -53,9 +59,15 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   nightlife: { key: 'nightlife', emoji: '🎉', i18nKey: 'universe.nightlife', labelFr: 'Lieux de sortie' },
   nightclub: { key: 'nightclub', emoji: '🎧', i18nKey: 'universe.nightclub', labelFr: 'Night-clubs' },
   pub: { key: 'pub', emoji: '🍺', i18nKey: 'universe.pub', labelFr: 'Pubs' },
-  cheese_shop: { key: 'cheese_shop', emoji: '🧀', i18nKey: 'universe.cheese_shop', labelFr: 'Fromageries' },
   beach: { key: 'beach', emoji: '🏖️', i18nKey: 'universe.beach', labelFr: 'Plages & vacances' },
   place_of_worship: { key: 'place_of_worship', emoji: '🕌', i18nKey: 'universe.place_of_worship', labelFr: 'Lieux de culte' },
+  spa: { key: 'spa', emoji: '🧖', i18nKey: 'universe.spa', labelFr: 'Spa & Bien-être' },
+  park: { key: 'park', emoji: '🌿', i18nKey: 'universe.park', labelFr: 'Parcs & Nature' },
+  cinema: { key: 'cinema', emoji: '🎬', i18nKey: 'universe.cinema', labelFr: 'Cinémas' },
+  market: { key: 'market', emoji: '🛒', i18nKey: 'universe.market', labelFr: 'Marchés' },
+  fitness: { key: 'fitness', emoji: '🏋️', i18nKey: 'universe.fitness', labelFr: 'Sport & Fitness' },
+  live_music: { key: 'live_music', emoji: '🎵', i18nKey: 'universe.live_music', labelFr: 'Musique Live' },
+  escape_game: { key: 'escape_game', emoji: '🔐', i18nKey: 'universe.escape_game', labelFr: 'Loisirs & Jeux' },
 };
 
 export const isUniverse = (v: string): v is Universe => (UNIVERSES as readonly string[]).includes(v);
