@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { UNIVERSE_META } from '@yumia/shared';
+import { safeMeta } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
@@ -99,7 +99,7 @@ export default function SurpriseScreen() {
     router.push('/place');
   }
 
-  const meta = result ? UNIVERSE_META[result.place.universe] : null;
+  const meta = result ? safeMeta(result.place.universe) : null;
 
   const translateX = shakeAnim.interpolate({
     inputRange: [-1, 1],

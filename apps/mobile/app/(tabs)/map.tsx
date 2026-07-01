@@ -13,6 +13,7 @@ import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type M
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META, type Universe } from '@yumia/shared';
+import { safeMeta } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useLocation } from '../../lib/useLocation';
 import { useNearby } from '../../lib/useNearby';
@@ -144,7 +145,7 @@ export default function MapScreen() {
       },
       compatibility: 0,
       distanceMeters: place.distanceMeters,
-      reason: `${UNIVERSE_META[place.universe].labelFr} à ${formatDistance(place.distanceMeters)}.`,
+      reason: `${safeMeta(place.universe).labelFr} à ${formatDistance(place.distanceMeters)}.`,
       engine: 'mood' as const,
     });
     router.push('/place');
@@ -313,7 +314,7 @@ function PlaceRow({
   onDetail: () => void;
   hideDist?: boolean;
 }) {
-  const meta = UNIVERSE_META[place.universe];
+  const meta = safeMeta(place.universe);
   return (
     <Pressable style={[styles.row, selected && styles.rowSelected]} onPress={onPress}>
       <Text style={styles.rowEmoji}>{meta.emoji}</Text>

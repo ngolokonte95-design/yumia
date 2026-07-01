@@ -21,6 +21,7 @@ import type { VisitFeedback } from '../lib/passport-api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { UNIVERSE_META } from '@yumia/shared';
+import { safeMeta } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
@@ -125,7 +126,7 @@ export default function PlaceScreen() {
   }
 
   const { place, compatibility, distanceMeters, reason } = suggestion;
-  const meta = UNIVERSE_META[place.universe];
+  const meta = safeMeta(place.universe);
   const isSaved = savedIds.has(place.id);
 
   function handleVisit() {
@@ -441,7 +442,7 @@ export default function PlaceScreen() {
                 },
                 compatibility: 0,
                 distanceMeters: np.distanceMeters,
-                reason: `${UNIVERSE_META[np.universe].emoji} ${UNIVERSE_META[np.universe].labelFr} · ⭐ ${np.rating.toFixed(1)}`,
+                reason: `${safeMeta(np.universe).emoji} ${safeMeta(np.universe).labelFr} · ⭐ ${np.rating.toFixed(1)}`,
                 engine: 'mood',
               });
               router.push('/place');
@@ -608,7 +609,7 @@ function SimilarPlaces({
               <Image source={{ uri: p.photoUrls[0] }} style={similarStyles.img} resizeMode="cover" />
             ) : (
               <View style={[similarStyles.img, similarStyles.imgPlaceholder]}>
-                <Text style={{ fontSize: 28 }}>{UNIVERSE_META[p.universe].emoji}</Text>
+                <Text style={{ fontSize: 28 }}>{safeMeta(p.universe).emoji}</Text>
               </View>
             )}
             <Text style={similarStyles.name} numberOfLines={1}>{p.name}</Text>

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable, Animated, Share, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { PLUS_PRICE_EUR, UNIVERSE_META } from '@yumia/shared';
+import { PLUS_PRICE_EUR } from '@yumia/shared';
+import { safeMeta } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useAuth } from '../../lib/auth-context';
 import { API_BASE_URL } from '../../lib/config';
@@ -188,7 +189,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Visites récentes</Text>
           <View style={styles.timeline}>
             {passport.visits.slice(0, 8).map((v) => {
-              const meta = UNIVERSE_META[v.place.universe as keyof typeof UNIVERSE_META];
+              const meta = safeMeta(v.place.universe);
               const date = new Date(v.visitedAt);
               const label = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
               return (
@@ -232,7 +233,7 @@ export default function ProfileScreen() {
         {hasPrefs ? (
           <View style={styles.chips}>
             {favoriteUniverses.map((u) => {
-              const meta = UNIVERSE_META[u];
+              const meta = safeMeta(u);
               return (
                 <View key={u} style={styles.chip}>
                   <Text style={styles.chipText}>{meta?.emoji} {meta?.labelFr}</Text>

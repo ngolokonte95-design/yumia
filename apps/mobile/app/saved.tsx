@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { UNIVERSE_META } from '@yumia/shared';
+import { safeMeta } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
@@ -102,7 +102,7 @@ export default function SavedScreen() {
           contentContainerStyle={styles.filterRow}
           renderItem={({ item }) => {
             const active = item === activeUniverse;
-            const meta = item !== ALL ? UNIVERSE_META[item as keyof typeof UNIVERSE_META] : null;
+            const meta = item !== ALL ? safeMeta(item) : null;
             return (
               <Pressable
                 style={[styles.filterChip, active && styles.filterChipActive]}
@@ -148,7 +148,7 @@ export default function SavedScreen() {
             <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
           }
           renderItem={({ item }) => {
-            const meta = UNIVERSE_META[item.place.universe as keyof typeof UNIVERSE_META];
+            const meta = safeMeta(item.place.universe);
             const date = new Date(item.createdAt).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'short',

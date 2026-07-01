@@ -11,7 +11,8 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MOODS, MOOD_META, UNIVERSE_META, type Suggestion } from '@yumia/shared';
+import { MOODS, MOOD_META, type Suggestion } from '@yumia/shared';
+import { safeMeta } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useLocation } from '../../lib/useLocation';
 import { useFeed } from '../../lib/useFeed';
@@ -163,7 +164,7 @@ const FeedCard = memo(function FeedCard({
   onOpenDetail?: () => void;
 }) {
   const { place, reason, compatibility } = suggestion;
-  const meta = UNIVERSE_META[place.universe];
+  const meta = safeMeta(place.universe);
   const [saved, setSaved] = useState(isSaved);
   const [visitState, setVisitState] = useState<'idle' | 'picker' | 'submitting' | 'done'>('idle');
   const [xpResult, setXpResult] = useState<VisitResult | null>(null);

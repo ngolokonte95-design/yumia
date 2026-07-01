@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import type { Suggestion } from '@yumia/shared';
-import { UNIVERSE_META } from '@yumia/shared';
+import { safeMeta } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { haptics } from '../lib/useHaptics';
 import type { VisitFeedback, VisitResult } from '../lib/passport-api';
@@ -30,7 +30,7 @@ const FEEDBACK_OPTS: { key: VisitFeedback; emoji: string; label: string }[] = [
 /** Carte de suggestion : photo (placeholder), nom, méta, compatibilité, explication IA. */
 export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved = false }: Props) {
   const { place, compatibility, distanceMeters, reason } = suggestion;
-  const meta = UNIVERSE_META[place.universe];
+  const meta = safeMeta(place.universe);
   const compatColor = compatibility >= 85 ? colors.compatHigh : colors.compatMid;
 
   const [visitState, setVisitState] = useState<VisitState>('idle');

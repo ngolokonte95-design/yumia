@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { UNIVERSE_META } from '@yumia/shared';
+import { safeMeta } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { getVisitHistory, type VisitHistoryItem } from '../lib/passport-api';
@@ -137,7 +137,7 @@ export default function VisitsScreen() {
 }
 
 function VisitRow({ item, onPress }: { item: VisitHistoryItem; onPress: () => void }) {
-  const meta = UNIVERSE_META[item.place.universe as keyof typeof UNIVERSE_META];
+  const meta = safeMeta(item.place.universe);
   const date = new Date(item.visitedAt);
   const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
