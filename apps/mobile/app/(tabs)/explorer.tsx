@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSES, UNIVERSE_META } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { useLocation } from '../../lib/useLocation';
 import { fetchBoostedVenues, type Venue } from '../../lib/business-api';
 
 const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; route: string }[] = [
@@ -23,11 +24,15 @@ const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; r
 export default function ExplorerScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { coords, resolving } = useLocation();
   const [venues, setVenues] = useState<Venue[]>([]);
 
   useEffect(() => {
-    fetchBoostedVenues().then((v) => setVenues(v.slice(0, 6))).catch(() => {});
-  }, []);
+    if (resolving) return;
+    fetchBoostedVenues({ lat: coords.lat, lng: coords.lng, radius: 50000 })
+      .then((v) => setVenues(v.slice(0, 6)))
+      .catch(() => {});
+  }, [coords.lat, coords.lng, resolving]);
 
   return (
     <ScrollView

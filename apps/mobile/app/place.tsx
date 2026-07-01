@@ -261,7 +261,7 @@ export default function PlaceScreen() {
           ) : null}
           {/* Dark scrim so back button and badge stay readable over photos */}
           <View style={[StyleSheet.absoluteFill, styles.heroScrim]} />
-          <Pressable onPress={() => router.back()} style={[styles.backBtn, { top: insets.top + spacing.xs }]}>
+          <Pressable onPress={() => router.back()} style={[styles.backBtn, { top: insets.top + spacing.lg }]}>
             <Text style={styles.backText}>←</Text>
           </Pressable>
           {(!place.photoUrls || place.photoUrls.length === 0) ? (

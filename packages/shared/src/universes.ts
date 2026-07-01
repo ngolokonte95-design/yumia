@@ -19,6 +19,11 @@ export const UNIVERSES = [
   'rooftop',
   'cultural_outing',
   'nightlife',
+  'nightclub',
+  'pub',
+  'cheese_shop',
+  'beach',
+  'place_of_worship',
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -46,6 +51,11 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   rooftop: { key: 'rooftop', emoji: '🌇', i18nKey: 'universe.rooftop', labelFr: 'Rooftops' },
   cultural_outing: { key: 'cultural_outing', emoji: '🎭', i18nKey: 'universe.cultural_outing', labelFr: 'Sorties culturelles' },
   nightlife: { key: 'nightlife', emoji: '🎉', i18nKey: 'universe.nightlife', labelFr: 'Lieux de sortie' },
+  nightclub: { key: 'nightclub', emoji: '🎧', i18nKey: 'universe.nightclub', labelFr: 'Night-clubs' },
+  pub: { key: 'pub', emoji: '🍺', i18nKey: 'universe.pub', labelFr: 'Pubs' },
+  cheese_shop: { key: 'cheese_shop', emoji: '🧀', i18nKey: 'universe.cheese_shop', labelFr: 'Fromageries' },
+  beach: { key: 'beach', emoji: '🏖️', i18nKey: 'universe.beach', labelFr: 'Plages & vacances' },
+  place_of_worship: { key: 'place_of_worship', emoji: '🕌', i18nKey: 'universe.place_of_worship', labelFr: 'Lieux de culte' },
 };
 
 export const isUniverse = (v: string): v is Universe => (UNIVERSES as readonly string[]).includes(v);

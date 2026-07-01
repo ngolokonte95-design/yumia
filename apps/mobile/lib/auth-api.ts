@@ -4,11 +4,8 @@
  */
 import { request } from './api';
 import { API_BASE_URL } from './config';
-
-export type Universe =
-  | 'restaurant' | 'cafe' | 'bakery' | 'dessert' | 'bar' | 'bubble_tea'
-  | 'local_specialty' | 'ice_cream' | 'chocolatier' | 'wine_cellar'
-  | 'tourist_activity' | 'rooftop' | 'cultural_outing' | 'nightlife';
+import type { Universe } from '@yumia/shared';
+export type { Universe };
 
 export interface UserPreferences {
   favoriteUniverses?: Universe[];

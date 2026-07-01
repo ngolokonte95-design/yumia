@@ -11,6 +11,7 @@ import {
   type PlacesProvider,
   type ProviderPlace,
 } from './providers/places-provider.interface';
+import { isBlockedPlace } from './providers/place-types';
 
 const TRENDING_CACHE_TTL_SECONDS = 2 * 60; // 2 min — assez frais, réduit la pression DB
 const PLACE_STATS_CACHE_TTL_SECONDS = 60; // 1 min — les avis communautaires sont peu fréquents
@@ -308,6 +309,9 @@ export class PlacesService {
   private async persistProviderPlaces(places: ProviderPlace[]): Promise<Place[]> {
     const saved: Place[] = [];
     for (const p of places) {
+      // Ignore tabac, épiceries, stations… et lieux mal notés.
+      if (isBlockedPlace(p.tags)) continue;
+      if (p.rating > 0 && p.rating < 3.0) continue;
       try {
         const photoUrls = this.buildPhotoUrls(p.photoRefs);
         const metadata =

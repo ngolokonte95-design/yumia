@@ -101,6 +101,11 @@ enum Universe {
   rooftop
   cultural_outing
   nightlife
+  nightclub
+  pub
+  cheese_shop
+  beach
+  place_of_worship
 }
 
 model Place {

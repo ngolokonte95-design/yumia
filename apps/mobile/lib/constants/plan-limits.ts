@@ -4,12 +4,12 @@
  */
 
 export const FREE_LIMITS = {
-  suggestionsPerDay: 10,
+  suggestionsPerDay: 15,
   plannerPerWeek: 3,
   predictivePerWeek: 2,
   circleMaxMembers: 5,
   passportMaxEntries: 30,
-  travelCities: 3,
+  travelCities: 6,
 } as const;
 
 export type LimitedFeature = keyof typeof FREE_LIMITS;
@@ -17,7 +17,7 @@ export type LimitedFeature = keyof typeof FREE_LIMITS;
 /** Message affiché par PremiumUpsellModal quand chaque limite est atteinte. */
 export const LIMIT_MESSAGES: Record<LimitedFeature, string> = {
   suggestionsPerDay:
-    'Tu as utilisé tes 10 suggestions du jour. Passe en Premium pour des suggestions illimitées pour seulement 2.99€/mois. 👑',
+    'Tu as utilisé tes 15 suggestions du jour. Passe en Premium pour des suggestions illimitées pour seulement 2.99€/mois. 👑',
   plannerPerWeek:
     'Tu as déjà planifié 3 soirées cette semaine. En Premium, planifie autant de soirées que tu veux pour seulement 2.99€/mois. 👑',
   predictivePerWeek:
@@ -27,7 +27,7 @@ export const LIMIT_MESSAGES: Record<LimitedFeature, string> = {
   passportMaxEntries:
     'Ton Passport est plein. Garde une mémoire illimitée de toutes tes expériences pour seulement 2.99€/mois avec le forfait Premium. 👑',
   travelCities:
-    'Le Mode Voyage gratuit est limité à 3 villes. Explore le monde entier sans limite pour seulement 2.99€/mois avec le forfait Premium. 👑',
+    'Le Mode Voyage gratuit est limité à 6 villes. Explore le monde entier sans limite pour seulement 2.99€/mois avec le forfait Premium. 👑',
 };
 
 /** Période de réinitialisation d'un compteur d'usage (pour les limites temporelles). */

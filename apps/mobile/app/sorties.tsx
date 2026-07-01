@@ -10,22 +10,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
+import { useLocation } from '../lib/useLocation';
 import { fetchBoostedVenues, purchaseTicket, type Venue } from '../lib/business-api';
 
 export default function SortiesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { coords, resolving } = useLocation();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Venue | null>(null);
 
   useEffect(() => {
-    fetchBoostedVenues()
+    if (resolving) return;
+    fetchBoostedVenues({ lat: coords.lat, lng: coords.lng, radius: 50000 })
       .then(setVenues)
       .catch(() => setVenues([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [coords.lat, coords.lng, resolving]);
 
   function formatDate(iso: string | null): string {
     if (!iso) return '';

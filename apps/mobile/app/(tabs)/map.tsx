@@ -9,7 +9,7 @@ import {
   Platform,
   TextInput,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META, type Universe } from '@yumia/shared';
@@ -17,7 +17,7 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useLocation } from '../../lib/useLocation';
 import { useNearby } from '../../lib/useNearby';
 import { placeStore } from '../../lib/place-store';
-import { fetchByCity } from '../../lib/places-api';
+import { fetchByCity, fetchNearby } from '../../lib/places-api';
 import type { NearbyPlace } from '../../lib/places-api';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
@@ -41,6 +41,8 @@ export default function MapScreen() {
   const [cityResults, setCityResults] = useState<NearbyPlace[] | null>(null);
   const [cityLoading, setCityLoading] = useState(false);
   const [citiesSearchedCount, setCitiesSearchedCount] = useState(0);
+  const [tapResults, setTapResults] = useState<NearbyPlace[] | null>(null);
+  const [tapLoading, setTapLoading] = useState(false);
   const [upsell, setUpsell] = useState<string | null>(null);
   const { checkLimit, recordUsage } = usePlanLimits();
 
@@ -89,7 +91,27 @@ export default function MapScreen() {
   function clearCitySearch() {
     setCityQuery('');
     setCityResults(null);
+    setTapResults(null);
   }
+
+  const handleMapTap = useCallback(async (e: MapPressEvent) => {
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+    setTapLoading(true);
+    setCityResults(null);
+    setCityQuery('');
+    try {
+      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 2000, universe: universe ?? undefined, limit: 20 });
+      setTapResults(results);
+      mapRef.current?.animateToRegion(
+        { latitude, longitude, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
+        300,
+      );
+    } catch {
+      // silent
+    } finally {
+      setTapLoading(false);
+    }
+  }, [universe]);
 
   function selectPlace(place: NearbyPlace) {
     setSelectedId(place.id);
@@ -130,9 +152,11 @@ export default function MapScreen() {
 
   const provider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
-  const displayPlaces = cityResults ?? places;
+  const displayPlaces = cityResults ?? tapResults ?? places;
   const drawerTitle = cityResults !== null
     ? `${cityResults.length} lieu${cityResults.length > 1 ? 'x' : ''} à « ${cityQuery} »`
+    : tapResults !== null
+    ? `${tapResults.length} lieu${tapResults.length > 1 ? 'x' : ''} autour de ce point`
     : `${places.length} lieu${places.length > 1 ? 'x' : ''} autour de toi`;
 
   return (
@@ -201,24 +225,25 @@ export default function MapScreen() {
           showsMyLocationButton={false}
           mapType="standard"
           customMapStyle={DARK_MAP_STYLE}
+          onPress={handleMapTap}
         >
-          {places.map((place) => (
+          {displayPlaces.map((place) => (
             <Marker
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}
               title={place.name}
-              description={`${UNIVERSE_META[place.universe].labelFr} · ⭐ ${place.rating.toFixed(1)}`}
-              onPress={() => selectPlace(place)}
+              description={`${UNIVERSE_META[place.universe]?.labelFr ?? place.universe} · ⭐ ${place.rating.toFixed(1)}`}
+              onPress={() => openDetail(place)}
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
-                <Text style={styles.markerEmoji}>{UNIVERSE_META[place.universe].emoji}</Text>
+                <Text style={styles.markerEmoji}>{UNIVERSE_META[place.universe]?.emoji ?? '📍'}</Text>
               </View>
             </Marker>
           ))}
         </MapView>
       )}
 
-      {loading && !resolving ? (
+      {(loading || tapLoading) && !resolving ? (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator color={colors.brand} />
         </View>
@@ -233,29 +258,28 @@ export default function MapScreen() {
           {cityResults !== null ? (
             <>
               {cityResults.map((place) => (
-                <PlaceRow
-                  key={place.id}
-                  place={place}
-                  selected={place.id === selectedId}
-                  onPress={() => selectPlace(place)}
-                  onDetail={() => openDetail(place)}
-                  hideDist
-                />
+                <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
+                  onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} hideDist />
               ))}
               {cityResults.length === 0 ? (
                 <Text style={styles.empty}>Aucun lieu trouvé pour « {cityQuery} ». Essaie une autre ville.</Text>
               ) : null}
             </>
+          ) : tapResults !== null ? (
+            <>
+              {tapResults.map((place) => (
+                <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
+                  onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} />
+              ))}
+              {tapResults.length === 0 ? (
+                <Text style={styles.empty}>Aucun lieu trouvé autour de ce point.</Text>
+              ) : null}
+            </>
           ) : (
             <>
               {displayPlaces.map((place) => (
-                <PlaceRow
-                  key={place.id}
-                  place={place}
-                  selected={place.id === selectedId}
-                  onPress={() => selectPlace(place)}
-                  onDetail={() => openDetail(place)}
-                />
+                <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
+                  onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} />
               ))}
               {!loading && places.length === 0 ? (
                 <Text style={styles.empty}>Aucun lieu dans ce rayon. Élargis ou change de filtre.</Text>

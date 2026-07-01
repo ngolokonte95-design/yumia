@@ -22,11 +22,37 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   tourist_activity: ['tourist_attraction'],
   rooftop: ['bar'],
   cultural_outing: ['museum', 'art_gallery', 'performing_arts_theater'],
-  nightlife: ['night_club'],
+  nightlife: ['night_club', 'bar'],
+  nightclub: ['night_club'],
+  pub: ['pub', 'bar'],
+  cheese_shop: ['specialty_food_store'],
+  beach: ['beach'],
+  place_of_worship: ['church', 'mosque', 'synagogue', 'hindu_temple'],
 };
 
 /** Recherche large par défaut quand aucun univers n'est précisé (home/explore). */
 const DEFAULT_TYPES = ['restaurant', 'cafe', 'bar', 'bakery', 'tourist_attraction', 'museum'];
+
+/** Types Google à exclure de l'hydratation (tabac, épiceries, stations-service…). */
+export const BLOCKED_GOOGLE_TYPES = new Set([
+  'tobacco_shop',
+  'convenience_store',
+  'supermarket',
+  'grocery_or_supermarket',
+  'gas_station',
+  'laundry',
+  'dry_cleaning',
+  'car_wash',
+  'parking',
+  'atm',
+  'bank',
+  'pharmacy',
+]);
+
+/** Renvoie true si le lieu doit être écarté (tabac, épicerie, station…). */
+export function isBlockedPlace(types: string[]): boolean {
+  return types.some((t) => BLOCKED_GOOGLE_TYPES.has(t));
+}
 
 /**
  * Reverse map Google → univers, du plus spécifique au plus générique : le
@@ -39,7 +65,14 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['coffee_shop', 'cafe'],
   ['cafe', 'cafe'],
   ['tea_house', 'bubble_tea'],
-  ['night_club', 'nightlife'],
+  ['night_club', 'nightclub'],
+  ['pub', 'pub'],
+  ['specialty_food_store', 'cheese_shop'],
+  ['beach', 'beach'],
+  ['church', 'place_of_worship'],
+  ['mosque', 'place_of_worship'],
+  ['synagogue', 'place_of_worship'],
+  ['hindu_temple', 'place_of_worship'],
   ['liquor_store', 'wine_cellar'],
   ['candy_store', 'chocolatier'],
   ['bar', 'bar'],

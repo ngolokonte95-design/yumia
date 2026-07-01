@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MODES, MODE_META, UNIVERSES, UNIVERSE_META } from '@yumia/shared';
-import type { Mode } from '@yumia/shared';
+import { MODE_META, UNIVERSES, UNIVERSE_META } from '@yumia/shared';
+import type { Mode, Universe } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { SuggestionCard } from '../../components/SuggestionCard';
 import { ExperienceCard } from '../../components/ExperienceCard';
@@ -39,13 +39,33 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
 
 const ITINERARY_MODES: Mode[] = ['date', 'travel'];
 
-/** Raccourcis d'orientation : montrent d'un coup l'étendue des fonctionnalités. */
-const HOME_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
+type Shortcut = { key: string; emoji: string; label: string } & (
+  | { route: string; mode?: never }
+  | { mode: string; route?: never }
+);
+
+/** Ligne 1 : fonctionnalités principales */
+const HOME_ROW1: Shortcut[] = [
   { key: 'explorer', emoji: '🧭', label: 'Explorer', route: '/(tabs)/explorer' },
   { key: 'sorties', emoji: '🎟️', label: 'Sorties', route: '/sorties' },
   { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
   { key: 'group', emoji: '👥', label: 'Groupe', route: '/group' },
   { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
+  { key: 'date', emoji: '🌙', label: 'Date', mode: 'date' },
+  { key: 'famille', emoji: '👨‍👩‍👧', label: 'Famille', mode: 'famille' },
+  { key: 'travel', emoji: '✈️', label: 'Voyage', mode: 'travel' },
+];
+
+/** Ligne 2 : catégories & découverte */
+const HOME_ROW2: Shortcut[] = [
+  { key: 'nightclub', emoji: '🎧', label: 'Night-clubs', route: '/nightclub' },
+  { key: 'beach', emoji: '🏖️', label: 'Plages', route: '/universe?u=beach' },
+  { key: 'cheese', emoji: '🧀', label: 'Fromages', route: '/universe?u=cheese_shop' },
+  { key: 'worship', emoji: '🕌', label: 'Cultes', route: '/universe?u=place_of_worship' },
+  { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
+  { key: 'saved', emoji: '🤍', label: 'Sauvegardés', route: '/saved' },
+  { key: 'passport', emoji: '🎒', label: 'Passeport', route: '/(tabs)/passport' },
+  { key: 'pub', emoji: '🍺', label: 'Pubs', route: '/universe?u=pub' },
 ];
 
 /** HOME — « Que faire maintenant ? ». Point de départ de chaque session. */
@@ -186,11 +206,18 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Raccourcis fonctionnalités — orientation rapide */}
+      {/* Ligne 1 — fonctionnalités principales */}
       <View style={styles.section}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
-          {HOME_SHORTCUTS.map((s) => (
-            <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
+          {HOME_ROW1.map((s) => (
+            <Pressable
+              key={s.key}
+              style={[styles.shortcut, s.mode && selectedMode === s.mode && styles.shortcutActive]}
+              onPress={() => {
+                if (s.mode) { void toggleMode(s.mode as Parameters<typeof toggleMode>[0]); }
+                else { router.push(s.route as never); }
+              }}
+            >
               <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
               <Text style={styles.shortcutLabel}>{s.label}</Text>
             </Pressable>
@@ -198,24 +225,15 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Modes rapides */}
+      {/* Ligne 2 — catégories & découverte */}
       <View style={styles.section}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {MODES.filter((m) => m !== 'solo').map((m) => {
-            const active = selectedMode === m;
-            return (
-              <Pressable
-                key={m}
-                style={[styles.modeChip, active && styles.modeChipActive]}
-                onPress={() => toggleMode(m)}
-              >
-                <Text style={styles.modeEmoji}>{MODE_META[m].emoji}</Text>
-                <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
-                  {MODE_META[m].labelFr}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
+          {HOME_ROW2.map((s) => (
+            <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
+              <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
+              <Text style={styles.shortcutLabel}>{s.label}</Text>
+            </Pressable>
+          ))}
         </ScrollView>
       </View>
 
@@ -450,6 +468,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     alignItems: 'center',
     gap: 4,
+  },
+  shortcutActive: {
+    backgroundColor: `${colors.brand}18`,
+    borderColor: colors.brand,
   },
   shortcutEmoji: { fontSize: 24 },
   shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 11 },
