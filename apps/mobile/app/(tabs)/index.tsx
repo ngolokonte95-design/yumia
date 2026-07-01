@@ -3,7 +3,7 @@ import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, Refre
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODE_META, UNIVERSES, UNIVERSE_META } from '@yumia/shared';
-import type { Mode, Universe } from '@yumia/shared';
+import type { Mode } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { SuggestionCard } from '../../components/SuggestionCard';
 import { ExperienceCard } from '../../components/ExperienceCard';
@@ -39,34 +39,30 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
 
 const ITINERARY_MODES: Mode[] = ['date', 'travel'];
 
-type Shortcut = { key: string; emoji: string; label: string } & (
-  | { route: string; mode?: never }
-  | { mode: string; route?: never }
-);
-
-/** Ligne 1 : fonctionnalités principales */
-const HOME_ROW1: Shortcut[] = [
+const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'explorer', emoji: '🧭', label: 'Explorer', route: '/(tabs)/explorer' },
   { key: 'sorties', emoji: '🎟️', label: 'Sorties', route: '/sorties' },
   { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
   { key: 'group', emoji: '👥', label: 'Groupe', route: '/group' },
   { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
-  { key: 'date', emoji: '🌙', label: 'Date', mode: 'date' },
-  { key: 'famille', emoji: '👨‍👩‍👧', label: 'Famille', mode: 'famille' },
-  { key: 'travel', emoji: '✈️', label: 'Voyage', mode: 'travel' },
-];
-
-/** Ligne 2 : catégories & découverte */
-const HOME_ROW2: Shortcut[] = [
-  { key: 'nightclub', emoji: '🎧', label: 'Night-clubs', route: '/nightclub' },
-  { key: 'beach', emoji: '🏖️', label: 'Plages', route: '/universe?u=beach' },
-  { key: 'cheese', emoji: '🧀', label: 'Fromages', route: '/universe?u=cheese_shop' },
-  { key: 'worship', emoji: '🕌', label: 'Cultes', route: '/universe?u=place_of_worship' },
   { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
   { key: 'saved', emoji: '🤍', label: 'Sauvegardés', route: '/saved' },
   { key: 'passport', emoji: '🎒', label: 'Passeport', route: '/(tabs)/passport' },
-  { key: 'pub', emoji: '🍺', label: 'Pubs', route: '/universe?u=pub' },
 ];
+
+const MODE_CHIPS: { key: Mode; emoji: string; label: string }[] = [
+  { key: 'date', emoji: '🌙', label: 'Date' },
+  { key: 'family', emoji: '👨‍👩‍👧', label: 'Famille' },
+  { key: 'travel', emoji: '✈️', label: 'Voyage' },
+];
+
+/** Route spéciale par univers (remplace /universe?u= pour certains) */
+const UNIVERSE_ROUTE_OVERRIDES: Partial<Record<string, string>> = {
+  nightclub: '/nightclub',
+};
+function universeRoute(u: string): string {
+  return UNIVERSE_ROUTE_OVERRIDES[u] ?? `/universe?u=${u}`;
+}
 
 /** HOME — « Que faire maintenant ? ». Point de départ de chaque session. */
 export default function HomeScreen() {
@@ -206,29 +202,10 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Ligne 1 — fonctionnalités principales */}
+      {/* Fonctionnalités — raccourcis compacts */}
       <View style={styles.section}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
-          {HOME_ROW1.map((s) => (
-            <Pressable
-              key={s.key}
-              style={[styles.shortcut, s.mode && selectedMode === s.mode && styles.shortcutActive]}
-              onPress={() => {
-                if (s.mode) { void toggleMode(s.mode as Parameters<typeof toggleMode>[0]); }
-                else { router.push(s.route as never); }
-              }}
-            >
-              <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
-              <Text style={styles.shortcutLabel}>{s.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Ligne 2 — catégories & découverte */}
-      <View style={styles.section}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
-          {HOME_ROW2.map((s) => (
+          {FEATURE_SHORTCUTS.map((s) => (
             <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
               <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
               <Text style={styles.shortcutLabel}>{s.label}</Text>
@@ -237,16 +214,36 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Surprise Me */}
+      {/* Modes IA — toggle humeur */}
       <View style={styles.section}>
-        <Pressable style={styles.surpriseBtn} onPress={() => router.push('/surprise')}>
-          <Text style={styles.surpriseEmoji}>🎲</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.surpriseTitle}>Surprise Me</Text>
-            <Text style={styles.surpriseSub}>Laisse YUMIA choisir pour toi</Text>
-          </View>
-          <Text style={styles.surpriseChevron}>›</Text>
-        </Pressable>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modesRow}>
+          {MODE_CHIPS.map((m) => {
+            const active = selectedMode === m.key;
+            return (
+              <Pressable
+                key={m.key}
+                style={[styles.modeChip, active && styles.modeChipActive]}
+                onPress={() => void toggleMode(m.key)}
+              >
+                <Text style={styles.modeEmoji}>{m.emoji}</Text>
+                <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{m.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Tous les univers — grille 4 colonnes */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('explore_title')}</Text>
+        <View style={styles.universeGrid}>
+          {UNIVERSES.map((u) => (
+            <Pressable key={u} style={styles.universeCard} onPress={() => router.push(universeRoute(u) as never)}>
+              <Text style={styles.universeEmoji}>{UNIVERSE_META[u].emoji}</Text>
+              <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       {/* Tendances près de toi */}
@@ -356,18 +353,6 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Univers (grille horizontale scrollable) */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('explore_title')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-          {UNIVERSES.map((u) => (
-            <Pressable key={u} style={styles.universeChip} onPress={() => router.push(`/universe?u=${u}`)}>
-              <Text style={styles.universeEmoji}>{UNIVERSE_META[u].emoji}</Text>
-              <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
     </ScrollView>
     </>
   );
@@ -469,18 +454,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  shortcutActive: {
-    backgroundColor: `${colors.brand}18`,
-    borderColor: colors.brand,
-  },
-  shortcutEmoji: { fontSize: 24 },
+  shortcutEmoji: { fontSize: 22 },
   shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 11 },
-  chipsRow: { gap: spacing.sm, paddingRight: spacing.md },
+  modesRow: { gap: spacing.sm, paddingRight: spacing.md },
   modeChip: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -492,8 +473,22 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
   },
   modeEmoji: { fontSize: 16 },
-  modeLabel: { ...typography.caption, color: colors.textPrimary },
+  modeLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
   modeLabelActive: { color: colors.brandSoft },
+  universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  universeCard: {
+    width: '22.5%',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 3,
+  },
+  universeEmoji: { fontSize: 22 },
+  universeLabel: { ...typography.label, color: colors.textSecondary, textAlign: 'center', fontSize: 9, lineHeight: 12 },
   sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },
   top3Reason: {
     ...typography.body,
@@ -519,33 +514,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   retryText: { ...typography.caption, color: colors.textPrimary },
-  surpriseBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: `${colors.accent}14`,
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  surpriseEmoji: { fontSize: 28 },
-  surpriseTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  surpriseSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  surpriseChevron: { ...typography.title, color: colors.textMuted },
-  universeChip: {
-    width: 88,
-    height: 88,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  universeEmoji: { fontSize: 28 },
-  universeLabel: { ...typography.label, color: colors.textSecondary, textAlign: 'center' },
   trendingRow: { gap: spacing.md, paddingRight: spacing.md },
   trendingCard: {
     width: 148,

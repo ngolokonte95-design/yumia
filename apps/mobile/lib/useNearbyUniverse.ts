@@ -9,25 +9,26 @@ const CACHE_TTL = 5 * 60_000;
 export function useNearbyUniverse(params: {
   lat: number;
   lng: number;
-  universe: Universe;
+  universe: Universe | null;
   radius?: number;
   limit?: number;
 }) {
   const { lat, lng, universe, radius = 5000, limit = 30 } = params;
   const { isOnline } = useNetworkStatus();
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(universe !== null);
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
 
   const ck = cacheKey('nearby-universe', {
     lat: lat.toFixed(3),
     lng: lng.toFixed(3),
-    universe,
+    universe: universe ?? 'none',
     r: String(radius),
   });
 
   const load = useCallback(async () => {
+    if (!universe) return;
     setLoading(true);
     setError(null);
 

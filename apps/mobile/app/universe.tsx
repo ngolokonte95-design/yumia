@@ -32,7 +32,7 @@ export default function UniverseScreen() {
   const { places, loading, error, reload } = useNearbyUniverse({
     lat: coords.lat,
     lng: coords.lng,
-    universe: universe ?? ('restaurant' as Universe),
+    universe,
     radius: 5000,
     limit: 30,
   });
