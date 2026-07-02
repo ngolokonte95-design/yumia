@@ -30,6 +30,18 @@ export const UNIVERSES = [
   'fitness',
   'live_music',
   'escape_game',
+  'museum',
+  'zoo',
+  'amusement_park',
+  'bookstore',
+  'tea_house',
+  'karaoke',
+  'library',
+  'bowling',
+  'casino',
+  'art_gallery',
+  'aquatic',
+  'florist',
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -68,6 +80,18 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   fitness: { key: 'fitness', emoji: '🏋️', i18nKey: 'universe.fitness', labelFr: 'Sport & Fitness' },
   live_music: { key: 'live_music', emoji: '🎵', i18nKey: 'universe.live_music', labelFr: 'Musique Live' },
   escape_game: { key: 'escape_game', emoji: '🔐', i18nKey: 'universe.escape_game', labelFr: 'Loisirs & Jeux' },
+  museum: { key: 'museum', emoji: '🏛️', i18nKey: 'universe.museum', labelFr: 'Musées' },
+  zoo: { key: 'zoo', emoji: '🦁', i18nKey: 'universe.zoo', labelFr: 'Zoo & Aquarium' },
+  amusement_park: { key: 'amusement_park', emoji: '🎢', i18nKey: 'universe.amusement_park', labelFr: "Parcs d'attractions" },
+  bookstore: { key: 'bookstore', emoji: '📚', i18nKey: 'universe.bookstore', labelFr: 'Librairies' },
+  tea_house: { key: 'tea_house', emoji: '🫖', i18nKey: 'universe.tea_house', labelFr: 'Salons de thé' },
+  karaoke: { key: 'karaoke', emoji: '🎤', i18nKey: 'universe.karaoke', labelFr: 'Karaoké' },
+  library: { key: 'library', emoji: '📖', i18nKey: 'universe.library', labelFr: 'Bibliothèques' },
+  bowling: { key: 'bowling', emoji: '🎳', i18nKey: 'universe.bowling', labelFr: 'Bowling' },
+  casino: { key: 'casino', emoji: '🎰', i18nKey: 'universe.casino', labelFr: 'Casinos' },
+  art_gallery: { key: 'art_gallery', emoji: '🖼️', i18nKey: 'universe.art_gallery', labelFr: "Galeries d'art" },
+  aquatic: { key: 'aquatic', emoji: '🏊', i18nKey: 'universe.aquatic', labelFr: 'Piscines & Aquatique' },
+  florist: { key: 'florist', emoji: '💐', i18nKey: 'universe.florist', labelFr: 'Fleuristes' },
 };
 
 export const isUniverse = (v: string): v is Universe => (UNIVERSES as readonly string[]).includes(v);

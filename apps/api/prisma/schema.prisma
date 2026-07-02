@@ -113,6 +113,18 @@ enum Universe {
   fitness
   live_music
   escape_game
+  museum
+  zoo
+  amusement_park
+  bookstore
+  tea_house
+  karaoke
+  library
+  bowling
+  casino
+  art_gallery
+  aquatic
+  florist
 }
 
 model Place {

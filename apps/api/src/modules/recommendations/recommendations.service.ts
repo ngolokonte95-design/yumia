@@ -106,6 +106,8 @@ const RECO_EXCLUDED_UNIVERSES = new Set<string>([
   'cheese_shop',
   'spa',
   'fitness',
+  'florist',
+  'library',
 ]);
 
 /**
