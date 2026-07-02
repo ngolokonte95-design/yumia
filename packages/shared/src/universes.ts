@@ -60,7 +60,7 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   nightclub: { key: 'nightclub', emoji: '🎧', i18nKey: 'universe.nightclub', labelFr: 'Night-clubs' },
   pub: { key: 'pub', emoji: '🍺', i18nKey: 'universe.pub', labelFr: 'Pubs' },
   beach: { key: 'beach', emoji: '🏖️', i18nKey: 'universe.beach', labelFr: 'Plages & vacances' },
-  place_of_worship: { key: 'place_of_worship', emoji: '🕌', i18nKey: 'universe.place_of_worship', labelFr: 'Lieux de culte' },
+  place_of_worship: { key: 'place_of_worship', emoji: '🛐', i18nKey: 'universe.place_of_worship', labelFr: 'Lieux de culte' },
   spa: { key: 'spa', emoji: '🧖', i18nKey: 'universe.spa', labelFr: 'Spa & Bien-être' },
   park: { key: 'park', emoji: '🌿', i18nKey: 'universe.park', labelFr: 'Parcs & Nature' },
   cinema: { key: 'cinema', emoji: '🎬', i18nKey: 'universe.cinema', labelFr: 'Cinémas' },

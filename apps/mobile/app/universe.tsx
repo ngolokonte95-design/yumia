@@ -13,6 +13,7 @@ import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
 import { useSaved } from '../lib/useSaved';
 import { useNearbyUniverse } from '../lib/useNearbyUniverse';
+import { placeEmoji } from '../lib/universeMeta';
 import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
 import type { NearbyPlace } from '../lib/places-api';
@@ -117,7 +118,7 @@ export default function UniverseScreen() {
               <Pressable style={styles.card} onPress={() => handleTap(item)}>
                 <View style={styles.cardLeft}>
                   <View style={styles.cardEmojiBg}>
-                    <Text style={styles.cardEmoji}>{meta.emoji}</Text>
+                    <Text style={styles.cardEmoji}>{placeEmoji(item.universe, item.tags)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>

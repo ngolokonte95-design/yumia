@@ -21,7 +21,7 @@ import type { VisitFeedback } from '../lib/passport-api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { UNIVERSE_META } from '@yumia/shared';
-import { safeMeta } from '../lib/universeMeta';
+import { safeMeta, placeEmoji } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
@@ -266,7 +266,7 @@ export default function PlaceScreen() {
             <Text style={styles.backText}>←</Text>
           </Pressable>
           {(!place.photoUrls || place.photoUrls.length === 0) ? (
-            <Text style={styles.heroEmoji}>{meta.emoji}</Text>
+            <Text style={styles.heroEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
           ) : null}
           {compatibility > 0 ? (
             <View style={[styles.compatBadge, { borderColor: compatColor }]}>
@@ -609,7 +609,7 @@ function SimilarPlaces({
               <Image source={{ uri: p.photoUrls[0] }} style={similarStyles.img} resizeMode="cover" />
             ) : (
               <View style={[similarStyles.img, similarStyles.imgPlaceholder]}>
-                <Text style={{ fontSize: 28 }}>{safeMeta(p.universe).emoji}</Text>
+                <Text style={{ fontSize: 28 }}>{placeEmoji(p.universe, p.tags)}</Text>
               </View>
             )}
             <Text style={similarStyles.name} numberOfLines={1}>{p.name}</Text>
