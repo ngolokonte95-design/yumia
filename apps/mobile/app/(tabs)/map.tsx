@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -45,6 +45,11 @@ export default function MapScreen() {
   const [tapResults, setTapResults] = useState<NearbyPlace[] | null>(null);
   const [tapLoading, setTapLoading] = useState(false);
   const [upsell, setUpsell] = useState<string | null>(null);
+  // Perf carte : les marqueurs personnalisés (View/Text) sont figés après leur
+  // rendu (tracksViewChanges=false) pour éviter que 60-80 marqueurs re-rendent
+  // leur image native en boucle → clignotement/disparition + crash mémoire.
+  // On réactive brièvement le tracking quand la donnée ou la sélection change.
+  const [tracking, setTracking] = useState(true);
   const { checkLimit, recordUsage } = usePlanLimits();
 
   const { places, loading, error } = useNearby({
@@ -154,6 +159,16 @@ export default function MapScreen() {
   const provider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
   const displayPlaces = cityResults ?? tapResults ?? places;
+
+  // Quand la liste de lieux ou la sélection change, on autorise le tracking le
+  // temps d'un rendu (les marqueurs se dessinent / la sélection s'applique) puis
+  // on le coupe : les marqueurs deviennent statiques, plus de churn natif.
+  useEffect(() => {
+    setTracking(true);
+    const t = setTimeout(() => setTracking(false), 900);
+    return () => clearTimeout(t);
+  }, [cityResults, tapResults, places, selectedId]);
+
   const drawerTitle = cityResults !== null
     ? `${cityResults.length} lieu${cityResults.length > 1 ? 'x' : ''} à « ${cityQuery} »`
     : tapResults !== null
@@ -234,6 +249,7 @@ export default function MapScreen() {
               coordinate={{ latitude: place.lat, longitude: place.lng }}
               title={place.name}
               description={`${safeMeta(place.universe).labelFr || place.universe} · ⭐ ${place.rating.toFixed(1)}`}
+              tracksViewChanges={tracking}
               onPress={() => openDetail(place)}
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
