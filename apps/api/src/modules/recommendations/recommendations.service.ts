@@ -421,18 +421,47 @@ export class RecommendationsService {
       limit: Math.max(40, limit * 3),
     });
 
+    // Recherche par plat : si l'utilisateur tape un mot-clé (« couscous »,
+    // « ramen »…), on interroge le Text Search géolocalisé, qui remonte les lieux
+    // servant réellement ce plat (match jusque dans les avis). Ces lieux sont
+    // fortement priorisés — c'est LA réponse à la requête.
+    const query = (ctx.query ?? '').trim();
+    let dishMatches: PlaceWithDistance[] = [];
+    let dishMatchIds = new Set<string>();
+    if (query.length >= 3) {
+      dishMatches = await this.places
+        .searchByQueryNearby({
+          query,
+          lat: ctx.location!.lat,
+          lng: ctx.location!.lng,
+          radius,
+          limit: Math.max(20, limit * 3),
+        })
+        .catch(() => []);
+      dishMatchIds = new Set(dishMatches.map((p) => p.id));
+    }
+
     // Exclut les univers "destination volontaire" (culte, magasins, spa…) des
     // suggestions spontanées : une église proche et bien notée ne doit jamais
-    // sortir pour une envie de couscous.
+    // sortir pour une envie de couscous. Les matchs de plat échappent à ce filtre
+    // (lieux food explicitement demandés).
     const recommendable = raw.filter(
-      (p) => !RECO_EXCLUDED_UNIVERSES.has(p.universe as string),
+      (p) => dishMatchIds.has(p.id) || !RECO_EXCLUDED_UNIVERSES.has(p.universe as string),
     );
-    const candidates = this.filterByRestrictions(recommendable, restrictions);
 
-    const scored = candidates.map((place) => ({
-      place,
-      compatibility: this.scoreOf(place, radius, suggestedUniverses, favoriteUniverses),
-    }));
+    // Fusionne les matchs de plat dans le pool (dédup par id), puis applique les
+    // restrictions alimentaires (ex. « sans alcool ») à l'ensemble.
+    const byId = new Map<string, PlaceWithDistance>();
+    for (const p of [...dishMatches, ...recommendable]) byId.set(p.id, p);
+    const candidates = this.filterByRestrictions([...byId.values()], restrictions);
+
+    const scored = candidates.map((place) => {
+      const base = this.scoreOf(place, radius, suggestedUniverses, favoriteUniverses);
+      // Boost fort pour un lieu qui sert le plat demandé : il doit dominer un
+      // resto générique proche mais hors-sujet.
+      const compatibility = dishMatchIds.has(place.id) ? Math.min(100, base + 35) : base;
+      return { place, compatibility };
+    });
 
     // Variété : on ne prend PAS strictement le top-N (qui serait toujours
     // identique → effet "toujours les mêmes suggestions"), mais un échantillon

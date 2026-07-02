@@ -47,6 +47,18 @@ export interface PlacesProvider {
   /** Recherche textuelle (par ville, sans géoloc). Optionnelle selon le provider. */
   searchByText?(textQuery: string, universe?: Universe, limit?: number): Promise<ProviderPlace[]>;
   /**
+   * Recherche textuelle **géolocalisée** (ex. plat précis « couscous » autour de
+   * l'utilisateur). Biaisée par un cercle lat/lng/rayon. Optionnelle.
+   */
+  searchTextNearby?(
+    textQuery: string,
+    lat: number,
+    lng: number,
+    radius: number,
+    universe?: Universe,
+    limit?: number,
+  ): Promise<ProviderPlace[]>;
+  /**
    * Résout une référence photo en URL d'image directe (sans clé API), pour le
    * proxy `GET /places/photo`. `null` si non supporté ou indisponible.
    */

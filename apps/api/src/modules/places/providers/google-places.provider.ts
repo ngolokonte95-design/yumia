@@ -188,6 +188,50 @@ export class GooglePlacesProvider implements PlacesProvider {
   }
 
   /**
+   * Recherche textuelle **géolocalisée** — ex. « couscous », « ramen », biaisée
+   * autour d'un point. Google cherche dans le nom, les types ET les avis, donc
+   * un plat précis remonte les lieux qui le servent réellement (précision
+   * « carte des menus » sans base de menus). Mappe vers {@link ProviderPlace}.
+   */
+  async searchTextNearby(
+    textQuery: string,
+    lat: number,
+    lng: number,
+    radius: number,
+    universe?: Universe,
+    limit = MAX_RESULTS,
+  ): Promise<ProviderPlace[]> {
+    const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': this.apiKey,
+        'X-Goog-FieldMask': FIELD_MASK,
+      },
+      body: JSON.stringify({
+        textQuery,
+        maxResultCount: Math.min(limit, MAX_RESULTS),
+        locationBias: {
+          circle: {
+            center: { latitude: lat, longitude: lng },
+            radius: Math.min(Math.max(radius, 1), MAX_RADIUS_M),
+          },
+        },
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Google Places (textNearby) ${res.status} : ${text.slice(0, 200)}`);
+    }
+    const data = (await res.json()) as { places?: GooglePlace[] };
+    return (data.places ?? []).flatMap((g) => {
+      const mapped = this.mapPlace(g, universe);
+      return mapped ? [mapped] : [];
+    });
+  }
+
+  /**
    * Retrouve les références photo d'un lieu par son nom + position (Text Search),
    * pour enrichir a posteriori les lieux seed dépourvus de photos.
    * Renvoie au plus {@link MAX_PHOTOS} références (vide si rien trouvé).

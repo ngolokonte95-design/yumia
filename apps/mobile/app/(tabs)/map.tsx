@@ -50,7 +50,7 @@ export default function MapScreen() {
   const { places, loading, error } = useNearby({
     lat: coords.lat,
     lng: coords.lng,
-    radius: 3000,
+    radius: 6000,
     universe: universe ?? undefined,
     enabled: !resolving,
   });
@@ -101,7 +101,7 @@ export default function MapScreen() {
     setCityResults(null);
     setCityQuery('');
     try {
-      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 2000, universe: universe ?? undefined, limit: 20 });
+      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 4000, universe: universe ?? undefined, limit: 60 });
       setTapResults(results);
       mapRef.current?.animateToRegion(
         { latitude, longitude, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
@@ -233,11 +233,11 @@ export default function MapScreen() {
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}
               title={place.name}
-              description={`${UNIVERSE_META[place.universe]?.labelFr ?? place.universe} · ⭐ ${place.rating.toFixed(1)}`}
+              description={`${safeMeta(place.universe).labelFr || place.universe} · ⭐ ${place.rating.toFixed(1)}`}
               onPress={() => openDetail(place)}
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
-                <Text style={styles.markerEmoji}>{UNIVERSE_META[place.universe]?.emoji ?? '📍'}</Text>
+                <Text style={styles.markerEmoji}>{safeMeta(place.universe).emoji}</Text>
               </View>
             </Marker>
           ))}

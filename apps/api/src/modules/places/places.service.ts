@@ -37,6 +37,20 @@ const PHOTO_DEFAULT_WIDTH = 800;
 /** Lieu enrichi de sa distance (mètres) par rapport au point de recherche. */
 export type PlaceWithDistance = Place & { distanceMeters: number };
 
+/**
+ * Catégories interrogées pour densifier la carte "Tous" (aucun univers filtré).
+ * Google plafonne `searchNearby` à 20 résultats/appel : en couvrant plusieurs
+ * catégories, on remonte beaucoup plus de lieux variés par zone.
+ */
+const MAP_DENSITY_UNIVERSES: Universe[] = [
+  'restaurant',
+  'cafe',
+  'bar',
+  'bakery',
+  'tourist_activity',
+  'cultural_outing',
+];
+
 const EARTH_RADIUS_M = 6_371_000;
 
 /**
@@ -279,13 +293,33 @@ export class PlacesService {
     await this.redis.setJson(tileKey, true, HYDRATE_LOCK_TTL_SECONDS).catch(() => undefined);
 
     try {
-      const found = await this.provider.searchNearby({
-        lat: params.lat,
-        lng: params.lng,
-        radius: params.radius,
-        universe: params.universe,
-        limit: 20,
-      });
+      let found: ProviderPlace[];
+      if (params.universe) {
+        found = await this.provider.searchNearby({
+          lat: params.lat,
+          lng: params.lng,
+          radius: params.radius,
+          universe: params.universe,
+          limit: 20,
+        });
+      } else {
+        // Carte "Tous" : Google plafonne searchNearby à 20 résultats par appel.
+        // Pour densifier, on interroge plusieurs catégories clés en parallèle et
+        // on fusionne (dédup par providerPlaceId dans persistProviderPlaces).
+        const batches = await Promise.all(
+          MAP_DENSITY_UNIVERSES.map((u) =>
+            this.provider
+              .searchNearby({ lat: params.lat, lng: params.lng, radius: params.radius, universe: u, limit: 20 })
+              .catch(() => [] as ProviderPlace[]),
+          ),
+        );
+        const seen = new Set<string>();
+        found = batches.flat().filter((p) => {
+          if (seen.has(p.providerPlaceId)) return false;
+          seen.add(p.providerPlaceId);
+          return true;
+        });
+      }
       if (found.length === 0) {
         // Rien trouvé cette fois : on retentera dans quelques heures plutôt que
         // de condamner la zone pendant une semaine (clé/quota transitoire…).
@@ -352,6 +386,74 @@ export class PlacesService {
       }
     }
     return saved;
+  }
+
+  /**
+   * Recherche **géolocalisée par mot-clé libre** (ex. un plat : « couscous »,
+   * « ramen »). S'appuie sur le Text Search du provider, qui cherche jusque dans
+   * les avis → renvoie les lieux qui servent réellement ce plat, autour du point.
+   * Persiste les nouveaux lieux puis renvoie l'ensemble trié par distance.
+   *
+   * Best-effort : sans provider actif, renvoie `[]` (le pipeline retombe sur la
+   * recherche par univers). Cache court par (query+tuile) pour limiter le coût.
+   */
+  async searchByQueryNearby(params: {
+    query: string;
+    lat: number;
+    lng: number;
+    radius: number;
+    limit: number;
+  }): Promise<PlaceWithDistance[]> {
+    const query = params.query.trim();
+    if (!this.provider.isEnabled || !this.provider.searchTextNearby || query.length < 3) {
+      return [];
+    }
+
+    const cacheKey = [
+      'places:dish',
+      query.toLowerCase().slice(0, 40),
+      params.lat.toFixed(2),
+      params.lng.toFixed(2),
+      Math.max(1, Math.round(params.radius / 1000)),
+    ].join(':');
+
+    // Le cache stocke les IDs des lieux qui matchent le plat pour cette zone :
+    // on évite ainsi de rappeler Google ET on sait exactement quels lieux
+    // ressortir (ceux qui servent réellement le plat), même sur un cache hit.
+    let matchedIds = await this.redis.getJson<string[]>(cacheKey).catch(() => null);
+
+    if (matchedIds === null) {
+      try {
+        const found = await this.provider.searchTextNearby(
+          query,
+          params.lat,
+          params.lng,
+          params.radius,
+          undefined,
+          20,
+        );
+        const saved = found.length > 0 ? await this.persistProviderPlaces(found) : [];
+        matchedIds = saved.map((p) => p.id);
+        const ttl = matchedIds.length > 0 ? HYDRATE_TILE_TTL_SECONDS : HYDRATE_EMPTY_RETRY_TTL_SECONDS;
+        await this.redis.setJson(cacheKey, matchedIds, ttl).catch(() => undefined);
+        this.logger.log(`Recherche plat « ${query} » : ${matchedIds.length} lieux.`);
+      } catch (err) {
+        this.logger.warn(`Recherche plat « ${query} » échouée : ${(err as Error).message}`);
+        return [];
+      }
+    }
+
+    if (matchedIds.length === 0) return [];
+
+    // Recharge les lieux matchés et calcule leur distance au point de recherche.
+    const places = await this.prisma.place.findMany({ where: { id: { in: matchedIds } } });
+    return places
+      .map((p) => ({
+        ...p,
+        distanceMeters: haversineMeters(params.lat, params.lng, p.lat, p.lng),
+      }))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, params.limit);
   }
 
   /**
@@ -495,4 +597,15 @@ export class PlacesService {
       LIMIT ${limit}
     `);
   }
+}
+
+/** Distance Haversine en mètres entre deux points (lat/lng en degrés). */
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
