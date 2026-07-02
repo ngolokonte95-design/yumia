@@ -42,6 +42,12 @@ export const UNIVERSES = [
   'art_gallery',
   'aquatic',
   'florist',
+  'nail_salon',
+  'hair_salon',
+  'barber',
+  'shopping',
+  'jewelry',
+  'massage',
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -92,6 +98,12 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   art_gallery: { key: 'art_gallery', emoji: '🖼️', i18nKey: 'universe.art_gallery', labelFr: "Galeries d'art" },
   aquatic: { key: 'aquatic', emoji: '🏊', i18nKey: 'universe.aquatic', labelFr: 'Piscines & Aquatique' },
   florist: { key: 'florist', emoji: '💐', i18nKey: 'universe.florist', labelFr: 'Fleuristes' },
+  nail_salon: { key: 'nail_salon', emoji: '💅', i18nKey: 'universe.nail_salon', labelFr: 'Ongleries' },
+  hair_salon: { key: 'hair_salon', emoji: '💇‍♀️', i18nKey: 'universe.hair_salon', labelFr: 'Coiffure & Beauté' },
+  barber: { key: 'barber', emoji: '💈', i18nKey: 'universe.barber', labelFr: 'Barbiers' },
+  shopping: { key: 'shopping', emoji: '🛍️', i18nKey: 'universe.shopping', labelFr: 'Shopping & Mode' },
+  jewelry: { key: 'jewelry', emoji: '💍', i18nKey: 'universe.jewelry', labelFr: 'Bijouteries' },
+  massage: { key: 'massage', emoji: '💆‍♀️', i18nKey: 'universe.massage', labelFr: 'Massage & Détente' },
 };
 
 export const isUniverse = (v: string): v is Universe => (UNIVERSES as readonly string[]).includes(v);

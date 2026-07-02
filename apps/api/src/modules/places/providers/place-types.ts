@@ -46,6 +46,12 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   art_gallery: ['art_gallery'],
   aquatic: ['swimming_pool', 'water_park'],
   florist: ['florist'],
+  nail_salon: ['nail_salon'],
+  hair_salon: ['hair_salon', 'hair_care'],
+  barber: ['barber_shop'],
+  shopping: ['shopping_mall', 'clothing_store'],
+  jewelry: ['jewelry_store'],
+  massage: ['massage'],
 };
 
 /** Recherche large par défaut quand aucun univers n'est précisé (home/explore). */
@@ -113,6 +119,15 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['karaoke', 'karaoke'],
   ['casino', 'casino'],
   ['florist', 'florist'],
+  ['nail_salon', 'nail_salon'],
+  ['barber_shop', 'barber'],
+  ['hair_salon', 'hair_salon'],
+  ['hair_care', 'hair_salon'],
+  ['jewelry_store', 'jewelry'],
+  ['massage', 'massage'],
+  ['shopping_mall', 'shopping'],
+  ['clothing_store', 'shopping'],
+  ['shoe_store', 'shopping'],
   ['bar', 'bar'],
   ['museum', 'museum'],
   ['art_gallery', 'art_gallery'],

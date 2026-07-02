@@ -125,6 +125,12 @@ enum Universe {
   art_gallery
   aquatic
   florist
+  nail_salon
+  hair_salon
+  barber
+  shopping
+  jewelry
+  massage
 }
 
 model Place {
