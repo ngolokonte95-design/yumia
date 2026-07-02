@@ -166,7 +166,9 @@ export class RecommendationsService {
       },
     };
 
-    // Cache Redis : clé basée sur position (arrondie à ~200 m), rayon, mode, mood.
+    // Cache Redis : clé basée sur position (arrondie à ~200 m), rayon, mode, mood
+    // ET la query — sinon deux recherches différentes au même endroit (ex.
+    // "couscous" vs "boire un verre") renverraient le même résultat mis en cache.
     const cacheKey = [
       'reco:top3',
       input.lat.toFixed(2),
@@ -174,6 +176,7 @@ export class RecommendationsService {
       input.radius,
       input.mode ?? '',
       input.mood ?? '',
+      (input.query ?? '').toLowerCase().trim().slice(0, 60),
       locale,
     ].join(':');
 
