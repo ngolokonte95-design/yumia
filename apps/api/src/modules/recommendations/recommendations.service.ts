@@ -92,6 +92,20 @@ const RESTRICTION_EXCLUDED: Record<string, Universe[]> = {
 };
 
 /**
+ * Univers "destination volontaire" — on y va sur décision, jamais en suggestion
+ * spontanée. Exclus du Top 3 / recherche / feed pour éviter qu'une église ou un
+ * magasin bien noté et proche ne prenne la place d'un vrai lieu de sortie/food.
+ * Ils restent accessibles via la grille d'univers (`/universe?u=...`).
+ */
+const RECO_EXCLUDED_UNIVERSES = new Set<string>([
+  'place_of_worship',
+  'market',
+  'cheese_shop',
+  'spa',
+  'fitness',
+]);
+
+/**
  * Orchestrateur du **Top 3 contextuel** — le « Aha moment » de YUMIA.
  *
  * Pipeline : le moteur IA `mood` interprète le contexte et propose des univers ;
@@ -386,7 +400,13 @@ export class RecommendationsService {
       limit: Math.max(40, limit * 3),
     });
 
-    const candidates = this.filterByRestrictions(raw, restrictions);
+    // Exclut les univers "destination volontaire" (culte, magasins, spa…) des
+    // suggestions spontanées : une église proche et bien notée ne doit jamais
+    // sortir pour une envie de couscous.
+    const recommendable = raw.filter(
+      (p) => !RECO_EXCLUDED_UNIVERSES.has(p.universe as string),
+    );
+    const candidates = this.filterByRestrictions(recommendable, restrictions);
 
     const scored = candidates.map((place) => ({
       place,
