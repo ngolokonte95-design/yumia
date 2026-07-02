@@ -343,7 +343,7 @@ export class RecommendationsService {
 
   /**
    * Sélectionne le moteur IA le plus adapté au contexte.
-   * Priorité : culture (restrictions) > weather (météo extrême) > food (profil food) > mood.
+   * Priorité : culture (restrictions) > weather (météo extrême) > food (query/profil food) > mood.
    */
   private selectEngine(ctx: AiContext): AiEngine {
     // Restrictions culturelles / alimentaires → moteur culture
@@ -356,6 +356,21 @@ export class RecommendationsService {
       if (tempC >= 28 || tempC <= 6 || cond.includes('rain') || cond.includes('snow') || cond.includes('pluie') || cond.includes('neige')) {
         return 'weather';
       }
+    }
+
+    // Query contenant un plat/boisson/envie food → moteur food
+    if (ctx.query) {
+      const q = ctx.query.toLowerCase();
+      const FOOD_KEYWORDS = [
+        'manger', 'dîner', 'déjeuner', 'petit-déj', 'brunch', 'repas', 'plat', 'cuisine',
+        'restaurant', 'boire', 'verre', 'café', 'café', 'bière', 'cocktail', 'vin',
+        'couscous', 'pizza', 'burger', 'sushi', 'tacos', 'pasta', 'salade', 'dessert',
+        'gâteau', 'glace', 'chocolat', 'pâtisserie', 'brochette', 'kebab', 'ramen',
+        'noodle', 'curry', 'crêpe', 'raclette', 'fondue', 'steak', 'poisson', 'fruits de mer',
+        'tapas', 'sushi', 'dim sum', 'banh mi', 'fallafel', 'falafel', 'hummus',
+        'thé', 'smoothie', 'jus', 'latte', 'cappuccino', 'expresso',
+      ];
+      if (FOOD_KEYWORDS.some((kw) => q.includes(kw))) return 'food';
     }
 
     // Profil majoritairement food → moteur food

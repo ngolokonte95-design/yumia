@@ -1,4 +1,4 @@
-import { AI_ENGINE_META, type AiEngine, type AiContext, type ModelTier } from '@yumia/shared';
+import { AI_ENGINE_META, UNIVERSES, type AiEngine, type AiContext, type ModelTier } from '@yumia/shared';
 
 /**
  * Définition d'un moteur IA : comment construire son prompt, quel tier de modèle
@@ -38,6 +38,18 @@ function ctxSummary(ctx: AiContext): string {
   return parts.join(', ');
 }
 
+const UNIVERSES_LIST = UNIVERSES.join(', ');
+
+const UNIVERSE_INSTRUCTION =
+  `Les univers disponibles sont UNIQUEMENT : ${UNIVERSES_LIST}. ` +
+  `Tu DOIS choisir dans cette liste exacte pour "universesSuggested". ` +
+  `Exemples : plat/cuisine/nourriture → restaurant | boisson/bière/verre → bar | café/travail → cafe | ` +
+  `gâteau/pâtisserie → bakery | sortie/musée/visite → cultural_outing | discothèque/club → nightclub | ` +
+  `cocktail/afterwork → bar | vin → wine_cellar | glace → ice_cream | chocolat → chocolatier | ` +
+  `bulle/thé → bubble_tea | spécialité locale → local_specialty | terrasse → rooftop | ` +
+  `soirée/boîte → nightlife | massage/soin → spa | sport/salle → fitness | film → cinema | ` +
+  `marché → market | parc/nature → park | jeux/escape → escape_game | musique live → live_music.`;
+
 /** Schéma partagé pour les moteurs qui renvoient une explication courte. */
 const REASON_SCHEMA: Record<string, unknown> = {
   type: 'object',
@@ -55,7 +67,9 @@ export const ENGINE_REGISTRY: Record<AiEngine, EngineDefinition> = {
     tier: AI_ENGINE_META.mood.tier,
     system: SYSTEM_BASE,
     buildPrompt: (ctx) =>
-      `Interprète l'état émotionnel de l'utilisateur et propose les univers les plus adaptés maintenant. Contexte : ${ctxSummary(ctx)}.`,
+      `Interprète l'état émotionnel et l'envie de l'utilisateur, puis propose les univers les plus adaptés. ` +
+      `${UNIVERSE_INSTRUCTION} ` +
+      `Contexte : ${ctxSummary(ctx)}.`,
     jsonSchema: REASON_SCHEMA,
   },
   food: {
@@ -63,7 +77,9 @@ export const ENGINE_REGISTRY: Record<AiEngine, EngineDefinition> = {
     tier: AI_ENGINE_META.food.tier,
     system: SYSTEM_BASE,
     buildPrompt: (ctx) =>
-      `Recommande le type de lieu food idéal selon goûts, humeur, budget et disponibilité. Contexte : ${ctxSummary(ctx)}.`,
+      `Recommande le type de lieu food idéal selon goûts, humeur, budget et disponibilité. ` +
+      `${UNIVERSE_INSTRUCTION} ` +
+      `Contexte : ${ctxSummary(ctx)}.`,
     jsonSchema: REASON_SCHEMA,
   },
   weather: {
