@@ -79,9 +79,12 @@ interface MoodOutput {
 }
 
 // Pondérations du score de compatibilité (somme = 1).
-const W_UNIVERSE = 0.35;
-const W_RATING = 0.3;
-const W_DISTANCE = 0.35;
+// L'univers domine : quand l'IA identifie le bon type (resto pour "couscous"),
+// il doit l'emporter sur une statue proche mais hors-sujet. Note et distance
+// départagent ensuite les lieux du bon univers.
+const W_UNIVERSE = 0.55;
+const W_RATING = 0.2;
+const W_DISTANCE = 0.25;
 
 // Vitesse de marche moyenne (m/min) pour estimer le temps de trajet.
 const WALK_M_PER_MIN = 80;
@@ -495,7 +498,7 @@ export class RecommendationsService {
       suggestedUniverses.length === 0
         ? null
         : aiRank === -1
-          ? 0.1
+          ? 0.05
           : 1 - (aiRank / suggestedUniverses.length) * 0.5;
 
     const prefScore =
