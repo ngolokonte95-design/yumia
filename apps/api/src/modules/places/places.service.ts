@@ -372,6 +372,11 @@ export class PlacesService {
             ...(p.address ? { address: p.address } : {}),
           },
           update: {
+            // On met à jour l'univers : si une correspondance de type a été
+            // affinée (ex. onglerie reclassée de 'spa' vers 'nail_salon'), la
+            // ré-hydratation corrige le lieu déjà stocké.
+            universe: p.universe as Place['universe'],
+            tags: p.tags,
             rating: p.rating,
             priceTier: p.priceTier,
             metadata,
