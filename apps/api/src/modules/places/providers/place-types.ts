@@ -155,17 +155,28 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
 
 const UNIVERSE_SET = new Set<string>(UNIVERSES as readonly string[]);
 
+/** Index type Google → univers (lookup O(1) respectant l'ordre du lieu). */
+const GOOGLE_TYPE_LOOKUP = new Map<string, Universe>(GOOGLE_TYPE_TO_UNIVERSE);
+
 /** Types Google à demander pour un univers donné (ou liste large si absent). */
 export function universeToGoogleTypes(universe?: Universe): string[] {
   if (!universe) return [...DEFAULT_TYPES];
   return UNIVERSE_TO_GOOGLE_TYPES[universe] ?? ['restaurant'];
 }
 
-/** Déduit l'univers YUMIA le plus pertinent d'après les types Google d'un lieu. */
+/**
+ * Déduit l'univers YUMIA d'après les types Google d'un lieu.
+ *
+ * On parcourt les types **dans l'ordre du lieu** : Google place toujours le type
+ * PRINCIPAL en premier. Ainsi un cinéma qui vend des bonbons
+ * (`['movie_theater','candy_store',…]`) est classé « cinéma » et non
+ * « chocolatier ». Le premier type reconnu gagne ; sinon on retombe sur le
+ * `fallback` (l'univers explicitement recherché lors d'une requête ciblée).
+ */
 export function googleTypesToUniverse(types: string[], fallback: Universe = 'restaurant'): Universe {
-  const set = new Set(types);
-  for (const [googleType, universe] of GOOGLE_TYPE_TO_UNIVERSE) {
-    if (set.has(googleType)) return universe;
+  for (const t of types) {
+    const universe = GOOGLE_TYPE_LOOKUP.get(t);
+    if (universe) return universe;
   }
   return UNIVERSE_SET.has(fallback) ? fallback : 'restaurant';
 }
