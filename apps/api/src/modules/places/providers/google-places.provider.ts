@@ -123,8 +123,14 @@ export class GooglePlacesProvider implements PlacesProvider {
     }
 
     const data = (await res.json()) as { places?: GooglePlace[] };
+    // On ne force l'univers demandé comme repli QUE pour une recherche ciblée
+    // (includedTypes non vide) : là on sait que Google a filtré sur ce type.
+    // Pour une recherche large (repli après type invalide), pas de repli forcé —
+    // sinon n'importe quel lieu proche hériterait de l'univers demandé (ex. une
+    // boutique de vêtements classée « chocolatier »).
+    const fallbackUniverse = includedTypes.length > 0 ? params.universe : undefined;
     return (data.places ?? []).flatMap((g) => {
-      const mapped = this.mapPlace(g, params.universe);
+      const mapped = this.mapPlace(g, fallbackUniverse);
       return mapped ? [mapped] : [];
     });
   }
