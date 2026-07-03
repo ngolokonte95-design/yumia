@@ -15,8 +15,8 @@ import {
   Share,
   KeyboardAvoidingView,
   Platform,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import type { VisitFeedback } from '../lib/passport-api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -257,7 +257,10 @@ export default function PlaceScreen() {
             <Image
               source={{ uri: place.photoUrls[0] }}
               style={[StyleSheet.absoluteFill, styles.heroImage]}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={place.photoUrls[0]}
+              transition={150}
             />
           ) : null}
           {/* Dark scrim so back button and badge stay readable over photos */}
@@ -284,7 +287,7 @@ export default function PlaceScreen() {
           >
             {place.photoUrls.slice(1).map((url, i) => (
               <Pressable key={i} onPress={() => setPhotoViewerIndex(i + 1)}>
-                <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+                <Image source={{ uri: url }} style={styles.photoThumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={url} />
               </Pressable>
             ))}
           </ScrollView>
@@ -606,7 +609,7 @@ function SimilarPlaces({
         {items.map((p) => (
           <Pressable key={p.id} style={similarStyles.card} onPress={() => onOpen(p)}>
             {p.photoUrls?.[0] ? (
-              <Image source={{ uri: p.photoUrls[0] }} style={similarStyles.img} resizeMode="cover" />
+              <Image source={{ uri: p.photoUrls[0] }} style={similarStyles.img} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.photoUrls[0]} />
             ) : (
               <View style={[similarStyles.img, similarStyles.imgPlaceholder]}>
                 <Text style={{ fontSize: 28 }}>{placeEmoji(p.universe, p.tags)}</Text>

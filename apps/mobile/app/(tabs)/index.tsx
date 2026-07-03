@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Image } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODE_META, UNIVERSES, UNIVERSE_META } from '@yumia/shared';
@@ -366,7 +367,7 @@ function TrendingCard({ place, onPress }: { place: TrendingPlace; onPress: () =>
   return (
     <Pressable style={styles.trendingCard} onPress={onPress}>
       {place.photoUrls?.[0] ? (
-        <Image source={{ uri: place.photoUrls[0] }} style={styles.trendingImg} resizeMode="cover" />
+        <Image source={{ uri: place.photoUrls[0] }} style={styles.trendingImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
       ) : (
         <View style={styles.trendingImgPlaceholder}>
           <Text style={{ fontSize: 32 }}>{meta?.emoji ?? '📍'}</Text>

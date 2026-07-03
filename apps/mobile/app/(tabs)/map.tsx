@@ -24,7 +24,6 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 
 const MAP_DELTA = 0.025; // ~2.5 km de côté
-const MAX_MARKERS = 80; // plafond de marqueurs rendus (perf/mémoire natif)
 
 /**
  * DISCOVERY MAP — tuiles réelles (Apple Maps iOS / Google Maps Android) via
@@ -164,14 +163,6 @@ export default function MapScreen() {
 
   const displayPlaces = cityResults ?? tapResults ?? places;
 
-  // Marqueurs plafonnés : rendre 150 marqueurs natifs personnalisés sature la
-  // mémoire (surtout Android) et peut faire crasher l'app. On n'affiche que les
-  // MAX_MARKERS plus proches (la liste déroulante, elle, garde TOUS les lieux).
-  const markerPlaces = useMemo(
-    () => displayPlaces.slice(0, MAX_MARKERS),
-    [displayPlaces],
-  );
-
   // Quand la liste de lieux ou la sélection change, on autorise le tracking le
   // temps d'un rendu (les marqueurs se dessinent / la sélection s'applique) puis
   // on le coupe : les marqueurs deviennent statiques, plus de churn natif.
@@ -255,7 +246,7 @@ export default function MapScreen() {
           customMapStyle={DARK_MAP_STYLE}
           onPress={handleMapTap}
         >
-          {markerPlaces.map((place) => (
+          {displayPlaces.map((place) => (
             <Marker
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}

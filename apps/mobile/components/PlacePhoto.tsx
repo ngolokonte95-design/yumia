@@ -1,4 +1,5 @@
-import { Image, View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { colors } from '../theme/tokens';
 
 interface Props {
@@ -31,7 +32,14 @@ export function PlacePhoto({ photoUrls, emoji, emojiSize = 56, scrim = false }: 
 
   return (
     <>
-      <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <Image
+        source={{ uri }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        recyclingKey={uri}
+        transition={150}
+      />
       {scrim ? <View style={[StyleSheet.absoluteFill, styles.scrim]} /> : null}
     </>
   );

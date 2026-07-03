@@ -10,11 +10,11 @@ import {
   StyleSheet,
   Pressable,
   FlatList,
-  Image,
   useWindowDimensions,
   StatusBar,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Props {
@@ -80,7 +80,9 @@ export function PhotoViewer({ photos, initialIndex = 0, visible, onClose }: Prop
               <Image
                 source={{ uri: item }}
                 style={{ width, height }}
-                resizeMode="contain"
+                contentFit="contain"
+                cachePolicy="memory-disk"
+                recyclingKey={item}
               />
             </View>
           )}
