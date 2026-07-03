@@ -17,7 +17,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   bubble_tea: ['cafe'],
   local_specialty: ['restaurant'],
   ice_cream: ['ice_cream_shop'],
-  chocolatier: ['candy_store', 'store'],
+  chocolatier: ['candy_store'],
   wine_cellar: ['liquor_store'],
   tourist_activity: ['tourist_attraction'],
   rooftop: ['bar'],
@@ -71,6 +71,21 @@ export const BLOCKED_GOOGLE_TYPES = new Set([
   'atm',
   'bank',
   'pharmacy',
+  // Grandes surfaces / commerces non-expérience (Leroy Merlin, Decathlon…).
+  'hardware_store',
+  'home_improvement_store',
+  'building_materials_store',
+  'furniture_store',
+  'sporting_goods_store',
+  'home_goods_store',
+  'auto_parts_store',
+  'car_dealer',
+  'car_repair',
+  'car_rental',
+  'moving_company',
+  'storage',
+  'wholesaler',
+  'warehouse_store',
 ]);
 
 /** Renvoie true si le lieu doit être écarté (tabac, épicerie, station…). */

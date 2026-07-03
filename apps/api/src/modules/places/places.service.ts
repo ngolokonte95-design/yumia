@@ -18,8 +18,9 @@ const PLACE_STATS_CACHE_TTL_SECONDS = 60; // 1 min — les avis communautaires s
 const PLACE_DETAIL_CACHE_TTL_SECONDS = 10 * 60; // 10 min — les lieux sont quasi-immuables
 
 // En dessous de ce nombre de résultats locaux, on hydrate depuis le fournisseur
-// externe (Google Places) pour offrir une couverture mondiale.
-const HYDRATE_MIN_LOCAL_RESULTS = 5;
+// externe (Google Places) pour densifier la zone. Élevé volontairement : on veut
+// beaucoup de lieux par point (100+), pas seulement « au moins quelques-uns ».
+const HYDRATE_MIN_LOCAL_RESULTS = 60;
 // Une tuile (zone + univers) hydratée avec succès n'est pas ré-interrogée avant
 // ce délai → évite de rappeler l'API (coût) pour la même zone. 7 jours.
 const HYDRATE_TILE_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -47,8 +48,16 @@ const MAP_DENSITY_UNIVERSES: Universe[] = [
   'cafe',
   'bar',
   'bakery',
+  'dessert',
+  'ice_cream',
   'tourist_activity',
   'cultural_outing',
+  'museum',
+  'park',
+  'nightlife',
+  'shopping',
+  'bookstore',
+  'cinema',
 ];
 
 const EARTH_RADIUS_M = 6_371_000;
@@ -279,6 +288,9 @@ export class PlacesService {
   }): Promise<boolean> {
     const tileKey = [
       'places:hydrated',
+      // Version de schéma d'hydratation : incrémenter invalide les tuiles
+      // anciennes (ex. densité v1) et force une ré-hydratation plus riche.
+      'v2',
       params.universe ?? 'all',
       params.lat.toFixed(2),
       params.lng.toFixed(2),

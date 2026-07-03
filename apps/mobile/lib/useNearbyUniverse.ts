@@ -12,8 +12,10 @@ export function useNearbyUniverse(params: {
   universe: Universe | null;
   radius?: number;
   limit?: number;
+  /** Tant que `false`, on ne charge pas (ex. position pas encore résolue). */
+  enabled?: boolean;
 }) {
-  const { lat, lng, universe, radius = 5000, limit = 30 } = params;
+  const { lat, lng, universe, radius = 5000, limit = 30, enabled = true } = params;
   const { isOnline } = useNetworkStatus();
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
   const [loading, setLoading] = useState(universe !== null);
@@ -68,7 +70,10 @@ export function useNearbyUniverse(params: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng, universe, radius, limit, ck, isOnline]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!enabled) return;
+    void load();
+  }, [load, enabled]);
 
   return { places, loading, error, fromCache, reload: () => void load() };
 }

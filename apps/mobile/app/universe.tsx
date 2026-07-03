@@ -22,7 +22,7 @@ export default function UniverseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { u } = useLocalSearchParams<{ u: string }>();
-  const { coords } = useLocation();
+  const { coords, resolving } = useLocation();
   const { accessToken } = useAuth();
   const { t } = useI18n();
   const { savedIds, save, unsave } = useSaved(accessToken);
@@ -35,7 +35,8 @@ export default function UniverseScreen() {
     lng: coords.lng,
     universe,
     radius: 5000,
-    limit: 30,
+    limit: 60,
+    enabled: !resolving,
   });
 
   function handleTap(p: NearbyPlace) {

@@ -106,7 +106,7 @@ export default function MapScreen() {
     setCityResults(null);
     setCityQuery('');
     try {
-      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 4000, universe: universe ?? undefined, limit: 60 });
+      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 5000, universe: universe ?? undefined, limit: 150 });
       setTapResults(results);
       mapRef.current?.animateToRegion(
         { latitude, longitude, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
