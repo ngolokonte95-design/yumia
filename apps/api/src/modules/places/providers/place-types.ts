@@ -99,7 +99,11 @@ export function isBlockedPlace(types: string[]): boolean {
  */
 const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['ice_cream_shop', 'ice_cream'],
+  ['chocolate_shop', 'chocolatier'],
+  ['confectionery', 'chocolatier'],
   ['dessert_shop', 'dessert'],
+  ['pastry_shop', 'dessert'],
+  ['cake_shop', 'dessert'],
   ['bakery', 'bakery'],
   ['coffee_shop', 'cafe'],
   ['cafe', 'cafe'],
