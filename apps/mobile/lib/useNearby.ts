@@ -51,7 +51,7 @@ export function useNearby(params: {
       if (!isOnline) return;
       // Revalidate silently in background
       try {
-        const fresh = await fetchNearby({ lat, lng, radius, universe, limit: 150 });
+        const fresh = await fetchNearby({ lat, lng, radius, universe, limit: 100 });
         setPlaces(fresh);
         setFromCache(false);
         void cacheSet(ck, fresh, CACHE_TTL);
@@ -68,7 +68,7 @@ export function useNearby(params: {
     }
 
     try {
-      const result = await fetchNearby({ lat, lng, radius, universe, limit: 150 });
+      const result = await fetchNearby({ lat, lng, radius, universe, limit: 100 });
       setPlaces(result);
       setFromCache(false);
       void cacheSet(ck, result, CACHE_TTL);

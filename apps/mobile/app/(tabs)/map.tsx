@@ -106,7 +106,7 @@ export default function MapScreen() {
     setCityResults(null);
     setCityQuery('');
     try {
-      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 5000, universe: universe ?? undefined, limit: 150 });
+      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 5000, universe: universe ?? undefined, limit: 100 });
       setTapResults(results);
       mapRef.current?.animateToRegion(
         { latitude, longitude, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
@@ -161,7 +161,14 @@ export default function MapScreen() {
 
   const provider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
-  const displayPlaces = cityResults ?? tapResults ?? places;
+  // Restaurants d'abord (puis le reste), en conservant l'ordre par distance dans
+  // chaque groupe : les restos sont favorisés sur la carte et dans la liste.
+  const displayPlaces = useMemo(() => {
+    const list = cityResults ?? tapResults ?? places;
+    return [...list].sort(
+      (a, b) => (a.universe === 'restaurant' ? 0 : 1) - (b.universe === 'restaurant' ? 0 : 1),
+    );
+  }, [cityResults, tapResults, places]);
 
   // Quand la liste de lieux ou la sélection change, on autorise le tracking le
   // temps d'un rendu (les marqueurs se dessinent / la sélection s'applique) puis
@@ -277,7 +284,7 @@ export default function MapScreen() {
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
           {cityResults !== null ? (
             <>
-              {cityResults.map((place) => (
+              {displayPlaces.map((place) => (
                 <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
                   onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} hideDist />
               ))}
@@ -287,7 +294,7 @@ export default function MapScreen() {
             </>
           ) : tapResults !== null ? (
             <>
-              {tapResults.map((place) => (
+              {displayPlaces.map((place) => (
                 <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
                   onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} />
               ))}
