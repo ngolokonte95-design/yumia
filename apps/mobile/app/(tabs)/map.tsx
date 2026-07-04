@@ -111,7 +111,7 @@ export default function MapScreen() {
     setCityResults(null);
     setCityQuery('');
     try {
-      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 5000, universe: universe ?? undefined, limit: 100 });
+      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 5000, universe: universe ?? undefined, limit: 85 });
       setTapResults(results);
       mapRef.current?.animateToRegion(
         { latitude, longitude, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
@@ -260,9 +260,7 @@ export default function MapScreen() {
           showsUserLocation
           showsMyLocationButton={false}
           mapType="standard"
-          // customMapStyle uniquement avec Google Maps (Android). Le passer à
-          // Apple Maps (iOS) est non supporté et peut planter au niveau natif.
-          customMapStyle={provider === PROVIDER_GOOGLE ? DARK_MAP_STYLE : undefined}
+          customMapStyle={DARK_MAP_STYLE}
           onPress={handleMapTap}
         >
           {markerPlaces.map((place) => (
