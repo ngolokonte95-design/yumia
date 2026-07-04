@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   Pressable,
   ActivityIndicator,
   Platform,
@@ -170,14 +171,15 @@ export default function MapScreen() {
     );
   }, [cityResults, tapResults, places]);
 
-  // Quand la liste de lieux ou la sélection change, on autorise le tracking le
-  // temps d'un rendu (les marqueurs se dessinent / la sélection s'applique) puis
-  // on le coupe : les marqueurs deviennent statiques, plus de churn natif.
+  // Quand la LISTE de lieux change, on autorise le tracking le temps d'un rendu
+  // (les marqueurs se dessinent) puis on le coupe : marqueurs statiques, plus de
+  // churn natif. IMPORTANT : on ne dépend PAS de `selectedId` — sinon chaque clic
+  // sur un lieu redessinerait les 100 marqueurs (pic mémoire → crash iOS).
   useEffect(() => {
     setTracking(true);
     const t = setTimeout(() => setTracking(false), 900);
     return () => clearTimeout(t);
-  }, [cityResults, tapResults, places, selectedId]);
+  }, [cityResults, tapResults, places]);
 
   const drawerTitle = cityResults !== null
     ? `${cityResults.length} lieu${cityResults.length > 1 ? 'x' : ''} à « ${cityQuery} »`
@@ -281,39 +283,36 @@ export default function MapScreen() {
         <View style={styles.drawerHandle} />
         <Text style={styles.drawerTitle}>{drawerTitle}</Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {cityResults !== null ? (
-            <>
-              {displayPlaces.map((place) => (
-                <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
-                  onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} hideDist />
-              ))}
-              {cityResults.length === 0 ? (
-                <Text style={styles.empty}>Aucun lieu trouvé pour « {cityQuery} ». Essaie une autre ville.</Text>
-              ) : null}
-            </>
-          ) : tapResults !== null ? (
-            <>
-              {displayPlaces.map((place) => (
-                <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
-                  onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} />
-              ))}
-              {tapResults.length === 0 ? (
-                <Text style={styles.empty}>Aucun lieu trouvé autour de ce point.</Text>
-              ) : null}
-            </>
-          ) : (
-            <>
-              {displayPlaces.map((place) => (
-                <PlaceRow key={place.id} place={place} selected={place.id === selectedId}
-                  onPress={() => selectPlace(place)} onDetail={() => openDetail(place)} />
-              ))}
-              {!loading && places.length === 0 ? (
-                <Text style={styles.empty}>Aucun lieu dans ce rayon. Élargis ou change de filtre.</Text>
-              ) : null}
-            </>
+        <FlatList
+          style={styles.list}
+          data={displayPlaces}
+          keyExtractor={(place) => place.id}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          removeClippedSubviews
+          renderItem={({ item }) => (
+            <PlaceRow
+              place={item}
+              selected={item.id === selectedId}
+              onPress={() => selectPlace(item)}
+              onDetail={() => openDetail(item)}
+              hideDist={cityResults !== null}
+            />
           )}
-        </ScrollView>
+          ListEmptyComponent={
+            loading ? null : (
+              <Text style={styles.empty}>
+                {cityResults !== null
+                  ? `Aucun lieu trouvé pour « ${cityQuery} ». Essaie une autre ville.`
+                  : tapResults !== null
+                    ? 'Aucun lieu trouvé autour de ce point.'
+                    : 'Aucun lieu dans ce rayon. Élargis ou change de filtre.'}
+              </Text>
+            )
+          }
+        />
       </View>
     </View>
   );
