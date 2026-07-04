@@ -260,7 +260,9 @@ export default function MapScreen() {
           showsUserLocation
           showsMyLocationButton={false}
           mapType="standard"
-          customMapStyle={DARK_MAP_STYLE}
+          // customMapStyle uniquement avec Google Maps (Android). Le passer à
+          // Apple Maps (iOS) est non supporté et peut planter au niveau natif.
+          customMapStyle={provider === PROVIDER_GOOGLE ? DARK_MAP_STYLE : undefined}
           onPress={handleMapTap}
         >
           {markerPlaces.map((place) => (
