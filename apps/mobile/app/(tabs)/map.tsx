@@ -25,6 +25,10 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 
 const MAP_DELTA = 0.025; // ~2.5 km de côté
+// Plafond de PINS sur la carte. react-native-maps rend chaque marqueur emoji
+// comme une vue native : au-delà, iOS sature la mémoire et l'app crashe. La
+// LISTE du tiroir, elle, garde tous les lieux (100) — on ne perd rien.
+const MAX_MARKERS = 45;
 
 /**
  * DISCOVERY MAP — tuiles réelles (Apple Maps iOS / Google Maps Android) via
@@ -171,6 +175,10 @@ export default function MapScreen() {
     );
   }, [cityResults, tapResults, places]);
 
+  // Pins de la carte : plafonnés aux MAX_MARKERS premiers (restos d'abord, puis
+  // les plus proches). La liste du tiroir garde displayPlaces en entier.
+  const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
+
   // Quand la LISTE de lieux change, on autorise le tracking le temps d'un rendu
   // (les marqueurs se dessinent) puis on le coupe : marqueurs statiques, plus de
   // churn natif. IMPORTANT : on ne dépend PAS de `selectedId` — sinon chaque clic
@@ -255,7 +263,7 @@ export default function MapScreen() {
           customMapStyle={DARK_MAP_STYLE}
           onPress={handleMapTap}
         >
-          {displayPlaces.map((place) => (
+          {markerPlaces.map((place) => (
             <Marker
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}
