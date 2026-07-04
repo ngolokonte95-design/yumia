@@ -290,7 +290,7 @@ export class PlacesService {
       'places:hydrated',
       // Version de schéma d'hydratation : incrémenter invalide les tuiles
       // anciennes (ex. densité v1) et force une ré-hydratation plus riche.
-      'v2',
+      'v3',
       params.universe ?? 'all',
       params.lat.toFixed(2),
       params.lng.toFixed(2),

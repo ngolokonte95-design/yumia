@@ -3,6 +3,7 @@
  * L'univers est passé via le paramètre URL `?u=restaurant`.
  */
 import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { UNIVERSE_META, isUniverse } from '@yumia/shared';
@@ -53,6 +54,7 @@ export default function UniverseScreen() {
         priceTier: (Math.min(4, Math.max(1, p.priceTier))) as 1 | 2 | 3 | 4,
         photoUrls: p.photoUrls,
         tags: p.tags,
+        openingHours: p.openingHours,
       },
       compatibility: 0,
       distanceMeters: p.distanceMeters,
@@ -115,18 +117,33 @@ export default function UniverseScreen() {
           }
           renderItem={({ item }) => {
             const isSaved = savedIds.has(item.id);
+            const todayHours = getTodayHours(item.openingHours);
             return (
               <Pressable style={styles.card} onPress={() => handleTap(item)}>
                 <View style={styles.cardLeft}>
-                  <View style={styles.cardEmojiBg}>
-                    <Text style={styles.cardEmoji}>{placeEmoji(item.universe, item.tags)}</Text>
-                  </View>
+                  {item.photoUrls && item.photoUrls.length > 0 ? (
+                    <Image
+                      source={{ uri: item.photoUrls[0] }}
+                      style={styles.cardPhoto}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      recyclingKey={item.photoUrls[0]}
+                      transition={150}
+                    />
+                  ) : (
+                    <View style={styles.cardEmojiBg}>
+                      <Text style={styles.cardEmoji}>{placeEmoji(item.universe, item.tags)}</Text>
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.cardMeta}>
                       ⭐ {item.rating.toFixed(1)} · {'€'.repeat(item.priceTier)} · {formatDistance(item.distanceMeters)}
                     </Text>
                     {item.city ? <Text style={styles.cardCity}>{item.city}</Text> : null}
+                    {todayHours ? (
+                      <Text style={styles.cardHours} numberOfLines={1}>🕐 {todayHours}</Text>
+                    ) : null}
                   </View>
                 </View>
                 <View style={styles.cardActions}>
@@ -150,6 +167,15 @@ export default function UniverseScreen() {
 
 function formatDistance(m: number): string {
   return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+function getTodayHours(hours?: string[]): string | null {
+  if (!hours || hours.length === 0) return null;
+  const todayIdx = (new Date().getDay() + 6) % 7; // 0=Lun, 6=Dim
+  const entry = hours[todayIdx];
+  if (!entry) return null;
+  const colonIdx = entry.indexOf(': ');
+  return colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry;
 }
 
 const styles = StyleSheet.create({
@@ -202,19 +228,26 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  cardPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: radius.md,
+    flexShrink: 0,
+  },
   cardEmojiBg: {
-    width: 48,
-    height: 48,
+    width: 60,
+    height: 60,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  cardEmoji: { fontSize: 24 },
+  cardEmoji: { fontSize: 26 },
   cardName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
   cardMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   cardCity: { ...typography.label, color: colors.textMuted, marginTop: 1 },
+  cardHours: { ...typography.label, color: colors.brand, marginTop: 2, fontSize: 11 },
   cardActions: { gap: spacing.sm },
   heartBtn: {
     width: 36,

@@ -21,6 +21,7 @@ export interface Place {
     priceTier: PriceTier;
     photoUrls: string[];
     openNow?: boolean;
+    openingHours?: string[];
     /** Métadonnées exploitées par les moteurs (terrasse, kid-friendly, halal…). */
     tags: string[];
 }

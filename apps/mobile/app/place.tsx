@@ -71,6 +71,7 @@ export default function PlaceScreen() {
   const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [hoursExpanded, setHoursExpanded] = useState(false);
 
   // Deep link : charge le lieu depuis l'API quand ouvert via yumia://place?id=
   useEffect(() => {
@@ -323,6 +324,41 @@ export default function PlaceScreen() {
             </ScrollView>
           ) : null}
 
+          {place.openingHours && place.openingHours.length > 0 ? (
+            <View style={hoursStyles.box}>
+              <Pressable style={hoursStyles.header} onPress={() => setHoursExpanded((v) => !v)}>
+                <Text style={hoursStyles.title}>🕐 Horaires d'ouverture</Text>
+                <Text style={hoursStyles.toggle}>{hoursExpanded ? '▲' : '▼'}</Text>
+              </Pressable>
+              {hoursExpanded ? (
+                place.openingHours.map((line, i) => {
+                  const isToday = i === (new Date().getDay() + 6) % 7;
+                  const colonIdx = line.indexOf(': ');
+                  const dayName = colonIdx >= 0 ? line.slice(0, colonIdx) : '';
+                  const timeRange = colonIdx >= 0 ? line.slice(colonIdx + 2) : line;
+                  return (
+                    <View key={i} style={[hoursStyles.row, isToday && hoursStyles.rowToday]}>
+                      <Text style={[hoursStyles.day, isToday && hoursStyles.dayToday]}>{dayName}</Text>
+                      <Text style={[hoursStyles.time, isToday && hoursStyles.timeToday]}>{timeRange}</Text>
+                    </View>
+                  );
+                })
+              ) : (
+                (() => {
+                  const todayIdx = (new Date().getDay() + 6) % 7;
+                  const entry = place.openingHours[todayIdx];
+                  if (!entry) return null;
+                  const colonIdx = entry.indexOf(': ');
+                  return (
+                    <Text style={hoursStyles.todayLine}>
+                      Aujourd'hui : {colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry}
+                    </Text>
+                  );
+                })()
+              )}
+            </View>
+          ) : null}
+
           {stats && stats.total > 0 ? (
             <CommunityReviews stats={stats} />
           ) : null}
@@ -441,7 +477,7 @@ export default function PlaceScreen() {
                   id: np.id, name: np.name, universe: np.universe,
                   location: { lat: np.lat, lng: np.lng }, city: np.city, countryCode: np.countryCode,
                   rating: np.rating, priceTier: Math.min(4, Math.max(1, np.priceTier)) as 1 | 2 | 3 | 4,
-                  photoUrls: np.photoUrls, tags: np.tags,
+                  photoUrls: np.photoUrls, tags: np.tags, openingHours: np.openingHours,
                 },
                 compatibility: 0,
                 distanceMeters: np.distanceMeters,
@@ -869,4 +905,40 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendText: { ...typography.caption, color: '#fff' },
+});
+
+const hoursStyles = StyleSheet.create({
+  box: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+  },
+  title: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
+  toggle: { ...typography.caption, color: colors.textMuted },
+  todayLine: {
+    ...typography.caption,
+    color: colors.brand,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+  },
+  rowToday: { backgroundColor: `${colors.brand}12` },
+  day: { ...typography.caption, color: colors.textSecondary, width: 80 },
+  dayToday: { color: colors.brand, fontWeight: '700' },
+  time: { ...typography.caption, color: colors.textSecondary, textAlign: 'right' },
+  timeToday: { color: colors.brand, fontWeight: '700' },
 });

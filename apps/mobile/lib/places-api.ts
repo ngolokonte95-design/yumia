@@ -18,6 +18,7 @@ export interface NearbyPlace {
   priceTier: number;
   photoUrls: string[];
   tags: string[];
+  openingHours?: string[];
   distanceMeters: number;
 }
 

@@ -56,13 +56,21 @@ export class PlacesController {
   /** GET /api/places/nearby — lieux proches d'un point, triés par distance. 60/60s. */
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('nearby')
-  nearby(@Query() query: NearbyQueryDto): Promise<PlaceWithDistance[]> {
-    return this.places.nearby({
+  async nearby(@Query() query: NearbyQueryDto) {
+    const places = await this.places.nearby({
       lat: query.lat,
       lng: query.lng,
       radius: query.radius ?? 2_000,
       universe: query.universe,
       limit: query.limit ?? 20,
+    });
+    return places.map((p) => {
+      // $queryRaw retourne les colonnes JSON comme des chaînes — on parse si besoin.
+      const raw = p.metadata;
+      const meta = (typeof raw === 'string'
+        ? (JSON.parse(raw) as { openingHours?: string[] })
+        : (raw as { openingHours?: string[] } | null));
+      return { ...p, openingHours: meta?.openingHours ?? [] };
     });
   }
 
