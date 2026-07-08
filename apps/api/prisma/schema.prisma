@@ -423,6 +423,22 @@ model PlaceEvent {
   @@index([startAt])
 }
 
+/// Avis utilisateur sur un lieu (texte + note 1-5).
+model PlaceReview {
+  id        String   @id @default(uuid())
+  placeId   String
+  userId    String
+  rating    Int      // 1..5
+  body      String?  // texte optionnel
+  photoUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([placeId, userId])
+  @@index([placeId])
+  @@index([userId])
+}
+
 /// Suivi des jobs d'enrichissement (menu photo → IA, fetch événements…).
 model EnrichmentJob {
   id        String   @id @default(uuid())

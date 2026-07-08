@@ -72,6 +72,10 @@ export default function PlaceScreen() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [hoursExpanded, setHoursExpanded] = useState(false);
+  const [reviewModal, setReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewBody, setReviewBody] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   // Deep link : charge le lieu depuis l'API quand ouvert via yumia://place?id=
   useEffect(() => {
@@ -361,6 +365,67 @@ export default function PlaceScreen() {
 
           {stats && stats.total > 0 ? (
             <CommunityReviews stats={stats} />
+          ) : null}
+
+          {/* Section Avis utilisateurs */}
+          {accessToken ? (
+            <View style={reviewStyles.section}>
+              <View style={reviewStyles.header}>
+                <Text style={reviewStyles.title}>⭐ Laisser un avis</Text>
+              </View>
+              {reviewModal ? (
+                <View style={reviewStyles.form}>
+                  {/* Étoiles */}
+                  <View style={reviewStyles.stars}>
+                    {[1,2,3,4,5].map((n) => (
+                      <Pressable key={n} onPress={() => setReviewRating(n)} hitSlop={8}>
+                        <Text style={reviewStyles.star}>{n <= reviewRating ? '⭐' : '☆'}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <TextInput
+                    style={reviewStyles.input}
+                    placeholder="Décris ton expérience (optionnel)…"
+                    placeholderTextColor={colors.textMuted}
+                    value={reviewBody}
+                    onChangeText={setReviewBody}
+                    multiline
+                    numberOfLines={3}
+                  />
+                  <View style={reviewStyles.formBtns}>
+                    <Pressable style={reviewStyles.cancelBtn} onPress={() => setReviewModal(false)}>
+                      <Text style={reviewStyles.cancelText}>Annuler</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[reviewStyles.submitBtn, (reviewRating === 0 || reviewSubmitting) && reviewStyles.submitDisabled]}
+                      disabled={reviewRating === 0 || reviewSubmitting}
+                      onPress={async () => {
+                        if (reviewRating === 0 || !accessToken) return;
+                        setReviewSubmitting(true);
+                        try {
+                          await fetch(`${(await import('../lib/api')).apiBase}/places/${place.id}/reviews`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+                            body: JSON.stringify({ rating: reviewRating, body: reviewBody || undefined }),
+                          });
+                          setReviewModal(false);
+                          setReviewBody('');
+                          setReviewRating(0);
+                        } finally {
+                          setReviewSubmitting(false);
+                        }
+                      }}
+                    >
+                      <Text style={reviewStyles.submitText}>{reviewSubmitting ? '…' : 'Publier'}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable style={reviewStyles.openBtn} onPress={() => setReviewModal(true)}>
+                  <Text style={reviewStyles.openBtnText}>✏️ Écrire un avis</Text>
+                </Pressable>
+              )}
+            </View>
           ) : null}
 
           <Text style={styles.reason}>🤖 {reason}</Text>
@@ -941,4 +1006,57 @@ const hoursStyles = StyleSheet.create({
   dayToday: { color: colors.brand, fontWeight: '700' },
   time: { ...typography.caption, color: colors.textSecondary, textAlign: 'right' },
   timeToday: { color: colors.brand, fontWeight: '700' },
+});
+
+const reviewStyles = StyleSheet.create({
+  section: {
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  header: {
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  title: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
+  openBtn: {
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  openBtnText: { ...typography.body, color: colors.brand, fontWeight: '600' },
+  form: { padding: spacing.md, gap: spacing.sm },
+  stars: { flexDirection: 'row', gap: spacing.sm },
+  star: { fontSize: 28 },
+  input: {
+    ...typography.body,
+    color: colors.textPrimary,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  formBtns: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end' },
+  cancelBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cancelText: { ...typography.caption, color: colors.textSecondary },
+  submitBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
+  },
+  submitDisabled: { opacity: 0.4 },
+  submitText: { ...typography.caption, color: '#fff', fontWeight: '700' },
 });

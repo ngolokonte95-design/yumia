@@ -407,6 +407,29 @@ export class PassportService {
   }
 
   /**
+   * Enregistre une préférence swipe (like/dislike) dans les préférences user.
+   * Stocké sous preferences.swipeLikes[] et preferences.swipeDislikes[].
+   * Utilisé par le moteur IA pour affiner les recommendations.
+   */
+  async recordSwipe(userId: string, placeId: string, liked: boolean): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferences: true },
+    });
+    const prefs = (user?.preferences ?? {}) as Record<string, unknown>;
+    const key = liked ? 'swipeLikes' : 'swipeDislikes';
+    const existing = (prefs[key] as string[] | undefined) ?? [];
+    if (!existing.includes(placeId)) {
+      // Garde les 200 derniers swipes max pour éviter la croissance infinie
+      const updated = [placeId, ...existing].slice(0, 200);
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { preferences: { ...prefs, [key]: updated } },
+      });
+    }
+  }
+
+  /**
    * Classement hebdomadaire des utilisateurs les plus actifs.
    * Scope optionnel : filtre par ville via les lieux visités cette semaine.
    * Renvoie les 50 premiers utilisateurs avec leur XP de la semaine et leur rang.

@@ -58,7 +58,6 @@ export const UNIVERSES = [
   // ── Shopping & Commerce ───────────────────────────────────────────────────
   'shopping',
   'mall',
-  'market',
   'bookstore',
   'jewelry',
   // ── Culte & Services ──────────────────────────────────────────────────────
@@ -133,7 +132,6 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   // Shopping & Commerce
   shopping:        { key: 'shopping',        emoji: '🛍️',  i18nKey: 'universe.shopping',        labelFr: 'Shopping & Mode' },
   mall:            { key: 'mall',            emoji: '🏬',   i18nKey: 'universe.mall',            labelFr: 'Centres commerciaux' },
-  market:          { key: 'market',          emoji: '🛒',   i18nKey: 'universe.market',          labelFr: 'Marchés' },
   bookstore:       { key: 'bookstore',       emoji: '📚',   i18nKey: 'universe.bookstore',       labelFr: 'Librairies' },
   jewelry:         { key: 'jewelry',         emoji: '💍',   i18nKey: 'universe.jewelry',         labelFr: 'Bijouteries' },
   // Culte & Services

@@ -74,6 +74,31 @@ export class PlacesController {
     });
   }
 
+  /**
+   * GET /api/places/search?q=sushi&lat=...&lng=...&radius=5000&limit=20
+   * Recherche textuelle full-text (ES si disponible, sinon ILIKE PostgreSQL).
+   */
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Get('search')
+  async search(
+    @Query('q') q: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('radius') radius?: string,
+    @Query('universe') universe?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!q || q.trim().length < 2) throw new BadRequestException('Paramètre « q » requis (min 2 caractères).');
+    return this.places.textSearch({
+      query: q.trim(),
+      lat: lat ? parseFloat(lat) : undefined,
+      lng: lng ? parseFloat(lng) : undefined,
+      radius: radius ? parseFloat(radius) : 10_000,
+      universe: universe as Parameters<typeof this.places.textSearch>[0]['universe'],
+      limit: limit ? Math.min(parseInt(limit, 10) || 20, 50) : 20,
+    });
+  }
+
   /** GET /api/places/city?name=...&universe=... — recherche par ville, sans géoloc. 30/60s. */
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('city')

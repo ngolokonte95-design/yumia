@@ -143,6 +143,71 @@ export class ElasticsearchService implements OnModuleInit {
     }));
   }
 
+  /**
+   * Recherche textuelle full-text : nom + tags + univers + ville.
+   * Combine un match flou sur le nom avec un filtre géographique optionnel.
+   * Retourne les IDs triés par score de pertinence.
+   */
+  async textSearch(params: {
+    query: string;
+    lat?: number;
+    lng?: number;
+    radius?: number;     // mètres, optionnel
+    universe?: Universe;
+    limit: number;
+  }): Promise<EsNearbyResult[]> {
+    if (!this.client) return [];
+
+    const must: object[] = [
+      {
+        multi_match: {
+          query: params.query,
+          fields: ['name^3', 'tags^2', 'city'],
+          fuzziness: 'AUTO',
+          operator: 'or',
+        },
+      },
+    ];
+
+    const filter: object[] = [];
+    if (params.lat != null && params.lng != null && params.radius) {
+      filter.push({
+        geo_distance: {
+          distance: `${params.radius}m`,
+          location: { lat: params.lat, lon: params.lng },
+        },
+      });
+    }
+    if (params.universe) {
+      filter.push({ term: { universe: params.universe } });
+    }
+
+    const sort: object[] = [{ _score: { order: 'desc' } }];
+    if (params.lat != null && params.lng != null) {
+      sort.push({
+        _geo_distance: {
+          location: { lat: params.lat, lon: params.lng },
+          order: 'asc',
+          unit: 'm',
+        },
+      });
+    }
+
+    const response = await this.client.search<EsPlaceDoc>({
+      index: ES_INDEX,
+      size: params.limit,
+      query: { bool: { must, filter } },
+      sort,
+      _source: false,
+      fields: ['id'],
+    });
+
+    return response.hits.hits.map((hit) => ({
+      id: hit._id!,
+      distanceMeters: params.lat != null ? ((hit.sort?.[1] as number) ?? 0) : 0,
+    }));
+  }
+
   /** Supprime le document d'un lieu (utilisé lors de la suppression). */
   async deletePlace(id: string): Promise<void> {
     if (!this.client) return;

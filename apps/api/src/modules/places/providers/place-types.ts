@@ -60,7 +60,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Shopping & Commerce
   shopping:         ['clothing_store', 'department_store'],
   mall:             ['shopping_mall'],
-  market:           ['market', 'farmer_market'],
+  // market supprimé — les marchés tombent dans shopping via le reverse map
   bookstore:        ['book_store'],
   jewelry:          ['jewelry_store'],
   // Culte & Services
@@ -192,8 +192,8 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['book_store',            'bookstore'],
   ['florist',               'florist'],
   ['jewelry_store',         'jewelry'],
-  ['market',                'market'],
-  ['farmer_market',         'market'],
+  ['market',                'shopping'],
+  ['farmer_market',         'shopping'],
   ['liquor_store',          'wine_cellar'],
   // Services
   ['coworking_space',       'coworking'],

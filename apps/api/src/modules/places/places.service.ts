@@ -478,6 +478,62 @@ export class PlacesService {
   }
 
   /**
+   * Recherche textuelle full-text par nom/tags/ville.
+   * Utilise Elasticsearch si disponible, sinon ILIKE PostgreSQL.
+   */
+  async textSearch(params: {
+    query: string;
+    lat?: number;
+    lng?: number;
+    radius?: number;
+    universe?: Universe;
+    limit: number;
+  }): Promise<PlaceWithDistance[]> {
+    if (this.es.isAvailable) {
+      const hits = await this.es.textSearch({
+        query: params.query,
+        lat: params.lat,
+        lng: params.lng,
+        radius: params.radius,
+        universe: params.universe,
+        limit: params.limit,
+      });
+      if (hits.length > 0) {
+        const ids = hits.map((h) => h.id);
+        const distanceMap = new Map(hits.map((h) => [h.id, h.distanceMeters]));
+        const places = await this.prisma.place.findMany({ where: { id: { in: ids } } });
+        return places.map((p) => ({ ...p, distanceMeters: distanceMap.get(p.id) ?? 0 }));
+      }
+    }
+
+    // Fallback PostgreSQL ILIKE
+    const places = await this.prisma.place.findMany({
+      where: {
+        OR: [
+          { name: { contains: params.query, mode: 'insensitive' } },
+          { city: { contains: params.query, mode: 'insensitive' } },
+          { tags: { has: params.query.toLowerCase() } },
+        ],
+        ...(params.universe ? { universe: params.universe } : {}),
+      },
+      take: params.limit,
+      orderBy: { rating: 'desc' },
+    });
+
+    return places.map((p) => {
+      let dist = 0;
+      if (params.lat != null && params.lng != null) {
+        const R = 6_371_000;
+        const dLat = ((p.lat - params.lat) * Math.PI) / 180;
+        const dLng = ((p.lng - params.lng) * Math.PI) / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos((params.lat * Math.PI) / 180) * Math.cos((p.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+        dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+      return { ...p, distanceMeters: Math.round(dist) };
+    });
+  }
+
+  /**
    * Recherche de lieux par ville (sans géolocalisation). Sert d'abord les lieux
    * locaux ; si la base est pauvre et qu'un provider est actif, hydrate via
    * Text Search Google puis fusionne. Cache Redis par (ville+univers) — 7 jours.

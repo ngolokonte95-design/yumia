@@ -41,6 +41,7 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
 const ITINERARY_MODES: Mode[] = ['date', 'travel'];
 
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
+  { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
   { key: 'explorer', emoji: '🧭', label: 'Explorer', route: '/(tabs)/explorer' },
   { key: 'sorties', emoji: '🎟️', label: 'Sorties', route: '/sorties' },
   { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },

@@ -25,6 +25,7 @@ import { VenuesModule } from './modules/venues/venues.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { GuidesModule } from './modules/guides/guides.module';
 import { PipelineModule } from './modules/pipeline/pipeline.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { PipelineModule } from './modules/pipeline/pipeline.module';
     TicketsModule,
     GuidesModule,
     PipelineModule,
+    ReviewsModule,
   ],
   providers: [
     // Rate-limit par utilisateur (sub JWT) avec repli sur IP

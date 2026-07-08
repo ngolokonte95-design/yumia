@@ -103,7 +103,6 @@ const RESTRICTION_EXCLUDED: Record<string, Universe[]> = {
 const RECO_EXCLUDED_UNIVERSES = new Set<string>([
   // Beauté & Services personnels
   'place_of_worship',
-  'market',
   'spa',
   'fitness',
   'florist',

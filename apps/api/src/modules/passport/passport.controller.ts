@@ -107,4 +107,5 @@ export class PassportController {
   ): Promise<void> {
     await this.passport.unsavePlace(user.sub, placeId);
   }
+
 }
