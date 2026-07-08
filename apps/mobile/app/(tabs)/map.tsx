@@ -31,7 +31,7 @@ import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const DRAWER_COLLAPSED = 72;
+const DRAWER_COLLAPSED = 105;
 const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
 
 export default function MapScreen() {
