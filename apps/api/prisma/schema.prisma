@@ -456,6 +456,130 @@ model EnrichmentJob {
   @@index([createdAt])
 }
 
+// ----------------------------------------------------------------------------
+// Couche sociale — follows, chat, stories, localisation, quêtes
+// ----------------------------------------------------------------------------
+
+/// Abonnement entre deux utilisateurs (suivre/être suivi).
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+/// Conversation privée entre deux utilisateurs.
+model Conversation {
+  id           String                    @id @default(uuid())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  joinedAt       DateTime  @default(now())
+  lastReadAt     DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+enum MessageType {
+  text
+  image
+  place_share
+  location_share
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  type           MessageType @default(text)
+  mediaUrl       String?
+  placeId        String?
+  createdAt      DateTime    @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+/// Story éphémère (disparaît après 24h) — photo ou vidéo courte.
+enum StoryType {
+  photo
+  video
+}
+
+model Story {
+  id        String    @id @default(uuid())
+  userId    String
+  mediaUrl  String
+  type      StoryType @default(photo)
+  caption   String?
+  placeId   String?
+  expiresAt DateTime
+  viewCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  views     StoryView[]
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model StoryView {
+  storyId  String
+  userId   String
+  viewedAt DateTime @default(now())
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, userId])
+}
+
+/// Défi / quête à accomplir pour gagner de l'XP et des badges.
+model Quest {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  emoji       String   @default("🏆")
+  type        String   // 'universe_visit' | 'review_count' | 'visit_count' | 'friend_count' | 'swipe_count'
+  target      Int
+  universe    String?
+  xpReward    Int      @default(100)
+  badgeId     String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  userProgress UserQuest[]
+
+  @@index([isActive])
+}
+
+model UserQuest {
+  id          String   @id @default(uuid())
+  userId      String
+  questId     String
+  progress    Int      @default(0)
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  quest       Quest    @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId])
+  @@index([userId])
+  @@index([questId])
+}
+
 /// Guide de randonnée local certifié — réservable (commission 20%).
 model Guide {
   id             String         @id @default(uuid())

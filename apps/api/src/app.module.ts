@@ -26,6 +26,13 @@ import { TicketsModule } from './modules/tickets/tickets.module';
 import { GuidesModule } from './modules/guides/guides.module';
 import { PipelineModule } from './modules/pipeline/pipeline.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { SocialModule } from './modules/social/social.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { StoriesModule } from './modules/stories/stories.module';
+import { LocationModule } from './modules/location/location.module';
+import { QuestsModule } from './modules/quests/quests.module';
+import { ChatbotModule } from './modules/chatbot/chatbot.module';
+import { ItineraryModule } from './modules/itinerary/itinerary.module';
 
 @Module({
   imports: [
@@ -78,6 +85,13 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
     GuidesModule,
     PipelineModule,
     ReviewsModule,
+    SocialModule,
+    ChatModule,
+    StoriesModule,
+    LocationModule,
+    QuestsModule,
+    ChatbotModule,
+    ItineraryModule,
   ],
   providers: [
     // Rate-limit par utilisateur (sub JWT) avec repli sur IP

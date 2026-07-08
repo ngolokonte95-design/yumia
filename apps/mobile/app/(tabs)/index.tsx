@@ -42,14 +42,17 @@ const ITINERARY_MODES: Mode[] = ['date', 'travel'];
 
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
-  { key: 'explorer', emoji: '🧭', label: 'Explorer', route: '/(tabs)/explorer' },
+  { key: 'chatbot', emoji: '🤖', label: 'Assistant', route: '/chatbot' },
+  { key: 'itinerary', emoji: '✨', label: 'Itinéraire', route: '/itinerary' },
+  { key: 'nearby', emoji: '📍', label: 'Nearby', route: '/nearby-users' },
+  { key: 'quests', emoji: '🏆', label: 'Quêtes', route: '/quests' },
+  { key: 'chat', emoji: '💬', label: 'Messages', route: '/chat' },
   { key: 'sorties', emoji: '🎟️', label: 'Sorties', route: '/sorties' },
-  { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
   { key: 'group', emoji: '👥', label: 'Groupe', route: '/group' },
   { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
   { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
   { key: 'saved', emoji: '🤍', label: 'Sauvegardés', route: '/saved' },
-  { key: 'passport', emoji: '🎒', label: 'Passeport', route: '/(tabs)/passport' },
+  { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
 ];
 
 const MODE_CHIPS: { key: Mode; emoji: string; label: string }[] = [
