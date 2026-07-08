@@ -88,10 +88,10 @@ model RefreshToken {
 
 enum Universe {
   // Manger & Boire
-  restaurant
+  restaurant    // inclut fast_food (fusionné)
   cafe
   bakery
-  fast_food
+  fast_food     // LEGACY — fusionné dans restaurant (migration 20260708180000)
   dessert
   ice_cream
   chocolatier
@@ -120,9 +120,9 @@ enum Universe {
   park
   beach
   // Sport & Loisirs
-  fitness
+  fitness       // inclut padel/tennis (fusionné)
   aquatic
-  padel
+  padel         // LEGACY — fusionné dans fitness (migration 20260708180000)
   escape_game
   laser_game
   karting

@@ -10,10 +10,9 @@ import { UNIVERSES, type Universe } from '@yumia/shared';
 
 const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Manger & Boire
-  restaurant:       ['restaurant'],
+  restaurant:       ['restaurant', 'fast_food_restaurant'], // fast_food fusionné ici
   cafe:             ['cafe', 'coffee_shop'],
   bakery:           ['bakery'],
-  fast_food:        ['fast_food_restaurant'],
   dessert:          ['dessert_shop', 'bakery'],
   ice_cream:        ['ice_cream_shop'],
   chocolatier:      ['candy_store'],
@@ -42,9 +41,8 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   park:             ['park', 'national_park'],
   beach:            ['beach'],
   // Sport & Loisirs
-  fitness:          ['gym', 'sports_club'],
+  fitness:          ['gym', 'sports_club', 'sports_complex', 'tennis_court'], // padel fusionné ici
   aquatic:          ['swimming_pool', 'water_park'],
-  padel:            ['sports_complex', 'tennis_court'],
   escape_game:      ['amusement_center'],
   laser_game:       ['laser_tag_center'],
   karting:          ['go_kart_track'],
@@ -130,7 +128,7 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['pastry_shop',           'dessert'],
   ['cake_shop',             'dessert'],
   ['bakery',                'bakery'],
-  ['fast_food_restaurant',  'fast_food'],
+  ['fast_food_restaurant',  'restaurant'], // fast_food → restaurant (fusionné)
   ['coffee_shop',           'cafe'],
   ['cafe',                  'cafe'],
   ['tea_house',             'tea_house'],
@@ -167,8 +165,8 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   // Sport & Loisirs
   ['laser_tag_center',      'laser_game'],
   ['go_kart_track',         'karting'],
-  ['sports_complex',        'padel'],
-  ['tennis_court',          'padel'],
+  ['sports_complex',        'fitness'], // padel → fitness (fusionné)
+  ['tennis_court',          'fitness'], // padel → fitness (fusionné)
   ['gym',                   'fitness'],
   ['sports_club',           'fitness'],
   ['amusement_center',      'escape_game'],

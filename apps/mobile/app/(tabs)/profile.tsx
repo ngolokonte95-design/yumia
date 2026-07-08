@@ -27,6 +27,15 @@ export default function ProfileScreen() {
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [showBadgesModal, setShowBadgesModal] = useState(false);
   const [showCountriesModal, setShowCountriesModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    fetch(`${API_BASE_URL}/admin/is-admin`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => r.ok ? r.json() : { isAdmin: false })
+      .then((data: { isAdmin: boolean }) => setIsAdmin(data.isAdmin))
+      .catch(() => {});
+  }, [accessToken]);
 
   const displayName = user?.displayName ?? 'Toi';
   const initial = displayName.charAt(0).toUpperCase();
@@ -258,6 +267,7 @@ export default function ProfileScreen() {
           { key: 'locale', label: '🌐 Langue & région', onPress: () => setShowLocalePicker(true) },
           { key: 'notifs', label: '🔔 Notifications', onPress: () => router.push('/notifications') },
           { key: 'privacy', label: '🔒 Confidentialité', onPress: () => router.push('/settings') },
+          ...(isAdmin ? [{ key: 'admin', label: '🛠️ Dashboard Admin', onPress: () => router.push('/admin') }] : []),
           {
             key: 'share',
             label: '📤 Partager mon profil',

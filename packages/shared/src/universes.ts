@@ -8,10 +8,9 @@
 
 export const UNIVERSES = [
   // ── Manger & Boire ────────────────────────────────────────────────────────
-  'restaurant',
+  'restaurant',   // inclut fast_food (fusionné — même expérience utilisateur)
   'cafe',
   'bakery',
-  'fast_food',
   'dessert',
   'ice_cream',
   'chocolatier',
@@ -40,9 +39,8 @@ export const UNIVERSES = [
   'park',
   'beach',
   // ── Sport & Loisirs ───────────────────────────────────────────────────────
-  'fitness',
+  'fitness',      // inclut padel/tennis (fusionné — même univers sportif)
   'aquatic',
-  'padel',
   'escape_game',
   'laser_game',
   'karting',
@@ -68,6 +66,13 @@ export const UNIVERSES = [
   'gare',
   'hotel',
   'event_venue',
+  // Valeurs héritées supprimées de l'UI (enum PG non supprimable) :
+  // 'fast_food' → fusionné dans 'restaurant'
+  // 'padel'     → fusionné dans 'fitness'
+  // 'market'    → fusionné dans 'shopping'
+  // 'nightlife' → fusionné dans 'bar'/'nightclub'
+  // 'art_gallery' → fusionné dans 'museum'
+  // 'cheese_shop' → fusionné dans 'local_specialty'
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -82,10 +87,9 @@ export interface UniverseMeta {
 
 export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   // Manger & Boire
-  restaurant:      { key: 'restaurant',      emoji: '🍽️',  i18nKey: 'universe.restaurant',      labelFr: 'Restaurants' },
+  restaurant:      { key: 'restaurant',      emoji: '🍽️',  i18nKey: 'universe.restaurant',      labelFr: 'Restaurants & Fast-food' },
   cafe:            { key: 'cafe',            emoji: '☕',   i18nKey: 'universe.cafe',            labelFr: 'Cafés' },
   bakery:          { key: 'bakery',          emoji: '🥐',   i18nKey: 'universe.bakery',          labelFr: 'Boulangeries' },
-  fast_food:       { key: 'fast_food',       emoji: '🍔',   i18nKey: 'universe.fast_food',       labelFr: 'Restauration rapide' },
   dessert:         { key: 'dessert',         emoji: '🍰',   i18nKey: 'universe.dessert',         labelFr: 'Desserts' },
   ice_cream:       { key: 'ice_cream',       emoji: '🍦',   i18nKey: 'universe.ice_cream',       labelFr: 'Glaciers' },
   chocolatier:     { key: 'chocolatier',     emoji: '🍫',   i18nKey: 'universe.chocolatier',     labelFr: 'Chocolatiers' },
@@ -114,9 +118,8 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   park:            { key: 'park',            emoji: '🌿',   i18nKey: 'universe.park',            labelFr: 'Parcs & Nature' },
   beach:           { key: 'beach',           emoji: '🏖️',  i18nKey: 'universe.beach',           labelFr: 'Plages & Vacances' },
   // Sport & Loisirs
-  fitness:         { key: 'fitness',         emoji: '🏋️',  i18nKey: 'universe.fitness',         labelFr: 'Sport & Fitness' },
+  fitness:         { key: 'fitness',         emoji: '🏋️',  i18nKey: 'universe.fitness',         labelFr: 'Sport & Fitness (Padel, Tennis…)' },
   aquatic:         { key: 'aquatic',         emoji: '🏊',   i18nKey: 'universe.aquatic',         labelFr: 'Piscines & Aquatique' },
-  padel:           { key: 'padel',           emoji: '🎾',   i18nKey: 'universe.padel',           labelFr: 'Padel & Tennis' },
   escape_game:     { key: 'escape_game',     emoji: '🔐',   i18nKey: 'universe.escape_game',     labelFr: 'Escape Games' },
   laser_game:      { key: 'laser_game',      emoji: '🔫',   i18nKey: 'universe.laser_game',      labelFr: 'Laser Game & Paintball' },
   karting:         { key: 'karting',         emoji: '🏎️',  i18nKey: 'universe.karting',         labelFr: 'Karting & Course' },
