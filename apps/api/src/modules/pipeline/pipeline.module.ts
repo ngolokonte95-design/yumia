@@ -4,9 +4,10 @@ import { PipelineService } from './pipeline.service';
 import { MenuAiHandler } from './handlers/menu-ai.handler';
 import { EventsHandler } from './handlers/events.handler';
 import { PrismaModule } from '../../infra/prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [PipelineController],
   providers: [PipelineService, MenuAiHandler, EventsHandler],
   exports: [PipelineService],
