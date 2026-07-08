@@ -182,7 +182,7 @@ export class ElasticsearchService implements OnModuleInit {
       filter.push({ term: { universe: params.universe } });
     }
 
-    const sort: object[] = [{ _score: { order: 'desc' } }];
+    const sort: unknown[] = [{ _score: { order: 'desc' } }];
     if (params.lat != null && params.lng != null) {
       sort.push({
         _geo_distance: {
@@ -197,7 +197,7 @@ export class ElasticsearchService implements OnModuleInit {
       index: ES_INDEX,
       size: params.limit,
       query: { bool: { must, filter } },
-      sort,
+      sort: sort as never,
       _source: false,
       fields: ['id'],
     });

@@ -1,6 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
 import type { FetchEventsDto } from '../pipeline.controller';
 
 export interface FetchedEvent {
@@ -19,8 +17,6 @@ export interface FetchedEvent {
 @Injectable()
 export class EventsHandler {
   private readonly logger = new Logger(EventsHandler.name);
-
-  constructor(private readonly http: HttpService) {}
 
   async fetchForPlace(dto: FetchEventsDto): Promise<FetchedEvent[]> {
     const results: FetchedEvent[] = [];
@@ -59,11 +55,11 @@ export class EventsHandler {
         ...(dto.startDate ? { startDateTime: new Date(dto.startDate).toISOString() } : {}),
       });
 
-      const { data } = await firstValueFrom(
-        this.http.get<TicketmasterResponse>(
-          `https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}`,
-        ),
+      const res = await fetch(
+        `https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}`,
       );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as TicketmasterResponse;
 
       const events = data?._embedded?.events ?? [];
       return events.map((ev): FetchedEvent => ({
@@ -103,12 +99,12 @@ export class EventsHandler {
         ...(dto.startDate ? { 'start_date.range_start': new Date(dto.startDate).toISOString() } : {}),
       });
 
-      const { data } = await firstValueFrom(
-        this.http.get<EventbriteResponse>(
-          `https://www.eventbriteapi.com/v3/events/search/?${params.toString()}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        ),
+      const res = await fetch(
+        `https://www.eventbriteapi.com/v3/events/search/?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } },
       );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as EventbriteResponse;
 
       return (data?.events ?? []).map((ev): FetchedEvent => ({
         title: ev.name.text,

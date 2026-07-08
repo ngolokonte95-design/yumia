@@ -89,7 +89,7 @@ export class PipelineService {
   async fetchEvents(placeId: string, dto: FetchEventsDto) {
     await this.ensurePlaceExists(placeId);
     const job = await this.prisma.enrichmentJob.create({
-      data: { placeId, type: 'events_fetch', status: 'pending', input: dto as Record<string, unknown> },
+      data: { placeId, type: 'events_fetch', status: 'pending', input: dto as unknown as never },
     });
 
     this.runEventsFetch(job.id, placeId, dto).catch((err: unknown) => {

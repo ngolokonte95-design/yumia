@@ -17,7 +17,6 @@ export class ReviewsService {
         where: { placeId },
         orderBy: { createdAt: 'desc' },
         take: 50,
-        include: { user: { select: { displayName: true, photoUrl: true } } },
       }),
       this.prisma.placeReview.aggregate({
         where: { placeId },
@@ -25,8 +24,17 @@ export class ReviewsService {
         _count: { id: true },
       }),
     ]);
+
+    // Enrichit les reviews avec les infos utilisateur (displayName, photoUrl)
+    const userIds = [...new Set(reviews.map((r) => r.userId))];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, displayName: true, photoUrl: true },
+    });
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
     return {
-      reviews,
+      reviews: reviews.map((r) => ({ ...r, user: userMap[r.userId] ?? null })),
       avgRating: agg._avg.rating ?? 0,
       total: agg._count.id,
     };
@@ -36,12 +44,11 @@ export class ReviewsService {
     const place = await this.prisma.place.findUnique({ where: { id: placeId }, select: { id: true } });
     if (!place) throw new NotFoundException(`Place ${placeId} introuvable`);
 
-    const review = await this.prisma.placeReview.upsert({
+    return this.prisma.placeReview.upsert({
       where: { placeId_userId: { placeId, userId } },
       update: { rating: dto.rating, body: dto.body ?? null, photoUrl: dto.photoUrl ?? null },
       create: { placeId, userId, rating: dto.rating, body: dto.body, photoUrl: dto.photoUrl },
     });
-    return review;
   }
 
   async delete(placeId: string, userId: string) {

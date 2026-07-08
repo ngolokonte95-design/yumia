@@ -91,7 +91,7 @@ const WALK_M_PER_MIN = 80;
 
 // Univers à exclure selon les restrictions (clés normalisées en minuscules).
 const RESTRICTION_EXCLUDED: Record<string, Universe[]> = {
-  'sans alcool': ['bar', 'wine_cellar', 'nightlife'],
+  'sans alcool': ['bar', 'wine_cellar', 'nightclub'],
 };
 
 /**

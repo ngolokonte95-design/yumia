@@ -424,7 +424,7 @@ export class PassportService {
       const updated = [placeId, ...existing].slice(0, 200);
       await this.prisma.user.update({
         where: { id: userId },
-        data: { preferences: { ...prefs, [key]: updated } },
+        data: { preferences: { ...prefs, [key]: updated } as unknown as never },
       });
     }
   }
