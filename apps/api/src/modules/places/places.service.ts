@@ -47,7 +47,6 @@ const MAP_DENSITY_UNIVERSES: Universe[] = [
   'restaurant',
   'cafe',
   'bar',
-  'fast_food',
   'bakery',
   'dessert',
   'ice_cream',
