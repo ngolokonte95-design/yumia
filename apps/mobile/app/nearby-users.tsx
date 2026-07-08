@@ -36,7 +36,10 @@ export default function NearbyUsersScreen() {
         `${API}/location/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=5`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
-      if (res.ok) setNearby(await res.json());
+      if (res.ok) {
+        const data: unknown = await res.json();
+        setNearby(Array.isArray(data) ? data : []);
+      }
     } finally {
       setLoading(false);
     }
