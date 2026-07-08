@@ -30,9 +30,14 @@ export default function WorldMapScreen() {
 
   const loadUsers = useCallback(async () => {
     if (!accessToken) return;
-    const res = await fetch(`${API}/discover/world-map`, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (res.ok) setUsers(await res.json());
-    setLoading(false);
+    try {
+      const res = await fetch(`${API}/discover/world-map`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (res.ok) setUsers(await res.json());
+    } catch {
+      // silently ignore network errors
+    } finally {
+      setLoading(false);
+    }
   }, [accessToken]);
 
   const getLocation = useCallback(async () => {
