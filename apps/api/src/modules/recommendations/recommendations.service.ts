@@ -114,6 +114,11 @@ const RECO_EXCLUDED_UNIVERSES = new Set<string>([
   'shopping',
   'jewelry',
   'massage',
+  // Nouveaux univers fonctionnels (pas de vraies "recommandations" quotidiennes)
+  'gare',
+  'hotel',
+  'mall',
+  'event_venue',
 ]);
 
 /**

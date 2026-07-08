@@ -48,6 +48,11 @@ export const UNIVERSES = [
   'shopping',
   'jewelry',
   'massage',
+  'gare',
+  'hotel',
+  'monument',
+  'mall',
+  'event_venue',
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -104,6 +109,11 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   shopping: { key: 'shopping', emoji: '🛍️', i18nKey: 'universe.shopping', labelFr: 'Shopping & Mode' },
   jewelry: { key: 'jewelry', emoji: '💍', i18nKey: 'universe.jewelry', labelFr: 'Bijouteries' },
   massage: { key: 'massage', emoji: '💆‍♀️', i18nKey: 'universe.massage', labelFr: 'Massage & Détente' },
+  gare: { key: 'gare', emoji: '🚉', i18nKey: 'universe.gare', labelFr: 'Gares & Transports' },
+  hotel: { key: 'hotel', emoji: '🏨', i18nKey: 'universe.hotel', labelFr: 'Hôtels & Séjours' },
+  monument: { key: 'monument', emoji: '🏛️', i18nKey: 'universe.monument', labelFr: 'Monuments & Sites' },
+  mall: { key: 'mall', emoji: '🏬', i18nKey: 'universe.mall', labelFr: 'Centres commerciaux' },
+  event_venue: { key: 'event_venue', emoji: '🎪', i18nKey: 'universe.event_venue', labelFr: 'Événements & Spectacles' },
 };
 
 export const isUniverse = (v: string): v is Universe => (UNIVERSES as readonly string[]).includes(v);

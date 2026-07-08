@@ -131,6 +131,11 @@ enum Universe {
   shopping
   jewelry
   massage
+  gare
+  hotel
+  monument
+  mall
+  event_venue
 }
 
 model Place {
