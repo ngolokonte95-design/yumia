@@ -52,7 +52,7 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
 ];
 
 const MODE_CHIPS: { key: Mode; emoji: string; label: string }[] = [
-  { key: 'date', emoji: '🌙', label: 'Date' },
+  { key: 'date', emoji: '❤️', label: 'Date' },
   { key: 'family', emoji: '👨‍👩‍👧', label: 'Famille' },
   { key: 'travel', emoji: '✈️', label: 'Voyage' },
 ];

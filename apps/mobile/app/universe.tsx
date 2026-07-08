@@ -171,11 +171,31 @@ function formatDistance(m: number): string {
 
 function getTodayHours(hours?: string[]): string | null {
   if (!hours || hours.length === 0) return null;
-  const todayIdx = (new Date().getDay() + 6) % 7; // 0=Lun, 6=Dim
+  const todayIdx = (new Date().getDay() + 6) % 7;
   const entry = hours[todayIdx];
   if (!entry) return null;
   const colonIdx = entry.indexOf(': ');
-  return colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry;
+  const timeRange = colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry;
+  if (timeRange.toLowerCase().includes('fermé') || timeRange.toLowerCase().includes('closed')) return 'Fermé';
+  // Extrait l'heure de fermeture (après le tiret)
+  const parts = timeRange.split(/\s[–\-]\s/);
+  if (parts.length < 2) return timeRange;
+  const closing = parts[parts.length - 1].trim();
+  return `Ferme à ${to24h(closing)}`;
+}
+
+function to24h(time: string): string {
+  const pmMatch = time.match(/^(\d{1,2}):(\d{2})\s*PM$/i);
+  if (pmMatch) {
+    const h = parseInt(pmMatch[1], 10);
+    return `${h === 12 ? 12 : h + 12}:${pmMatch[2]}`;
+  }
+  const amMatch = time.match(/^(\d{1,2}):(\d{2})\s*AM$/i);
+  if (amMatch) {
+    const h = parseInt(amMatch[1], 10);
+    return `${h === 12 ? '00' : String(h).padStart(2, '0')}:${amMatch[2]}`;
+  }
+  return time;
 }
 
 const styles = StyleSheet.create({

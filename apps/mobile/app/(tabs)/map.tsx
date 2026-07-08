@@ -9,7 +9,11 @@ import {
   ActivityIndicator,
   Platform,
   TextInput,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,18 +28,12 @@ import type { NearbyPlace } from '../../lib/places-api';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 
-const MAP_DELTA = 0.025; // ~2.5 km de côté
-// Plafond de PINS sur la carte. react-native-maps rend chaque marqueur emoji
-// comme une vue native : au-delà, iOS sature la mémoire et l'app crashe. La
-// LISTE du tiroir, elle, garde tous les lieux (100) — on ne perd rien.
+const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const DRAWER_COLLAPSED = 72;
+const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
 
-/**
- * DISCOVERY MAP — tuiles réelles (Apple Maps iOS / Google Maps Android) via
- * react-native-maps. Marqueurs emoji par univers, drawer liste des lieux.
- * Sur Expo Go en mode dev, les tuiles Apple Maps s'affichent sans clé.
- * Pour Google Maps Android : renseigner googleMapsApiKey dans app.json > extra.
- */
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
@@ -50,12 +48,47 @@ export default function MapScreen() {
   const [tapResults, setTapResults] = useState<NearbyPlace[] | null>(null);
   const [tapLoading, setTapLoading] = useState(false);
   const [upsell, setUpsell] = useState<string | null>(null);
-  // Perf carte : les marqueurs personnalisés (View/Text) sont figés après leur
-  // rendu (tracksViewChanges=false) pour éviter que 60-80 marqueurs re-rendent
-  // leur image native en boucle → clignotement/disparition + crash mémoire.
-  // On réactive brièvement le tracking quand la donnée ou la sélection change.
   const [tracking, setTracking] = useState(true);
   const { checkLimit, recordUsage } = usePlanLimits();
+
+  // Bottom sheet state
+  const drawerExpanded = useRef(false);
+  const drawerAnim = useRef(new Animated.Value(DRAWER_COLLAPSED)).current;
+
+  const toggleDrawer = useCallback((forceExpand?: boolean) => {
+    const shouldExpand = forceExpand !== undefined ? forceExpand : !drawerExpanded.current;
+    drawerExpanded.current = shouldExpand;
+    Animated.spring(drawerAnim, {
+      toValue: shouldExpand ? DRAWER_EXPANDED : DRAWER_COLLAPSED,
+      useNativeDriver: false,
+      tension: 80,
+      friction: 12,
+    }).start();
+  }, [drawerAnim]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dy }) => Math.abs(dy) > 8,
+      onPanResponderMove: (_, { dy }) => {
+        const base = drawerExpanded.current ? DRAWER_EXPANDED : DRAWER_COLLAPSED;
+        const next = Math.max(DRAWER_COLLAPSED, Math.min(DRAWER_EXPANDED, base - dy));
+        drawerAnim.setValue(next);
+      },
+      onPanResponderRelease: (_, { dy, vy }) => {
+        const isExpanded = drawerExpanded.current;
+        const shouldExpand = isExpanded
+          ? !(dy > 60 || vy > 0.8)
+          : dy < -60 || vy < -0.8;
+        drawerExpanded.current = shouldExpand;
+        Animated.spring(drawerAnim, {
+          toValue: shouldExpand ? DRAWER_EXPANDED : DRAWER_COLLAPSED,
+          useNativeDriver: false,
+          tension: 80,
+          friction: 12,
+        }).start();
+      },
+    })
+  ).current;
 
   const { places, loading, error } = useNearby({
     lat: coords.lat,
@@ -93,7 +126,7 @@ export default function MapScreen() {
         );
       }
     } catch {
-      // silent — drawer stays with nearby results
+      // silent
     } finally {
       setCityLoading(false);
     }
@@ -138,9 +171,6 @@ export default function MapScreen() {
   }
 
   function openDetail(place: NearbyPlace) {
-    // On NE recadre PAS la carte ici : au retour du détail, l'utilisateur
-    // retrouve exactement la vue (zoom + position) qu'il avait. On marque juste
-    // le lieu comme sélectionné.
     setSelectedId(place.id);
     placeStore.set({
       place: {
@@ -155,6 +185,7 @@ export default function MapScreen() {
         priceTier: (Math.min(4, Math.max(1, place.priceTier))) as 1 | 2 | 3 | 4,
         photoUrls: place.photoUrls,
         tags: place.tags,
+        openingHours: place.openingHours,
       },
       compatibility: 0,
       distanceMeters: place.distanceMeters,
@@ -166,8 +197,6 @@ export default function MapScreen() {
 
   const provider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
-  // Restaurants d'abord (puis le reste), en conservant l'ordre par distance dans
-  // chaque groupe : les restos sont favorisés sur la carte et dans la liste.
   const displayPlaces = useMemo(() => {
     const list = cityResults ?? tapResults ?? places;
     return [...list].sort(
@@ -175,14 +204,8 @@ export default function MapScreen() {
     );
   }, [cityResults, tapResults, places]);
 
-  // Pins de la carte : plafonnés aux MAX_MARKERS premiers (restos d'abord, puis
-  // les plus proches). La liste du tiroir garde displayPlaces en entier.
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
-  // Quand la LISTE de lieux change, on autorise le tracking le temps d'un rendu
-  // (les marqueurs se dessinent) puis on le coupe : marqueurs statiques, plus de
-  // churn natif. IMPORTANT : on ne dépend PAS de `selectedId` — sinon chaque clic
-  // sur un lieu redessinerait les 100 marqueurs (pic mémoire → crash iOS).
   useEffect(() => {
     setTracking(true);
     const t = setTimeout(() => setTracking(false), 900);
@@ -199,9 +222,8 @@ export default function MapScreen() {
     <View style={styles.screen}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
-      {/* Barre de recherche par ville + filtre univers */}
+      {/* Barre de recherche + filtre univers */}
       <View style={[styles.filtersContainer, { paddingTop: insets.top + spacing.xs }]}>
-        {/* Search bar */}
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
             <TextInput
@@ -227,7 +249,6 @@ export default function MapScreen() {
           </Pressable>
         </View>
 
-        {/* Universe chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -245,7 +266,7 @@ export default function MapScreen() {
         </ScrollView>
       </View>
 
-      {/* Carte réelle */}
+      {/* Carte */}
       {resolving ? (
         <View style={styles.mapPlaceholder}>
           <ActivityIndicator color={colors.brand} size="large" />
@@ -286,11 +307,30 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-      {/* Drawer */}
-      <View style={[styles.drawer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <View style={styles.drawerHandle} />
-        <Text style={styles.drawerTitle}>{drawerTitle}</Text>
+      {/* Bottom sheet swipeable */}
+      <Animated.View
+        style={[
+          styles.drawer,
+          { height: drawerAnim, paddingBottom: insets.bottom + spacing.md },
+        ]}
+      >
+        {/* Handle + titre — zone de glissement */}
+        <Pressable
+          style={styles.drawerHeader}
+          onPress={() => toggleDrawer()}
+          {...panResponder.panHandlers}
+        >
+          <View style={styles.drawerHandle} />
+          <View style={styles.drawerTitleRow}>
+            <Text style={styles.drawerTitle}>{drawerTitle}</Text>
+            <Text style={styles.drawerChevron}>
+              {drawerExpanded.current ? '▼' : '▲'}
+            </Text>
+          </View>
+        </Pressable>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
         <FlatList
           style={styles.list}
           data={displayPlaces}
@@ -321,7 +361,7 @@ export default function MapScreen() {
             )
           }
         />
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -348,15 +388,32 @@ function PlaceRow({
   hideDist?: boolean;
 }) {
   const meta = safeMeta(place.universe);
+  const closingTime = getClosingTime(place.openingHours);
   return (
     <Pressable style={[styles.row, selected && styles.rowSelected]} onPress={onPress}>
-      <Text style={styles.rowEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
+      {place.photoUrls && place.photoUrls.length > 0 ? (
+        <Image
+          source={{ uri: place.photoUrls[0] }}
+          style={styles.rowPhoto}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={place.photoUrls[0]}
+          transition={100}
+        />
+      ) : (
+        <View style={styles.rowEmojiBg}>
+          <Text style={styles.rowEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
+        </View>
+      )}
       <View style={{ flex: 1 }}>
         <Text style={styles.rowName} numberOfLines={1}>{place.name}</Text>
         <Text style={styles.rowMeta}>
           {meta.labelFr} · ⭐ {place.rating.toFixed(1)}
-          {!hideDist ? ` · ${formatDistance(place.distanceMeters)}` : ''}
+          {!hideDist && place.distanceMeters > 0 ? ` · ${formatDistance(place.distanceMeters)}` : ''}
         </Text>
+        {closingTime ? (
+          <Text style={styles.rowHours}>🕐 Ferme à {closingTime}</Text>
+        ) : null}
       </View>
       <Pressable style={styles.detailBtn} onPress={onDetail} hitSlop={8}>
         <Text style={styles.detailArrow}>›</Text>
@@ -369,7 +426,38 @@ function formatDistance(m: number): string {
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
 }
 
-/** Style sombre pour Google Maps (Android). Sur iOS Apple Maps s'adapte automatiquement. */
+/** Extrait l'heure de fermeture depuis les horaires du jour (ex. "10:30 – 22:30" → "22:30"). */
+function getClosingTime(hours?: string[]): string | null {
+  if (!hours || hours.length === 0) return null;
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  const entry = hours[todayIdx];
+  if (!entry) return null;
+  // Retire le préfixe "Lundi: " si présent
+  const colonIdx = entry.indexOf(': ');
+  const timeRange = colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry;
+  if (timeRange.toLowerCase().includes('fermé') || timeRange.toLowerCase().includes('closed')) return null;
+  // Extrait la partie après le tiret " – " ou " - "
+  const parts = timeRange.split(/\s[–\-]\s/);
+  if (parts.length < 2) return null;
+  const closing = parts[parts.length - 1].trim();
+  // Convertit "10:30 PM" → "22:30" si format 12h
+  return to24h(closing);
+}
+
+function to24h(time: string): string {
+  const pmMatch = time.match(/^(\d{1,2}):(\d{2})\s*PM$/i);
+  if (pmMatch) {
+    const h = parseInt(pmMatch[1], 10);
+    return `${h === 12 ? 12 : h + 12}:${pmMatch[2]}`;
+  }
+  const amMatch = time.match(/^(\d{1,2}):(\d{2})\s*AM$/i);
+  if (amMatch) {
+    const h = parseInt(amMatch[1], 10);
+    return `${h === 12 ? '00' : String(h).padStart(2, '0')}:${amMatch[2]}`;
+  }
+  return time;
+}
+
 const DARK_MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#17171F' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#A6A6B8' }] },
@@ -471,15 +559,20 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.2 }],
   },
   markerEmoji: { fontSize: 20 },
+
+  // Bottom sheet
   drawer: {
-    maxHeight: 260,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     borderTopWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  drawerHeader: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   drawerHandle: {
     alignSelf: 'center',
@@ -489,10 +582,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginBottom: spacing.sm,
   },
-  drawerTitle: { ...typography.heading, color: colors.textPrimary, marginBottom: spacing.sm },
-  error: { ...typography.caption, color: colors.danger, marginBottom: spacing.sm },
+  drawerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  drawerTitle: { ...typography.heading, color: colors.textPrimary },
+  drawerChevron: { ...typography.caption, color: colors.textMuted },
+  error: { ...typography.caption, color: colors.danger, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
   empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg },
-  list: { flex: 1 },
+  list: { flex: 1, paddingHorizontal: spacing.lg },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -501,10 +600,26 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
   },
-  rowSelected: { backgroundColor: colors.surfaceElevated, borderRadius: radius.md, paddingHorizontal: spacing.sm },
+  rowSelected: { backgroundColor: `${colors.brand}14`, borderRadius: radius.md, paddingHorizontal: spacing.sm },
+  rowPhoto: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.sm,
+    flexShrink: 0,
+  },
+  rowEmojiBg: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   rowEmoji: { fontSize: 24 },
-  rowName: { ...typography.body, color: colors.textPrimary },
+  rowName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
   rowMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  rowHours: { ...typography.label, color: colors.brand, marginTop: 2, fontSize: 11 },
   detailBtn: {
     width: 32,
     height: 32,
