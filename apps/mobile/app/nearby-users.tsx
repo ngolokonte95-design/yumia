@@ -8,7 +8,7 @@ import { useLocation } from '../lib/useLocation';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 
 const API = process.env.EXPO_PUBLIC_API_URL ?? '';
-const BROADCAST_INTERVAL = 30_000; // 30s
+const BROADCAST_INTERVAL = 30_000;
 
 interface NearbyUser {
   userId: string;
@@ -20,7 +20,7 @@ interface NearbyUser {
 
 export default function NearbyUsersScreen() {
   const { accessToken } = useAuth();
-  const { location } = useLocation();
+  const { coords, resolving } = useLocation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [nearby, setNearby] = useState<NearbyUser[]>([]);
@@ -29,27 +29,27 @@ export default function NearbyUsersScreen() {
   const broadcastRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchNearby = useCallback(async () => {
-    if (!accessToken || !location) return;
+    if (!accessToken || resolving) return;
     setLoading(true);
     try {
       const res = await fetch(
-        `${API}/location/nearby?lat=${location.coords.latitude}&lng=${location.coords.longitude}&radius=5`,
+        `${API}/location/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=5`,
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
       if (res.ok) setNearby(await res.json());
     } finally {
       setLoading(false);
     }
-  }, [accessToken, location]);
+  }, [accessToken, coords, resolving]);
 
   const broadcast = useCallback(async () => {
-    if (!accessToken || !location) return;
+    if (!accessToken || resolving) return;
     await fetch(`${API}/location/me`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ lat: location.coords.latitude, lng: location.coords.longitude, visibility: 'everyone' }),
+      body: JSON.stringify({ lat: coords.lat, lng: coords.lng, visibility: 'everyone' }),
     });
-  }, [accessToken, location]);
+  }, [accessToken, coords, resolving]);
 
   const toggleBroadcast = useCallback(async () => {
     if (broadcasting) {
@@ -68,7 +68,7 @@ export default function NearbyUsersScreen() {
   useEffect(() => { void fetchNearby(); }, [fetchNearby]);
   useEffect(() => () => { if (broadcastRef.current) clearInterval(broadcastRef.current); }, []);
 
-  if (!location) {
+  if (resolving) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.brand} />
@@ -90,28 +90,25 @@ export default function NearbyUsersScreen() {
       <MapView
         style={styles.map}
         initialRegion={{
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
+          latitude: coords.lat,
+          longitude: coords.lng,
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         }}
       >
-        {/* Ma position */}
-        <Marker coordinate={{ latitude: location.coords.latitude, longitude: location.coords.longitude }}>
+        <Marker coordinate={{ latitude: coords.lat, longitude: coords.lng }}>
           <View style={styles.myMarker}>
             <Text style={{ fontSize: 20 }}>😎</Text>
           </View>
         </Marker>
 
-        {/* Rayon 5km */}
         <Circle
-          center={{ latitude: location.coords.latitude, longitude: location.coords.longitude }}
+          center={{ latitude: coords.lat, longitude: coords.lng }}
           radius={5000}
           strokeColor={colors.brand + '44'}
           fillColor={colors.brand + '11'}
         />
 
-        {/* Utilisateurs proches */}
         {nearby.map((u) => (
           <Marker key={u.userId} coordinate={{ latitude: u.lat, longitude: u.lng }}>
             <View style={styles.userMarker}>
@@ -129,7 +126,6 @@ export default function NearbyUsersScreen() {
         ))}
       </MapView>
 
-      {/* Bottom card */}
       <View style={[styles.bottomCard, { paddingBottom: insets.bottom + 12 }]}>
         <Text style={styles.bottomTitle}>
           {broadcasting ? '🟢 Ta position est visible' : '⚫ Position masquée'}
@@ -161,7 +157,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12 },
   back: { fontSize: 22, color: colors.brand },
   title: { ...typography.h2, color: colors.text },
-  count: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
   worldBtn: { backgroundColor: colors.brand + '22', borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 6 },
   worldBtnText: { color: colors.brand, fontWeight: '700', fontSize: 12 },
   map: { flex: 1 },
