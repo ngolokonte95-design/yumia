@@ -369,22 +369,22 @@ export default function PlaceScreen() {
 
           {/* Section Avis utilisateurs */}
           {accessToken ? (
-            <View style={reviewStyles.section}>
-              <View style={reviewStyles.header}>
-                <Text style={reviewStyles.title}>⭐ Laisser un avis</Text>
+            <View style={reviewFormStyles.section}>
+              <View style={reviewFormStyles.header}>
+                <Text style={reviewFormStyles.title}>⭐ Laisser un avis</Text>
               </View>
               {reviewModal ? (
-                <View style={reviewStyles.form}>
+                <View style={reviewFormStyles.form}>
                   {/* Étoiles */}
-                  <View style={reviewStyles.stars}>
+                  <View style={reviewFormStyles.stars}>
                     {[1,2,3,4,5].map((n) => (
                       <Pressable key={n} onPress={() => setReviewRating(n)} hitSlop={8}>
-                        <Text style={reviewStyles.star}>{n <= reviewRating ? '⭐' : '☆'}</Text>
+                        <Text style={reviewFormStyles.star}>{n <= reviewRating ? '⭐' : '☆'}</Text>
                       </Pressable>
                     ))}
                   </View>
                   <TextInput
-                    style={reviewStyles.input}
+                    style={reviewFormStyles.input}
                     placeholder="Décris ton expérience (optionnel)…"
                     placeholderTextColor={colors.textMuted}
                     value={reviewBody}
@@ -392,12 +392,12 @@ export default function PlaceScreen() {
                     multiline
                     numberOfLines={3}
                   />
-                  <View style={reviewStyles.formBtns}>
-                    <Pressable style={reviewStyles.cancelBtn} onPress={() => setReviewModal(false)}>
-                      <Text style={reviewStyles.cancelText}>Annuler</Text>
+                  <View style={reviewFormStyles.formBtns}>
+                    <Pressable style={reviewFormStyles.cancelBtn} onPress={() => setReviewModal(false)}>
+                      <Text style={reviewFormStyles.cancelText}>Annuler</Text>
                     </Pressable>
                     <Pressable
-                      style={[reviewStyles.submitBtn, (reviewRating === 0 || reviewSubmitting) && reviewStyles.submitDisabled]}
+                      style={[reviewFormStyles.submitBtn, (reviewRating === 0 || reviewSubmitting) && reviewFormStyles.submitDisabled]}
                       disabled={reviewRating === 0 || reviewSubmitting}
                       onPress={async () => {
                         if (reviewRating === 0 || !accessToken) return;
@@ -416,13 +416,13 @@ export default function PlaceScreen() {
                         }
                       }}
                     >
-                      <Text style={reviewStyles.submitText}>{reviewSubmitting ? '…' : 'Publier'}</Text>
+                      <Text style={reviewFormStyles.submitText}>{reviewSubmitting ? '…' : 'Publier'}</Text>
                     </Pressable>
                   </View>
                 </View>
               ) : (
-                <Pressable style={reviewStyles.openBtn} onPress={() => setReviewModal(true)}>
-                  <Text style={reviewStyles.openBtnText}>✏️ Écrire un avis</Text>
+                <Pressable style={reviewFormStyles.openBtn} onPress={() => setReviewModal(true)}>
+                  <Text style={reviewFormStyles.openBtnText}>✏️ Écrire un avis</Text>
                 </Pressable>
               )}
             </View>
@@ -1008,7 +1008,7 @@ const hoursStyles = StyleSheet.create({
   timeToday: { color: colors.brand, fontWeight: '700' },
 });
 
-const reviewStyles = StyleSheet.create({
+const reviewFormStyles = StyleSheet.create({
   section: {
     marginTop: spacing.md,
     backgroundColor: colors.surface,
