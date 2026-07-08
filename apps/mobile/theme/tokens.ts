@@ -32,6 +32,11 @@ export const colors = {
   compatHigh: '#2BB673',
   compatMid: '#F2B705',
   overlay: 'rgba(0,0,0,0.45)',
+
+  // Aliases (screens use these names)
+  background: '#0E0E12',
+  text: '#F5F5FA',
+  surfaceAlt: '#1F1F2A',
 } as const;
 
 export const spacing = {
@@ -49,6 +54,7 @@ export const radius = {
   lg: 22,
   xl: 32,
   pill: 999,
+  full: 999,
 } as const;
 
 export const typography = {
@@ -58,6 +64,9 @@ export const typography = {
   body: { fontSize: 15, fontWeight: '500' as const },
   caption: { fontSize: 13, fontWeight: '500' as const },
   label: { fontSize: 11, fontWeight: '600' as const, letterSpacing: 0.4 },
+  // Aliases
+  h2: { fontSize: 22, fontWeight: '700' as const, letterSpacing: -0.3 },
+  h3: { fontSize: 18, fontWeight: '700' as const },
 } as const;
 
 export const theme = { colors, spacing, radius, typography } as const;

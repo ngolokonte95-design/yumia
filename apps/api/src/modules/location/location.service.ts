@@ -4,7 +4,7 @@ import { RedisService } from '../../infra/redis/redis.service';
 const KEY = (userId: string) => `user:loc:${userId}`;
 const TTL_SECONDS = 600; // 10 minutes sans update → invisible
 
-export type LocationVisibility = 'off' | 'friends' | 'everyone';
+export type LocationVisibility = 'off' | 'friends' | 'everyone' | 'map';
 
 interface StoredLocation {
   lat: number;

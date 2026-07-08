@@ -457,6 +457,98 @@ model EnrichmentJob {
 }
 
 // ----------------------------------------------------------------------------
+// Posts sociaux — photos, likes, commentaires (style Instagram)
+// ----------------------------------------------------------------------------
+
+model Post {
+  id         String        @id @default(uuid())
+  userId     String
+  caption    String?
+  placeId    String?
+  mediaUrls  String[]
+  likesCount Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  likes      PostLike[]
+  comments   PostComment[]
+
+  @@index([userId])
+  @@index([placeId])
+  @@index([createdAt])
+}
+
+model PostLike {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Meetups — événements sociaux créés par les utilisateurs
+// ----------------------------------------------------------------------------
+
+model MeetupEvent {
+  id           String       @id @default(uuid())
+  hostId       String
+  title        String
+  description  String?
+  city         String
+  placeId      String?
+  date         DateTime
+  maxAttendees Int?
+  isPublic     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  rsvps        MeetupRsvp[]
+
+  @@index([date])
+  @@index([city])
+  @@index([hostId])
+}
+
+model MeetupRsvp {
+  meetupId String
+  userId   String
+  status   String      @default("going") // 'going' | 'maybe'
+  joinedAt DateTime    @default(now())
+  meetup   MeetupEvent @relation(fields: [meetupId], references: [id], onDelete: Cascade)
+
+  @@id([meetupId, userId])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Encounters — détection Happn-style (même lieu, proche dans le temps)
+// ----------------------------------------------------------------------------
+
+model Encounter {
+  id        String   @id @default(uuid())
+  userAId   String
+  userBId   String
+  placeId   String
+  seenAt    DateTime @default(now())
+
+  @@unique([userAId, userBId, placeId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+// ----------------------------------------------------------------------------
 // Couche sociale — follows, chat, stories, localisation, quêtes
 // ----------------------------------------------------------------------------
 

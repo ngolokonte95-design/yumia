@@ -82,7 +82,9 @@ export default function NearbyUsersScreen() {
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>Nearby 📍</Text>
-        <Text style={styles.count}>{nearby.length} proche{nearby.length !== 1 ? 's' : ''}</Text>
+        <Pressable onPress={() => router.push('/world-map')} style={styles.worldBtn}>
+          <Text style={styles.worldBtnText}>🌍 Monde</Text>
+        </Pressable>
       </View>
 
       <MapView
@@ -160,6 +162,8 @@ const styles = StyleSheet.create({
   back: { fontSize: 22, color: colors.brand },
   title: { ...typography.h2, color: colors.text },
   count: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  worldBtn: { backgroundColor: colors.brand + '22', borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 6 },
+  worldBtnText: { color: colors.brand, fontWeight: '700', fontSize: 12 },
   map: { flex: 1 },
   myMarker: {
     width: 44, height: 44, borderRadius: 22,
