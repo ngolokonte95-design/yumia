@@ -101,9 +101,9 @@ const RESTRICTION_EXCLUDED: Record<string, Universe[]> = {
  * Ils restent accessibles via la grille d'univers (`/universe?u=...`).
  */
 const RECO_EXCLUDED_UNIVERSES = new Set<string>([
+  // Beauté & Services personnels
   'place_of_worship',
   'market',
-  'cheese_shop',
   'spa',
   'fitness',
   'florist',
@@ -111,14 +111,24 @@ const RECO_EXCLUDED_UNIVERSES = new Set<string>([
   'nail_salon',
   'hair_salon',
   'barber',
-  'shopping',
-  'jewelry',
   'massage',
-  // Nouveaux univers fonctionnels (pas de vraies "recommandations" quotidiennes)
+  // Shopping (on ne recommande pas de magasin comme expérience du soir)
+  'shopping',
+  'mall',
+  'jewelry',
+  // Sport & Loisirs fonctionnels (recherche intentionnelle, pas reco)
+  'padel',
+  'karting',
+  'laser_game',
+  // Services / infrastructures
+  'coworking',
   'gare',
   'hotel',
-  'mall',
   'event_venue',
+  // Valeurs héritées supprimées de l'UI
+  'cheese_shop',
+  'nightlife',
+  'art_gallery',
 ]);
 
 /**

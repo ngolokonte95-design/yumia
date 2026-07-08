@@ -24,6 +24,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { VenuesModule } from './modules/venues/venues.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { GuidesModule } from './modules/guides/guides.module';
+import { PipelineModule } from './modules/pipeline/pipeline.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { GuidesModule } from './modules/guides/guides.module';
     VenuesModule,
     TicketsModule,
     GuidesModule,
+    PipelineModule,
   ],
   providers: [
     // Rate-limit par utilisateur (sub JWT) avec repli sur IP

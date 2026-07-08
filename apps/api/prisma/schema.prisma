@@ -87,55 +87,72 @@ model RefreshToken {
 // ----------------------------------------------------------------------------
 
 enum Universe {
+  // Manger & Boire
   restaurant
   cafe
   bakery
+  fast_food
   dessert
-  bar
-  bubble_tea
-  local_specialty
   ice_cream
   chocolatier
+  bubble_tea
   wine_cellar
-  tourist_activity
-  rooftop
-  cultural_outing
-  nightlife
-  nightclub
+  tea_house
+  local_specialty
+  // Bars & Soirées
+  bar
   pub
-  cheese_shop
-  beach
-  place_of_worship
-  spa
-  park
-  cinema
-  market
-  fitness
+  nightclub
+  hookah
   live_music
-  escape_game
+  rooftop
+  karaoke
+  // Culture & Tourisme
   museum
+  monument
+  tourist_activity
+  cultural_outing
+  cinema
   zoo
   amusement_park
-  bookstore
-  tea_house
-  karaoke
-  library
+  photo_spot
+  // Nature & Plein air
+  park
+  beach
+  // Sport & Loisirs
+  fitness
+  aquatic
+  padel
+  escape_game
+  laser_game
+  karting
   bowling
   casino
-  art_gallery
-  aquatic
-  florist
+  // Bien-être & Beauté
+  spa
+  massage
   nail_salon
   hair_salon
   barber
+  florist
+  // Shopping & Commerce
   shopping
+  mall
+  market
+  bookstore
   jewelry
-  massage
+  // Culte & Services
+  place_of_worship
+  library
+  coworking
+  // Transport & Hébergement
   gare
   hotel
-  monument
-  mall
   event_venue
+  // Valeurs héritées (non affichées dans l'UI — migration impossible en PG)
+  nightlife
+  art_gallery
+  cheese_shop
 }
 
 model Place {
@@ -344,6 +361,83 @@ model Ticket {
   @@index([venueId])
   @@index([userId])
   @@index([eventId])
+}
+
+// ----------------------------------------------------------------------------
+// Pipeline d'enrichissement — menus, événements, jobs
+// ----------------------------------------------------------------------------
+
+/// Carte des menus d'un lieu (une par lieu et par langue).
+model PlaceMenu {
+  id        String     @id @default(uuid())
+  placeId   String
+  language  String     @default("fr")
+  source    String     @default("manual") // 'manual' | 'ai_extract' | 'scrape' | 'uber_eats'
+  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now())
+  items     MenuItem[]
+
+  @@unique([placeId, language])
+  @@index([placeId])
+}
+
+/// Plat / boisson sur la carte d'un lieu.
+model MenuItem {
+  id          String    @id @default(uuid())
+  menuId      String
+  menu        PlaceMenu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float?
+  currency    String    @default("EUR")
+  category    String?   // 'entrée' | 'plat' | 'dessert' | 'boisson' | 'snack' | 'autre'
+  photoUrl    String?
+  tags        String[]  @default([])  // ['végétarien','halal','sans_gluten'…]
+  available   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([menuId])
+  @@index([menuId, category])
+}
+
+/// Événement lié à un lieu (concert, feu d'artifice, soirée thématique…).
+model PlaceEvent {
+  id          String   @id @default(uuid())
+  placeId     String
+  title       String
+  description String?
+  startAt     DateTime
+  endAt       DateTime?
+  price       Float?
+  currency    String   @default("EUR")
+  ticketUrl   String?
+  photoUrl    String?
+  source      String   @default("manual") // 'manual' | 'ticketmaster' | 'eventbrite' | 'facebook'
+  externalId  String?  // ID dans le système source (évite les doublons)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([placeId, source, externalId])
+  @@index([placeId, startAt])
+  @@index([startAt])
+}
+
+/// Suivi des jobs d'enrichissement (menu photo → IA, fetch événements…).
+model EnrichmentJob {
+  id        String   @id @default(uuid())
+  placeId   String
+  type      String   // 'menu_photo' | 'menu_scrape' | 'events_fetch' | 'photo_tag'
+  status    String   @default("pending") // 'pending' | 'running' | 'done' | 'failed'
+  input     Json     @default("{}")
+  output    Json?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([placeId])
+  @@index([status, type])
+  @@index([createdAt])
 }
 
 /// Guide de randonnée local certifié — réservable (commission 20%).

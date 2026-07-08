@@ -1,9 +1,11 @@
 /**
- * Les 14 univers YUMIA disponibles au lancement.
+ * Univers YUMIA — expériences du quotidien.
  * RÈGLE ABSOLUE : YUMIA n'est PAS une app de restaurants — « restaurant » n'est
- * qu'un univers parmi quatorze expériences du quotidien.
+ * qu'un univers parmi toutes les expériences proposées.
+ *
+ * Ordre du tableau = ordre d'affichage dans la grille home (par catégorie logique).
  */
-export declare const UNIVERSES: readonly ["restaurant", "cafe", "bakery", "dessert", "bar", "bubble_tea", "local_specialty", "ice_cream", "chocolatier", "wine_cellar", "tourist_activity", "rooftop", "cultural_outing", "nightlife", "nightclub", "pub", "beach", "place_of_worship", "spa", "park", "cinema", "market", "fitness", "live_music", "escape_game", "museum", "zoo", "amusement_park", "bookstore", "tea_house", "karaoke", "library", "bowling", "casino", "art_gallery", "aquatic", "florist", "nail_salon", "hair_salon", "barber", "shopping", "jewelry", "massage", "gare", "hotel", "monument", "mall", "event_venue"];
+export declare const UNIVERSES: readonly ["restaurant", "cafe", "bakery", "fast_food", "dessert", "ice_cream", "chocolatier", "bubble_tea", "wine_cellar", "tea_house", "local_specialty", "bar", "pub", "nightclub", "hookah", "live_music", "rooftop", "karaoke", "museum", "monument", "tourist_activity", "cultural_outing", "cinema", "zoo", "amusement_park", "photo_spot", "park", "beach", "fitness", "aquatic", "padel", "escape_game", "laser_game", "karting", "bowling", "casino", "spa", "massage", "nail_salon", "hair_salon", "barber", "florist", "shopping", "mall", "market", "bookstore", "jewelry", "place_of_worship", "library", "coworking", "gare", "hotel", "event_venue"];
 export type Universe = (typeof UNIVERSES)[number];
 export interface UniverseMeta {
     key: Universe;
