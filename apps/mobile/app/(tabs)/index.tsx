@@ -23,6 +23,13 @@ import { SkeletonCard } from '../../components/SkeletonCard';
 import { useTrending } from '../../lib/useTrending';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace } from '../../lib/places-api';
+import { CannabisIcon } from '../../components/icons/CannabisIcon';
+import type { Universe } from '@yumia/shared';
+
+type IconComponent = (props: { size: number }) => JSX.Element | null;
+const UNIVERSE_CUSTOM_ICONS: Partial<Record<Universe, IconComponent>> = {
+  cannabis: CannabisIcon,
+};
 
 type TFn = (key: Parameters<ReturnType<typeof import('../../lib/useI18n').useI18n>['t']>[0]) => string;
 
@@ -244,7 +251,7 @@ export default function HomeScreen() {
         <View style={styles.universeGrid}>
           {UNIVERSES.map((u) => (
             <Pressable key={u} style={styles.universeCard} onPress={() => router.push(universeRoute(u) as never)}>
-              <Text style={styles.universeEmoji}>{UNIVERSE_META[u].emoji}</Text>
+              {(() => { const Icon = UNIVERSE_CUSTOM_ICONS[u]; return Icon ? <Icon size={26} /> : <Text style={styles.universeEmoji}>{UNIVERSE_META[u].emoji}</Text>; })()}
               <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
             </Pressable>
           ))}
