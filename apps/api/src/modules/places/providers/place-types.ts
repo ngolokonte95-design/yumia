@@ -75,6 +75,8 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   skatepark:        ['skateboard_park'],
   // Cannabis
   cannabis:         ['cannabis_store'],
+  // Armurerie & Stand de tir
+  shooting:         ['shooting_range', 'gun_store'],
   // Sécurité
   police:           ['police'],
   // Culte & Services
@@ -233,6 +235,8 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   // Sport urbain
   ['skateboard_park',       'skatepark'],
   ['cannabis_store',        'cannabis'],
+  ['shooting_range',        'shooting'],
+  ['gun_store',             'shooting'],
   // Sécurité
   ['police_station',        'police'],
   ['police',                'police'],

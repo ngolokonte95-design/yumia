@@ -165,6 +165,8 @@ enum Universe {
   skatepark
   // Cannabis
   cannabis
+  // Armurerie & Stand de tir
+  shooting
   // Transport & Hébergement
   gare
   hotel
