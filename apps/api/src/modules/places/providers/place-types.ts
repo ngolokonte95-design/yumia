@@ -48,8 +48,8 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   karting:          ['go_kart_track'],
   bowling:          ['bowling_alley'],
   casino:           ['casino'],
-  // Bien-être & Beauté
-  spa:              ['spa', 'beauty_salon'],
+  // Bien-être & Beauté — types stricts pour éviter le mélange
+  spa:              ['spa'],
   massage:          ['massage'],
   nail_salon:       ['nail_salon'],
   hair_salon:       ['hair_salon', 'hair_care'],
@@ -187,6 +187,9 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['department_store',      'mall'],
   ['clothing_store',        'shopping'],
   ['shoe_store',            'shopping'],
+  ['cosmetics_store',       'shopping'],  // Yves Rocher, Sephora, etc.
+  ['drugstore',             'shopping'],
+  ['beauty_products',       'shopping'],
   ['book_store',            'bookstore'],
   ['florist',               'florist'],
   ['jewelry_store',         'jewelry'],
