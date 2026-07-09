@@ -11,12 +11,11 @@ import { UNIVERSES, type Universe } from '@yumia/shared';
 const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Manger & Boire
   restaurant:       ['restaurant', 'fast_food_restaurant'], // fast_food fusionné ici
-  cafe:             ['cafe', 'coffee_shop'],
+  cafe:             ['cafe', 'coffee_shop', 'bubble_tea_store'], // bubble_tea fusionné
   bakery:           ['bakery'],
   dessert:          ['dessert_shop', 'bakery'],
   ice_cream:        ['ice_cream_shop'],
   chocolatier:      ['candy_store'],
-  bubble_tea:       ['cafe'],
   wine_cellar:      ['liquor_store'],
   tea_house:        ['tea_house', 'cafe'],
   local_specialty:  ['restaurant'],
@@ -129,6 +128,7 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['cake_shop',             'dessert'],
   ['bakery',                'bakery'],
   ['fast_food_restaurant',  'restaurant'], // fast_food → restaurant (fusionné)
+  ['bubble_tea_store',      'cafe'],  // bubble_tea → cafe (fusionné)
   ['coffee_shop',           'cafe'],
   ['cafe',                  'cafe'],
   ['tea_house',             'tea_house'],

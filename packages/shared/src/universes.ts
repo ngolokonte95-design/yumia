@@ -9,12 +9,11 @@
 export const UNIVERSES = [
   // ── Manger & Boire ────────────────────────────────────────────────────────
   'restaurant',   // inclut fast_food (fusionné — même expérience utilisateur)
-  'cafe',
+  'cafe',         // inclut bubble_tea (fusionné — même expérience boisson)
   'bakery',
   'dessert',
   'ice_cream',
   'chocolatier',
-  'bubble_tea',
   'wine_cellar',
   'tea_house',
   'local_specialty',
@@ -67,12 +66,13 @@ export const UNIVERSES = [
   'hotel',
   'event_venue',
   // Valeurs héritées supprimées de l'UI (enum PG non supprimable) :
-  // 'fast_food' → fusionné dans 'restaurant'
-  // 'padel'     → fusionné dans 'fitness'
-  // 'market'    → fusionné dans 'shopping'
-  // 'nightlife' → fusionné dans 'bar'/'nightclub'
+  // 'fast_food'   → fusionné dans 'restaurant'
+  // 'padel'       → fusionné dans 'fitness'
+  // 'market'      → fusionné dans 'shopping'
+  // 'nightlife'   → fusionné dans 'bar'/'nightclub'
   // 'art_gallery' → fusionné dans 'museum'
   // 'cheese_shop' → fusionné dans 'local_specialty'
+  // 'bubble_tea'  → fusionné dans 'cafe'
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -93,7 +93,6 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   dessert:         { key: 'dessert',         emoji: '🍰',   i18nKey: 'universe.dessert',         labelFr: 'Desserts' },
   ice_cream:       { key: 'ice_cream',       emoji: '🍦',   i18nKey: 'universe.ice_cream',       labelFr: 'Glaciers' },
   chocolatier:     { key: 'chocolatier',     emoji: '🍫',   i18nKey: 'universe.chocolatier',     labelFr: 'Chocolatiers' },
-  bubble_tea:      { key: 'bubble_tea',      emoji: '🧋',   i18nKey: 'universe.bubble_tea',      labelFr: 'Bubble Tea' },
   wine_cellar:     { key: 'wine_cellar',     emoji: '🍷',   i18nKey: 'universe.wine_cellar',     labelFr: 'Caves à vin' },
   tea_house:       { key: 'tea_house',       emoji: '🫖',   i18nKey: 'universe.tea_house',       labelFr: 'Salons de thé' },
   local_specialty: { key: 'local_specialty', emoji: '🥩',   i18nKey: 'universe.local_specialty', labelFr: 'Spécialités locales' },
