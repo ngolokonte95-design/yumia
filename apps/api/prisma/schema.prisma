@@ -163,6 +163,8 @@ enum Universe {
   coworking
   // Sport urbain
   skatepark
+  // Cannabis
+  cannabis
   // Transport & Hébergement
   gare
   hotel
