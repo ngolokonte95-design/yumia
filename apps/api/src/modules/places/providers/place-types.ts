@@ -65,6 +65,14 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   pharmacy:         ['pharmacy', 'drugstore'],
   doctor:           ['doctor', 'dentist', 'dental_clinic', 'medical_clinic', 'physiotherapist'],
   hospital:         ['hospital'],
+  // Vétérinaire & Optique
+  vet:              ['veterinary_care'],
+  optician:         ['optician', 'eye_care'],
+  // Stations & Services
+  fuel:             ['gas_station', 'electric_vehicle_charging_station'],
+  laundry:          ['laundry'],
+  // Sport urbain
+  skatepark:        ['skateboard_park'],
   // Sécurité
   police:           ['police'],
   // Culte & Services
@@ -86,8 +94,6 @@ export const BLOCKED_GOOGLE_TYPES = new Set([
   'convenience_store',
   'supermarket',
   'grocery_or_supermarket',
-  'gas_station',
-  'laundry',
   'dry_cleaning',
   'car_wash',
   'parking',
@@ -214,6 +220,16 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['physiotherapist',       'doctor'],
   ['pharmacy',              'pharmacy'],
   ['drugstore',             'pharmacy'],
+  // Vétérinaire & Optique
+  ['veterinary_care',       'vet'],
+  ['optician',              'optician'],
+  ['eye_care',              'optician'],
+  // Stations & Services
+  ['gas_station',           'fuel'],
+  ['electric_vehicle_charging_station', 'fuel'],
+  ['laundry',               'laundry'],
+  // Sport urbain
+  ['skateboard_park',       'skatepark'],
   // Sécurité
   ['police_station',        'police'],
   ['police',                'police'],

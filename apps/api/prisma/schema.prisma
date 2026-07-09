@@ -152,11 +152,17 @@ enum Universe {
   pharmacy
   doctor
   hospital
+  vet
+  optician
   // Culte & Services
   police
+  fuel
+  laundry
   place_of_worship
   library
   coworking
+  // Sport urbain
+  skatepark
   // Transport & Hébergement
   gare
   hotel

@@ -46,6 +46,7 @@ export const UNIVERSES = [
   'karting',
   'bowling',
   'casino',
+  'skatepark',
   // ── Bien-être & Beauté ────────────────────────────────────────────────────
   'spa',
   'massage',
@@ -62,11 +63,15 @@ export const UNIVERSES = [
   'pharmacy',
   'doctor',
   'hospital',
+  'vet',
+  'optician',
   // ── Culte & Services ──────────────────────────────────────────────────────
   'place_of_worship',
   'library',
   'coworking',
   'police',
+  'fuel',
+  'laundry',
   // ── Transport & Hébergement ───────────────────────────────────────────────
   'gare',
   'hotel',
@@ -131,6 +136,7 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   karting:         { key: 'karting',         emoji: '🏎️',  i18nKey: 'universe.karting',         labelFr: 'Karting & Course' },
   bowling:         { key: 'bowling',         emoji: '🎳',   i18nKey: 'universe.bowling',         labelFr: 'Bowling' },
   casino:          { key: 'casino',          emoji: '🎰',   i18nKey: 'universe.casino',          labelFr: 'Casinos' },
+  skatepark:       { key: 'skatepark',       emoji: '🛹',   i18nKey: 'universe.skatepark',       labelFr: 'Skateparks & Sports urbains' },
   // Bien-être & Beauté
   spa:             { key: 'spa',             emoji: '🧖',   i18nKey: 'universe.spa',             labelFr: 'Spa & Bien-être' },
   massage:         { key: 'massage',         emoji: '💆‍♀️', i18nKey: 'universe.massage',         labelFr: 'Massage & Détente' },
@@ -147,11 +153,15 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   pharmacy:        { key: 'pharmacy',        emoji: '💊',   i18nKey: 'universe.pharmacy',        labelFr: 'Pharmacies' },
   doctor:          { key: 'doctor',          emoji: '🩺',   i18nKey: 'universe.doctor',          labelFr: 'Médecins & Dentistes' },
   hospital:        { key: 'hospital',        emoji: '🏥',   i18nKey: 'universe.hospital',        labelFr: 'Hôpitaux & Urgences' },
+  vet:             { key: 'vet',             emoji: '🐾',   i18nKey: 'universe.vet',             labelFr: 'Vétérinaires' },
+  optician:        { key: 'optician',        emoji: '👓',   i18nKey: 'universe.optician',        labelFr: 'Opticiens' },
   // Culte & Services
   place_of_worship:{ key: 'place_of_worship',emoji: '🛐',   i18nKey: 'universe.place_of_worship',labelFr: 'Lieux de culte' },
   library:         { key: 'library',         emoji: '📖',   i18nKey: 'universe.library',         labelFr: 'Bibliothèques' },
   coworking:       { key: 'coworking',       emoji: '💻',   i18nKey: 'universe.coworking',       labelFr: 'Coworking & Bureaux' },
   police:          { key: 'police',          emoji: '🚔',   i18nKey: 'universe.police',          labelFr: 'Commissariats & Police' },
+  fuel:            { key: 'fuel',            emoji: '⛽',   i18nKey: 'universe.fuel',            labelFr: 'Stations service & Bornes électriques' },
+  laundry:         { key: 'laundry',         emoji: '🧺',   i18nKey: 'universe.laundry',         labelFr: 'Laveries automatiques' },
   // Transport & Hébergement
   gare:            { key: 'gare',            emoji: '🚉',   i18nKey: 'universe.gare',            labelFr: 'Gares & Transports' },
   hotel:           { key: 'hotel',           emoji: '🏨',   i18nKey: 'universe.hotel',           labelFr: 'Hôtels & Séjours' },
