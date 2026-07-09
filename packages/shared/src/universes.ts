@@ -66,6 +66,7 @@ export const UNIVERSES = [
   'place_of_worship',
   'library',
   'coworking',
+  'police',
   // ── Transport & Hébergement ───────────────────────────────────────────────
   'gare',
   'hotel',
@@ -150,6 +151,7 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   place_of_worship:{ key: 'place_of_worship',emoji: '🛐',   i18nKey: 'universe.place_of_worship',labelFr: 'Lieux de culte' },
   library:         { key: 'library',         emoji: '📖',   i18nKey: 'universe.library',         labelFr: 'Bibliothèques' },
   coworking:       { key: 'coworking',       emoji: '💻',   i18nKey: 'universe.coworking',       labelFr: 'Coworking & Bureaux' },
+  police:          { key: 'police',          emoji: '🚔',   i18nKey: 'universe.police',          labelFr: 'Commissariats & Police' },
   // Transport & Hébergement
   gare:            { key: 'gare',            emoji: '🚉',   i18nKey: 'universe.gare',            labelFr: 'Gares & Transports' },
   hotel:           { key: 'hotel',           emoji: '🏨',   i18nKey: 'universe.hotel',           labelFr: 'Hôtels & Séjours' },

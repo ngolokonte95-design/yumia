@@ -153,6 +153,7 @@ enum Universe {
   doctor
   hospital
   // Culte & Services
+  police
   place_of_worship
   library
   coworking

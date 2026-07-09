@@ -65,6 +65,8 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   pharmacy:         ['pharmacy', 'drugstore'],
   doctor:           ['doctor', 'dentist', 'dental_clinic', 'medical_clinic', 'physiotherapist', 'general_contractor'],
   hospital:         ['hospital', 'emergency_room_hospital'],
+  // Sécurité
+  police:           ['police_station'],
   // Culte & Services
   place_of_worship: ['church', 'mosque', 'synagogue', 'hindu_temple'],
   library:          ['library'],
@@ -214,6 +216,8 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['physiotherapist',       'doctor'],
   ['pharmacy',              'pharmacy'],
   ['drugstore',             'pharmacy'],
+  // Sécurité
+  ['police_station',        'police'],
   // Services
   ['coworking_space',       'coworking'],
   ['library',               'library'],
