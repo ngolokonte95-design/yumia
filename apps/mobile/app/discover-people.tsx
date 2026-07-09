@@ -19,9 +19,19 @@ interface Profile {
   level: number;
   totalXp: number;
   distanceKm?: number;
+  gender?: string | null;
+  birthYear?: number | null;
 }
 
 const SWIPE_THRESHOLD = 100;
+
+const FILTERS = [
+  { value: 'everyone', label: '🌍 Tous' },
+  { value: 'female', label: '👩 Femmes' },
+  { value: 'male', label: '👨 Hommes' },
+] as const;
+
+type FilterValue = typeof FILTERS[number]['value'];
 
 export default function DiscoverPeopleScreen() {
   const { accessToken } = useAuth();
@@ -30,26 +40,27 @@ export default function DiscoverPeopleScreen() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [idx, setIdx] = useState(0);
+  const [filter, setFilter] = useState<FilterValue>('everyone');
   const pan = useRef(new Animated.ValueXY()).current;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (interestedIn: FilterValue = 'everyone') => {
     if (!accessToken) return;
     setLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      let url = `${API}/discover/swipe?limit=15`;
+      let url = `${API}/discover/swipe?limit=15&interestedIn=${interestedIn}`;
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         url += `&lat=${loc.coords.latitude}&lng=${loc.coords.longitude}`;
       }
       const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-      if (res.ok) { const data = await res.json(); setProfiles(data); setIdx(0); }
+      if (res.ok) { const data = await res.json(); setProfiles(Array.isArray(data) ? data : []); setIdx(0); }
     } finally {
       setLoading(false);
     }
   }, [accessToken]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(filter); }, [load, filter]);
 
   const markSeen = async (userId: string) => {
     await fetch(`${API}/discover/swipe/${userId}/seen`, {
@@ -93,12 +104,25 @@ export default function DiscoverPeopleScreen() {
         <View style={{ width: 32 }} />
       </View>
 
+      {/* Gender filter */}
+      <View style={styles.filterRow}>
+        {FILTERS.map((f) => (
+          <Pressable
+            key={f.value}
+            style={[styles.filterChip, filter === f.value && styles.filterChipActive]}
+            onPress={() => setFilter(f.value)}
+          >
+            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
       {!current ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>🎉</Text>
           <Text style={styles.emptyTitle}>Tu as vu tout le monde !</Text>
           <Text style={styles.emptyText}>Reviens plus tard pour découvrir de nouveaux profils.</Text>
-          <Pressable style={styles.reloadBtn} onPress={load}>
+          <Pressable style={styles.reloadBtn} onPress={() => load(filter)}>
             <Text style={styles.reloadBtnText}>Recharger</Text>
           </Pressable>
         </View>
@@ -166,6 +190,12 @@ function ProfileCard({ profile }: { profile: Profile }) {
           <Text style={cardStyles.name}>{profile.displayName}</Text>
           <Text style={cardStyles.level}>Niv. {profile.level}</Text>
         </View>
+        {(profile.gender || profile.birthYear) && (
+          <View style={cardStyles.metaRow}>
+            {profile.gender && <Text style={cardStyles.meta}>{profile.gender === 'male' ? '👨 Homme' : profile.gender === 'female' ? '👩 Femme' : '🧑 Autre'}</Text>}
+            {profile.birthYear && <Text style={cardStyles.meta}>🎂 {new Date().getFullYear() - profile.birthYear} ans</Text>}
+          </View>
+        )}
         {profile.bio && <Text style={cardStyles.bio} numberOfLines={3}>{profile.bio}</Text>}
         {profile.distanceKm !== undefined && (
           <View style={cardStyles.distRow}>
@@ -222,6 +252,15 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', marginBottom: 24 },
   reloadBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12 },
   reloadBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, marginBottom: 8 },
+  filterChip: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    backgroundColor: colors.surface, borderRadius: radius.full,
+    borderWidth: 1.5, borderColor: colors.border,
+  },
+  filterChipActive: { backgroundColor: colors.brand + '22', borderColor: colors.brand },
+  filterText: { color: colors.textMuted, fontWeight: '600', fontSize: 13 },
+  filterTextActive: { color: colors.brand },
 });
 
 const cardStyles = StyleSheet.create({
@@ -231,6 +270,8 @@ const cardStyles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   name: { ...typography.h2, color: colors.text },
   level: { backgroundColor: colors.brand + '22', color: colors.brand, fontWeight: '700', fontSize: 13, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
+  metaRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
+  meta: { fontSize: 13, color: colors.brand, fontWeight: '600' },
   bio: { fontSize: 14, color: colors.textMuted, lineHeight: 20, marginBottom: 8 },
   distRow: { flexDirection: 'row', alignItems: 'center' },
   dist: { fontSize: 13, color: colors.textMuted },

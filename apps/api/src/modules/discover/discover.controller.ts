@@ -8,8 +8,8 @@ export class DiscoverController {
   constructor(private readonly discoverService: DiscoverService) {}
 
   @Get('world-map')
-  worldMap(@Req() req: any) {
-    return this.discoverService.getWorldMapUsers(req.user.id);
+  worldMap(@Req() req: any, @Query('interestedIn') interestedIn?: string) {
+    return this.discoverService.getWorldMapUsers(req.user.id, interestedIn);
   }
 
   @Get('swipe')
@@ -18,8 +18,9 @@ export class DiscoverController {
     @Query('lat') lat: string,
     @Query('lng') lng: string,
     @Query('limit') limit?: string,
+    @Query('interestedIn') interestedIn?: string,
   ) {
-    return this.discoverService.getSwipeProfiles(req.user.id, +lat, +lng, limit ? +limit : 10);
+    return this.discoverService.getSwipeProfiles(req.user.id, +lat, +lng, limit ? +limit : 10, interestedIn);
   }
 
   @Post('swipe/:userId/seen')

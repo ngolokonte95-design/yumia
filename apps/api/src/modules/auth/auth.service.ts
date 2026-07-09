@@ -261,7 +261,7 @@ export class AuthService {
    */
   async updateProfile(
     userId: string,
-    patch: { displayName?: string; bio?: string; locale?: string; photoUrl?: string; preferences?: UserPreferences },
+    patch: { displayName?: string; bio?: string; locale?: string; photoUrl?: string; preferences?: UserPreferences; gender?: string; birthYear?: number; interestedIn?: string },
   ): Promise<PublicUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -280,6 +280,9 @@ export class AuthService {
         ...(patch.bio !== undefined ? { bio: patch.bio.trim() || null } : {}),
         ...(patch.locale ? { locale: patch.locale } : {}),
         ...(patch.photoUrl !== undefined ? { photoUrl: patch.photoUrl } : {}),
+        ...(patch.gender !== undefined ? { gender: patch.gender } : {}),
+        ...(patch.birthYear !== undefined ? { birthYear: patch.birthYear } : {}),
+        ...(patch.interestedIn !== undefined ? { interestedIn: patch.interestedIn } : {}),
         preferences: mergedPreferences as object,
       },
     });
@@ -484,5 +487,8 @@ function toPublicUser(user: User): PublicUser {
     level: user.level,
     preferences: (user.preferences as PublicUser['preferences'] | null) ?? {},
     createdAt: user.createdAt,
+    gender: (user as any).gender ?? null,
+    birthYear: (user as any).birthYear ?? null,
+    interestedIn: (user as any).interestedIn ?? 'everyone',
   };
 }

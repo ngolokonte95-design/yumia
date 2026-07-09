@@ -33,7 +33,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; displayName: string }) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (patch: { displayName?: string; bio?: string; locale?: string; preferences?: UserPreferences }) => Promise<void>;
+  updateProfile: (patch: { displayName?: string; bio?: string; locale?: string; preferences?: UserPreferences; gender?: string; birthYear?: number; interestedIn?: string; photoUrl?: string }) => Promise<void>;
   applyAuthResult: (result: AuthResult) => Promise<void>;
   /** Recharge le profil depuis l'API — utile après un changement de plan (ex : RestorePurchases). */
   reloadUser: () => Promise<void>;

@@ -4,10 +4,13 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Length,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { UNIVERSES, type Universe } from '@yumia/shared';
@@ -72,4 +75,21 @@ export class UpdateMeDto {
   @ValidateNested()
   @Type(() => PreferencesDto)
   preferences?: PreferencesDto;
+
+  @ApiPropertyOptional({ example: 'male', enum: ['male', 'female', 'other'] })
+  @IsOptional()
+  @IsIn(['male', 'female', 'other'])
+  gender?: string;
+
+  @ApiPropertyOptional({ example: 1995 })
+  @IsOptional()
+  @IsInt()
+  @Min(1920)
+  @Max(2010)
+  birthYear?: number;
+
+  @ApiPropertyOptional({ example: 'everyone', enum: ['male', 'female', 'everyone'] })
+  @IsOptional()
+  @IsIn(['male', 'female', 'everyone'])
+  interestedIn?: string;
 }

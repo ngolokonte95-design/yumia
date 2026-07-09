@@ -32,6 +32,9 @@ export interface PublicUser {
   level: number;
   preferences: UserPreferences;
   createdAt: string;
+  gender: string | null;
+  birthYear: number | null;
+  interestedIn: string;
 }
 
 export interface AuthTokens {
@@ -72,7 +75,7 @@ export function meRequest(accessToken: string): Promise<PublicUser> {
 
 export function updateProfileRequest(
   accessToken: string,
-  patch: { displayName?: string; bio?: string; locale?: string; preferences?: UserPreferences },
+  patch: { displayName?: string; bio?: string; locale?: string; preferences?: UserPreferences; gender?: string; birthYear?: number; interestedIn?: string; photoUrl?: string },
 ): Promise<PublicUser> {
   return request<PublicUser>('/auth/me', { method: 'PATCH', body: patch, token: accessToken });
 }

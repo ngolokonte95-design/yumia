@@ -54,6 +54,11 @@ model User {
   preferences    Json         @default("{}")
   expoPushToken  String?
 
+  // Profil social
+  gender         String?      // 'male' | 'female' | 'other'
+  birthYear      Int?         // année de naissance → âge calculé côté client
+  interestedIn   String       @default("everyone") // 'male' | 'female' | 'everyone'
+
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -66,8 +71,9 @@ model User {
   groupSessions       GroupMember[]
 
   @@index([countryCode])
-  // Optimise le cron daily-digest qui filtre sur expoPushToken IS NOT NULL
   @@index([expoPushToken])
+  @@index([gender])
+  @@index([interestedIn])
 }
 
 model RefreshToken {
@@ -466,6 +472,8 @@ model Post {
   caption    String?
   placeId    String?
   mediaUrls  String[]
+  videoUrl   String?       // URL vidéo uploadée (optionnel)
+  musicTrack String?       // ex: "Blinding Lights - The Weeknd"
   likesCount Int           @default(0)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt

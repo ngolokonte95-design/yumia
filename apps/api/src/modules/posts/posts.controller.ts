@@ -8,8 +8,8 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post()
-  create(@Req() req: any, @Body() body: { caption?: string; mediaUrls: string[]; placeId?: string }) {
-    return this.postsService.createPost(req.user.id, body.caption, body.mediaUrls, body.placeId);
+  create(@Req() req: any, @Body() body: { caption?: string; mediaUrls: string[]; placeId?: string; videoUrl?: string; musicTrack?: string }) {
+    return this.postsService.createPost(req.user.id, body.caption, body.mediaUrls, body.placeId, body.videoUrl, body.musicTrack);
   }
 
   @Delete(':id')

@@ -34,6 +34,10 @@ export interface PublicUser {
   level: number;
   preferences: UserPreferences;
   createdAt: Date;
+  // Profil social
+  gender: string | null;
+  birthYear: number | null;
+  interestedIn: string;
 }
 
 /** Réponse d'authentification : utilisateur + jetons. */

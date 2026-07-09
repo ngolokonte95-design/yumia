@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 
@@ -15,6 +16,8 @@ interface Post {
   userId: string;
   caption?: string;
   mediaUrls: string[];
+  videoUrl?: string | null;
+  musicTrack?: string | null;
   likesCount: number;
   likedByMe: boolean;
   createdAt: string;
@@ -24,6 +27,11 @@ interface Post {
     id: string; content: string; createdAt: string;
     user: { id: string; displayName: string; photoUrl?: string } | null;
   }>;
+}
+
+function PostVideoPlayer({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => { p.loop = true; });
+  return <VideoView player={player} style={styles.postVideo} contentFit="cover" nativeControls />;
 }
 
 function formatAgo(iso: string) {
@@ -109,8 +117,11 @@ export default function PostDetailScreen() {
           <Text style={styles.ago}>{formatAgo(post.createdAt)}</Text>
         </Pressable>
 
+        {/* Video player */}
+        {post.videoUrl && <PostVideoPlayer uri={post.videoUrl} />}
+
         {/* Images carousel */}
-        {post.mediaUrls.length > 0 && (
+        {!post.videoUrl && post.mediaUrls.length > 0 && (
           <View>
             <ScrollView
               horizontal pagingEnabled showsHorizontalScrollIndicator={false}
@@ -127,6 +138,14 @@ export default function PostDetailScreen() {
                 ))}
               </View>
             )}
+          </View>
+        )}
+
+        {/* Music badge */}
+        {post.musicTrack && (
+          <View style={styles.musicBadge}>
+            <Text style={styles.musicIcon}>🎵</Text>
+            <Text style={styles.musicText} numberOfLines={1}>{post.musicTrack}</Text>
           </View>
         )}
 
@@ -192,6 +211,16 @@ const styles = StyleSheet.create({
   placeName: { fontSize: 12, color: colors.textMuted },
   ago: { marginLeft: 'auto', fontSize: 12, color: colors.textMuted },
   postImage: { width: 375, height: 375 },
+  postVideo: { width: '100%', height: 375 },
+  musicBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: 8,
+    borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 8,
+    borderWidth: 1, borderColor: colors.border,
+    alignSelf: 'flex-start',
+  },
+  musicIcon: { fontSize: 14 },
+  musicText: { fontSize: 13, color: colors.text, fontWeight: '600', maxWidth: 240 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 4, marginTop: 8 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
   dotActive: { backgroundColor: colors.brand },

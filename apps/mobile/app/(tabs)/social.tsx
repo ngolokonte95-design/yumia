@@ -196,6 +196,9 @@ export default function SocialTab() {
       <View style={styles.header}>
         <Text style={styles.title}>Social</Text>
         <View style={styles.headerActions}>
+          <Pressable onPress={() => router.push('/social-profile')} style={styles.headerBtn}>
+            <Text style={styles.headerBtnText}>👤 Mon profil</Text>
+          </Pressable>
           <Pressable onPress={() => router.push('/discover-people')} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>🔍 Découvrir</Text>
           </Pressable>

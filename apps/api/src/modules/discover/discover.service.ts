@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const LOC_KEY = (userId: string) => `user:loc:${userId}`;
 
@@ -11,18 +12,34 @@ interface StoredLocation {
   updatedAt: string;
 }
 
+type UserSelect = {
+  id: string;
+  displayName: string;
+  photoUrl?: string | null;
+  bio?: string | null;
+  gender?: string | null;
+  level: number;
+  totalXp: number;
+};
+
+const USER_SOCIAL_SELECT = {
+  id: true, displayName: true, photoUrl: true, bio: true,
+  gender: true, level: true, totalXp: true,
+};
+
 @Injectable()
 export class DiscoverService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ── World Map ── all users with visibility 'map' or 'everyone' ────────────
 
-  async getWorldMapUsers(viewerId: string): Promise<Array<{
+  async getWorldMapUsers(viewerId: string, interestedIn?: string): Promise<Array<{
     userId: string; lat: number; lng: number;
-    displayName: string; photoUrl?: string | null; bio?: string | null;
+    displayName: string; photoUrl?: string | null; bio?: string | null; gender?: string | null;
   }>> {
     const keys = await this.redis.raw.keys('user:loc:*');
     const visibleIds: Array<{ userId: string; lat: number; lng: number }> = [];
@@ -43,9 +60,12 @@ export class DiscoverService {
     if (!visibleIds.length) return [];
 
     const userIds = visibleIds.map((v) => v.userId);
+    const where: Record<string, unknown> = { id: { in: userIds } };
+    if (interestedIn && interestedIn !== 'everyone') where['gender'] = interestedIn;
+
     const users = await this.prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true },
+      where,
+      select: { id: true, displayName: true, photoUrl: true, bio: true, gender: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
@@ -54,13 +74,12 @@ export class DiscoverService {
       .map((v) => ({ ...v, ...userMap[v.userId] }));
   }
 
-  // ── Swipe Discovery ── profiles to swipe through near viewer ─────────────
+  // ── Swipe Discovery ── filtered by gender preference ─────────────────────
 
-  async getSwipeProfiles(viewerId: string, lat: number, lng: number, limit = 10): Promise<Array<{
-    id: string; displayName: string; photoUrl?: string | null; bio?: string | null;
-    level: number; totalXp: number; distanceKm?: number;
-  }>> {
-    // Get all nearby visible users
+  async getSwipeProfiles(
+    viewerId: string, lat: number, lng: number,
+    limit = 10, interestedIn?: string,
+  ): Promise<Array<UserSelect & { distanceKm?: number }>> {
     const keys = await this.redis.raw.keys('user:loc:*');
     const nearbyIds: Array<{ userId: string; lat: number; lng: number; dist: number }> = [];
 
@@ -76,7 +95,6 @@ export class DiscoverService {
       } catch { /* ignore */ }
     }
 
-    // Already seen/swiped in last 24h — exclude them
     const seenKey = `swipe:seen:${viewerId}`;
     const seen = await this.redis.raw.smembers(seenKey);
     const seenSet = new Set(seen);
@@ -84,35 +102,34 @@ export class DiscoverService {
     const candidates = nearbyIds
       .filter((u) => !seenSet.has(u.userId))
       .sort((a, b) => a.dist - b.dist)
-      .slice(0, limit);
+      .slice(0, limit * 3); // over-fetch to allow gender filtering
 
     if (!candidates.length) {
-      // Fallback: return random global users if no one nearby
-      return this.getRandomProfiles(viewerId, seenSet, limit);
+      return this.getRandomProfiles(viewerId, seenSet, limit, interestedIn);
     }
 
     const userIds = candidates.map((c) => c.userId);
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: userIds } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, level: true, totalXp: true },
-    });
+    const where: Record<string, unknown> = { id: { in: userIds } };
+    if (interestedIn && interestedIn !== 'everyone') where['gender'] = interestedIn;
+
+    const users = await this.prisma.user.findMany({ where, select: USER_SOCIAL_SELECT });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
     return candidates
       .filter((c) => userMap[c.userId])
+      .slice(0, limit)
       .map((c) => ({ ...userMap[c.userId], distanceKm: Math.round(c.dist * 10) / 10 }));
   }
 
   async markSeen(viewerId: string, targetId: string) {
     const seenKey = `swipe:seen:${viewerId}`;
     await this.redis.raw.sadd(seenKey, targetId);
-    await this.redis.raw.expire(seenKey, 86400); // reset after 24h
+    await this.redis.raw.expire(seenKey, 86400);
   }
 
-  // ── Encounters ── detect same-place visits ────────────────────────────────
+  // ── Encounters ── detect same-place + send push notification ─────────────
 
   async checkEncounters(userId: string, placeId: string, lat: number, lng: number) {
-    // Get all users at this place (within 100m) in the last 2h
     const keys = await this.redis.raw.keys('user:loc:*');
     const nearbyUsers: string[] = [];
 
@@ -124,22 +141,55 @@ export class DiscoverService {
         const uid = key.replace('user:loc:', '');
         if (uid === userId || loc.visibility === 'off') continue;
         const dist = this.haversineKm(lat, lng, loc.lat, loc.lng);
-        if (dist <= 0.1) nearbyUsers.push(uid); // 100m radius
+        if (dist <= 0.1) nearbyUsers.push(uid);
       } catch { /* ignore */ }
     }
 
     if (!nearbyUsers.length) return [];
 
-    // Create encounter records (idempotent due to unique constraint)
+    // Load viewer name for notification
+    const viewer = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { displayName: true, gender: true },
+    });
+
+    const place = await this.prisma.place.findUnique({
+      where: { id: placeId },
+      select: { name: true },
+    });
+
     const encounters: string[] = [];
     for (const otherId of nearbyUsers) {
       const [a, b] = [userId, otherId].sort();
       try {
-        await this.prisma.encounter.upsert({
+        const result = await this.prisma.encounter.upsert({
           where: { userAId_userBId_placeId: { userAId: a, userBId: b, placeId } },
           update: { seenAt: new Date() },
           create: { userAId: a, userBId: b, placeId },
         });
+
+        // Only send push on first encounter (seenAt ~= createdAt)
+        const isNew = Math.abs(result.seenAt.getTime() - (result as any).createdAt?.getTime?.() ?? 0) < 5000;
+        if (isNew || true) { // always notify on re-encounter within session
+          const otherUser = await this.prisma.user.findUnique({
+            where: { id: otherId },
+            select: { interestedIn: true, gender: true },
+          });
+
+          // Respect gender preference before notifying
+          const viewerGender = viewer?.gender;
+          const otherInterestedIn = otherUser?.interestedIn ?? 'everyone';
+          const matchesPreference = otherInterestedIn === 'everyone' || otherInterestedIn === viewerGender;
+
+          if (matchesPreference) {
+            await this.notifications.sendToUser(
+              otherId,
+              '⚡ Quelqu\'un est près de toi !',
+              `${viewer?.displayName ?? 'Un utilisateur'} est ${place ? 'à ' + place.name : 'près de toi'} en ce moment`,
+              { type: 'encounter', userId, placeId },
+            );
+          }
+        }
         encounters.push(otherId);
       } catch { /* ignore dup */ }
     }
@@ -159,7 +209,7 @@ export class DiscoverService {
     const [users, places] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: otherIds } },
-        select: { id: true, displayName: true, photoUrl: true, bio: true, level: true },
+        select: { id: true, displayName: true, photoUrl: true, bio: true, level: true, gender: true },
       }),
       this.prisma.place.findMany({
         where: { id: { in: placeIds } },
@@ -176,14 +226,15 @@ export class DiscoverService {
     });
   }
 
-  private async getRandomProfiles(viewerId: string, seenSet: Set<string>, limit: number) {
-    const users = await this.prisma.user.findMany({
-      where: { id: { notIn: [viewerId, ...Array.from(seenSet)] } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, level: true, totalXp: true },
+  private async getRandomProfiles(viewerId: string, seenSet: Set<string>, limit: number, interestedIn?: string) {
+    const where: Record<string, unknown> = { id: { notIn: [viewerId, ...Array.from(seenSet)] } };
+    if (interestedIn && interestedIn !== 'everyone') where['gender'] = interestedIn;
+    return this.prisma.user.findMany({
+      where,
+      select: USER_SOCIAL_SELECT,
       take: limit,
       orderBy: { totalXp: 'desc' },
     });
-    return users;
   }
 
   private haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {

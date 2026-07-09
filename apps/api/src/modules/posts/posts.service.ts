@@ -5,9 +5,16 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 export class PostsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createPost(userId: string, caption: string | undefined, mediaUrls: string[], placeId?: string) {
+  async createPost(
+    userId: string,
+    caption: string | undefined,
+    mediaUrls: string[],
+    placeId?: string,
+    videoUrl?: string,
+    musicTrack?: string,
+  ) {
     return this.prisma.post.create({
-      data: { userId, caption, mediaUrls, placeId },
+      data: { userId, caption, mediaUrls, placeId, videoUrl, musicTrack },
     });
   }
 
@@ -104,7 +111,7 @@ export class PostsService {
     return comments.map((c) => ({ ...c, user: userMap[c.userId] ?? null }));
   }
 
-  private async hydratePosts(posts: Array<{ id: string; userId: string; caption: string | null; mediaUrls: string[]; placeId: string | null; likesCount: number; createdAt: Date; updatedAt: Date }>, viewerId: string) {
+  private async hydratePosts(posts: Array<{ id: string; userId: string; caption: string | null; mediaUrls: string[]; videoUrl?: string | null; musicTrack?: string | null; placeId: string | null; likesCount: number; createdAt: Date; updatedAt: Date }>, viewerId: string) {
     if (!posts.length) return [];
 
     const postIds = posts.map((p) => p.id);
