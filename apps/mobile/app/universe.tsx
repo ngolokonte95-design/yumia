@@ -166,7 +166,7 @@ export default function UniverseScreen() {
 }
 
 function formatDistance(m: number): string {
-  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
+  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
 }
 
 function getTodayHours(hours?: string[]): string | null {
@@ -188,12 +188,12 @@ function to24h(time: string): string {
   const pmMatch = time.match(/^(\d{1,2}):(\d{2})\s*PM$/i);
   if (pmMatch) {
     const h = parseInt(pmMatch[1], 10);
-    return `${h === 12 ? 12 : h + 12}:${pmMatch[2]}`;
+    return `${h === 12 ? 12 : h + 12}h${pmMatch[2]}`;
   }
   const amMatch = time.match(/^(\d{1,2}):(\d{2})\s*AM$/i);
   if (amMatch) {
     const h = parseInt(amMatch[1], 10);
-    return `${h === 12 ? '00' : String(h).padStart(2, '0')}:${amMatch[2]}`;
+    return `${h === 12 ? '00' : String(h).padStart(2, '0')}h${amMatch[2]}`;
   }
   return time;
 }

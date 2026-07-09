@@ -343,7 +343,7 @@ export default function PlaceScreen() {
                   return (
                     <View key={i} style={[hoursStyles.row, isToday && hoursStyles.rowToday]}>
                       <Text style={[hoursStyles.day, isToday && hoursStyles.dayToday]}>{dayName}</Text>
-                      <Text style={[hoursStyles.time, isToday && hoursStyles.timeToday]}>{timeRange}</Text>
+                      <Text style={[hoursStyles.time, isToday && hoursStyles.timeToday]}>{formatHoursLine(timeRange)}</Text>
                     </View>
                   );
                 })
@@ -355,7 +355,7 @@ export default function PlaceScreen() {
                   const colonIdx = entry.indexOf(': ');
                   return (
                     <Text style={hoursStyles.todayLine}>
-                      Aujourd'hui : {colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry}
+                      Aujourd'hui : {formatHoursLine(colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry)}
                     </Text>
                   );
                 })()
@@ -748,7 +748,17 @@ const similarStyles = StyleSheet.create({
 });
 
 function formatDistance(m: number): string {
-  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
+  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+function formatHoursLine(line: string): string {
+  if (/closed/i.test(line)) return line.replace(/closed/i, 'Fermé');
+  return line.replace(/(\d{1,2}):(\d{2})\s*(AM|PM)/gi, (_, h, min, period) => {
+    let hour = parseInt(h, 10);
+    if (period.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (period.toUpperCase() === 'AM' && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, '0')}h${min}`;
+  });
 }
 
 function buildSuggestions(name: string, universeLabel: string): string[] {
