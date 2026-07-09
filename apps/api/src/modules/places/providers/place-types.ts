@@ -63,7 +63,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   jewelry:          ['jewelry_store'],
   // Santé
   pharmacy:         ['pharmacy', 'drugstore'],
-  doctor:           ['doctor', 'dentist', 'dental_clinic', 'medical_clinic', 'physiotherapist', 'general_contractor'],
+  doctor:           ['doctor', 'dentist', 'dental_clinic', 'medical_clinic', 'physiotherapist'],
   hospital:         ['hospital', 'emergency_room_hospital'],
   // Sécurité
   police:           ['police_station'],
@@ -93,7 +93,6 @@ export const BLOCKED_GOOGLE_TYPES = new Set([
   'parking',
   'atm',
   'bank',
-  'pharmacy',
   // Grandes surfaces / commerces non-expérience (Leroy Merlin, Decathlon…).
   'hardware_store',
   'home_improvement_store',
