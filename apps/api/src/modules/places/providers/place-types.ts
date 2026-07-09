@@ -157,11 +157,13 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['amusement_park',        'amusement_park'],
   ['zoo',                   'zoo'],
   ['aquarium',              'zoo'],
-  ['tourist_attraction',    'tourist_activity'],
-  // Nature & Plein air
+  // Nature & Plein air — AVANT tourist_attraction pour ne pas être absorbées
   ['beach',                 'beach'],
   ['park',                  'park'],
   ['national_park',         'park'],
+  ['nature_reserve',        'park'],
+  // tourist_attraction en dernier recours (activité touristique générique)
+  ['tourist_attraction',    'tourist_activity'],
   // Sport & Loisirs
   ['laser_tag_center',      'laser_game'],
   ['go_kart_track',         'karting'],
