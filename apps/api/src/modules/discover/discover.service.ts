@@ -169,7 +169,8 @@ export class DiscoverService {
         });
 
         // Only send push on first encounter (seenAt ~= createdAt)
-        const isNew = Math.abs(result.seenAt.getTime() - (result as any).createdAt?.getTime?.() ?? 0) < 5000;
+        const createdAtMs = (result as any).createdAt ? new Date((result as any).createdAt).getTime() : 0;
+        const isNew = Math.abs(result.seenAt.getTime() - createdAtMs) < 5000;
         if (isNew || true) { // always notify on re-encounter within session
           const otherUser = await this.prisma.user.findUnique({
             where: { id: otherId },
