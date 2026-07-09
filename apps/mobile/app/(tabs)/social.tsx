@@ -195,7 +195,7 @@ export default function SocialTab() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Social</Text>
-        <View style={styles.headerActions}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.headerActions}>
           <Pressable onPress={() => router.push('/social-profile')} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>👤 Mon profil</Text>
           </Pressable>
@@ -208,7 +208,7 @@ export default function SocialTab() {
           <Pressable onPress={() => router.push('/meetup')} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>🌃 Meetups</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </View>
 
       {/* Search */}
