@@ -398,7 +398,7 @@ export class RecommendationsService {
     // Profil majoritairement food → moteur food
     const FOOD_UNIVERSES = new Set<Universe>([
       'restaurant', 'cafe', 'bakery', 'dessert', 'bar',
-      'bubble_tea', 'ice_cream', 'chocolatier', 'wine_cellar',
+      'ice_cream', 'chocolatier', 'wine_cellar', 'tea_house',
     ]);
     const favs = ctx.preferences?.favoriteUniverses ?? [];
     if (favs.length >= 3) {
