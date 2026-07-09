@@ -39,6 +39,7 @@ export const UNIVERSES = [
   'beach',
   // ── Sport & Loisirs ───────────────────────────────────────────────────────
   'fitness',      // inclut padel/tennis (fusionné — même univers sportif)
+  'gym',
   'aquatic',
   'escape_game',
   'laser_game',
@@ -57,6 +58,10 @@ export const UNIVERSES = [
   'mall',
   'bookstore',
   'jewelry',
+  // ── Santé ─────────────────────────────────────────────────────────────────
+  'pharmacy',
+  'doctor',
+  'hospital',
   // ── Culte & Services ──────────────────────────────────────────────────────
   'place_of_worship',
   'library',
@@ -117,7 +122,8 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   park:            { key: 'park',            emoji: '🌿',   i18nKey: 'universe.park',            labelFr: 'Parcs & Nature' },
   beach:           { key: 'beach',           emoji: '🏖️',  i18nKey: 'universe.beach',           labelFr: 'Plages & Vacances' },
   // Sport & Loisirs
-  fitness:         { key: 'fitness',         emoji: '🏋️',  i18nKey: 'universe.fitness',         labelFr: 'Sport & Fitness (Padel, Tennis…)' },
+  fitness:         { key: 'fitness',         emoji: '🏃',   i18nKey: 'universe.fitness',         labelFr: 'Sport & Fitness' },
+  gym:             { key: 'gym',             emoji: '🏋️',  i18nKey: 'universe.gym',             labelFr: 'Salles de sport' },
   aquatic:         { key: 'aquatic',         emoji: '🏊',   i18nKey: 'universe.aquatic',         labelFr: 'Piscines & Aquatique' },
   escape_game:     { key: 'escape_game',     emoji: '🔐',   i18nKey: 'universe.escape_game',     labelFr: 'Escape Games' },
   laser_game:      { key: 'laser_game',      emoji: '🔫',   i18nKey: 'universe.laser_game',      labelFr: 'Laser Game & Paintball' },
@@ -136,6 +142,10 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   mall:            { key: 'mall',            emoji: '🏬',   i18nKey: 'universe.mall',            labelFr: 'Centres commerciaux' },
   bookstore:       { key: 'bookstore',       emoji: '📚',   i18nKey: 'universe.bookstore',       labelFr: 'Librairies' },
   jewelry:         { key: 'jewelry',         emoji: '💍',   i18nKey: 'universe.jewelry',         labelFr: 'Bijouteries' },
+  // Santé
+  pharmacy:        { key: 'pharmacy',        emoji: '💊',   i18nKey: 'universe.pharmacy',        labelFr: 'Pharmacies' },
+  doctor:          { key: 'doctor',          emoji: '🩺',   i18nKey: 'universe.doctor',          labelFr: 'Médecins & Dentistes' },
+  hospital:        { key: 'hospital',        emoji: '🏥',   i18nKey: 'universe.hospital',        labelFr: 'Hôpitaux & Urgences' },
   // Culte & Services
   place_of_worship:{ key: 'place_of_worship',emoji: '🛐',   i18nKey: 'universe.place_of_worship',labelFr: 'Lieux de culte' },
   library:         { key: 'library',         emoji: '📖',   i18nKey: 'universe.library',         labelFr: 'Bibliothèques' },

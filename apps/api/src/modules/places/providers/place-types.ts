@@ -40,7 +40,8 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   park:             ['park', 'national_park'],
   beach:            ['beach'],
   // Sport & Loisirs
-  fitness:          ['gym', 'sports_club', 'sports_complex', 'tennis_court'], // padel fusionné ici
+  fitness:          ['sports_club', 'sports_complex', 'tennis_court', 'stadium'], // padel fusionné, gym séparé
+  gym:              ['gym', 'fitness_center'],
   aquatic:          ['swimming_pool', 'water_park'],
   escape_game:      ['amusement_center'],
   laser_game:       ['laser_tag_center'],
@@ -60,6 +61,10 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // market supprimé — les marchés tombent dans shopping via le reverse map
   bookstore:        ['book_store'],
   jewelry:          ['jewelry_store'],
+  // Santé
+  pharmacy:         ['pharmacy', 'drugstore'],
+  doctor:           ['doctor', 'dentist', 'dental_clinic', 'medical_clinic', 'physiotherapist', 'general_contractor'],
+  hospital:         ['hospital', 'emergency_room_hospital'],
   // Culte & Services
   place_of_worship: ['church', 'mosque', 'synagogue', 'hindu_temple'],
   library:          ['library'],
@@ -167,10 +172,12 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   // Sport & Loisirs
   ['laser_tag_center',      'laser_game'],
   ['go_kart_track',         'karting'],
-  ['sports_complex',        'fitness'], // padel → fitness (fusionné)
-  ['tennis_court',          'fitness'], // padel → fitness (fusionné)
-  ['gym',                   'fitness'],
+  ['fitness_center',        'gym'],
+  ['gym',                   'gym'],
+  ['sports_complex',        'fitness'],
+  ['tennis_court',          'fitness'],
   ['sports_club',           'fitness'],
+  ['stadium',               'fitness'],
   ['amusement_center',      'escape_game'],
   ['bowling_alley',         'bowling'],
   ['water_park',            'aquatic'],
@@ -190,7 +197,6 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['clothing_store',        'shopping'],
   ['shoe_store',            'shopping'],
   ['cosmetics_store',       'shopping'],  // Yves Rocher, Sephora, etc.
-  ['drugstore',             'shopping'],
   ['beauty_products',       'shopping'],
   ['book_store',            'bookstore'],
   ['florist',               'florist'],
@@ -198,6 +204,16 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['market',                'shopping'],
   ['farmer_market',         'shopping'],
   ['liquor_store',          'wine_cellar'],
+  // Santé
+  ['hospital',              'hospital'],
+  ['emergency_room_hospital','hospital'],
+  ['doctor',                'doctor'],
+  ['dentist',               'doctor'],
+  ['dental_clinic',         'doctor'],
+  ['medical_clinic',        'doctor'],
+  ['physiotherapist',       'doctor'],
+  ['pharmacy',              'pharmacy'],
+  ['drugstore',             'pharmacy'],
   // Services
   ['coworking_space',       'coworking'],
   ['library',               'library'],
