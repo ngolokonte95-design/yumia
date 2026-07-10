@@ -25,6 +25,9 @@ RUN npm run build --workspace=apps/api
 # ── Stage 2 : runner ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
+# OpenSSL requis par les binaires du moteur Prisma.
+RUN apk add --no-cache openssl
+
 RUN addgroup -S yumia && adduser -S yumia -G yumia
 
 WORKDIR /app
