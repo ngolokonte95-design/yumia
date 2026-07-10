@@ -24,12 +24,16 @@ import { useTrending } from '../../lib/useTrending';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace } from '../../lib/places-api';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
-import type { Universe } from '@yumia/shared';
 
-type IconComponent = (props: { size: number }) => JSX.Element | null;
-const UNIVERSE_CUSTOM_ICONS: Partial<Record<Universe, IconComponent>> = {
+const UNIVERSE_CUSTOM_ICONS: Partial<Record<string, (props: { size: number }) => ReturnType<typeof CannabisIcon>>> = {
   cannabis: CannabisIcon,
 };
+
+function UniverseIcon({ u }: { u: string }) {
+  const Icon = UNIVERSE_CUSTOM_ICONS[u];
+  if (Icon) return <Icon size={26} />;
+  return <Text style={styles.universeEmoji}>{UNIVERSE_META[u as keyof typeof UNIVERSE_META]?.emoji ?? '❓'}</Text>;
+}
 
 type TFn = (key: Parameters<ReturnType<typeof import('../../lib/useI18n').useI18n>['t']>[0]) => string;
 
@@ -251,7 +255,7 @@ export default function HomeScreen() {
         <View style={styles.universeGrid}>
           {UNIVERSES.map((u) => (
             <Pressable key={u} style={styles.universeCard} onPress={() => router.push(universeRoute(u) as never)}>
-              {(() => { const Icon = UNIVERSE_CUSTOM_ICONS[u]; return Icon ? <Icon size={26} /> : <Text style={styles.universeEmoji}>{UNIVERSE_META[u].emoji}</Text>; })()}
+              <UniverseIcon u={u} />
               <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
             </Pressable>
           ))}
