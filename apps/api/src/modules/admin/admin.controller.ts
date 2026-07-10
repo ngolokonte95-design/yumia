@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
@@ -42,5 +42,11 @@ export class AdminController {
   @UseGuards(AdminGuard)
   recentUsers(@Query('limit') limit?: string) {
     return this.adminService.getRecentUsers(limit ? +limit : 20);
+  }
+
+  @Post('backfill/countries')
+  @UseGuards(AdminGuard)
+  backfillCountries() {
+    return this.adminService.backfillCountriesFromLocale();
   }
 }

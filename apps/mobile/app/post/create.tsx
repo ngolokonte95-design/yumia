@@ -1,17 +1,137 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, FlatList, Image, Modal, Pressable,
+  ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { API_BASE_URL } from '../../lib/config';
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API = API_BASE_URL;
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 type MediaMode = 'photo' | 'video';
+
+interface MusicTrack {
+  title: string;
+  artist: string;
+  artworkUrl: string;
+  previewUrl: string;
+}
+
+interface ItunesResult {
+  trackId: number;
+  trackName: string;
+  artistName: string;
+  artworkUrl100: string;
+  previewUrl: string;
+}
+
+// ── Music picker modal ────────────────────────────────────────────────────────
+
+function MusicPickerModal({
+  visible,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (track: MusicTrack) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<ItunesResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timeout.current) clearTimeout(timeout.current);
+    if (!query.trim()) { setResults([]); return; }
+    setSearching(true);
+    timeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=15&media=music`,
+        );
+        const data = await res.json() as { results: ItunesResult[] };
+        setResults(data.results ?? []);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+  }, [query]);
+
+  const handleSelect = (item: ItunesResult) => {
+    onSelect({
+      title: item.trackName,
+      artist: item.artistName,
+      artworkUrl: item.artworkUrl100.replace('100x100', '300x300'),
+      previewUrl: item.previewUrl,
+    });
+    onClose();
+    setQuery('');
+    setResults([]);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={modal.container}>
+        <View style={modal.header}>
+          <Text style={modal.title}>🎵 Choisir une musique</Text>
+          <Pressable onPress={onClose}><Text style={modal.close}>✕</Text></Pressable>
+        </View>
+
+        <View style={modal.searchRow}>
+          <TextInput
+            style={modal.searchInput}
+            placeholder="Rechercher un titre, un artiste..."
+            placeholderTextColor={colors.textMuted}
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+            returnKeyType="search"
+          />
+          {searching && <ActivityIndicator color={colors.brand} style={{ marginLeft: 8 }} />}
+        </View>
+
+        <FlatList
+          data={results}
+          keyExtractor={(item) => String(item.trackId)}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          ListEmptyComponent={
+            query.trim() && !searching ? (
+              <View style={modal.empty}>
+                <Text style={modal.emptyText}>Aucun résultat pour « {query} »</Text>
+              </View>
+            ) : !query.trim() ? (
+              <View style={modal.empty}>
+                <Text style={modal.emptyEmoji}>🎧</Text>
+                <Text style={modal.emptyText}>Tape le nom d'une chanson ou d'un artiste</Text>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <Pressable style={modal.trackRow} onPress={() => handleSelect(item)}>
+              <Image source={{ uri: item.artworkUrl100 }} style={modal.artwork} />
+              <View style={{ flex: 1 }}>
+                <Text style={modal.trackName} numberOfLines={1}>{item.trackName}</Text>
+                <Text style={modal.artistName} numberOfLines={1}>{item.artistName}</Text>
+              </View>
+              <Text style={{ fontSize: 18, color: colors.textMuted }}>+</Text>
+            </Pressable>
+          )}
+        />
+      </View>
+    </Modal>
+  );
+}
+
+// ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function CreatePostScreen() {
   const { accessToken } = useAuth();
@@ -21,7 +141,8 @@ export default function CreatePostScreen() {
   const [images, setImages] = useState<string[]>([]);
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
-  const [musicTrack, setMusicTrack] = useState('');
+  const [selectedMusic, setSelectedMusic] = useState<MusicTrack | null>(null);
+  const [musicModalVisible, setMusicModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const pickImages = async () => {
@@ -48,6 +169,31 @@ export default function CreatePostScreen() {
     }
   };
 
+  const uploadImage = useCallback(async (uri: string): Promise<string | null> => {
+    const form = new FormData();
+    // Detect file extension from URI for correct MIME type
+    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    form.append('file', { uri, type: mime, name: `photo.${ext}` } as any);
+    try {
+      const res = await fetch(`${API}/posts/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        console.warn(`[upload] HTTP ${res.status}:`, body);
+        return null;
+      }
+      const data = await res.json() as { url: string };
+      return data.url;
+    } catch (e) {
+      console.warn('[upload] network error:', e);
+      return null;
+    }
+  }, [accessToken]);
+
   const hasMedia = mode === 'photo' ? images.length > 0 : !!videoUri;
 
   const submit = async () => {
@@ -57,17 +203,29 @@ export default function CreatePostScreen() {
     }
     setLoading(true);
     try {
+      let mediaUrls: string[] = [];
+      if (mode === 'photo') {
+        const uploaded = await Promise.all(images.map((uri) => uploadImage(uri)));
+        mediaUrls = uploaded.filter((u): u is string => u !== null);
+        if (mediaUrls.length === 0) {
+          Alert.alert('Erreur upload', `0/${images.length} photos uploadées. Vérifie les logs console.`);
+          return;
+        }
+      }
+
       const body: Record<string, unknown> = {
-        mediaUrls: mode === 'photo' ? images : [],
+        mediaUrls,
         caption: caption.trim() || undefined,
-        musicTrack: musicTrack.trim() || undefined,
+        musicTrack: selectedMusic ? JSON.stringify(selectedMusic) : undefined,
         videoUrl: mode === 'video' ? videoUri : undefined,
       };
+
       const res = await fetch(`${API}/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(body),
       });
+
       if (res.ok) {
         router.back();
       } else {
@@ -152,23 +310,28 @@ export default function CreatePostScreen() {
           )
         )}
 
-        {/* Music track */}
-        <View style={styles.musicRow}>
-          <Text style={styles.musicIcon}>🎵</Text>
-          <TextInput
-            style={styles.musicInput}
-            placeholder="Ajouter une musique (titre – artiste)"
-            placeholderTextColor={colors.textMuted}
-            value={musicTrack}
-            onChangeText={setMusicTrack}
-            maxLength={100}
-          />
-          {musicTrack.length > 0 && (
-            <Pressable onPress={() => setMusicTrack('')}>
-              <Text style={{ color: colors.textMuted, fontSize: 18, paddingHorizontal: 4 }}>✕</Text>
+        {/* Music picker */}
+        {selectedMusic ? (
+          <View style={styles.musicSelected}>
+            <Image source={{ uri: selectedMusic.artworkUrl }} style={styles.musicArtwork} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.musicTitle} numberOfLines={1}>{selectedMusic.title}</Text>
+              <Text style={styles.musicArtist} numberOfLines={1}>{selectedMusic.artist}</Text>
+            </View>
+            <Pressable onPress={() => setMusicModalVisible(true)} style={styles.musicChangeBtn}>
+              <Text style={styles.musicChangeTxt}>Changer</Text>
             </Pressable>
-          )}
-        </View>
+            <Pressable onPress={() => setSelectedMusic(null)}>
+              <Text style={{ color: colors.textMuted, fontSize: 18, paddingLeft: 4 }}>✕</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable style={styles.musicRow} onPress={() => setMusicModalVisible(true)}>
+            <Text style={styles.musicIcon}>🎵</Text>
+            <Text style={styles.musicPlaceholder}>Ajouter une musique</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
+          </Pressable>
+        )}
 
         {/* Caption */}
         <TextInput
@@ -182,6 +345,12 @@ export default function CreatePostScreen() {
         />
         <Text style={styles.charCount}>{caption.length}/500</Text>
       </ScrollView>
+
+      <MusicPickerModal
+        visible={musicModalVisible}
+        onClose={() => setMusicModalVisible(false)}
+        onSelect={(track) => setSelectedMusic(track)}
+      />
     </View>
   );
 }
@@ -237,13 +406,24 @@ const styles = StyleSheet.create({
   videoName: { flex: 1, color: colors.text, fontWeight: '600', fontSize: 14 },
   videoRemove: {},
   musicRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.surface, borderRadius: radius.lg,
-    paddingHorizontal: 14, marginBottom: spacing.md,
+    paddingHorizontal: 14, paddingVertical: 14, marginBottom: spacing.md,
     borderWidth: 1, borderColor: colors.border,
   },
-  musicIcon: { fontSize: 18 },
-  musicInput: { flex: 1, color: colors.text, fontSize: 14, paddingVertical: 12 },
+  musicIcon: { fontSize: 20 },
+  musicPlaceholder: { flex: 1, color: colors.textMuted, fontSize: 14 },
+  musicSelected: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    padding: 10, marginBottom: spacing.md,
+    borderWidth: 1.5, borderColor: colors.brand + '66',
+  },
+  musicArtwork: { width: 46, height: 46, borderRadius: 6 },
+  musicTitle: { fontSize: 13, color: colors.text, fontWeight: '700' },
+  musicArtist: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  musicChangeBtn: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.border },
+  musicChangeTxt: { fontSize: 12, color: colors.brand, fontWeight: '600' },
   captionInput: {
     backgroundColor: colors.surface, borderRadius: radius.lg,
     padding: spacing.md, color: colors.text, fontSize: 15,
@@ -251,4 +431,35 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   charCount: { fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: 4 },
+});
+
+const modal = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.md, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  title: { ...typography.h3, color: colors.text },
+  close: { fontSize: 20, color: colors.textMuted, paddingHorizontal: 8 },
+  searchRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: spacing.md, marginVertical: spacing.md,
+  },
+  searchInput: {
+    flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg,
+    paddingHorizontal: 14, paddingVertical: 12, color: colors.text,
+    fontSize: 15, borderWidth: 1, borderColor: colors.border,
+  },
+  trackRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: spacing.md, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  artwork: { width: 50, height: 50, borderRadius: 6 },
+  trackName: { fontSize: 14, color: colors.text, fontWeight: '600' },
+  artistName: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: spacing.xl },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
 });

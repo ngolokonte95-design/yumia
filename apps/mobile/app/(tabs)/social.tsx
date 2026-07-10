@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, Pressable, RefreshControl,
+  ActivityIndicator, FlatList, Image, Linking, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { API_BASE_URL } from '../../lib/config';
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API = API_BASE_URL;
+
+interface MusicMeta { title: string; artist?: string; artworkUrl?: string; previewUrl?: string }
+function parseMusicTrack(raw?: string | null): MusicMeta | null {
+  if (!raw) return null;
+  try { return JSON.parse(raw) as MusicMeta; } catch { return { title: raw }; }
+}
 
 type Tab = 'posts' | 'activity' | 'encounters';
 
@@ -23,6 +30,7 @@ interface Post {
   userId: string;
   caption?: string;
   mediaUrls: string[];
+  musicTrack?: string | null;
   likesCount: number;
   likedByMe: boolean;
   createdAt: string;
@@ -113,6 +121,27 @@ function PostCard({ item, onLike, onPress, onUserPress }: {
           )}
         </Pressable>
       )}
+
+      {/* Music badge */}
+      {item.musicTrack && (() => {
+        const music = parseMusicTrack(item.musicTrack);
+        if (!music) return null;
+        return (
+          <Pressable
+            style={styles.musicBadge}
+            onPress={() => music.previewUrl ? void Linking.openURL(music.previewUrl) : null}
+          >
+            {music.artworkUrl
+              ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
+              : <Text style={{ fontSize: 18 }}>🎵</Text>}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
+              {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
+            </View>
+            {music.previewUrl ? <Text style={{ fontSize: 14 }}>▶️</Text> : null}
+          </Pressable>
+        );
+      })()}
 
       {/* Actions */}
       <View style={styles.postActions}>
@@ -393,6 +422,16 @@ const styles = StyleSheet.create({
   postActions: { flexDirection: 'row', gap: 16, padding: spacing.sm, alignItems: 'center' },
   postLike: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   postLikeCount: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  musicBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: spacing.sm, marginTop: 2, marginBottom: 2,
+    backgroundColor: colors.background + 'cc', borderRadius: radius.lg,
+    paddingHorizontal: 10, paddingVertical: 8,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  musicArtwork: { width: 34, height: 34, borderRadius: 4 },
+  musicTitle: { fontSize: 12, color: colors.text, fontWeight: '700' },
+  musicArtist: { fontSize: 11, color: colors.textMuted },
   postCaption: { paddingHorizontal: spacing.sm, paddingBottom: spacing.sm, fontSize: 13, color: colors.text, lineHeight: 18 },
   feedCard: { flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: 8, backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden' },
   feedThumb: { width: 70, height: 70 },

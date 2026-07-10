@@ -23,10 +23,11 @@ import { useLocation } from '../lib/useLocation';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { socialApi, type DiscoveredUser, type IntentType, type SocialEvent, type SocialIntent } from '../lib/social-api';
 import { UNIVERSE_META } from '@yumia/shared';
+import { API_BASE_URL } from '../lib/config';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BROADCAST_INTERVAL = 30_000;
-const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API = API_BASE_URL;
 
 const INTENT_COLORS: Record<IntentType, string> = {
   dispo:   colors.brand,

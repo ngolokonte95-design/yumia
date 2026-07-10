@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, Pressable,
+  ActivityIndicator, FlatList, Image, Linking, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -8,8 +8,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { API_BASE_URL } from '../../lib/config';
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API = API_BASE_URL;
+
+interface MusicMeta { title: string; artist?: string; artworkUrl?: string; previewUrl?: string }
+function parseMusicTrack(raw?: string | null): MusicMeta | null {
+  if (!raw) return null;
+  try { return JSON.parse(raw) as MusicMeta; } catch { return { title: raw }; }
+}
 
 interface Post {
   id: string;
@@ -142,12 +149,25 @@ export default function PostDetailScreen() {
         )}
 
         {/* Music badge */}
-        {post.musicTrack && (
-          <View style={styles.musicBadge}>
-            <Text style={styles.musicIcon}>🎵</Text>
-            <Text style={styles.musicText} numberOfLines={1}>{post.musicTrack}</Text>
-          </View>
-        )}
+        {post.musicTrack && (() => {
+          const music = parseMusicTrack(post.musicTrack);
+          if (!music) return null;
+          return (
+            <Pressable
+              style={styles.musicBadge}
+              onPress={() => music.previewUrl ? void Linking.openURL(music.previewUrl) : null}
+            >
+              {music.artworkUrl
+                ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
+                : <Text style={styles.musicIcon}>🎵</Text>}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
+                {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
+              </View>
+              {music.previewUrl ? <Text style={{ fontSize: 18 }}>▶️</Text> : null}
+            </Pressable>
+          );
+        })()}
 
         {/* Actions */}
         <View style={styles.actions}>
@@ -213,14 +233,15 @@ const styles = StyleSheet.create({
   postImage: { width: 375, height: 375 },
   postVideo: { width: '100%', height: 375 },
   musicBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: 8,
-    borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 10,
     borderWidth: 1, borderColor: colors.border,
-    alignSelf: 'flex-start',
   },
-  musicIcon: { fontSize: 14 },
-  musicText: { fontSize: 13, color: colors.text, fontWeight: '600', maxWidth: 240 },
+  musicArtwork: { width: 40, height: 40, borderRadius: 6 },
+  musicIcon: { fontSize: 22, width: 40, textAlign: 'center' },
+  musicTitle: { fontSize: 13, color: colors.text, fontWeight: '700' },
+  musicArtist: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 4, marginTop: 8 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
   dotActive: { backgroundColor: colors.brand },

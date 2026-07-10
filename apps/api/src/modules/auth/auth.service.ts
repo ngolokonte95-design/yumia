@@ -22,6 +22,14 @@ const BCRYPT_ROUNDS = 12;
 /** Nombre maximum de sessions actives simultanées par utilisateur. */
 const MAX_ACTIVE_SESSIONS = 5;
 
+/** Extracts a 2-letter country code from a BCP-47 locale tag (e.g. "fr-FR" → "FR", "fr" → null). */
+function extractCountryFromLocale(locale?: string): string | null {
+  if (!locale) return null;
+  const parts = locale.split('-');
+  if (parts.length >= 2) return parts[parts.length - 1].toUpperCase().slice(0, 2);
+  return null;
+}
+
 /** Apple JWKS — mis en cache côté jose (TTL intégré). */
 const APPLE_JWKS = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 
@@ -62,6 +70,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const countryCode = extractCountryFromLocale(locale);
     const user = await this.prisma.user.create({
       data: {
         email: normalizedEmail,
@@ -69,6 +78,7 @@ export class AuthService {
         displayName: displayName.trim(),
         authProvider: 'password',
         ...(locale ? { locale } : {}),
+        ...(countryCode ? { countryCode } : {}),
       },
     });
 

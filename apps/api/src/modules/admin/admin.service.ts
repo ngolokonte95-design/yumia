@@ -91,4 +91,15 @@ export class AdminService {
       select: { id: true, email: true, displayName: true, countryCode: true, plan: true, isPremium: true, createdAt: true },
     });
   }
+
+  async backfillCountriesFromLocale(): Promise<{ updated: number }> {
+    const result = await this.prisma.$executeRaw`
+      UPDATE "User"
+      SET "countryCode" = UPPER(SPLIT_PART(locale, '-', 2))
+      WHERE "countryCode" IS NULL
+        AND locale LIKE '%-%'
+        AND LENGTH(SPLIT_PART(locale, '-', 2)) = 2
+    `;
+    return { updated: Number(result) };
+  }
 }

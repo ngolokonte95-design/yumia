@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Pressable, ScrollView,
+  ActivityIndicator, Alert, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -55,6 +55,21 @@ export default function AdminScreen() {
   const [byUniverse, setByUniverse] = useState<UniverseRow[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
 
+  async function backfillCountries() {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API}/admin/backfill/countries`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await res.json() as { updated?: number };
+      Alert.alert('Backfill terminé', `${data.updated ?? 0} utilisateur(s) mis à jour.`);
+      void load();
+    } catch {
+      Alert.alert('Erreur', 'Backfill échoué.');
+    }
+  }
+
   const load = useCallback(async () => {
     if (!accessToken) return;
     const h = { Authorization: `Bearer ${accessToken}` };
@@ -98,6 +113,11 @@ export default function AdminScreen() {
         <Text style={styles.title}>Dashboard Admin</Text>
         <Pressable onPress={load} style={styles.refreshBtn}><Text style={styles.refreshTxt}>↻</Text></Pressable>
       </View>
+
+      {/* ── Actions ── */}
+      <Pressable style={styles.backfillBtn} onPress={backfillCountries}>
+        <Text style={styles.backfillTxt}>🌍 Détecter les pays (backfill)</Text>
+      </Pressable>
 
       {/* ── Erreur de chargement ── */}
       {error && (
@@ -243,6 +263,8 @@ const styles = StyleSheet.create({
   univRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   univName: { fontSize: 12, color: colors.textMuted, width: 120 },
   univCount: { fontSize: 12, color: colors.text, fontWeight: '700', width: 40, textAlign: 'right' },
+  backfillBtn: { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  backfillTxt: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
   errorBox: { marginHorizontal: spacing.md, marginTop: spacing.md, backgroundColor: colors.danger + '22', borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.danger + '55' },
   errorText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },

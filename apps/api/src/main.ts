@@ -95,10 +95,8 @@ async function bootstrap() {
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(compression());
 
-  // Sert les photos uploadées depuis /uploads (remplacé par CDN/S3 en prod)
-  if (!isProd) {
-    app.useStaticAssets(join(__dirname, '..', '..', 'uploads'), { prefix: '/uploads' });
-  }
+  // Sert les photos uploadées depuis /uploads (fallback disk — remplacé par CDN/S3 quand configuré)
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   const port = config.get<AppConfig['port']>('port')!;
   const prefix = config.get<AppConfig['globalPrefix']>('globalPrefix')!;

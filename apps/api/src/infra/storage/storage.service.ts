@@ -24,7 +24,10 @@ export class StorageService {
   constructor(private readonly config: ConfigService) {
     this.cfg = config.get<AppConfig['storage']>('storage')!;
 
-    if (this.cfg.provider === 's3') {
+    const hasS3Creds = !!(this.cfg.s3AccessKeyId && this.cfg.s3SecretAccessKey);
+    const useS3 = this.cfg.provider === 's3' && hasS3Creds;
+
+    if (useS3) {
       const s3Config: S3ClientConfig = {
         region: this.cfg.s3Region,
         credentials: {
@@ -39,7 +42,11 @@ export class StorageService {
       this.s3 = new S3Client(s3Config);
       this.logger.log(`Storage → S3 (bucket: ${this.cfg.s3Bucket})`);
     } else {
-      this.logger.log('Storage → disk (uploads/)');
+      if (this.cfg.provider === 's3') {
+        this.logger.warn('Storage → credentials S3 manquants, fallback sur disk (uploads/)');
+      } else {
+        this.logger.log('Storage → disk (uploads/)');
+      }
     }
   }
 
@@ -87,7 +94,8 @@ export class StorageService {
     const dir = join(process.cwd(), 'uploads', subPath);
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, filename), buffer);
-    return `${this.cfg.publicBaseUrl}/uploads/${subPath}/${filename}`;
+    const base = (this.cfg.publicBaseUrl || process.env.API_PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+    return `${base}/uploads/${subPath}/${filename}`;
   }
 }
 

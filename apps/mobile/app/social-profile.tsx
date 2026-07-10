@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator, Pressable, ScrollView,
+  ActivityIndicator, Image, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -8,8 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { API_BASE_URL } from '../lib/config';
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API = API_BASE_URL;
 
 const GENDERS = [
   { value: 'male', label: '👨 Homme' },
@@ -53,8 +54,8 @@ export default function SocialProfileScreen() {
     try {
       const uri = result.assets[0].uri;
       const form = new FormData();
-      form.append('file', { uri, type: 'image/jpeg', name: 'avatar.jpg' } as any);
-      const res = await fetch(`${API}/auth/me/photo`, {
+      form.append('avatar', { uri, type: 'image/jpeg', name: 'avatar.jpg' } as any);
+      const res = await fetch(`${API}/auth/me/avatar`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
         body: form,
@@ -104,8 +105,7 @@ export default function SocialProfileScreen() {
           {uploadingPhoto ? (
             <ActivityIndicator color={colors.brand} />
           ) : photoUrl ? (
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            <View style={styles.avatar}><Text style={styles.avatarInitial}>{user?.displayName[0]}</Text></View>
+            <Image source={{ uri: photoUrl }} style={styles.avatar} />
           ) : (
             <View style={styles.avatar}><Text style={styles.avatarInitial}>{user?.displayName[0]}</Text></View>
           )}

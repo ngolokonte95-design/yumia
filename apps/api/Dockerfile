@@ -44,6 +44,8 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/apps/api/node_modules/.prisma ./apps/api/node_modules/.prisma
 COPY apps/api/prisma ./apps/api/prisma
 
+RUN mkdir -p /app/apps/api/uploads && chown -R yumia:yumia /app/apps/api/uploads
+
 USER yumia
 
 WORKDIR /app/apps/api

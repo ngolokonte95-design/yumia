@@ -1,11 +1,36 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException, Body, Controller, Delete, Get, Param,
+  Post, Query, Req, UploadedFile, UseGuards, UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsService } from './posts.service';
+import { StorageService } from '../../infra/storage/storage.service';
 
 @Controller('posts')
 @UseGuards(JwtAuthGuard)
 export class PostsController {
-  constructor(private readonly postsService: PostsService) {}
+  constructor(
+    private readonly postsService: PostsService,
+    private readonly storage: StorageService,
+  ) {}
+
+  /** POST /posts/upload — upload une photo et retourne son URL publique. */
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: memoryStorage(),
+    limits: { fileSize: 15 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const ok = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
+      cb(null, ok.has(file.mimetype));
+    },
+  }))
+  async uploadMedia(@UploadedFile() file: Express.Multer.File): Promise<{ url: string }> {
+    if (!file) throw new BadRequestException('Aucun fichier reçu.');
+    const url = await this.storage.save(file.buffer, file.originalname, 'posts');
+    return { url };
+  }
 
   @Post()
   create(@Req() req: any, @Body() body: { caption?: string; mediaUrls: string[]; placeId?: string; videoUrl?: string; musicTrack?: string }) {

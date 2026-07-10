@@ -7,8 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { API_BASE_URL } from '../lib/config';
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API = API_BASE_URL;
 
 type Mood = 'date' | 'amis' | 'famille' | 'solo' | 'touriste';
 type Duration = 'soirée' | 'journée' | 'demi-journée' | 'weekend';

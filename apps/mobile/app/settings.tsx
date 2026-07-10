@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { resetPasswordRequest, deleteAccountRequest, exportDataRequest, updateProfileRequest } from '../lib/auth-api';
+import { API_BASE_URL } from '../lib/config';
 
 const PRIVACY_URL = 'https://yumia.app/privacy';
 const TERMS_URL = 'https://yumia.app/terms';
@@ -212,7 +213,7 @@ export default function SettingsScreen() {
   );
 }
 
-const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+const API = API_BASE_URL;
 
 function AdminSection() {
   const { accessToken } = useAuth();

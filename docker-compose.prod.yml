@@ -75,6 +75,9 @@ services:
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://yumia.app}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
+    volumes:
+      - yumia_uploads:/app/apps/api/uploads
     ports:
       - '${API_PORT:-4000}:4000'
     # Liveness (et non readiness) : le conteneur n'est marqué unhealthy/redémarré
@@ -91,3 +94,4 @@ services:
 volumes:
   yumia_pgdata:
   yumia_redis:
+  yumia_uploads:
