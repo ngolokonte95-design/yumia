@@ -41,7 +41,8 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
 # Client Prisma + schema (requis à l'exécution pour les migrations).
-COPY --from=builder /app/apps/api/node_modules/.prisma ./apps/api/node_modules/.prisma
+# Avec npm workspaces le client généré est hoisted dans /app/node_modules/.prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY apps/api/prisma ./apps/api/prisma
 
 RUN mkdir -p /app/apps/api/uploads && chown -R yumia:yumia /app/apps/api/uploads
