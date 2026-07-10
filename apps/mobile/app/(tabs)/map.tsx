@@ -31,7 +31,7 @@ import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const DRAWER_COLLAPSED = 105;
+const DRAWER_COLLAPSED = 68;
 const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
 
 export default function MapScreen() {
@@ -338,7 +338,7 @@ export default function MapScreen() {
       <Animated.View
         style={[
           styles.drawer,
-          { height: drawerAnim, paddingBottom: insets.bottom + spacing.md },
+          { height: drawerAnim, paddingBottom: spacing.sm },
         ]}
       >
         {/* Handle + titre — zone de glissement */}
@@ -360,6 +360,7 @@ export default function MapScreen() {
 
         <FlatList
           style={styles.list}
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.md }}
           data={displayPlaces}
           keyExtractor={(place) => place.id}
           showsVerticalScrollIndicator={false}
@@ -651,8 +652,8 @@ const styles = StyleSheet.create({
   },
   drawerHeader: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   drawerHandle: {
     alignSelf: 'center',
@@ -660,7 +661,7 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.border,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   drawerTitleRow: {
     flexDirection: 'row',
