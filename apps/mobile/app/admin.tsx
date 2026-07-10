@@ -47,6 +47,7 @@ export default function AdminScreen() {
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [byCountry, setByCountry] = useState<CountryRow[]>([]);
   const [growth, setGrowth] = useState<GrowthRow[]>([]);
@@ -57,18 +58,26 @@ export default function AdminScreen() {
     if (!accessToken) return;
     const h = { Authorization: `Bearer ${accessToken}` };
     setLoading(true);
-    const [ovRes, ctrRes, gwRes, univRes, recentRes] = await Promise.allSettled([
-      fetch(`${API}/admin/stats`, { headers: h }),
-      fetch(`${API}/admin/users/by-country`, { headers: h }),
-      fetch(`${API}/admin/users/growth?days=30`, { headers: h }),
-      fetch(`${API}/admin/places/by-universe`, { headers: h }),
-      fetch(`${API}/admin/users/recent?limit=15`, { headers: h }),
-    ]);
-    if (ovRes.status === 'fulfilled' && ovRes.value.ok) setOverview(await ovRes.value.json());
-    if (ctrRes.status === 'fulfilled' && ctrRes.value.ok) setByCountry(await ctrRes.value.json());
-    if (gwRes.status === 'fulfilled' && gwRes.value.ok) setGrowth(await gwRes.value.json());
-    if (univRes.status === 'fulfilled' && univRes.value.ok) setByUniverse(await univRes.value.json());
-    if (recentRes.status === 'fulfilled' && recentRes.value.ok) setRecentUsers(await recentRes.value.json());
+    setError(null);
+    try {
+      const [ovRes, ctrRes, gwRes, univRes, recentRes] = await Promise.allSettled([
+        fetch(`${API}/admin/stats`, { headers: h }),
+        fetch(`${API}/admin/users/by-country`, { headers: h }),
+        fetch(`${API}/admin/users/growth?days=30`, { headers: h }),
+        fetch(`${API}/admin/places/by-universe`, { headers: h }),
+        fetch(`${API}/admin/users/recent?limit=15`, { headers: h }),
+      ]);
+      if (ovRes.status === 'fulfilled') {
+        if (ovRes.value.ok) setOverview(await ovRes.value.json());
+        else setError(`Stats: ${ovRes.value.status}`);
+      }
+      if (ctrRes.status === 'fulfilled' && ctrRes.value.ok) setByCountry(await ctrRes.value.json());
+      if (gwRes.status === 'fulfilled' && gwRes.value.ok) setGrowth(await gwRes.value.json());
+      if (univRes.status === 'fulfilled' && univRes.value.ok) setByUniverse(await univRes.value.json());
+      if (recentRes.status === 'fulfilled' && recentRes.value.ok) setRecentUsers(await recentRes.value.json());
+    } catch (e) {
+      setError(String(e));
+    }
     setLoading(false);
   }, [accessToken]);
 
@@ -88,6 +97,13 @@ export default function AdminScreen() {
         <Text style={styles.title}>Dashboard Admin</Text>
         <Pressable onPress={load} style={styles.refreshBtn}><Text style={styles.refreshTxt}>↻</Text></Pressable>
       </View>
+
+      {/* ── Erreur de chargement ── */}
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>⚠️ {error}</Text>
+        </View>
+      )}
 
       {/* ── Overview ── */}
       {overview?.users && (
@@ -226,6 +242,8 @@ const styles = StyleSheet.create({
   univRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   univName: { fontSize: 12, color: colors.textMuted, width: 120 },
   univCount: { fontSize: 12, color: colors.text, fontWeight: '700', width: 40, textAlign: 'right' },
+  errorBox: { marginHorizontal: spacing.md, marginTop: spacing.md, backgroundColor: colors.danger + '22', borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.danger + '55' },
+  errorText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   userAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   userAvatarText: { color: '#fff', fontWeight: '700', fontSize: 14 },
