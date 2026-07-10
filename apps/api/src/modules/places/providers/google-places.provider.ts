@@ -85,7 +85,7 @@ export class GooglePlacesProvider implements PlacesProvider {
         // Univers avec requête textuelle dédiée (types Google invalides ex: cannabis_store)
         const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
         if (textQuery) {
-          return this.searchTextNearby(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit);
+          return this.searchTextNearby(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit, true);
         }
         const all = await this.request(params, []);
         return params.universe ? all.filter((p) => p.universe === params.universe) : all;
@@ -212,6 +212,7 @@ export class GooglePlacesProvider implements PlacesProvider {
     radius: number,
     universe?: Universe,
     limit = MAX_RESULTS,
+    forceUniverse = false,
   ): Promise<ProviderPlace[]> {
     const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
@@ -239,7 +240,12 @@ export class GooglePlacesProvider implements PlacesProvider {
     const data = (await res.json()) as { places?: GooglePlace[] };
     return (data.places ?? []).flatMap((g) => {
       const mapped = this.mapPlace(g, universe);
-      return mapped ? [mapped] : [];
+      if (!mapped) return [];
+      // Recherche textuelle dédiée : on force l'univers demandé, car les types
+      // Google génériques (un coffeeshop d'Amsterdam typé `cafe`) reclasseraient
+      // à tort le lieu (→ `cafe` au lieu de `cannabis`), le faisant disparaître.
+      if (forceUniverse && universe) mapped.universe = universe;
+      return [mapped];
     });
   }
 

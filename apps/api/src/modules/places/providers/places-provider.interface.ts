@@ -57,6 +57,8 @@ export interface PlacesProvider {
     radius: number,
     universe?: Universe,
     limit?: number,
+    /** Force l'univers demandé sur les résultats (recherche textuelle ciblée). */
+    forceUniverse?: boolean,
   ): Promise<ProviderPlace[]>;
   /**
    * Résout une référence photo en URL d'image directe (sans clé API), pour le
