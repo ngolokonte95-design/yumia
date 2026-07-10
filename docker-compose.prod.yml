@@ -63,7 +63,7 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@yumia.app}
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
-      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-https://cdn.yumia.app}
+      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-http://207.154.198.77:4000}
       AWS_REGION: ${AWS_REGION:-eu-west-3}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -75,7 +75,6 @@ services:
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://yumia.app}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
     volumes:
       - yumia_uploads:/app/apps/api/uploads
     ports:
