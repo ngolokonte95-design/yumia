@@ -167,6 +167,9 @@ enum Universe {
   cannabis
   // Armurerie & Stand de tir
   shooting
+  // Automobile & Moto
+  garage
+  car_wash
   // Transport & Hébergement
   gare
   hotel

@@ -49,6 +49,9 @@ export const UNIVERSES = [
   'skatepark',
   'cannabis',
   'shooting',
+  // ── Automobile & Moto ─────────────────────────────────────────────────────
+  'garage',
+  'car_wash',
   // ── Bien-être & Beauté ────────────────────────────────────────────────────
   'spa',
   'massage',
@@ -141,6 +144,9 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   skatepark:       { key: 'skatepark',       emoji: '🛹',   i18nKey: 'universe.skatepark',       labelFr: 'Skateparks & Sports urbains' },
   cannabis:        { key: 'cannabis',        emoji: '🍃',   i18nKey: 'universe.cannabis',        labelFr: 'Coffee shops & Cannabis' },
   shooting:        { key: 'shooting',        emoji: '🎯',   i18nKey: 'universe.shooting',        labelFr: 'Armureries & Stands de tir' },
+  // Automobile & Moto
+  garage:          { key: 'garage',          emoji: '🔧',   i18nKey: 'universe.garage',          labelFr: 'Garages & Mécanique' },
+  car_wash:        { key: 'car_wash',        emoji: '🫧',   i18nKey: 'universe.car_wash',        labelFr: 'Stations de lavage' },
   // Bien-être & Beauté
   spa:             { key: 'spa',             emoji: '🧖',   i18nKey: 'universe.spa',             labelFr: 'Spa & Bien-être' },
   massage:         { key: 'massage',         emoji: '💆‍♀️', i18nKey: 'universe.massage',         labelFr: 'Massage & Détente' },

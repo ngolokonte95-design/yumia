@@ -91,6 +91,9 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   cannabis:         ['cannabis_store'],
   // Armurerie & Stand de tir
   shooting:         ['shooting_range', 'gun_store'],
+  // Automobile & Moto
+  garage:           ['car_repair'],
+  car_wash:         ['car_wash'],
   // Sécurité
   police:           ['police'],
   // Culte & Services
@@ -113,7 +116,6 @@ export const BLOCKED_GOOGLE_TYPES = new Set([
   'supermarket',
   'grocery_or_supermarket',
   'dry_cleaning',
-  'car_wash',
   'parking',
   'atm',
   'bank',
@@ -126,7 +128,6 @@ export const BLOCKED_GOOGLE_TYPES = new Set([
   'home_goods_store',
   'auto_parts_store',
   'car_dealer',
-  'car_repair',
   'car_rental',
   'moving_company',
   'storage',
@@ -251,6 +252,8 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['cannabis_store',        'cannabis'],
   ['shooting_range',        'shooting'],
   ['gun_store',             'shooting'],
+  ['car_repair',            'garage'],
+  ['car_wash',              'car_wash'],
   // Sécurité
   ['police_station',        'police'],
   ['police',                'police'],

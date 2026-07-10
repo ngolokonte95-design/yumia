@@ -22,7 +22,9 @@ import { useWeather } from '../../lib/useWeather';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { useTrending } from '../../lib/useTrending';
 import { usePlanLimits } from '../../lib/usePlanLimits';
-import type { TrendingPlace } from '../../lib/places-api';
+import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
+import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
+import type { Universe } from '@yumia/shared';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
 const UNIVERSE_CUSTOM_ICONS: Partial<Record<string, (props: { size: number }) => ReturnType<typeof CannabisIcon>>> = {
@@ -262,6 +264,34 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* Pipeline lieux : rangées horizontales par univers clé */}
+      {(['restaurant', 'bar', 'nightclub'] as Universe[]).map((u) => (
+        <UniverseRow
+          key={u}
+          universe={u}
+          lat={coords.lat}
+          lng={coords.lng}
+          enabled={!resolving}
+          onSeeAll={() => router.push((u === 'nightclub' ? '/nightclub' : `/universe?u=${u}`) as never)}
+          onCardPress={(p) => {
+            placeStore.set({
+              place: {
+                id: p.id, name: p.name, universe: p.universe,
+                location: { lat: p.lat, lng: p.lng },
+                city: p.city, countryCode: p.countryCode,
+                rating: p.rating, priceTier: p.priceTier as 1 | 2 | 3 | 4,
+                photoUrls: p.photoUrls, tags: p.tags,
+              },
+              compatibility: 0,
+              distanceMeters: Math.round(p.distanceMeters),
+              reason: `${UNIVERSE_META[p.universe]?.emoji ?? '📍'} ${UNIVERSE_META[p.universe]?.labelFr ?? p.universe}`,
+              engine: 'mood',
+            });
+            router.push('/place');
+          }}
+        />
+      ))}
+
       {/* Tendances près de toi */}
       {(trending.places.length > 0 || trending.loading) && !resolving ? (
         <View style={styles.section}>
@@ -371,6 +401,57 @@ export default function HomeScreen() {
 
     </ScrollView>
     </>
+  );
+}
+
+function UniverseRow({
+  universe, lat, lng, enabled, onSeeAll, onCardPress,
+}: {
+  universe: Universe;
+  lat: number;
+  lng: number;
+  enabled: boolean;
+  onSeeAll: () => void;
+  onCardPress: (p: NearbyPlace) => void;
+}) {
+  const { places, loading } = useNearbyUniverse({ lat, lng, universe, radius: 5000, limit: 8, enabled });
+  const meta = UNIVERSE_META[universe];
+  if (!loading && places.length === 0) return null;
+  return (
+    <View style={styles.section}>
+      <View style={styles.rowHeader}>
+        <Text style={styles.sectionTitle}>{meta.emoji}  {meta.labelFr}</Text>
+        <Pressable onPress={onSeeAll}><Text style={styles.rowSeeAll}>Voir tout →</Text></Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.trendingSkeletonCard} />)
+          : places.map((p) => <PlaceCard key={p.id} place={p} onPress={() => onCardPress(p)} />)
+        }
+      </ScrollView>
+    </View>
+  );
+}
+
+function PlaceCard({ place, onPress }: { place: NearbyPlace; onPress: () => void }) {
+  const meta = UNIVERSE_META[place.universe];
+  const distText = place.distanceMeters < 1000
+    ? `${Math.round(place.distanceMeters)} m`
+    : `${(place.distanceMeters / 1000).toFixed(1)} km`;
+  return (
+    <Pressable style={styles.trendingCard} onPress={onPress}>
+      {place.photoUrls?.[0] ? (
+        <Image source={{ uri: place.photoUrls[0] }} style={styles.trendingImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
+      ) : (
+        <View style={styles.trendingImgPlaceholder}>
+          <Text style={{ fontSize: 32 }}>{meta?.emoji ?? '📍'}</Text>
+        </View>
+      )}
+      <View style={styles.trendingInfo}>
+        <Text style={styles.trendingName} numberOfLines={1}>{place.name}</Text>
+        <Text style={styles.trendingMeta}>{distText} · ⭐ {place.rating.toFixed(1)}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -530,6 +611,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   retryText: { ...typography.caption, color: colors.textPrimary },
+  rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  rowSeeAll: { ...typography.caption, color: colors.brand, fontWeight: '600' },
   trendingRow: { gap: spacing.md, paddingRight: spacing.md },
   trendingCard: {
     width: 148,
