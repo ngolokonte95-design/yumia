@@ -46,7 +46,6 @@ export default function AdminScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [byCountry, setByCountry] = useState<CountryRow[]>([]);
@@ -57,18 +56,6 @@ export default function AdminScreen() {
   const load = useCallback(async () => {
     if (!accessToken) return;
     const h = { Authorization: `Bearer ${accessToken}` };
-
-    // Vérification admin avant de charger les données
-    if (authorized === null) {
-      const check = await fetch(`${API}/admin/is-admin`, { headers: h });
-      const json = (await check.json()) as { isAdmin?: boolean };
-      if (!json.isAdmin) {
-        router.replace('/');
-        return;
-      }
-      setAuthorized(true);
-    }
-
     setLoading(true);
     const [ovRes, ctrRes, gwRes, univRes, recentRes] = await Promise.allSettled([
       fetch(`${API}/admin/stats`, { headers: h }),
