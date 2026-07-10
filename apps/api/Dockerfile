@@ -65,4 +65,4 @@ WORKDIR /app/apps/api
 EXPOSE 4000
 
 # Appliquer les migrations puis démarrer l'application.
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "/app/node_modules/.bin/prisma migrate deploy && node dist/main.js"]
