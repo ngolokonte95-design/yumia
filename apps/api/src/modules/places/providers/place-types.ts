@@ -5,11 +5,13 @@ import { UNIVERSES, type Universe } from '@yumia/shared';
  * on utilise une recherche textuelle géolocalisée en fallback.
  */
 export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
-  cannabis:   'cannabis coffee shop weed dispensary social club',
-  hookah:     'hookah bar shisha bar narguile chicha',
-  optician:   'optician opticien eye care lunettes glasses store',
-  photo_spot: 'scenic viewpoint panorama belvedere observation deck viewpoint',
-  shooting:   'shooting range gun store armurerie stand de tir',
+  cannabis:   'coffee shop cannabis weed social club dispensary',
+  hookah:     'chicha shisha hookah narguile bar',
+  optician:   'opticien optician lunetterie eye care glasses',
+  photo_spot: 'belvédère panorama viewpoint mirador terrasse panoramique',
+  shooting:   'stand de tir armurerie shooting range gun range',
+  laser_game: 'laser game lasertag laser tag paintball',
+  karting:    'karting go kart circuit kart',
 };
 
 /**
@@ -47,7 +49,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   cinema:           ['movie_theater'],
   zoo:              ['zoo', 'aquarium'],
   amusement_park:   ['amusement_park'],
-  photo_spot:       ['scenic_viewpoint', 'observation_deck'],
+  photo_spot:       ['scenic_viewpoint'],
   // Nature & Plein air
   park:             ['park', 'national_park'],
   beach:            ['beach'],
