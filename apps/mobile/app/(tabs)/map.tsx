@@ -113,9 +113,29 @@ export default function MapScreen() {
   // Région courante suivie en continu : permet de recentrer au tap SANS
   // changer le niveau de zoom (évite le « zoom tout seul »).
   const regionRef = useRef<Region>(region);
+
+  // Lieux chargés automatiquement pour le viewport (quand l'utilisateur zoome dehors).
+  const [viewportPlaces, setViewportPlaces] = useState<NearbyPlace[]>([]);
+  const viewportFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastViewportKey = useRef('');
+  useEffect(() => () => { if (viewportFetchTimer.current) clearTimeout(viewportFetchTimer.current); }, []);
+
   const onRegionChangeComplete = useCallback((r: Region) => {
     regionRef.current = r;
-  }, []);
+    // Rayon ≈ demi-diagonale visible (°→m), capé à 50 km.
+    const radiusM = Math.min(Math.round((Math.max(r.latitudeDelta, r.longitudeDelta) * 111_000) / 2), 50_000);
+    if (radiusM < 4_000) return; // très zoomé → useNearby suffit
+    const key = `${r.latitude.toFixed(2)}:${r.longitude.toFixed(2)}:${Math.round(radiusM / 1_000)}:${universe ?? 'all'}`;
+    if (key === lastViewportKey.current) return;
+    if (viewportFetchTimer.current) clearTimeout(viewportFetchTimer.current);
+    viewportFetchTimer.current = setTimeout(async () => {
+      try {
+        const results = await fetchNearby({ lat: r.latitude, lng: r.longitude, radius: radiusM, universe: universe ?? undefined, limit: 80 });
+        setViewportPlaces(results);
+        lastViewportKey.current = key;
+      } catch { /* silent */ }
+    }, 800);
+  }, [universe]);
 
   const handleCitySearch = useCallback(async () => {
     const q = cityQuery.trim();
@@ -150,6 +170,8 @@ export default function MapScreen() {
   const selectUniverse = useCallback((u: Universe | null) => {
     setUniverse(u);
     setFilterPanelOpen(false);
+    setViewportPlaces([]);
+    lastViewportKey.current = '';
   }, []);
 
   const handleMapTap = useCallback(async (e: MapPressEvent) => {
@@ -214,11 +236,23 @@ export default function MapScreen() {
   const provider = Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT;
 
   const displayPlaces = useMemo(() => {
-    const list = cityResults ?? tapResults ?? places;
+    let list: NearbyPlace[];
+    if (cityResults !== null) {
+      list = cityResults;
+    } else if (tapResults !== null) {
+      list = tapResults;
+    } else {
+      // Fusion GPS nearby + viewport auto-fetch, dédupliqué par id.
+      const seen = new Set<string>();
+      list = [];
+      for (const p of [...places, ...viewportPlaces]) {
+        if (!seen.has(p.id)) { seen.add(p.id); list.push(p); }
+      }
+    }
     return [...list].sort(
       (a, b) => (a.universe === 'restaurant' ? 0 : 1) - (b.universe === 'restaurant' ? 0 : 1),
     );
-  }, [cityResults, tapResults, places]);
+  }, [cityResults, tapResults, places, viewportPlaces]);
 
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
@@ -229,13 +263,13 @@ export default function MapScreen() {
     setTracking(true);
     const t = setTimeout(() => setTracking(false), 350);
     return () => clearTimeout(t);
-  }, [cityResults, tapResults, places]);
+  }, [cityResults, tapResults, places, viewportPlaces]);
 
   const drawerTitle = cityResults !== null
     ? `${cityResults.length} lieu${cityResults.length > 1 ? 'x' : ''} à « ${cityQuery} »`
     : tapResults !== null
     ? `${tapResults.length} lieu${tapResults.length > 1 ? 'x' : ''} autour de ce point`
-    : `${places.length} lieu${places.length > 1 ? 'x' : ''} autour de toi`;
+    : `${displayPlaces.length} lieu${displayPlaces.length > 1 ? 'x' : ''} autour de toi`;
 
   return (
     <View style={styles.screen}>
