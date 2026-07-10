@@ -1,6 +1,15 @@
 import { UNIVERSES, type Universe } from '@yumia/shared';
 
 /**
+ * Pour les univers dont les types Google Places v1 sont invalides ou absents,
+ * on utilise une recherche textuelle géolocalisée en fallback.
+ */
+export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
+  cannabis: 'cannabis coffee shop weed dispensary social club',
+  hookah:   'hookah bar shisha bar narguile chicha',
+};
+
+/**
  * Correspondance univers YUMIA ⇄ types Google Places (API « New »).
  *
  * On reste sur des types « Table A » connus pour être valides comme

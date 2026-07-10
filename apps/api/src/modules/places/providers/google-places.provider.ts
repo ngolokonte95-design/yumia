@@ -3,6 +3,7 @@ import type { Universe } from '@yumia/shared';
 import {
   googleTypesToUniverse,
   universeToGoogleTypes,
+  UNIVERSE_TEXT_QUERIES,
 } from './place-types';
 import type {
   PlacesProvider,
@@ -81,6 +82,11 @@ export class GooglePlacesProvider implements PlacesProvider {
       // Type Google refusé → repli en recherche large puis filtrage local.
       if (err instanceof InvalidArgumentError && includedTypes.length > 0) {
         this.logger.warn(`includedTypes refusé, repli large : ${err.message}`);
+        // Univers avec requête textuelle dédiée (types Google invalides ex: cannabis_store)
+        const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
+        if (textQuery) {
+          return this.searchTextNearby(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit);
+        }
         const all = await this.request(params, []);
         return params.universe ? all.filter((p) => p.universe === params.universe) : all;
       }
