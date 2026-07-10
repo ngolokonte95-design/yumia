@@ -40,6 +40,7 @@ export default function MapScreen() {
   const router = useRouter();
   const { coords, resolving } = useLocation();
   const [universe, setUniverse] = useState<Universe | null>(null);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cityQuery, setCityQuery] = useState('');
   const [cityResults, setCityResults] = useState<NearbyPlace[] | null>(null);
@@ -138,6 +139,11 @@ export default function MapScreen() {
     setTapResults(null);
   }
 
+  const selectUniverse = useCallback((u: Universe | null) => {
+    setUniverse(u);
+    setFilterPanelOpen(false);
+  }, []);
+
   const handleMapTap = useCallback(async (e: MapPressEvent) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
     setTapLoading(true);
@@ -222,6 +228,11 @@ export default function MapScreen() {
     <View style={styles.screen}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
+      {/* Ferme le panneau des univers en tapant à côté */}
+      {filterPanelOpen ? (
+        <Pressable style={styles.filterBackdrop} onPress={() => setFilterPanelOpen(false)} />
+      ) : null}
+
       {/* Barre de recherche + filtre univers */}
       <View style={[styles.filtersContainer, { paddingTop: insets.top + spacing.xs }]}>
         <View style={styles.searchRow}>
@@ -249,21 +260,37 @@ export default function MapScreen() {
           </Pressable>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersRow}
-        >
-          <FilterChip label="Tous" active={universe === null} onPress={() => setUniverse(null)} />
-          {UNIVERSES.map((u) => (
-            <FilterChip
-              key={u}
-              label={`${UNIVERSE_META[u].emoji} ${UNIVERSE_META[u].labelFr}`}
-              active={universe === u}
-              onPress={() => setUniverse(u)}
-            />
-          ))}
-        </ScrollView>
+        {/* Bouton unique → ouvre le panneau de tous les univers */}
+        <Pressable style={styles.filterButton} onPress={() => setFilterPanelOpen((o) => !o)}>
+          <Text style={styles.filterButtonText} numberOfLines={1}>
+            {universe === null
+              ? '🗂️  Tous les univers'
+              : `${UNIVERSE_META[universe].emoji}  ${UNIVERSE_META[universe].labelFr}`}
+          </Text>
+          <Text style={styles.filterButtonChevron}>{filterPanelOpen ? '▲' : '▾'}</Text>
+        </Pressable>
+
+        {/* Panneau grille — tous les univers, compact et scrollable */}
+        {filterPanelOpen ? (
+          <View style={styles.filterPanel}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.filterGrid}
+              keyboardShouldPersistTaps="handled"
+            >
+              <FilterTile label="Tous" emoji="🗂️" active={universe === null} onPress={() => selectUniverse(null)} />
+              {UNIVERSES.map((u) => (
+                <FilterTile
+                  key={u}
+                  label={UNIVERSE_META[u].labelFr}
+                  emoji={UNIVERSE_META[u].emoji}
+                  active={universe === u}
+                  onPress={() => selectUniverse(u)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
       </View>
 
       {/* Carte */}
@@ -366,10 +393,23 @@ export default function MapScreen() {
   );
 }
 
-function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function FilterTile({
+  label,
+  emoji,
+  active,
+  onPress,
+}: {
+  label: string;
+  emoji: string;
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
-    <Pressable style={[styles.filterChip, active && styles.filterChipActive]} onPress={onPress}>
-      <Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text>
+    <Pressable style={[styles.filterTile, active && styles.filterTileActive]} onPress={onPress}>
+      <Text style={styles.filterTileEmoji}>{emoji}</Text>
+      <Text style={[styles.filterTileText, active && styles.filterTileTextActive]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -512,20 +552,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchGoText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  filtersRow: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  filterChip: {
-    backgroundColor: `${colors.surface}EE`,
+
+  // Bouton unique + panneau de filtres
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: `${colors.surface}F5`,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.pill,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: spacing.md,
-    height: 38,
-    justifyContent: 'center',
+    height: 40,
   },
-  filterChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  filterText: { ...typography.caption, color: colors.textPrimary },
-  filterTextActive: { color: '#fff' },
+  filterButtonText: { ...typography.body, color: colors.textPrimary, flex: 1, fontWeight: '600' },
+  filterButtonChevron: { ...typography.caption, color: colors.textMuted, fontSize: 12 },
+  filterBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+  },
+  filterPanel: {
+    marginHorizontal: spacing.md,
+    maxHeight: Math.round(SCREEN_HEIGHT * 0.5),
+    backgroundColor: `${colors.surface}FA`,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  filterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  filterTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+  },
+  filterTileActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  filterTileEmoji: { fontSize: 15 },
+  filterTileText: { ...typography.caption, color: colors.textPrimary },
+  filterTileTextActive: { color: '#fff', fontWeight: '600' },
   map: { flex: 1 },
   mapPlaceholder: {
     flex: 1,
