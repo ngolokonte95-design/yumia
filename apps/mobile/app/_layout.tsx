@@ -101,6 +101,7 @@ function AuthGate() {
       <Stack.Screen name="nightclub" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="visits" />
       <Stack.Screen name="join" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="admin" options={{ animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }

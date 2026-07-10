@@ -1,7 +1,7 @@
 /**
  * PARAMÈTRES — notifications, sécurité, compte, données.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -193,6 +193,9 @@ export default function SettingsScreen() {
           loading={deletingAccount}
         />
 
+        {/* Administration (visible uniquement pour les admins) */}
+        <AdminSection />
+
         {/* Déconnexion */}
         <SectionTitle label="Session" />
         <SettingRow
@@ -206,6 +209,35 @@ export default function SettingsScreen() {
         <Text style={styles.version}>YUMIA v0.1.0 • {user?.email}</Text>
       </ScrollView>
     </View>
+  );
+}
+
+const API = process.env.EXPO_PUBLIC_API_URL ?? '';
+
+function AdminSection() {
+  const { accessToken } = useAuth();
+  const router = useRouter();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    fetch(`${API}/admin/is-admin`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => r.json())
+      .then((d: { isAdmin?: boolean }) => setIsAdmin(d.isAdmin === true))
+      .catch(() => {});
+  }, [accessToken]);
+
+  if (!isAdmin) return null;
+
+  return (
+    <>
+      <SectionTitle label="Administration" />
+      <SettingRow
+        icon="🛡️"
+        label="Dashboard Admin"
+        onPress={() => router.push('/admin')}
+      />
+    </>
   );
 }
 
