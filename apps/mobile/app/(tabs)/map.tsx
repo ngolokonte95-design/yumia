@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -309,11 +309,16 @@ export default function MapScreen() {
 
         {/* Bouton unique → ouvre le panneau de tous les univers */}
         <Pressable style={styles.filterButton} onPress={() => setFilterPanelOpen((o) => !o)}>
-          <Text style={styles.filterButtonText} numberOfLines={1}>
-            {universe === null
-              ? '🗂️  Tous les univers'
-              : `${UNIVERSE_META[universe].emoji}  ${UNIVERSE_META[universe].labelFr}`}
-          </Text>
+          {universe === 'cannabis' ? (
+            <>
+              <CannabisIcon size={16} />
+              <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>Cannabis</Text>
+            </>
+          ) : (
+            <Text style={styles.filterButtonText} numberOfLines={1}>
+              {universe === null ? '🗂️  Tous les univers' : `${UNIVERSE_META[universe].emoji}  ${UNIVERSE_META[universe].labelFr}`}
+            </Text>
+          )}
           <Text style={styles.filterButtonChevron}>{filterPanelOpen ? '▲' : '▾'}</Text>
         </Pressable>
 
@@ -331,6 +336,7 @@ export default function MapScreen() {
                   key={u}
                   label={UNIVERSE_META[u].labelFr}
                   emoji={UNIVERSE_META[u].emoji}
+                  icon={u === 'cannabis' ? <CannabisIcon size={14} /> : undefined}
                   active={universe === u}
                   onPress={() => selectUniverse(u)}
                 />
@@ -449,17 +455,22 @@ export default function MapScreen() {
 function FilterTile({
   label,
   emoji,
+  icon,
   active,
   onPress,
 }: {
   label: string;
   emoji: string;
+  icon?: React.ReactNode;
   active: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable style={[styles.filterTile, active && styles.filterTileActive]} onPress={onPress}>
-      <Text style={styles.filterTileEmoji}>{emoji}</Text>
+      {icon
+        ? <View style={{ width: 15, height: 15, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
+        : <Text style={styles.filterTileEmoji}>{emoji}</Text>
+      }
       <Text style={[styles.filterTileText, active && styles.filterTileTextActive]} numberOfLines={1}>
         {label}
       </Text>
