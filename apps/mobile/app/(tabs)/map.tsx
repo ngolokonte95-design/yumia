@@ -109,6 +109,13 @@ export default function MapScreen() {
     [coords.lat, coords.lng],
   );
 
+  // Région courante suivie en continu : permet de recentrer au tap SANS
+  // changer le niveau de zoom (évite le « zoom tout seul »).
+  const regionRef = useRef<Region>(region);
+  const onRegionChangeComplete = useCallback((r: Region) => {
+    regionRef.current = r;
+  }, []);
+
   const handleCitySearch = useCallback(async () => {
     const q = cityQuery.trim();
     if (!q) return;
@@ -152,9 +159,11 @@ export default function MapScreen() {
     try {
       const results = await fetchNearby({ lat: latitude, lng: longitude, radius: 5000, universe: universe ?? undefined, limit: 80 });
       setTapResults(results);
+      // Recentre sur le point tapé en conservant le zoom actuel (pas de re-zoom).
+      const { latitudeDelta, longitudeDelta } = regionRef.current;
       mapRef.current?.animateToRegion(
-        { latitude, longitude, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
-        300,
+        { latitude, longitude, latitudeDelta, longitudeDelta },
+        250,
       );
     } catch {
       // silent
@@ -212,9 +221,12 @@ export default function MapScreen() {
 
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
+  // tracksViewChanges est coûteux (re-rasterise chaque marker à chaque frame).
+  // On l'active brièvement après un changement de lieux pour que les markers
+  // s'affichent, puis on le coupe pour garder la carte fluide.
   useEffect(() => {
     setTracking(true);
-    const t = setTimeout(() => setTracking(false), 900);
+    const t = setTimeout(() => setTracking(false), 350);
     return () => clearTimeout(t);
   }, [cityResults, tapResults, places]);
 
@@ -310,6 +322,7 @@ export default function MapScreen() {
           mapType="standard"
           customMapStyle={DARK_MAP_STYLE}
           onPress={handleMapTap}
+          onRegionChangeComplete={onRegionChangeComplete}
         >
           {markerPlaces.map((place) => (
             <Marker
