@@ -27,6 +27,7 @@ import { fetchByCity, fetchNearby } from '../../lib/places-api';
 import type { NearbyPlace } from '../../lib/places-api';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
+import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
@@ -334,7 +335,11 @@ export default function MapScreen() {
               onPress={() => openDetail(place)}
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
-                <Text style={styles.markerEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
+                {place.universe === 'cannabis' ? (
+                  <CannabisIcon size={22} />
+                ) : (
+                  <Text style={styles.markerEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
+                )}
               </View>
             </Marker>
           ))}
@@ -456,7 +461,11 @@ function PlaceRow({
         />
       ) : (
         <View style={styles.rowEmojiBg}>
-          <Text style={styles.rowEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
+          {place.universe === 'cannabis' ? (
+            <CannabisIcon size={28} />
+          ) : (
+            <Text style={styles.rowEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
+          )}
         </View>
       )}
       <View style={{ flex: 1 }}>

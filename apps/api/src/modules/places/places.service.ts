@@ -11,7 +11,7 @@ import {
   type PlacesProvider,
   type ProviderPlace,
 } from './providers/places-provider.interface';
-import { isBlockedPlace } from './providers/place-types';
+import { isBlockedPlace, UNIVERSE_TEXT_QUERIES } from './providers/place-types';
 
 const TRENDING_CACHE_TTL_SECONDS = 2 * 60; // 2 min — assez frais, réduit la pression DB
 const PLACE_STATS_CACHE_TTL_SECONDS = 60; // 1 min — les avis communautaires sont peu fréquents
@@ -564,8 +564,20 @@ export class PlacesService {
     await this.redis.setJson(cacheKey, true, HYDRATE_LOCK_TTL_SECONDS).catch(() => undefined);
 
     try {
-      const query = params.universe ? `${params.universe} in ${params.city}` : params.city;
-      const found = await this.provider.searchByText(query, params.universe, 20);
+      // Pour les univers dont le type Google est invalide (cannabis, hookah…), on
+      // utilise la requête textuelle dédiée + on force l'univers sur les résultats.
+      // Sans ça, un coffeeshop d'Amsterdam typé `coffee_shop` par Google est reclassé
+      // en `cafe` par googleTypesToUniverse et disparaît de l'univers cannabis.
+      const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
+      const query = textQuery
+        ? `${textQuery} in ${params.city}`
+        : params.universe
+        ? `${params.universe} in ${params.city}`
+        : params.city;
+      let found = await this.provider.searchByText!(query, params.universe, 20);
+      if (textQuery && params.universe) {
+        found = found.map((p) => ({ ...p, universe: params.universe! }));
+      }
       if (found.length === 0) {
         await this.redis.setJson(cacheKey, true, HYDRATE_EMPTY_RETRY_TTL_SECONDS).catch(() => undefined);
         return local;
