@@ -238,6 +238,8 @@ export class GooglePlacesProvider implements PlacesProvider {
       throw new Error(`Google Places (textNearby) ${res.status} : ${text.slice(0, 200)}`);
     }
     const data = (await res.json()) as { places?: GooglePlace[] };
+    const rawCount = data.places?.length ?? 0;
+    this.logger.log(`[textNearby] "${textQuery.slice(0, 40)}" @${lat.toFixed(2)},${lng.toFixed(2)} r=${radius} → ${rawCount} bruts Google`);
     return (data.places ?? []).flatMap((g) => {
       const mapped = this.mapPlace(g, universe);
       if (!mapped) return [];
