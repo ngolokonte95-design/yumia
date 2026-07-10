@@ -90,7 +90,7 @@ export default function AdminScreen() {
       </View>
 
       {/* ── Overview ── */}
-      {overview && (
+      {overview?.users && (
         <>
           <Text style={styles.sectionTitle}>Vue d'ensemble</Text>
           <View style={styles.statsGrid}>
@@ -104,8 +104,6 @@ export default function AdminScreen() {
           <View style={styles.statsGrid}>
             <StatCard label="Lieux" value={overview.content.places} />
             <StatCard label="Visites" value={overview.content.visits} />
-            <StatCard label="Posts" value={overview.content.posts} />
-            <StatCard label="Meetups" value={overview.content.meetups} />
           </View>
         </>
       )}

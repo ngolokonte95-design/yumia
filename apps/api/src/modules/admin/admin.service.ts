@@ -17,6 +17,8 @@ export class AdminService {
     const weekAgo = new Date(today.getTime() - 7 * 86400000);
     const monthAgo = new Date(today.getTime() - 30 * 86400000);
 
+    const safe = (p: Promise<number>) => p.catch(() => 0);
+
     const [
       totalUsers,
       newToday,
@@ -24,26 +26,22 @@ export class AdminService {
       newThisMonth,
       totalPlaces,
       totalVisits,
-      totalPosts,
-      totalMeetups,
       premiumUsers,
       activeUsers7d,
     ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { createdAt: { gte: today } } }),
-      this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
-      this.prisma.user.count({ where: { createdAt: { gte: monthAgo } } }),
-      this.prisma.place.count(),
-      this.prisma.visit.count(),
-      this.prisma.post.count(),
-      this.prisma.meetupEvent.count(),
-      this.prisma.user.count({ where: { isPremium: true } }),
-      this.prisma.user.count({ where: { visits: { some: { visitedAt: { gte: weekAgo } } } } }),
+      safe(this.prisma.user.count()),
+      safe(this.prisma.user.count({ where: { createdAt: { gte: today } } })),
+      safe(this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } })),
+      safe(this.prisma.user.count({ where: { createdAt: { gte: monthAgo } } })),
+      safe(this.prisma.place.count()),
+      safe(this.prisma.visit.count()),
+      safe(this.prisma.user.count({ where: { isPremium: true } })),
+      safe(this.prisma.user.count({ where: { visits: { some: { visitedAt: { gte: weekAgo } } } } })),
     ]);
 
     return {
       users: { total: totalUsers, newToday, newThisWeek, newThisMonth, premium: premiumUsers, active7d: activeUsers7d },
-      content: { places: totalPlaces, visits: totalVisits, posts: totalPosts, meetups: totalMeetups },
+      content: { places: totalPlaces, visits: totalVisits },
     };
   }
 
