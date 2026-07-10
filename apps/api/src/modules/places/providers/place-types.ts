@@ -5,8 +5,11 @@ import { UNIVERSES, type Universe } from '@yumia/shared';
  * on utilise une recherche textuelle géolocalisée en fallback.
  */
 export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
-  cannabis: 'cannabis coffee shop weed dispensary social club',
-  hookah:   'hookah bar shisha bar narguile chicha',
+  cannabis:   'cannabis coffee shop weed dispensary social club',
+  hookah:     'hookah bar shisha bar narguile chicha',
+  optician:   'optician opticien eye care lunettes glasses store',
+  photo_spot: 'scenic viewpoint panorama belvedere observation deck viewpoint',
+  shooting:   'shooting range gun store armurerie stand de tir',
 };
 
 /**
