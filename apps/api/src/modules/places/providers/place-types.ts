@@ -5,13 +5,15 @@ import { UNIVERSES, type Universe } from '@yumia/shared';
  * on utilise une recherche textuelle géolocalisée en fallback.
  */
 export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
-  cannabis:   'coffeeshop coffee shop cannabis social club dispensary',
-  hookah:     'chicha shisha hookah narguile bar',
-  optician:   'opticien optician lunetterie eye care glasses',
-  photo_spot: 'belvédère panorama viewpoint mirador terrasse panoramique',
-  shooting:   'stand de tir armurerie shooting range gun range',
-  laser_game: 'laser game lasertag laser tag paintball',
-  karting:    'karting go kart circuit kart',
+  cannabis:          'coffeeshop coffee shop cannabis social club dispensary',
+  hookah:            'chicha shisha hookah narguile bar',
+  optician:          'opticien optician lunetterie eye care glasses',
+  photo_spot:        'belvédère panorama viewpoint mirador terrasse panoramique',
+  shooting:          'stand de tir armurerie shooting range gun range',
+  laser_game:        'laser game lasertag laser tag paintball',
+  karting:           'karting go kart circuit kart',
+  taxi_vtc:          'taxi VTC Uber Bolt chauffeur transport',
+  currency_exchange: 'bureau de change currency exchange money changer forex',
 };
 
 /**
@@ -100,9 +102,14 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   place_of_worship: ['church', 'mosque', 'synagogue', 'hindu_temple'],
   library:          ['library'],
   coworking:        ['coworking_space'],
-  // Transport & Hébergement
+  // Transport & Mobilité
+  taxi_vtc:         ['taxi_stand'],
   gare:             ['train_station', 'transit_station', 'subway_station', 'bus_station', 'light_rail_station'],
   hotel:            ['lodging', 'hotel', 'motel', 'hostel', 'resort_hotel'],
+  // Services du quotidien
+  atm:              ['atm'],
+  currency_exchange:['currency_exchange'],
+  // Événements
   event_venue:      ['event_venue', 'stadium', 'amphitheatre', 'convention_center'],
 };
 
@@ -117,7 +124,6 @@ export const BLOCKED_GOOGLE_TYPES = new Set([
   'grocery_or_supermarket',
   'dry_cleaning',
   'parking',
-  'atm',
   'bank',
   // Grandes surfaces / commerces non-expérience (Leroy Merlin, Decathlon…).
   'hardware_store',
