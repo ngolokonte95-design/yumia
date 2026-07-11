@@ -82,7 +82,11 @@ async function bootstrap() {
     const start = process.hrtime.bigint();
     res.on('finish', () => {
       const ms = Number(process.hrtime.bigint() - start) / 1_000_000;
-      res.setHeader('x-response-time', `${ms.toFixed(2)}ms`);
+      try {
+        res.setHeader('x-response-time', `${ms.toFixed(2)}ms`);
+      } catch {
+        // headers already flushed (streaming / early close) — safe to ignore
+      }
     });
     next();
   });
