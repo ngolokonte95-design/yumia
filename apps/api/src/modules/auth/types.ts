@@ -38,6 +38,7 @@ export interface PublicUser {
   gender: string | null;
   birthYear: number | null;
   interestedIn: string;
+  isAdmin: boolean;
 }
 
 /** Réponse d'authentification : utilisateur + jetons. */

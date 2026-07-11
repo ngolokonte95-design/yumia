@@ -56,10 +56,11 @@ async function readCount(feature: LimitedFeature, period: 'day' | 'week' | 'none
 export function usePlanLimits() {
   const { user } = useAuth();
   const isPremium = user?.isPremium === true || user?.plan === 'plus';
+  const isAdmin = user?.isAdmin === true;
 
   const checkLimit = useCallback(
     async (feature: LimitedFeature, currentCount?: number): Promise<LimitCheck> => {
-      if (isPremium) return { allowed: true, message: '' };
+      if (isPremium || isAdmin) return { allowed: true, message: '' };
       const limit = FREE_LIMITS[feature];
       const period = LIMIT_PERIOD[feature];
       const used = period === 'none' ? currentCount ?? 0 : await readCount(feature, period);
@@ -71,7 +72,7 @@ export function usePlanLimits() {
 
   const recordUsage = useCallback(
     async (feature: LimitedFeature): Promise<void> => {
-      if (isPremium) return;
+      if (isPremium || isAdmin) return;
       const period = LIMIT_PERIOD[feature];
       if (period === 'none') return; // compté via currentCount, pas de compteur local
       const pk = periodKey(period);
@@ -81,5 +82,5 @@ export function usePlanLimits() {
     [isPremium],
   );
 
-  return { isPremium, checkLimit, recordUsage };
+  return { isPremium, isAdmin, checkLimit, recordUsage };
 }

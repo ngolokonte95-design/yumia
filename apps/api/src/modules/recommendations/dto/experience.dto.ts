@@ -2,9 +2,7 @@ import { Type } from 'class-transformer';
 import { IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { MODES, UNIVERSES, type Mode, type Universe } from '@yumia/shared';
 
-const ITINERARY_MODES: Mode[] = ['date', 'travel'];
-
-/** Contexte d'une requête d'itinéraire (Date / Travel). */
+/** Contexte d'une requête d'expérience (tous les modes). */
 export class ExperienceDto {
   @Type(() => Number)
   @IsNumber()
@@ -25,7 +23,7 @@ export class ExperienceDto {
   @Max(50_000)
   radius?: number = 5_000;
 
-  @IsIn(ITINERARY_MODES)
+  @IsIn(MODES)
   mode!: Mode;
 
   @IsOptional()

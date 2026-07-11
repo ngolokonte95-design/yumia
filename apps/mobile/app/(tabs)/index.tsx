@@ -51,7 +51,7 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
   return { title: `${t('greeting_night')}, ${first}`, sub: t('greeting_sub_night') };
 }
 
-const ITINERARY_MODES: Mode[] = ['date', 'travel'];
+const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];
 
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
@@ -149,7 +149,7 @@ export default function HomeScreen() {
     {
       lat: coords.lat,
       lng: coords.lng,
-      mode: (selectedMode ?? 'date') as 'date' | 'travel',
+      mode: (selectedMode ?? 'date') as Mode,
       locale: 'fr',
       ...prefs,
     },

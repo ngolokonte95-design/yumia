@@ -500,5 +500,6 @@ function toPublicUser(user: User): PublicUser {
     gender: (user as any).gender ?? null,
     birthYear: (user as any).birthYear ?? null,
     interestedIn: (user as any).interestedIn ?? 'everyone',
+    isAdmin: (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).includes(user.email.toLowerCase()),
   };
 }

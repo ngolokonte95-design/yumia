@@ -35,6 +35,7 @@ export interface PublicUser {
   gender: string | null;
   birthYear: number | null;
   interestedIn: string;
+  isAdmin: boolean;
 }
 
 export interface AuthTokens {
