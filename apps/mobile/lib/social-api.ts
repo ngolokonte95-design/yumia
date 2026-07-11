@@ -133,4 +133,41 @@ export const socialApi = {
 
   unfollow: (token: string, userId: string) =>
     fetch(`${API}/social/follow/${userId}`, { method: 'DELETE', headers: authHeaders(token) }),
+
+  // ── Profiles & lists ─────────────────────────────────────────────────────
+
+  getProfile: (token: string, userId: string) =>
+    fetch(`${API}/social/users/${userId}`, { headers: authHeaders(token) }).then((r) =>
+      safeJson<{
+        id: string; displayName: string; photoUrl?: string; bio?: string;
+        totalXp: number; level: number; followersCount: number;
+        followingCount: number; visitCount: number; isFollowedByMe: boolean;
+      }>(r),
+    ),
+
+  getFollowers: (token: string, userId: string) =>
+    fetch(`${API}/social/users/${userId}/followers`, { headers: authHeaders(token) }).then(async (r) => {
+      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; level: number }[]>(r);
+      return d ?? [];
+    }),
+
+  getFollowing: (token: string, userId: string) =>
+    fetch(`${API}/social/users/${userId}/following`, { headers: authHeaders(token) }).then(async (r) => {
+      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; level: number }[]>(r);
+      return d ?? [];
+    }),
+
+  searchUsers: (token: string, query: string, limit = 20) =>
+    fetch(`${API}/social/users/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+      headers: authHeaders(token),
+    }).then(async (r) => {
+      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; totalXp: number; level: number }[]>(r);
+      return d ?? [];
+    }),
+
+  getFeed: (token: string, limit = 30) =>
+    fetch(`${API}/social/feed?limit=${limit}`, { headers: authHeaders(token) }).then(async (r) => {
+      const d = await safeJson<unknown[]>(r);
+      return d ?? [];
+    }),
 };

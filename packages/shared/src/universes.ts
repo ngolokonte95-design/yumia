@@ -10,76 +10,80 @@ export const UNIVERSES = [
   // ── Manger & Boire ────────────────────────────────────────────────────────
   'restaurant',   // inclut fast_food (fusionné — même expérience utilisateur)
   'cafe',         // inclut bubble_tea (fusionné — même expérience boisson)
+  'bar',
   'bakery',
   'dessert',
+  'nightclub',
+  'pub',
   'ice_cream',
   'chocolatier',
   'wine_cellar',
   'tea_house',
   'local_specialty',
   // ── Bars & Soirées ────────────────────────────────────────────────────────
-  'bar',
-  'pub',
-  'nightclub',
   'hookah',
   'live_music',
   'rooftop',
   'karaoke',
-  // ── Culture & Tourisme ────────────────────────────────────────────────────
+  // ── Culture & Divertissement ──────────────────────────────────────────────
+  'cinema',
   'museum',
+  'amusement_park',
+  'escape_game',
+  'bowling',
+  'laser_game',
+  'karting',
   'monument',
   'tourist_activity',
   'cultural_outing',
-  'cinema',
   'zoo',
-  'amusement_park',
   'photo_spot',
   // ── Nature & Plein air ────────────────────────────────────────────────────
   'park',
   'beach',
-  // ── Sport & Loisirs ───────────────────────────────────────────────────────
+  // ── Sport & Fitness ───────────────────────────────────────────────────────
   'fitness',      // inclut padel/tennis (fusionné — même univers sportif)
   'gym',
   'aquatic',
-  'escape_game',
-  'laser_game',
-  'karting',
-  'bowling',
   'casino',
   'skatepark',
   'cannabis',
   'shooting',
-  // ── Automobile & Moto ─────────────────────────────────────────────────────
-  'garage',
-  'car_wash',
   // ── Bien-être & Beauté ────────────────────────────────────────────────────
   'spa',
   'massage',
-  'nail_salon',
   'hair_salon',
   'barber',
+  'nail_salon',
   'florist',
   // ── Shopping & Commerce ───────────────────────────────────────────────────
   'shopping',
   'mall',
   'bookstore',
   'jewelry',
-  // ── Santé ─────────────────────────────────────────────────────────────────
+  // ── Transport & Mobilité ──────────────────────────────────────────────────
+  'taxi_vtc',
+  'gare',
+  'hotel',
+  // ── Services du quotidien ─────────────────────────────────────────────────
+  'atm',
+  'currency_exchange',
   'pharmacy',
+  'fuel',
+  'laundry',
+  'coworking',
+  // ── Santé ─────────────────────────────────────────────────────────────────
   'doctor',
   'hospital',
   'vet',
   'optician',
-  // ── Culte & Services ──────────────────────────────────────────────────────
+  // ── Automobile & Moto ─────────────────────────────────────────────────────
+  'garage',
+  'car_wash',
+  // ── Culte & Autres ────────────────────────────────────────────────────────
   'place_of_worship',
   'library',
-  'coworking',
   'police',
-  'fuel',
-  'laundry',
-  // ── Transport & Hébergement ───────────────────────────────────────────────
-  'gare',
-  'hotel',
   'event_venue',
   // Valeurs héritées supprimées de l'UI (enum PG non supprimable) :
   // 'fast_food'   → fusionné dans 'restaurant'
@@ -172,9 +176,14 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   police:          { key: 'police',          emoji: '🚔',   i18nKey: 'universe.police',          labelFr: 'Commissariats & Police' },
   fuel:            { key: 'fuel',            emoji: '⛽',   i18nKey: 'universe.fuel',            labelFr: 'Stations service & Bornes électriques' },
   laundry:         { key: 'laundry',         emoji: '🧺',   i18nKey: 'universe.laundry',         labelFr: 'Laveries automatiques' },
-  // Transport & Hébergement
+  // Transport & Mobilité
+  taxi_vtc:        { key: 'taxi_vtc',        emoji: '🚕',   i18nKey: 'universe.taxi_vtc',        labelFr: 'Taxi & VTC' },
   gare:            { key: 'gare',            emoji: '🚉',   i18nKey: 'universe.gare',            labelFr: 'Gares & Transports' },
   hotel:           { key: 'hotel',           emoji: '🏨',   i18nKey: 'universe.hotel',           labelFr: 'Hôtels & Séjours' },
+  // Services du quotidien
+  atm:             { key: 'atm',             emoji: '🏧',   i18nKey: 'universe.atm',             labelFr: 'Distributeurs ATM' },
+  currency_exchange:{ key: 'currency_exchange', emoji: '💱', i18nKey: 'universe.currency_exchange', labelFr: 'Bureaux de change' },
+  // Culte & Autres
   event_venue:     { key: 'event_venue',     emoji: '🎪',   i18nKey: 'universe.event_venue',     labelFr: 'Événements & Spectacles' },
 };
 

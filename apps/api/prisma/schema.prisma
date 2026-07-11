@@ -171,9 +171,14 @@ enum Universe {
   // Automobile & Moto
   garage
   car_wash
-  // Transport & Hébergement
+  // Transport & Mobilité
+  taxi_vtc
   gare
   hotel
+  // Services du quotidien
+  atm
+  currency_exchange
+  // Événements
   event_venue
   // Valeurs héritées (non affichées dans l'UI — migration impossible en PG)
   nightlife

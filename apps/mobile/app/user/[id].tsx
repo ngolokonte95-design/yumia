@@ -103,15 +103,15 @@ export default function UserProfileScreen() {
             <Text style={styles.statLabel}>Posts</Text>
           </View>
           <View style={styles.statDivider} />
-          <View style={styles.stat}>
+          <Pressable style={styles.stat} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'followers' } } as never)}>
             <Text style={styles.statVal}>{profile.followersCount}</Text>
             <Text style={styles.statLabel}>Abonnés</Text>
-          </View>
+          </Pressable>
           <View style={styles.statDivider} />
-          <View style={styles.stat}>
+          <Pressable style={styles.stat} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'following' } } as never)}>
             <Text style={styles.statVal}>{profile.followingCount}</Text>
             <Text style={styles.statLabel}>Abonnements</Text>
-          </View>
+          </Pressable>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
             <Text style={styles.statVal}>{profile.visitCount}</Text>
