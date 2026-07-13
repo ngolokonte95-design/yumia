@@ -257,13 +257,14 @@ export default function MapScreen() {
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
   // tracksViewChanges est coûteux (re-rasterise chaque marker à chaque frame).
-  // On l'active brièvement après un changement de lieux pour que les markers
-  // s'affichent, puis on le coupe pour garder la carte fluide.
+  // On l'active brièvement quand les IDs des marqueurs affichés changent vraiment,
+  // pas à chaque mise à jour du tableau source (évite le flickering pendant le scroll).
+  const markerIds = useMemo(() => markerPlaces.map((p) => p.id).join(','), [markerPlaces]);
   useEffect(() => {
     setTracking(true);
-    const t = setTimeout(() => setTracking(false), 350);
+    const t = setTimeout(() => setTracking(false), 200);
     return () => clearTimeout(t);
-  }, [cityResults, tapResults, places, viewportPlaces]);
+  }, [markerIds]);
 
   const drawerTitle = cityResults !== null
     ? `${cityResults.length} lieu${cityResults.length > 1 ? 'x' : ''} à « ${cityQuery} »`
