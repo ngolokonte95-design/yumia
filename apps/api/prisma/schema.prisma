@@ -59,6 +59,7 @@ model User {
   gender         String?      // 'male' | 'female' | 'other'
   birthYear      Int?         // année de naissance → âge calculé côté client
   interestedIn   String       @default("everyone") // 'male' | 'female' | 'everyone'
+  isPrivate      Boolean      @default(false) // compte privé → follow via demande d'abonnement
 
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -657,6 +658,18 @@ model Follow {
   @@unique([followerId, followingId])
   @@index([followerId])
   @@index([followingId])
+}
+
+/// Demande d'abonnement en attente vers un compte privé.
+/// Acceptée → crée un Follow puis se supprime ; refusée → se supprime.
+model FollowRequest {
+  id          String   @id @default(uuid())
+  requesterId String
+  targetId    String
+  createdAt   DateTime @default(now())
+
+  @@unique([requesterId, targetId])
+  @@index([targetId])
 }
 
 /// Conversation privée entre deux utilisateurs.

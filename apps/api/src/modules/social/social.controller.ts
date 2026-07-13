@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
@@ -24,6 +24,27 @@ export class SocialController {
   @Delete('social/follow/:userId')
   unfollow(@CurrentUser() user: JwtPayload, @Param('userId') targetId: string) {
     return this.social.unfollow(user.sub, targetId);
+  }
+
+  // ── Comptes privés & demandes d'abonnement ─────────────────────────────────
+
+  @Patch('social/profile/privacy')
+  setPrivacy(@CurrentUser() user: JwtPayload, @Body() dto: { isPrivate: boolean }) {
+    return this.social.setPrivacy(user.sub, !!dto.isPrivate);
+  }
+
+  @Get('social/follow-requests')
+  listFollowRequests(@CurrentUser() user: JwtPayload) {
+    return this.social.listFollowRequests(user.sub);
+  }
+
+  @Patch('social/follow-requests/:id')
+  respondToRequest(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: { accept: boolean },
+  ) {
+    return this.social.respondToRequest(user.sub, id, !!dto.accept);
   }
 
   // ── Feed & profiles ───────────────────────────────────────────────────────

@@ -36,7 +36,7 @@ export default function EditSocialProfileScreen() {
   const [gender, setGender] = useState<string>(user?.gender ?? '');
   const [birthYear, setBirthYear] = useState<string>(user?.birthYear ? String(user.birthYear) : '');
   const [interestedIn, setInterestedIn] = useState<string>(user?.interestedIn ?? 'everyone');
-  const [isPrivate, setIsPrivate] = useState<boolean>(false);
+  const [isPrivate, setIsPrivate] = useState<boolean>(user?.isPrivate ?? false);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 

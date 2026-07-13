@@ -38,6 +38,7 @@ export interface PublicUser {
   gender: string | null;
   birthYear: number | null;
   interestedIn: string;
+  isPrivate: boolean;
   isAdmin: boolean;
 }
 

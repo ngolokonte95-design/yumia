@@ -51,17 +51,75 @@ export class SocialService {
 
   async follow(followerId: string, followingId: string) {
     if (followerId === followingId) throw new ConflictException('Impossible de se suivre soi-même');
-    const target = await this.prisma.user.findUnique({ where: { id: followingId }, select: { id: true } });
-    if (!target) throw new NotFoundException('Utilisateur introuvable');
-    return this.prisma.follow.upsert({
-      where: { followerId_followingId: { followerId, followingId } },
-      update: {},
-      create: { followerId, followingId },
+    const target = await this.prisma.user.findUnique({
+      where: { id: followingId },
+      select: { id: true, isPrivate: true },
     });
+    if (!target) throw new NotFoundException('Utilisateur introuvable');
+
+    // Déjà abonné → idempotent.
+    const already = await this.prisma.follow.findUnique({
+      where: { followerId_followingId: { followerId, followingId } },
+    });
+    if (already) return { status: 'following' as const };
+
+    // Compte privé → demande d'abonnement au lieu d'un follow direct.
+    if (target.isPrivate) {
+      await this.prisma.followRequest.upsert({
+        where: { requesterId_targetId: { requesterId: followerId, targetId: followingId } },
+        update: {},
+        create: { requesterId: followerId, targetId: followingId },
+      });
+      return { status: 'requested' as const };
+    }
+
+    await this.prisma.follow.create({ data: { followerId, followingId } });
+    return { status: 'following' as const };
   }
 
   async unfollow(followerId: string, followingId: string) {
     await this.prisma.follow.deleteMany({ where: { followerId, followingId } });
+    // Annule aussi une éventuelle demande en attente.
+    await this.prisma.followRequest.deleteMany({ where: { requesterId: followerId, targetId: followingId } });
+  }
+
+  // ── Comptes privés & demandes d'abonnement ─────────────────────────────────
+
+  async setPrivacy(userId: string, isPrivate: boolean) {
+    await this.prisma.user.update({ where: { id: userId }, data: { isPrivate } });
+    return { isPrivate };
+  }
+
+  /** Demandes d'abonnement reçues (comptes privés), avec le profil du demandeur. */
+  async listFollowRequests(userId: string) {
+    const requests = await this.prisma.followRequest.findMany({
+      where: { targetId: userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!requests.length) return [];
+    const requesters = await this.prisma.user.findMany({
+      where: { id: { in: requests.map((r) => r.requesterId) } },
+      select: { id: true, displayName: true, photoUrl: true, bio: true },
+    });
+    const byId = Object.fromEntries(requesters.map((u) => [u.id, u]));
+    return requests
+      .filter((r) => byId[r.requesterId])
+      .map((r) => ({ id: r.id, createdAt: r.createdAt, requester: byId[r.requesterId] }));
+  }
+
+  /** Accepte (crée le Follow) ou refuse une demande, puis la supprime. */
+  async respondToRequest(userId: string, requestId: string, accept: boolean) {
+    const req = await this.prisma.followRequest.findUnique({ where: { id: requestId } });
+    if (!req || req.targetId !== userId) throw new NotFoundException('Demande introuvable');
+    if (accept) {
+      await this.prisma.follow.upsert({
+        where: { followerId_followingId: { followerId: req.requesterId, followingId: userId } },
+        update: {},
+        create: { followerId: req.requesterId, followingId: userId },
+      });
+    }
+    await this.prisma.followRequest.delete({ where: { id: requestId } });
+    return { status: accept ? 'accepted' : 'rejected' };
   }
 
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
@@ -89,16 +147,21 @@ export class SocialService {
   async getPublicProfile(userId: string, viewerId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, totalXp: true, level: true, createdAt: true },
+      select: { id: true, displayName: true, photoUrl: true, bio: true, totalXp: true, level: true, createdAt: true, isPrivate: true },
     });
     if (!user) throw new NotFoundException('Utilisateur introuvable');
-    const [followersCount, followingCount, visitCount, isFollowed] = await Promise.all([
+    const [followersCount, followingCount, visitCount, isFollowed, requested] = await Promise.all([
       this.prisma.follow.count({ where: { followingId: userId } }),
       this.prisma.follow.count({ where: { followerId: userId } }),
       this.prisma.visit.count({ where: { userId } }),
       viewerId ? this.isFollowing(viewerId, userId) : false,
+      viewerId
+        ? this.prisma.followRequest
+            .findUnique({ where: { requesterId_targetId: { requesterId: viewerId, targetId: userId } } })
+            .then((r) => !!r)
+        : false,
     ]);
-    return { ...user, followersCount, followingCount, visitCount, isFollowedByMe: isFollowed };
+    return { ...user, followersCount, followingCount, visitCount, isFollowedByMe: isFollowed, hasRequestedByMe: requested };
   }
 
   async getFollowers(userId: string, limit = 50) {

@@ -68,7 +68,7 @@ export default function SocialProfileScreen() {
       fetch(`${API}/social/users/${user.id}`, { headers: h }),
       fetch(`${API}/posts/user/${user.id}?limit=30`, { headers: h }),
       feedApi.getHighlights(accessToken, user.id),
-      fetch(`${API}/social/users?limit=6`, { headers: h }),
+      fetch(`${API}/social/users/search?q=&limit=6`, { headers: h }),
     ]);
     if (profileRes.status === 'fulfilled' && profileRes.value.ok) {
       setSocialStats(await profileRes.value.json() as SocialStats);
