@@ -3,10 +3,11 @@ import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, Refre
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MODE_META, UNIVERSES, UNIVERSE_META } from '@yumia/shared';
+import { MODE_META, UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { SuggestionCard } from '../../components/SuggestionCard';
+import { YumiaLogo } from '../../components/YumiaLogo';
 import { ExperienceCard } from '../../components/ExperienceCard';
 import { PaywallModal } from '../../components/PaywallModal';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
@@ -68,10 +69,10 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
 ];
 
-const MODE_CHIPS: { key: Mode; emoji: string; label: string }[] = [
-  { key: 'date', emoji: '❤️', label: 'Date' },
-  { key: 'family', emoji: '👨‍👩‍👧', label: 'Famille' },
-  { key: 'travel', emoji: '✈️', label: 'Voyage' },
+const MODE_CHIPS: { key: Mode; emoji: string; label: string; mood: string }[] = [
+  { key: 'date', emoji: '❤️', label: 'Date', mood: 'date' },
+  { key: 'family', emoji: '👨‍👩‍👧', label: 'Famille', mood: 'famille' },
+  { key: 'travel', emoji: '✈️', label: 'Voyage', mood: 'touriste' },
 ];
 
 /** Route spéciale par univers (remplace /universe?u= pour certains) */
@@ -156,25 +157,6 @@ export default function HomeScreen() {
     !resolving && isItinerary,
   );
 
-  async function toggleMode(m: Mode) {
-    if (m === 'group') {
-      router.push('/group');
-      return;
-    }
-    // Désactive si déjà actif
-    if (selectedMode === m) {
-      setSelectedMode(null);
-      return;
-    }
-    // Gate planifier (date / travel) pour les forfaits Gratuits
-    if (ITINERARY_MODES.includes(m)) {
-      const { allowed, message } = await checkLimit('plannerPerWeek');
-      if (!allowed) { setUpsell(message); return; }
-      await recordUsage('plannerPerWeek');
-    }
-    setSelectedMode(m);
-  }
-
   const sectionTitle = isItinerary
     ? `${MODE_META[selectedMode!].emoji} ${MODE_META[selectedMode!].labelFr}`
     : t('top3_title');
@@ -194,6 +176,11 @@ export default function HomeScreen() {
         />
       }
     >
+      {/* Logo Yumia — bien visible en haut de la Home */}
+      <View style={[styles.section, { alignItems: 'center', marginBottom: spacing.sm }]}>
+        <YumiaLogo height={150} />
+      </View>
+
       {/* Greeting contextuel */}
       <View style={styles.section}>
         <View style={styles.greetingRow}>
@@ -235,34 +222,33 @@ export default function HomeScreen() {
       {/* Modes IA — toggle humeur */}
       <View style={styles.section}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modesRow}>
-          {MODE_CHIPS.map((m) => {
-            const active = selectedMode === m.key;
-            return (
-              <Pressable
-                key={m.key}
-                style={[styles.modeChip, active && styles.modeChipActive]}
-                onPress={() => void toggleMode(m.key)}
-              >
-                <Text style={styles.modeEmoji}>{m.emoji}</Text>
-                <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>{m.label}</Text>
-              </Pressable>
-            );
-          })}
+          {MODE_CHIPS.map((m) => (
+            <Pressable
+              key={m.key}
+              style={styles.modeChip}
+              onPress={() => router.push(`/itinerary?mood=${m.mood}` as never)}
+            >
+              <Text style={styles.modeEmoji}>{m.emoji}</Text>
+              <Text style={styles.modeLabel}>{m.label}</Text>
+            </Pressable>
+          ))}
         </ScrollView>
       </View>
 
-      {/* Tous les univers — grille 4 colonnes */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('explore_title')}</Text>
-        <View style={styles.universeGrid}>
-          {UNIVERSES.map((u) => (
-            <Pressable key={u} style={styles.universeCard} onPress={() => router.push(universeRoute(u) as never)}>
-              <UniverseIcon u={u} />
-              <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
-            </Pressable>
-          ))}
+      {/* Tous les univers — groupés par catégorie */}
+      {UNIVERSE_CATEGORIES.map((cat) => (
+        <View key={cat.label} style={styles.section}>
+          <Text style={styles.sectionTitle}>{cat.emoji} {cat.label}</Text>
+          <View style={styles.universeGrid}>
+            {cat.universes.map((u) => (
+              <Pressable key={u} style={styles.universeCard} onPress={() => router.push(universeRoute(u) as never)}>
+                <UniverseIcon u={u} />
+                <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </View>
+      ))}
 
       {/* Pipeline lieux : rangées horizontales par univers clé */}
       {(['restaurant', 'bar', 'nightclub'] as Universe[]).map((u) => (

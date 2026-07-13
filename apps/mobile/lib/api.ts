@@ -187,7 +187,7 @@ export interface ExperienceParams {
   lat: number;
   lng: number;
   radius?: number;
-  mode: 'date' | 'travel';
+  mode: Mode;
   locale?: string;
   favoriteUniverses?: Universe[];
   restrictions?: string[];

@@ -10,6 +10,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useLocation } from '../lib/useLocation';
 import { fetchNearby, type NearbyPlace } from '../lib/places-api';
 import { placeStore } from '../lib/place-store';
+import { PlacePhoto } from '../components/PlacePhoto';
 
 const AMBIANCES = [
   { key: 'all', label: 'Tous', emoji: '🎧' },
@@ -107,8 +108,13 @@ export default function NightclubScreen() {
           ) : (
             filtered.map((place) => (
               <Pressable key={place.id} style={styles.card} onPress={() => openDetail(place)}>
-                <View style={styles.cardLeft}>
-                  <Text style={styles.cardEmoji}>{UNIVERSE_META[place.universe]?.emoji ?? '🎧'}</Text>
+                <View style={styles.cardThumb}>
+                  <PlacePhoto
+                    photoUrls={place.photoUrls}
+                    emoji={UNIVERSE_META[place.universe]?.emoji ?? '🎧'}
+                    emojiSize={28}
+                    scrim
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
@@ -187,16 +193,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  cardLeft: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
+  cardThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
     flexShrink: 0,
+    backgroundColor: colors.surfaceElevated,
   },
-  cardEmoji: { fontSize: 22 },
   cardName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
   cardMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   cardTags: { ...typography.label, color: colors.textMuted, marginTop: 2, fontSize: 10 },

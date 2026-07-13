@@ -14,6 +14,45 @@ export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
   karting:           'karting go kart circuit kart',
   taxi_vtc:          'taxi VTC Uber Bolt chauffeur transport',
   currency_exchange: 'bureau de change currency exchange money changer forex',
+  // Beauté
+  lash_studio:          'cils sourcils extension cils lash bar institut cils microblading',
+  esthetics:            'institut beauté esthétique soin visage épilation peeling',
+  tattoo:               'tatouage tattoo studio piercing tatoueur',
+  yoga_studio:          'yoga pilates méditation studio yoga cours stretching',
+  tanning_studio:       'bronzage UV solarium centre bronzage suncare',
+  makeup_studio:        'maquillage makeup artist studio coiffure relooking beauté',
+  // Shopping
+  lingerie:             'lingerie dessous sous-vêtements mode intime femme',
+  vintage_store:        'vintage friperie seconde main dépôt-vente brocante mode',
+  luxury_store:         'luxe haute couture boutique luxe Chanel Dior Louis Vuitton',
+  // Santé
+  mental_health:        'psychologue psychiatre thérapeute psychanalyste cabinet psy',
+  laboratory:           'laboratoire analyses médicales prises de sang labo bilan',
+  alternative_medicine: 'naturopathie acupuncture ostéopathie médecine douce homéopathie',
+  // Manger & Boire
+  brunch:               'brunch petit déjeuner tardif brunch café brunch restaurant',
+  juice_bar:            'jus smoothie bar à jus acai bowl detox fresh juice',
+  food_truck:           'food truck street food camion restaurant mobile cuisine rue',
+  // Bars & Soirées
+  comedy_club:          'comedy club stand up spectacle humour one-man-show comédie',
+  // Nature
+  camping:              'camping bivouac camping sauvage tente campsite',
+  botanical_garden:     'jardin botanique jardin fleuri parc floral roseraie arboretum',
+  picnic_area:          'aire pique-nique parc espace vert pelouse détente nature',
+  // Transport
+  car_rental:           'location voiture car rental Hertz Europcar Avis rent a car',
+  campground:           'camping glamping hébergement insolite cabane lodge nature',
+  port:                 'port marina port de plaisance quai bateau embarcadère',
+  // Services
+  post_office:          'poste bureau de poste Colissimo colis envoi courrier',
+  // Automobile
+  car_dealership:       'concessionnaire automobile concession voiture neuve garage vente',
+  tire_shop:            'pneus centre pneus pneumatiques Euromaster Norauto roues',
+  motorcycle:           'moto scooter concession moto deux-roues Honda Yamaha Kawasaki',
+  // Activités
+  tobacco:              'tabac presse bureau tabac tabaccheria estanco',
+  jetski:               'jet ski jetski location nautique ski nautique motomarines',
+  quad:                 'quad ATV tout-terrain location quad buggy aventure',
 };
 
 /**
@@ -55,10 +94,15 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Nature & Plein air
   park:             ['park', 'national_park'],
   beach:            ['beach'],
+  hiking:           ['hiking_area', 'park', 'national_park'],
+  natural_site:     ['national_park', 'nature_reserve', 'geological_formation'],
+  waterspot:        ['lake', 'river', 'bay', 'beach'],
   // Sport & Loisirs
-  fitness:          ['sports_club', 'sports_complex', 'tennis_court', 'stadium'], // padel fusionné, gym séparé
+  fitness:          ['sports_club', 'sports_complex', 'tennis_court', 'stadium'],
   gym:              ['gym', 'fitness_center'],
   aquatic:          ['swimming_pool', 'water_park'],
+  jetski:           ['marina', 'boat_rental'],
+  quad:             ['off_roading_area', 'park'],
   escape_game:      ['amusement_center'],
   laser_game:       ['laser_tag_center'],
   karting:          ['go_kart_track'],
@@ -70,32 +114,53 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   nail_salon:       ['nail_salon'],
   hair_salon:       ['hair_salon', 'hair_care'],
   barber:           ['barber_shop'],
+  lash_studio:      ['beauty_salon'],
+  esthetics:        ['beauty_salon', 'skin_care_clinic'],
+  tattoo:           ['tattoo_parlor'],
+  yoga_studio:      ['yoga_studio', 'fitness_center'],
+  tanning_studio:   ['tanning_studio', 'beauty_salon'],
+  makeup_studio:    ['beauty_salon'],
   florist:          ['florist'],
   // Shopping & Commerce
   shopping:         ['clothing_store', 'department_store'],
   mall:             ['shopping_mall'],
-  // market supprimé — les marchés tombent dans shopping via le reverse map
   bookstore:        ['book_store'],
   jewelry:          ['jewelry_store'],
+  perfume_cosmetics:['cosmetics_store', 'perfume_store'],
+  lingerie:         ['clothing_store'],
+  vintage_store:    ['clothing_store', 'second_hand_store', 'thrift_store'],
+  luxury_store:     ['clothing_store', 'jewelry_store', 'department_store'],
   // Santé
   pharmacy:         ['pharmacy', 'drugstore'],
   doctor:           ['doctor', 'dentist', 'dental_clinic', 'medical_clinic', 'physiotherapist'],
   hospital:         ['hospital'],
-  // Vétérinaire & Optique
   vet:              ['veterinary_care'],
   optician:         ['optician', 'eye_care'],
+  mental_health:    ['psychologist', 'mental_health_service', 'doctor'],
+  laboratory:       ['medical_lab', 'laboratory'],
+  alternative_medicine: ['naturopath', 'acupuncture_clinic', 'doctor'],
   // Stations & Services
   fuel:             ['gas_station', 'electric_vehicle_charging_station'],
   laundry:          ['laundry'],
+  tobacco:          ['tobacco_shop', 'convenience_store'],
+  post_office:      ['post_office'],
+  brunch:           ['cafe', 'restaurant'],
+  juice_bar:        ['juice_bar', 'cafe'],
+  food_truck:       ['food_truck', 'street_food_gathering'],
+  comedy_club:      ['comedy_club'],
+  camping:          ['campsite', 'rv_park'],
+  botanical_garden: ['botanical_garden', 'park'],
+  picnic_area:      ['picnic_ground', 'park'],
   // Sport urbain
   skatepark:        ['skateboard_park'],
-  // Cannabis
   cannabis:         ['cannabis_store'],
-  // Armurerie & Stand de tir
   shooting:         ['shooting_range', 'gun_store'],
   // Automobile & Moto
   garage:           ['car_repair'],
   car_wash:         ['car_wash'],
+  car_dealership:   ['car_dealer'],
+  tire_shop:        ['tire_shop'],
+  motorcycle:       ['motorcycle_dealer', 'motorcycle_repair'],
   // Sécurité
   police:           ['police'],
   // Culte & Services
@@ -105,7 +170,12 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Transport & Mobilité
   taxi_vtc:         ['taxi_stand'],
   gare:             ['train_station', 'transit_station', 'subway_station', 'bus_station', 'light_rail_station'],
+  airport:          ['airport', 'international_airport'],
+  parking:          ['parking'],
   hotel:            ['lodging', 'hotel', 'motel', 'hostel', 'resort_hotel'],
+  car_rental:       ['car_rental'],
+  campground:       ['campground', 'rv_park', 'campsite'],
+  port:             ['marina', 'harbor', 'boat_club'],
   // Services du quotidien
   atm:              ['atm'],
   currency_exchange:['currency_exchange'],
@@ -116,14 +186,12 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
 /** Recherche large par défaut quand aucun univers n'est précisé (home/explore). */
 const DEFAULT_TYPES = ['restaurant', 'cafe', 'bar', 'bakery', 'tourist_attraction', 'museum'];
 
-/** Types Google à exclure de l'hydratation (tabac, épiceries, stations-service…). */
+/** Types Google à exclure de l'hydratation (épiceries, banques…). */
 export const BLOCKED_GOOGLE_TYPES = new Set([
-  'tobacco_shop',
   'convenience_store',
   'supermarket',
   'grocery_or_supermarket',
   'dry_cleaning',
-  'parking',
   'bank',
   // Grandes surfaces / commerces non-expérience (Leroy Merlin, Decathlon…).
   'hardware_store',
@@ -196,9 +264,14 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['aquarium',              'zoo'],
   // Nature & Plein air — AVANT tourist_attraction pour ne pas être absorbées
   ['beach',                 'beach'],
+  ['hiking_area',           'hiking'],
+  ['lake',                  'waterspot'],
+  ['river',                 'waterspot'],
+  ['bay',                   'waterspot'],
+  ['geological_formation',  'natural_site'],
+  ['nature_reserve',        'natural_site'],
+  ['national_park',         'natural_site'],
   ['park',                  'park'],
-  ['national_park',         'park'],
-  ['nature_reserve',        'park'],
   // tourist_attraction en dernier recours (activité touristique générique)
   ['tourist_attraction',    'tourist_activity'],
   // Sport & Loisirs
@@ -209,33 +282,61 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['sports_complex',        'fitness'],
   ['tennis_court',          'fitness'],
   ['sports_club',           'fitness'],
-  ['stadium',               'fitness'],
   ['amusement_center',      'escape_game'],
   ['bowling_alley',         'bowling'],
   ['water_park',            'aquatic'],
   ['swimming_pool',         'aquatic'],
+  ['marina',                'jetski'],
+  ['boat_rental',           'jetski'],
+  ['off_roading_area',      'quad'],
   ['casino',                'casino'],
+  ['skateboard_park',       'skatepark'],
   // Bien-être & Beauté — types spécifiques AVANT spa/beauty_salon
+  ['tattoo_parlor',         'tattoo'],
   ['nail_salon',            'nail_salon'],
   ['barber_shop',           'barber'],
   ['hair_salon',            'hair_salon'],
   ['hair_care',             'hair_salon'],
+  ['skin_care_clinic',      'esthetics'],
   ['massage',               'massage'],
   ['spa',                   'spa'],
-  ['beauty_salon',          'spa'],
+  ['beauty_salon',          'esthetics'],  // instituts → esthetics (plus précis que spa)
   // Shopping & Commerce
   ['shopping_mall',         'mall'],
   ['department_store',      'mall'],
   ['clothing_store',        'shopping'],
   ['shoe_store',            'shopping'],
-  ['cosmetics_store',       'shopping'],  // Yves Rocher, Sephora, etc.
-  ['beauty_products',       'shopping'],
+  ['cosmetics_store',       'perfume_cosmetics'],
+  ['perfume_store',         'perfume_cosmetics'],
+  ['beauty_products',       'perfume_cosmetics'],
   ['book_store',            'bookstore'],
   ['florist',               'florist'],
   ['jewelry_store',         'jewelry'],
   ['market',                'shopping'],
   ['farmer_market',         'shopping'],
   ['liquor_store',          'wine_cellar'],
+  ['tobacco_shop',          'tobacco'],
+  ['juice_bar',             'juice_bar'],
+  ['food_truck',            'food_truck'],
+  ['comedy_club',           'comedy_club'],
+  ['campsite',              'camping'],
+  ['rv_park',               'camping'],
+  ['botanical_garden',      'botanical_garden'],
+  ['picnic_ground',         'picnic_area'],
+  ['yoga_studio',           'yoga_studio'],
+  ['tanning_studio',        'tanning_studio'],
+  ['tattoo_parlor',         'tattoo'],
+  ['second_hand_store',     'vintage_store'],
+  ['thrift_store',          'vintage_store'],
+  ['post_office',           'post_office'],
+  ['car_rental',            'car_rental'],
+  ['campground',            'campground'],
+  ['harbor',                'port'],
+  ['boat_club',             'port'],
+  ['car_dealer',            'car_dealership'],
+  ['tire_shop',             'tire_shop'],
+  ['motorcycle_dealer',     'motorcycle'],
+  ['motorcycle_repair',     'motorcycle'],
   // Santé
   ['hospital',              'hospital'],
   ['doctor',                'doctor'],
@@ -253,8 +354,7 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['gas_station',           'fuel'],
   ['electric_vehicle_charging_station', 'fuel'],
   ['laundry',               'laundry'],
-  // Sport urbain
-  ['skateboard_park',       'skatepark'],
+  // Cannabis & Tir
   ['cannabis_store',        'cannabis'],
   ['shooting_range',        'shooting'],
   ['gun_store',             'shooting'],
@@ -272,6 +372,9 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['synagogue',             'place_of_worship'],
   ['hindu_temple',          'place_of_worship'],
   // Transport & Hébergement
+  ['airport',               'airport'],
+  ['international_airport', 'airport'],
+  ['parking',               'parking'],
   ['train_station',         'gare'],
   ['transit_station',       'gare'],
   ['subway_station',        'gare'],

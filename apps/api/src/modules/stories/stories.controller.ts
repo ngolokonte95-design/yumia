@@ -14,6 +14,42 @@ export class StoriesController {
     return this.stories.getFeedStories(user.sub);
   }
 
+  /** GET /stories/global — barre de stories « Pour vous » (tous les utilisateurs). */
+  @Get('global')
+  getGlobal(@CurrentUser() user: JwtPayload) {
+    return this.stories.getGlobalStories(user.sub);
+  }
+
+  // ── Stories à la une (highlights) ─────────────────────────────────────────
+
+  @Get('highlights/:userId')
+  getHighlights(@Param('userId') userId: string) {
+    return this.stories.getUserHighlights(userId);
+  }
+
+  @Post('highlights')
+  createHighlight(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: { title: string; items: Array<{ mediaUrl: string; type?: 'photo' | 'video'; caption?: string }> },
+  ) {
+    return this.stories.createHighlight(user.sub, dto.title, dto.items ?? []);
+  }
+
+  @Post('highlights/:id/items')
+  addHighlightItem(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: { mediaUrl: string; type?: 'photo' | 'video'; caption?: string },
+  ) {
+    return this.stories.addItemToHighlight(user.sub, id, dto);
+  }
+
+  @Delete('highlights/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteHighlight(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {
+    await this.stories.deleteHighlight(user.sub, id);
+  }
+
   @Post()
   create(
     @CurrentUser() user: JwtPayload,

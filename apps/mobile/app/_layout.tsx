@@ -100,8 +100,17 @@ function AuthGate() {
       <Stack.Screen name="sorties" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="nightclub" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="visits" />
+      <Stack.Screen name="story-viewer" options={{ animation: 'fade', presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="story" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="join" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="admin" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="social-profile" />
+      <Stack.Screen name="edit-social-profile" />
+      <Stack.Screen name="reels" options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="camera" options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="follow-requests" />
+      <Stack.Screen name="memories" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="call" options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }} />
     </Stack>
   );
 }

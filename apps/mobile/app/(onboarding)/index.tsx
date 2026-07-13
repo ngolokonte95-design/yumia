@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { UNIVERSES, UNIVERSE_META } from '@yumia/shared';
+import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
@@ -134,26 +134,33 @@ function UniverseStep({
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {UNIVERSES.map((key) => {
-          const meta = UNIVERSE_META[key];
-          const active = selected.includes(key);
-          return (
-            <Pressable
-              key={key}
-              style={[styles.universeCard, active && styles.universeCardActive]}
-              onPress={() => onToggle(key)}
-            >
-              <Text style={styles.universeEmoji}>{meta.emoji}</Text>
-              <Text style={[styles.universeLabel, active && styles.universeLabelActive]}>
-                {meta.labelFr}
-              </Text>
-              {active && <View style={styles.checkDot} />}
-            </Pressable>
-          );
-        })}
+        {UNIVERSE_CATEGORIES.map((cat) => (
+          <View key={cat.label}>
+            <Text style={styles.catLabel}>{cat.emoji} {cat.label}</Text>
+            <View style={styles.grid}>
+              {cat.universes.map((key) => {
+                const meta = UNIVERSE_META[key];
+                const active = selected.includes(key);
+                return (
+                  <Pressable
+                    key={key}
+                    style={[styles.universeCard, active && styles.universeCardActive]}
+                    onPress={() => onToggle(key)}
+                  >
+                    <Text style={styles.universeEmoji}>{meta.emoji}</Text>
+                    <Text style={[styles.universeLabel, active && styles.universeLabelActive]}>
+                      {meta.labelFr}
+                    </Text>
+                    {active && <View style={styles.checkDot} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ))}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -245,7 +252,9 @@ const styles = StyleSheet.create({
   title: { ...typography.display, color: colors.textPrimary, marginBottom: spacing.sm },
   subtitle: { ...typography.body, color: colors.textSecondary, lineHeight: 22 },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingBottom: spacing.xl },
+  scrollContent: { paddingBottom: spacing.xl },
+  catLabel: { ...typography.title, color: colors.textSecondary, fontSize: 13, marginBottom: spacing.sm, marginTop: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingBottom: spacing.sm },
   universeCard: {
     width: '47%',
     backgroundColor: colors.surface,

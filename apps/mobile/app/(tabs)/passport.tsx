@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/auth-context';
 import { usePassport } from '../../lib/usePassport';
 import { freezeStreak } from '../../lib/passport-api';
 import { ActivityHeatmap } from '../../components/ActivityHeatmap';
+import { YumiaLogo } from '../../components/YumiaLogo';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import { FREE_LIMITS } from '../../lib/constants/plan-limits';
 import type { UniverseCount } from '../../lib/passport-api';
@@ -60,6 +61,11 @@ export default function PassportScreen() {
         <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
       }
     >
+      {/* Logo Yumia — bien visible */}
+      <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
+        <YumiaLogo height={110} />
+      </View>
+
       {passportFull ? (
         <Pressable
           style={styles.passportFullBanner}

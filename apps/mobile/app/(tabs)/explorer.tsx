@@ -7,10 +7,11 @@ import { useEffect, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UNIVERSES, UNIVERSE_META } from '@yumia/shared';
+import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useLocation } from '../../lib/useLocation';
 import { fetchBoostedVenues, type Venue } from '../../lib/business-api';
+import { YumiaLogo } from '../../components/YumiaLogo';
 
 const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; route: string }[] = [
   { key: 'guides', emoji: '🧭', label: 'Guides locaux', sub: 'Experts certifiés', route: '/guides' },
@@ -40,6 +41,11 @@ export default function ExplorerScreen() {
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
+      {/* Logo Yumia — bien visible */}
+      <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
+        <YumiaLogo height={110} />
+      </View>
+
       {/* Titre */}
       <View style={styles.section}>
         <Text style={styles.h1}>Explorer</Text>
@@ -91,18 +97,20 @@ export default function ExplorerScreen() {
         </View>
       ) : null}
 
-      {/* Catalogue d'univers */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Tous les univers</Text>
-        <View style={styles.universeGrid}>
-          {UNIVERSES.map((u) => (
-            <Pressable key={u} style={styles.universeCard} onPress={() => router.push(`/universe?u=${u}`)}>
-              <Text style={styles.universeEmoji}>{UNIVERSE_META[u].emoji}</Text>
-              <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
-            </Pressable>
-          ))}
+      {/* Catalogue d'univers — groupés par catégorie */}
+      {UNIVERSE_CATEGORIES.map((cat) => (
+        <View key={cat.label} style={styles.section}>
+          <Text style={styles.sectionTitle}>{cat.emoji} {cat.label}</Text>
+          <View style={styles.universeGrid}>
+            {cat.universes.map((u) => (
+              <Pressable key={u} style={styles.universeCard} onPress={() => router.push(`/universe?u=${u}`)}>
+                <Text style={styles.universeEmoji}>{UNIVERSE_META[u].emoji}</Text>
+                <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </View>
+      ))}
     </ScrollView>
   );
 }

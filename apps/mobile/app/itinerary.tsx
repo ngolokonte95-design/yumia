@@ -2,10 +2,9 @@ import { useState } from 'react';
 import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { useLocation } from '../lib/useLocation';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 
@@ -41,12 +40,15 @@ const BUDGETS: Array<{ key: Budget; emoji: string; label: string }> = [
   { key: 'premium', emoji: '💎', label: 'Premium' },
 ];
 
+const MOOD_VALUES: Mood[] = ['date', 'amis', 'famille', 'solo', 'touriste'];
+
 export default function ItineraryScreen() {
   const { accessToken } = useAuth();
-  const { location } = useLocation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [mood, setMood] = useState<Mood>('amis');
+  const params = useLocalSearchParams<{ mood?: string }>();
+  const initialMood: Mood = MOOD_VALUES.includes(params.mood as Mood) ? (params.mood as Mood) : 'amis';
+  const [mood, setMood] = useState<Mood>(initialMood);
   const [duration, setDuration] = useState<Duration>('soirée');
   const [budget, setBudget] = useState<Budget>('moyen');
   const [city, setCity] = useState('');

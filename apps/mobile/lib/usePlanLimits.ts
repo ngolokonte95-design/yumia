@@ -67,7 +67,7 @@ export function usePlanLimits() {
       const allowed = used < limit;
       return { allowed, message: allowed ? '' : LIMIT_MESSAGES[feature] };
     },
-    [isPremium],
+    [isPremium, isAdmin],
   );
 
   const recordUsage = useCallback(
@@ -79,7 +79,7 @@ export function usePlanLimits() {
       const used = await readCount(feature, period);
       await AsyncStorage.setItem(`usage:${feature}`, JSON.stringify({ pk, count: used + 1 }));
     },
-    [isPremium],
+    [isPremium, isAdmin],
   );
 
   return { isPremium, isAdmin, checkLimit, recordUsage };

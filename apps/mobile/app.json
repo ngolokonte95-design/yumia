@@ -8,10 +8,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID",
-      "enabled": true,
-      "fallbackToCacheTimeout": 0,
-      "checkAutomatically": "ON_LOAD"
+      "enabled": false
     },
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -30,7 +27,8 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-      }
+      },
+      "bitcode": false
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -48,8 +46,16 @@
         }
       },
       "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WAKE_LOCK",
+        "android.permission.BLUETOOTH"
       ],
       "intentFilters": [
         {
@@ -90,14 +96,21 @@
           "locationWhenInUsePermission": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "YUMIA utilise ta caméra pour les appels vidéo.",
+          "microphonePermission": "YUMIA utilise ton microphone pour les appels vocaux et vidéo."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+        "projectId": "cb67721a-d8f2-476a-8cb7-8f4f1873d81d"
       },
       "apiBaseUrl": "http://207.154.198.77:4000/api",
       "googleMapsApiKey": "",
@@ -105,7 +118,9 @@
       "googleClientIdIos": "",
       "googleClientIdAndroid": "",
       "revenueCatIosKey": "",
-      "revenueCatAndroidKey": ""
-    }
+      "revenueCatAndroidKey": "",
+      "router": {}
+    },
+    "owner": "medou95"
   }
 }

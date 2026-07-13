@@ -37,6 +37,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { MeetupModule } from './modules/meetup/meetup.module';
 import { DiscoverModule } from './modules/discover/discover.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { CallsModule } from './modules/calls/calls.module';
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { AdminModule } from './modules/admin/admin.module';
     MeetupModule,
     DiscoverModule,
     AdminModule,
+    CallsModule,
   ],
   providers: [
     // Rate-limit par utilisateur (sub JWT) avec repli sur IP

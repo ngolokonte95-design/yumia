@@ -14,6 +14,7 @@
   "dependencies": {
     "@babel/plugin-proposal-class-properties": "^7.18.6",
     "@babel/plugin-proposal-private-methods": "^7.18.6",
+    "@config-plugins/react-native-webrtc": "^15.0.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "11.4.1",
     "@sentry/react-native": "~7.2.0",
@@ -43,7 +44,8 @@
     "react-native-purchases": "^8.2.2",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-svg": "15.12.1"
+    "react-native-svg": "15.12.1",
+    "react-native-webrtc": "^124.0.7"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

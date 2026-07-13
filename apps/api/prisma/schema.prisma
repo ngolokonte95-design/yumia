@@ -98,6 +98,7 @@ enum Universe {
   restaurant    // inclut fast_food (fusionné)
   cafe
   bakery
+  brunch
   fast_food     // LEGACY — fusionné dans restaurant (migration 20260708180000)
   dessert
   ice_cream
@@ -105,6 +106,8 @@ enum Universe {
   bubble_tea
   wine_cellar
   tea_house
+  juice_bar
+  food_truck
   local_specialty
   // Bars & Soirées
   bar
@@ -114,6 +117,7 @@ enum Universe {
   live_music
   rooftop
   karaoke
+  comedy_club
   // Culture & Tourisme
   museum
   monument
@@ -126,6 +130,12 @@ enum Universe {
   // Nature & Plein air
   park
   beach
+  hiking
+  natural_site
+  waterspot
+  camping
+  botanical_garden
+  picnic_area
   // Sport & Loisirs
   fitness       // inclut padel/tennis (fusionné)
   gym
@@ -136,12 +146,20 @@ enum Universe {
   karting
   bowling
   casino
+  jetski
+  quad
   // Bien-être & Beauté
   spa
   massage
   nail_salon
   hair_salon
   barber
+  lash_studio
+  esthetics
+  tattoo
+  yoga_studio
+  tanning_studio
+  makeup_studio
   florist
   // Shopping & Commerce
   shopping
@@ -149,12 +167,19 @@ enum Universe {
   market
   bookstore
   jewelry
+  perfume_cosmetics
+  lingerie
+  vintage_store
+  luxury_store
   // Santé
   pharmacy
   doctor
   hospital
   vet
   optician
+  mental_health
+  laboratory
+  alternative_medicine
   // Culte & Services
   police
   fuel
@@ -171,13 +196,23 @@ enum Universe {
   // Automobile & Moto
   garage
   car_wash
+  car_dealership
+  tire_shop
+  motorcycle
   // Transport & Mobilité
   taxi_vtc
   gare
+  airport
+  parking
   hotel
+  car_rental
+  campground
+  port
   // Services du quotidien
   atm
   currency_exchange
+  tobacco
+  post_office
   // Événements
   event_venue
   // Valeurs héritées (non affichées dans l'UI — migration impossible en PG)
@@ -504,9 +539,36 @@ model Post {
   updatedAt  DateTime      @updatedAt
   likes      PostLike[]
   comments   PostComment[]
+  saves      PostSave[]
+  reposts    Repost[]
 
   @@index([userId])
   @@index([placeId])
+  @@index([createdAt])
+}
+
+/// Enregistrement d'un post (bookmark) — comme « Enregistrer » sur Instagram.
+model PostSave {
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+}
+
+/// Republication d'un post (repost) — comme le « Reposter » d'Instagram/X.
+model Repost {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  caption   String?
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
   @@index([createdAt])
 }
 
@@ -668,6 +730,32 @@ model StoryView {
   story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
   @@id([storyId, userId])
+}
+
+/// Story « à la une » épinglée sur le profil (survit aux 24h). Regroupe des médias.
+model StoryHighlight {
+  id        String                @id @default(uuid())
+  userId    String
+  title     String
+  coverUrl  String?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  items     StoryHighlightItem[]
+
+  @@index([userId])
+}
+
+model StoryHighlightItem {
+  id          String         @id @default(uuid())
+  highlightId String
+  mediaUrl    String
+  type        StoryType      @default(photo)
+  caption     String?
+  order       Int            @default(0)
+  createdAt   DateTime       @default(now())
+  highlight   StoryHighlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+
+  @@index([highlightId])
 }
 
 /// Défi / quête à accomplir pour gagner de l'XP et des badges.

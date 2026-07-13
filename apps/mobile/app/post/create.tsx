@@ -4,7 +4,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -136,14 +136,19 @@ function MusicPickerModal({
 export default function CreatePostScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams<{ uri?: string; mediaType?: string }>();
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<MediaMode>('photo');
-  const [images, setImages] = useState<string[]>([]);
-  const [videoUri, setVideoUri] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>(params.uri && params.mediaType !== 'video' ? [params.uri] : []);
+  const [videoUri, setVideoUri] = useState<string | null>(params.uri && params.mediaType === 'video' ? params.uri : null);
   const [caption, setCaption] = useState('');
   const [selectedMusic, setSelectedMusic] = useState<MusicTrack | null>(null);
   const [musicModalVisible, setMusicModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const openCamera = async () => {
+    router.push('/camera?mode=post' as never);
+  };
 
   const pickImages = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -283,11 +288,17 @@ export default function CreatePostScreen() {
               </Pressable>
             </View>
           ) : (
-            <Pressable style={styles.pickerBox} onPress={pickImages}>
-              <Text style={styles.pickerEmoji}>🖼️</Text>
-              <Text style={styles.pickerLabel}>Sélectionner des photos</Text>
-              <Text style={styles.pickerHint}>Jusqu'à 10 photos</Text>
-            </Pressable>
+            <View style={styles.mediaChoiceRow}>
+              <Pressable style={styles.mediaChoiceBtn} onPress={openCamera}>
+                <Text style={styles.mediaChoiceEmoji}>📷</Text>
+                <Text style={styles.mediaChoiceLabel}>Caméra</Text>
+              </Pressable>
+              <Pressable style={styles.mediaChoiceBtn} onPress={pickImages}>
+                <Text style={styles.mediaChoiceEmoji}>🖼️</Text>
+                <Text style={styles.mediaChoiceLabel}>Galerie</Text>
+                <Text style={styles.mediaChoiceHint}>Jusqu'à 10 photos</Text>
+              </Pressable>
+            </View>
           )
         )}
 
@@ -302,11 +313,17 @@ export default function CreatePostScreen() {
               </Pressable>
             </View>
           ) : (
-            <Pressable style={styles.pickerBox} onPress={pickVideo}>
-              <Text style={styles.pickerEmoji}>🎬</Text>
-              <Text style={styles.pickerLabel}>Sélectionner une vidéo</Text>
-              <Text style={styles.pickerHint}>Max 60 secondes</Text>
-            </Pressable>
+            <View style={styles.mediaChoiceRow}>
+              <Pressable style={styles.mediaChoiceBtn} onPress={openCamera}>
+                <Text style={styles.mediaChoiceEmoji}>📷</Text>
+                <Text style={styles.mediaChoiceLabel}>Caméra</Text>
+              </Pressable>
+              <Pressable style={styles.mediaChoiceBtn} onPress={pickVideo}>
+                <Text style={styles.mediaChoiceEmoji}>🎬</Text>
+                <Text style={styles.mediaChoiceLabel}>Galerie</Text>
+                <Text style={styles.mediaChoiceHint}>Max 60 secondes</Text>
+              </Pressable>
+            </View>
           )
         )}
 
@@ -383,6 +400,15 @@ const styles = StyleSheet.create({
   pickerEmoji: { fontSize: 40, marginBottom: 8 },
   pickerLabel: { ...typography.h3, color: colors.text, marginBottom: 4 },
   pickerHint: { fontSize: 13, color: colors.textMuted },
+  mediaChoiceRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  mediaChoiceBtn: {
+    flex: 1, height: 160, backgroundColor: colors.surface, borderRadius: radius.xl,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2,
+    borderColor: colors.border, borderStyle: 'dashed', gap: 6,
+  },
+  mediaChoiceEmoji: { fontSize: 38 },
+  mediaChoiceLabel: { ...typography.h3, color: colors.text },
+  mediaChoiceHint: { fontSize: 12, color: colors.textMuted },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
   gridItem: { width: '31%', aspectRatio: 1, position: 'relative' },
   gridImg: { width: '100%', height: '100%', borderRadius: radius.md },

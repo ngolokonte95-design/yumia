@@ -11,6 +11,7 @@ import { useI18n } from '../../lib/useI18n';
 import { usePassportStats } from '../../lib/usePassportStats';
 import { useNotificationHistory } from '../../lib/useNotificationHistory';
 import { LocalePicker } from '../../components/LocalePicker';
+import { YumiaLogo } from '../../components/YumiaLogo';
 import { StreakModal } from '../../components/StreakModal';
 import { BadgesModal } from '../../components/BadgesModal';
 import { CountriesModal } from '../../components/CountriesModal';
@@ -65,6 +66,11 @@ export default function ProfileScreen() {
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
+      {/* Logo Yumia — bien visible */}
+      <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
+        <YumiaLogo height={110} />
+      </View>
+
       {/* En-tête profil */}
       <View style={[styles.section, styles.header]}>
         <Pressable onPress={() => router.push('/edit-profile')}>

@@ -47,6 +47,18 @@ export class PostsController {
     return this.postsService.getFeed(req.user.id, limit ? +limit : 30, cursor);
   }
 
+  /** GET /posts/global — feed « Pour vous » : tous les utilisateurs Yumia. */
+  @Get('global')
+  globalFeed(@Req() req: any, @Query('limit') limit?: string, @Query('cursor') cursor?: string) {
+    return this.postsService.getGlobalFeed(req.user.id, limit ? +limit : 30, cursor);
+  }
+
+  /** GET /posts/saved — posts enregistrés par l'utilisateur. */
+  @Get('saved')
+  savedPosts(@Req() req: any, @Query('limit') limit?: string) {
+    return this.postsService.getSavedPosts(req.user.id, limit ? +limit : 30);
+  }
+
   @Get('user/:userId')
   userPosts(
     @Req() req: any,
@@ -65,6 +77,16 @@ export class PostsController {
   @Post(':id/like')
   toggleLike(@Req() req: any, @Param('id') id: string) {
     return this.postsService.toggleLike(req.user.id, id);
+  }
+
+  @Post(':id/save')
+  toggleSave(@Req() req: any, @Param('id') id: string) {
+    return this.postsService.toggleSave(req.user.id, id);
+  }
+
+  @Post(':id/repost')
+  toggleRepost(@Req() req: any, @Param('id') id: string, @Body() body: { caption?: string }) {
+    return this.postsService.toggleRepost(req.user.id, id, body?.caption);
   }
 
   @Post(':id/comments')
