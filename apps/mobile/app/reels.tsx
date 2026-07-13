@@ -209,8 +209,8 @@ export default function ReelsScreen() {
   const toggleFollow = async (targetId: string) => {
     if (!accessToken || targetId === me?.id) return;
     const isFollowing = following.has(targetId);
-    await fetch(`${API}/social/${isFollowing ? 'unfollow' : 'follow'}/${targetId}`, {
-      method: 'POST',
+    await fetch(`${API}/social/follow/${targetId}`, {
+      method: isFollowing ? 'DELETE' : 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     setFollowing((prev) => {

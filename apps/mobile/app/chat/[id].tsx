@@ -259,7 +259,7 @@ export default function ChatRoomScreen() {
     try {
       const form = new FormData();
       form.append('file', { uri, type: 'audio/m4a', name: 'voice.m4a' } as never);
-      const up = await fetch(`${API}/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
+      const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) return;
       const { url } = await up.json() as { url: string };
       const res = await fetch(`${API}/chat/conversations/${convId}/messages`, {

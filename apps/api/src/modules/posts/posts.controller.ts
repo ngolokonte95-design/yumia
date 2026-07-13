@@ -16,13 +16,21 @@ export class PostsController {
     private readonly storage: StorageService,
   ) {}
 
-  /** POST /posts/upload — upload une photo et retourne son URL publique. */
+  /** POST /posts/upload — upload un média (photo, vidéo ou audio) et retourne son URL publique.
+   *  Sert aussi bien aux posts/reels/stories qu'aux messages vocaux du chat. */
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', {
     storage: memoryStorage(),
-    limits: { fileSize: 15 * 1024 * 1024 },
+    limits: { fileSize: 60 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
-      const ok = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
+      const ok = new Set([
+        // images
+        'image/jpeg', 'image/png', 'image/webp', 'image/heic',
+        // vidéos (reels, stories vidéo)
+        'video/mp4', 'video/quicktime', 'video/webm',
+        // audio (messages vocaux)
+        'audio/m4a', 'audio/mp4', 'audio/x-m4a', 'audio/mpeg', 'audio/aac', 'audio/wav', 'audio/webm',
+      ]);
       cb(null, ok.has(file.mimetype));
     },
   }))

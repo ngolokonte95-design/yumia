@@ -64,9 +64,8 @@ export default function UserProfileScreen() {
     const wasFollowing = following;
     setFollowing(!wasFollowing);
     setProfile((p) => p ? { ...p, followersCount: p.followersCount + (wasFollowing ? -1 : 1) } : p);
-    const endpoint = wasFollowing ? `unfollow/${id}` : `follow/${id}`;
-    await fetch(`${API}/social/${endpoint}`, {
-      method: 'POST',
+    await fetch(`${API}/social/follow/${id}`, {
+      method: wasFollowing ? 'DELETE' : 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   };

@@ -6,6 +6,9 @@ import type { Mode, Mood, Suggestion } from '@yumia/shared';
 import { API_BASE_URL } from './config';
 import type { Universe } from './auth-api';
 
+/** URL de base de l'API (ex. pour les `fetch` directs des écrans qui n'utilisent pas `request`). */
+export const apiBase = API_BASE_URL;
+
 /**
  * Registered by AuthProvider so that api.ts can silently refresh an expired
  * access token on 401, without a direct React context dependency.

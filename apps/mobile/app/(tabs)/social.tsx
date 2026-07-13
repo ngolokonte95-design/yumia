@@ -14,6 +14,12 @@ import { PostVideo } from '../../components/PostVideo';
 
 const API = API_BASE_URL;
 
+/** Détecte une URL vidéo par son extension (les vidéos sont stockées dans mediaUrls). */
+function isVideoUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
+}
+
 interface MusicMeta { title: string; artist?: string; artworkUrl?: string; previewUrl?: string }
 function parseMusicTrack(raw?: string | null): MusicMeta | null {
   if (!raw) return null;
@@ -134,28 +140,33 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
         <Text style={styles.postAgo}>{formatAgo(item.createdAt)}</Text>
       </Pressable>
 
-      {/* Média */}
-      {item.mediaUrls[0] ? (
-        <Pressable onPress={() => onComment(item.id)}>
-          <Image source={{ uri: item.mediaUrls[0] }} style={styles.postImage} />
-          {item.videoUrl ? (
-            <View style={styles.videoBadge}><Text style={{ color: '#fff', fontSize: 20 }}>▶️</Text></View>
-          ) : null}
-          {item.mediaUrls.length > 1 && (
-            <View style={styles.multiIndicator}>
-              <Text style={styles.multiIndicatorText}>1/{item.mediaUrls.length}</Text>
-            </View>
-          )}
-        </Pressable>
-      ) : item.videoUrl ? (
-        item.videoUrl.startsWith('http') ? (
-          <PostVideo uri={item.videoUrl} style={styles.postImage} />
-        ) : (
-          <View style={[styles.postImage, styles.videoPlaceholder]}>
-            <Text style={{ fontSize: 48 }}>🎬</Text>
-          </View>
-        )
-      ) : null}
+      {/* Média — vidéo (mediaUrls ou videoUrl) jouée inline, sinon photo */}
+      {(() => {
+        const media = item.mediaUrls[0];
+        const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
+        if (videoSrc) {
+          return videoSrc.startsWith('http')
+            ? <PostVideo uri={videoSrc} style={styles.postImage} />
+            : (
+              <View style={[styles.postImage, styles.videoPlaceholder]}>
+                <Text style={{ fontSize: 48 }}>🎬</Text>
+              </View>
+            );
+        }
+        if (media) {
+          return (
+            <Pressable onPress={() => onComment(item.id)}>
+              <Image source={{ uri: media }} style={styles.postImage} />
+              {item.mediaUrls.length > 1 && (
+                <View style={styles.multiIndicator}>
+                  <Text style={styles.multiIndicatorText}>1/{item.mediaUrls.length}</Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        }
+        return null;
+      })()}
 
       {/* Musique */}
       {item.musicTrack && (() => {
@@ -310,8 +321,7 @@ export default function SocialTab() {
   const toggleFollow = async (targetId: string) => {
     if (!accessToken) return;
     const isFollowing = following.has(targetId);
-    const endpoint = isFollowing ? `unfollow/${targetId}` : `follow/${targetId}`;
-    const res = await fetch(`${API}/social/${endpoint}`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(`${API}/social/follow/${targetId}`, { method: isFollowing ? 'DELETE' : 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
     if (res.ok) {
       setFollowing((prev) => { const s = new Set(prev); if (isFollowing) s.delete(targetId); else s.add(targetId); return s; });
     }
