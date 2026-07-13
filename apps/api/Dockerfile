@@ -9,7 +9,7 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
 # Installer toutes les dépendances (y compris devDeps pour la compilation).
-RUN npm ci --workspace=apps/api --workspace=packages/shared --include-workspace-root
+RUN npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root
 
 # Copier les sources.
 COPY packages/shared ./packages/shared
@@ -37,7 +37,7 @@ COPY package.json package-lock.json* ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
-RUN npm ci --workspace=apps/api --workspace=packages/shared --include-workspace-root --omit=dev
+RUN npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root --omit=dev
 
 # Artefacts compilés depuis le builder.
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
