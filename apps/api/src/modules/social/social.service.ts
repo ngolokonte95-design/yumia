@@ -122,6 +122,195 @@ export class SocialService {
     return { status: accept ? 'accepted' : 'rejected' };
   }
 
+  // ── Modération : bloquer / restreindre / masquer / signaler ────────────────
+
+  /** Bloque un compte : supprime les follows dans les deux sens + demandes. */
+  async block(blockerId: string, blockedId: string) {
+    if (blockerId === blockedId) throw new ConflictException('Impossible de se bloquer soi-même');
+    await this.prisma.$transaction([
+      this.prisma.block.upsert({
+        where: { blockerId_blockedId: { blockerId, blockedId } },
+        update: {},
+        create: { blockerId, blockedId },
+      }),
+      this.prisma.follow.deleteMany({
+        where: {
+          OR: [
+            { followerId: blockerId, followingId: blockedId },
+            { followerId: blockedId, followingId: blockerId },
+          ],
+        },
+      }),
+      this.prisma.followRequest.deleteMany({
+        where: {
+          OR: [
+            { requesterId: blockerId, targetId: blockedId },
+            { requesterId: blockedId, targetId: blockerId },
+          ],
+        },
+      }),
+    ]);
+    return { blocked: true };
+  }
+
+  async unblock(blockerId: string, blockedId: string) {
+    await this.prisma.block.deleteMany({ where: { blockerId, blockedId } });
+    return { blocked: false };
+  }
+
+  async listBlocked(userId: string) {
+    const blocks = await this.prisma.block.findMany({ where: { blockerId: userId }, orderBy: { createdAt: 'desc' } });
+    if (!blocks.length) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: blocks.map((b) => b.blockedId) } },
+      select: { id: true, displayName: true, photoUrl: true },
+    });
+    return users;
+  }
+
+  async restrict(userId: string, restrictedId: string) {
+    await this.prisma.restrict.upsert({
+      where: { userId_restrictedId: { userId, restrictedId } },
+      update: {},
+      create: { userId, restrictedId },
+    });
+    return { restricted: true };
+  }
+
+  async unrestrict(userId: string, restrictedId: string) {
+    await this.prisma.restrict.deleteMany({ where: { userId, restrictedId } });
+    return { restricted: false };
+  }
+
+  async mute(userId: string, mutedId: string, mutePosts = true, muteStories = true) {
+    await this.prisma.mute.upsert({
+      where: { userId_mutedId: { userId, mutedId } },
+      update: { mutePosts, muteStories },
+      create: { userId, mutedId, mutePosts, muteStories },
+    });
+    return { muted: true };
+  }
+
+  async unmute(userId: string, mutedId: string) {
+    await this.prisma.mute.deleteMany({ where: { userId, mutedId } });
+    return { muted: false };
+  }
+
+  async report(reporterId: string, dto: { targetType: string; targetId: string; reason: string; details?: string }) {
+    const validTypes = new Set(['post', 'comment', 'story', 'user', 'message']);
+    if (!validTypes.has(dto.targetType)) throw new ConflictException('Type de cible invalide');
+    await this.prisma.report.create({
+      data: { reporterId, targetType: dto.targetType, targetId: dto.targetId, reason: dto.reason, details: dto.details },
+    });
+    return { reported: true };
+  }
+
+  /** État de ma relation de modération avec un compte (pour le menu «…» du profil). */
+  async getRelationState(userId: string, targetId: string) {
+    const [block, restrictRow, muteRow, closeFriend, favorite] = await Promise.all([
+      this.prisma.block.findUnique({ where: { blockerId_blockedId: { blockerId: userId, blockedId: targetId } } }),
+      this.prisma.restrict.findUnique({ where: { userId_restrictedId: { userId, restrictedId: targetId } } }),
+      this.prisma.mute.findUnique({ where: { userId_mutedId: { userId, mutedId: targetId } } }),
+      this.prisma.closeFriend.findUnique({ where: { userId_friendId: { userId, friendId: targetId } } }),
+      this.prisma.favoriteUser.findUnique({ where: { userId_favoriteId: { userId, favoriteId: targetId } } }),
+    ]);
+    return {
+      blocked: !!block,
+      restricted: !!restrictRow,
+      muted: !!muteRow,
+      mutePosts: muteRow?.mutePosts ?? false,
+      muteStories: muteRow?.muteStories ?? false,
+      closeFriend: !!closeFriend,
+      favorite: !!favorite,
+    };
+  }
+
+  // ── Amis proches + favoris ──────────────────────────────────────────────────
+
+  async listCloseFriends(userId: string) {
+    const rows = await this.prisma.closeFriend.findMany({ where: { userId } });
+    if (!rows.length) return [];
+    return this.prisma.user.findMany({
+      where: { id: { in: rows.map((r) => r.friendId) } },
+      select: { id: true, displayName: true, photoUrl: true },
+    });
+  }
+
+  async addCloseFriend(userId: string, friendId: string) {
+    await this.prisma.closeFriend.upsert({
+      where: { userId_friendId: { userId, friendId } },
+      update: {},
+      create: { userId, friendId },
+    });
+    return { closeFriend: true };
+  }
+
+  async removeCloseFriend(userId: string, friendId: string) {
+    await this.prisma.closeFriend.deleteMany({ where: { userId, friendId } });
+    return { closeFriend: false };
+  }
+
+  async listFavorites(userId: string) {
+    const rows = await this.prisma.favoriteUser.findMany({ where: { userId } });
+    if (!rows.length) return [];
+    return this.prisma.user.findMany({
+      where: { id: { in: rows.map((r) => r.favoriteId) } },
+      select: { id: true, displayName: true, photoUrl: true },
+    });
+  }
+
+  async addFavorite(userId: string, favoriteId: string) {
+    await this.prisma.favoriteUser.upsert({
+      where: { userId_favoriteId: { userId, favoriteId } },
+      update: {},
+      create: { userId, favoriteId },
+    });
+    return { favorite: true };
+  }
+
+  async removeFavorite(userId: string, favoriteId: string) {
+    await this.prisma.favoriteUser.deleteMany({ where: { userId, favoriteId } });
+    return { favorite: false };
+  }
+
+  // ── Notes (statut 24h dans les DM) ──────────────────────────────────────────
+
+  async setNote(userId: string, text: string) {
+    const trimmed = text?.trim();
+    if (!trimmed) throw new ConflictException('Texte de note requis');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return this.prisma.note.upsert({
+      where: { userId },
+      update: { text: trimmed.slice(0, 60), expiresAt, createdAt: new Date() },
+      create: { userId, text: trimmed.slice(0, 60), expiresAt },
+    });
+  }
+
+  async deleteNote(userId: string) {
+    await this.prisma.note.deleteMany({ where: { userId } });
+    return { ok: true };
+  }
+
+  /** Notes actives : la mienne + celles des gens que je suis. */
+  async getNotes(userId: string) {
+    const follows = await this.prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } });
+    const ids = [userId, ...follows.map((f) => f.followingId)];
+    const notes = await this.prisma.note.findMany({
+      where: { userId: { in: ids }, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!notes.length) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: notes.map((n) => n.userId) } },
+      select: { id: true, displayName: true, photoUrl: true },
+    });
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    // Ma note en premier.
+    return notes
+      .sort((a, b) => (a.userId === userId ? -1 : b.userId === userId ? 1 : 0))
+      .map((n) => ({ ...n, user: userMap[n.userId] ?? null }));
+  }
+
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {
     const f = await this.prisma.follow.findUnique({
       where: { followerId_followingId: { followerId, followingId } },
@@ -131,13 +320,23 @@ export class SocialService {
 
   // ── User discovery ───────────────────────────────────────────────────────
 
-  async searchUsers(query: string, limit = 20) {
+  async searchUsers(query: string, limit = 20, viewerId?: string) {
+    // Exclut les comptes bloqués (dans les deux sens).
+    let excluded: string[] = [];
+    if (viewerId) {
+      const [blocked, blockedBy] = await Promise.all([
+        this.prisma.block.findMany({ where: { blockerId: viewerId }, select: { blockedId: true } }),
+        this.prisma.block.findMany({ where: { blockedId: viewerId }, select: { blockerId: true } }),
+      ]);
+      excluded = [...blocked.map((b) => b.blockedId), ...blockedBy.map((b) => b.blockerId)];
+    }
     return this.prisma.user.findMany({
       where: {
         OR: [
           { displayName: { contains: query, mode: 'insensitive' } },
           { email: { contains: query, mode: 'insensitive' } },
         ],
+        ...(excluded.length ? { id: { notIn: excluded } } : {}),
       },
       select: { id: true, displayName: true, photoUrl: true, bio: true, totalXp: true, level: true },
       take: limit,

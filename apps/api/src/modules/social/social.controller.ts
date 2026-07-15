@@ -47,6 +47,109 @@ export class SocialController {
     return this.social.respondToRequest(user.sub, id, !!dto.accept);
   }
 
+  // ── Modération ──────────────────────────────────────────────────────────────
+
+  @Post('social/block/:userId')
+  block(@CurrentUser() user: JwtPayload, @Param('userId') targetId: string) {
+    return this.social.block(user.sub, targetId);
+  }
+
+  @Delete('social/block/:userId')
+  unblock(@CurrentUser() user: JwtPayload, @Param('userId') targetId: string) {
+    return this.social.unblock(user.sub, targetId);
+  }
+
+  @Get('social/blocked')
+  listBlocked(@CurrentUser() user: JwtPayload) {
+    return this.social.listBlocked(user.sub);
+  }
+
+  @Post('social/restrict/:userId')
+  restrict(@CurrentUser() user: JwtPayload, @Param('userId') targetId: string) {
+    return this.social.restrict(user.sub, targetId);
+  }
+
+  @Delete('social/restrict/:userId')
+  unrestrict(@CurrentUser() user: JwtPayload, @Param('userId') targetId: string) {
+    return this.social.unrestrict(user.sub, targetId);
+  }
+
+  @Post('social/mute/:userId')
+  mute(
+    @CurrentUser() user: JwtPayload,
+    @Param('userId') targetId: string,
+    @Body() dto: { mutePosts?: boolean; muteStories?: boolean },
+  ) {
+    return this.social.mute(user.sub, targetId, dto?.mutePosts ?? true, dto?.muteStories ?? true);
+  }
+
+  @Delete('social/mute/:userId')
+  unmute(@CurrentUser() user: JwtPayload, @Param('userId') targetId: string) {
+    return this.social.unmute(user.sub, targetId);
+  }
+
+  @Post('social/report')
+  report(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: { targetType: string; targetId: string; reason: string; details?: string },
+  ) {
+    return this.social.report(user.sub, dto);
+  }
+
+  @Get('social/relation/:userId')
+  relationState(@CurrentUser() user: JwtPayload, @Param('userId') targetId: string) {
+    return this.social.getRelationState(user.sub, targetId);
+  }
+
+  // ── Amis proches + favoris ──────────────────────────────────────────────────
+
+  @Get('social/close-friends')
+  listCloseFriends(@CurrentUser() user: JwtPayload) {
+    return this.social.listCloseFriends(user.sub);
+  }
+
+  @Post('social/close-friends/:userId')
+  addCloseFriend(@CurrentUser() user: JwtPayload, @Param('userId') friendId: string) {
+    return this.social.addCloseFriend(user.sub, friendId);
+  }
+
+  @Delete('social/close-friends/:userId')
+  removeCloseFriend(@CurrentUser() user: JwtPayload, @Param('userId') friendId: string) {
+    return this.social.removeCloseFriend(user.sub, friendId);
+  }
+
+  @Get('social/favorites')
+  listFavorites(@CurrentUser() user: JwtPayload) {
+    return this.social.listFavorites(user.sub);
+  }
+
+  @Post('social/favorites/:userId')
+  addFavorite(@CurrentUser() user: JwtPayload, @Param('userId') favoriteId: string) {
+    return this.social.addFavorite(user.sub, favoriteId);
+  }
+
+  @Delete('social/favorites/:userId')
+  removeFavorite(@CurrentUser() user: JwtPayload, @Param('userId') favoriteId: string) {
+    return this.social.removeFavorite(user.sub, favoriteId);
+  }
+
+  // ── Notes (statut 24h dans les DM) ──────────────────────────────────────────
+
+  @Put('social/note')
+  setNote(@CurrentUser() user: JwtPayload, @Body() dto: { text: string }) {
+    return this.social.setNote(user.sub, dto.text);
+  }
+
+  @Delete('social/note')
+  deleteNote(@CurrentUser() user: JwtPayload) {
+    return this.social.deleteNote(user.sub);
+  }
+
+  @Get('social/notes')
+  getNotes(@CurrentUser() user: JwtPayload) {
+    return this.social.getNotes(user.sub);
+  }
+
   // ── Feed & profiles ───────────────────────────────────────────────────────
 
   @Get('social/feed')
@@ -55,8 +158,8 @@ export class SocialController {
   }
 
   @Get('social/users/search')
-  searchUsers(@Query('q') q: string, @Query('limit') limit?: string) {
-    return this.social.searchUsers(q ?? '', limit ? parseInt(limit, 10) : 20);
+  searchUsers(@CurrentUser() user: JwtPayload, @Query('q') q: string, @Query('limit') limit?: string) {
+    return this.social.searchUsers(q ?? '', limit ? parseInt(limit, 10) : 20, user.sub);
   }
 
   @Get('social/users/:userId/followers')
