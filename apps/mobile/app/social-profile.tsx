@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, Modal, Pressable,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable,
   ScrollView, Share, StyleSheet, Text, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -22,6 +22,7 @@ interface Post {
   likesCount: number;
   caption?: string;
   mediaType?: 'photo' | 'video';
+  pinned?: boolean;
 }
 
 interface SocialStats {
@@ -53,6 +54,7 @@ export default function SocialProfileScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [postMenu, setPostMenu] = useState<Post | null>(null); // appui long sur un de mes posts
   const [followed, setFollowed] = useState<Set<string>>(new Set());
 
   const photoUrl = user?.photoUrl
@@ -98,6 +100,39 @@ export default function SocialProfileScreen() {
     void Share.share({
       message: `Découvre mon profil Yumia : ${displayName} 🌍`,
     });
+  };
+
+  // ── Actions sur mes posts (appui long) ──────────────────────────────────────
+  const postAction = async (action: 'pin' | 'archive' | 'delete' | 'stats') => {
+    const p = postMenu;
+    setPostMenu(null);
+    if (!p || !accessToken) return;
+    const h = { Authorization: `Bearer ${accessToken}` };
+    if (action === 'pin') {
+      const res = await fetch(`${API}/posts/${p.id}/pin`, { method: 'POST', headers: h });
+      if (!res.ok) { Alert.alert('Impossible', 'Maximum 3 posts épinglés.'); return; }
+      void load();
+    } else if (action === 'archive') {
+      await fetch(`${API}/posts/${p.id}/archive`, { method: 'POST', headers: h });
+      void load();
+    } else if (action === 'delete') {
+      Alert.alert('Supprimer ?', 'Cette publication sera définitivement supprimée.', [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer', style: 'destructive',
+          onPress: async () => { await fetch(`${API}/posts/${p.id}`, { method: 'DELETE', headers: h }); void load(); },
+        },
+      ]);
+    } else if (action === 'stats') {
+      const res = await fetch(`${API}/posts/${p.id}/stats`, { headers: h });
+      if (res.ok) {
+        const s = await res.json() as { views: number; likes: number; comments: number; saves: number; reposts: number };
+        Alert.alert(
+          '📊 Statistiques',
+          `👁 Vues : ${s.views}\n❤️ J'aime : ${s.likes}\n💬 Commentaires : ${s.comments}\n🔖 Enregistrements : ${s.saves}\n🔁 Republications : ${s.reposts}`,
+        );
+      }
+    }
   };
 
   const videoPosts = posts.filter((p) => p.mediaType === 'video');
@@ -285,12 +320,21 @@ export default function SocialProfileScreen() {
         keyExtractor={(p) => p.id}
         ListHeaderComponent={ListHeader}
         renderItem={({ item }) => (
-          <Pressable style={styles.gridItem} onPress={() => router.push(`/post/${item.id}` as never)}>
+          <Pressable
+            style={styles.gridItem}
+            onPress={() => router.push(`/post/${item.id}` as never)}
+            onLongPress={() => setPostMenu(item)}
+          >
             {item.mediaUrls[0] ? (
               <Image source={{ uri: item.mediaUrls[0] }} style={styles.gridImg} />
             ) : (
               <View style={[styles.gridImg, styles.gridPlaceholder]}>
                 <Text style={{ fontSize: 22 }}>📷</Text>
+              </View>
+            )}
+            {item.pinned && (
+              <View style={styles.pinnedBadge}>
+                <Text style={{ fontSize: 11 }}>📌</Text>
               </View>
             )}
             {item.mediaType === 'video' && (
@@ -333,6 +377,11 @@ export default function SocialProfileScreen() {
           {[
             { icon: '⚙️', label: 'Paramètres & confidentialité', onPress: () => { setShowMenu(false); router.push('/settings' as never); } },
             { icon: '👥', label: 'Demandes d\'abonnement', onPress: () => { setShowMenu(false); router.push('/follow-requests' as never); } },
+            { icon: '📁', label: 'Archivés & brouillons', onPress: () => { setShowMenu(false); router.push('/archive' as never); } },
+            { icon: '🔖', label: 'Enregistrements & collections', onPress: () => { setShowMenu(false); router.push('/collections' as never); } },
+            { icon: '🟢', label: 'Amis proches', onPress: () => { setShowMenu(false); router.push('/close-friends?type=close-friends' as never); } },
+            { icon: '⭐', label: 'Favoris', onPress: () => { setShowMenu(false); router.push('/close-friends?type=favorites' as never); } },
+            { icon: '🚫', label: 'Comptes bloqués', onPress: () => { setShowMenu(false); router.push('/blocked' as never); } },
             { icon: '🔒', label: socialStats?.isPrivate ? 'Passer en public' : 'Passer en privé', onPress: () => { setShowMenu(false); router.push('/edit-social-profile' as never); } },
             { icon: '🔔', label: 'Notifications', onPress: () => { setShowMenu(false); router.push('/notifications' as never); } },
             { icon: '📤', label: 'Partager mon profil', onPress: () => { setShowMenu(false); shareProfile(); } },
@@ -354,6 +403,25 @@ export default function SocialProfileScreen() {
             { icon: '🎬', label: 'Nouveau reel', onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=reel' as never); } },
             { icon: '⭕', label: 'Nouvelle story', onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=story' as never); } },
             { icon: '✨', label: 'Story à la une', onPress: () => { setShowPlusMenu(false); router.push('/story/create' as never); } },
+          ].map(({ icon, label, onPress }) => (
+            <Pressable key={label} style={styles.menuItem} onPress={onPress}>
+              <Text style={styles.menuIcon}>{icon}</Text>
+              <Text style={styles.menuLabel}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </Modal>
+
+      {/* Menu appui long sur un post */}
+      <Modal visible={postMenu !== null} transparent animationType="slide" onRequestClose={() => setPostMenu(null)}>
+        <Pressable style={styles.menuOverlay} onPress={() => setPostMenu(null)} />
+        <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 20 }]}>
+          {[
+            { icon: '📌', label: postMenu?.pinned ? 'Désépingler du profil' : 'Épingler au profil', onPress: () => void postAction('pin') },
+            { icon: '📊', label: 'Voir les statistiques', onPress: () => void postAction('stats') },
+            { icon: '✏️', label: 'Modifier', onPress: () => { const id = postMenu?.id; setPostMenu(null); if (id) router.push(`/post/${id}?edit=1` as never); } },
+            { icon: '📁', label: 'Archiver', onPress: () => void postAction('archive') },
+            { icon: '🗑️', label: 'Supprimer', onPress: () => void postAction('delete') },
           ].map(({ icon, label, onPress }) => (
             <Pressable key={label} style={styles.menuItem} onPress={onPress}>
               <Text style={styles.menuIcon}>{icon}</Text>
@@ -512,6 +580,11 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 6, right: 6,
     backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
     paddingHorizontal: 5, paddingVertical: 2,
+  },
+  pinnedBadge: {
+    position: 'absolute', top: 6, left: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 4,
+    paddingHorizontal: 4, paddingVertical: 2,
   },
   likesBadge: {
     position: 'absolute', bottom: 5, left: 5,
