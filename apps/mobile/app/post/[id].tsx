@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, Linking, Pressable,
+  ActivityIndicator, FlatList, Image, Linking, Modal, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -59,7 +59,7 @@ function formatAgo(iso: string) {
 }
 
 export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>();
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -68,6 +68,9 @@ export default function PostDetailScreen() {
   const [comment, setComment] = useState('');
   const [posting, setPosting] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [editCaption, setEditCaption] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const load = useCallback(async () => {
     if (!accessToken || !id) return;
@@ -77,6 +80,32 @@ export default function PostDetailScreen() {
   }, [accessToken, id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Ouvre l'édition de légende quand on arrive avec ?edit=1.
+  useEffect(() => {
+    if (edit === '1' && post && !editing) {
+      setEditCaption(post.caption ?? '');
+      setEditing(true);
+    }
+  }, [edit, post, editing]);
+
+  const saveEdit = async () => {
+    if (!accessToken || !post) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`${API}/posts/${post.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ caption: editCaption }),
+      });
+      if (res.ok) {
+        setPost((p) => p ? { ...p, caption: editCaption, editedAt: new Date().toISOString() } : p);
+        setEditing(false);
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   // Comptabilise une vue (stats de l'auteur).
   useEffect(() => {
@@ -260,6 +289,32 @@ export default function PostDetailScreen() {
           </View>
         </View>
       )}
+
+      {/* Modal d'édition de la légende */}
+      <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
+        <View style={styles.editOverlay}>
+          <View style={[styles.editSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <Text style={styles.editTitle}>Modifier la légende</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editCaption}
+              onChangeText={setEditCaption}
+              placeholder="Écris une légende…"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              autoFocus
+            />
+            <View style={styles.editActions}>
+              <Pressable style={styles.editCancel} onPress={() => setEditing(false)}>
+                <Text style={styles.editCancelTxt}>Annuler</Text>
+              </Pressable>
+              <Pressable style={styles.editSave} onPress={saveEdit} disabled={savingEdit}>
+                {savingEdit ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.editSaveTxt}>Enregistrer</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -295,6 +350,15 @@ function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike:
 }
 
 const styles = StyleSheet.create({
+  editOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  editSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, gap: spacing.md },
+  editTitle: { ...typography.h3, color: colors.text, textAlign: 'center' },
+  editInput: { minHeight: 90, maxHeight: 200, backgroundColor: colors.background, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.text, fontSize: 15, textAlignVertical: 'top' },
+  editActions: { flexDirection: 'row', gap: spacing.sm },
+  editCancel: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
+  editCancelTxt: { color: colors.text, fontWeight: '600', fontSize: 15 },
+  editSave: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: radius.md, backgroundColor: colors.brand },
+  editSaveTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: spacing.md, paddingVertical: 12 },

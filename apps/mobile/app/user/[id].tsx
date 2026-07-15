@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, Modal, Pressable, ScrollView,
-  StyleSheet, Text, View,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, ScrollView,
+  Share, StyleSheet, Text, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -58,6 +58,48 @@ export default function UserProfileScreen() {
   }, [accessToken, id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // ── Modération ──────────────────────────────────────────────────────────────
+  const moderate = async (action: 'block' | 'restrict' | 'mute') => {
+    setShowMenu(false);
+    if (!accessToken || !id) return;
+    await fetch(`${API}/social/${action}/${id}`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
+    if (action === 'block') {
+      Alert.alert('Compte bloqué', 'Vous ne verrez plus ses contenus et il ne peut plus vous contacter.');
+      router.back();
+    } else if (action === 'restrict') {
+      Alert.alert('Compte restreint', 'Ses commentaires ne seront visibles que par lui.');
+    } else {
+      Alert.alert('Compte masqué', 'Vous ne verrez plus ses posts ni ses stories.');
+    }
+  };
+
+  const report = () => {
+    setShowMenu(false);
+    if (!accessToken || !id) return;
+    const reasons = ['Spam', 'Contenu inapproprié', 'Harcèlement', 'Fausse information', 'Autre'];
+    Alert.alert('Signaler ce compte', 'Pourquoi signalez-vous ce compte ?',
+      [
+        ...reasons.map((reason) => ({
+          text: reason,
+          onPress: async () => {
+            await fetch(`${API}/social/report`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+              body: JSON.stringify({ targetType: 'user', targetId: id, reason }),
+            });
+            Alert.alert('Merci', 'Votre signalement a bien été envoyé.');
+          },
+        })),
+        { text: 'Annuler', style: 'cancel' as const },
+      ],
+    );
+  };
+
+  const copyProfileLink = () => {
+    setShowMenu(false);
+    void Share.share({ message: `Découvre ${profile?.displayName ?? 'ce profil'} sur Yumia 🌍 yumia://user/${id}` });
+  };
 
   const toggleFollow = async () => {
     if (!accessToken || !id) return;
@@ -314,9 +356,11 @@ export default function UserProfileScreen() {
         <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
           <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 8 }]}>
             {[
-              { label: '🚫 Bloquer', onPress: () => setShowMenu(false) },
-              { label: '⚠️ Signaler', onPress: () => setShowMenu(false) },
-              { label: '🔗 Copier le lien du profil', onPress: () => setShowMenu(false) },
+              { label: '🙈 Masquer ses posts/stories', onPress: () => void moderate('mute') },
+              { label: '🔕 Restreindre', onPress: () => void moderate('restrict') },
+              { label: '🚫 Bloquer', onPress: () => void moderate('block') },
+              { label: '⚠️ Signaler', onPress: report },
+              { label: '🔗 Partager le profil', onPress: copyProfileLink },
             ].map((item) => (
               <Pressable key={item.label} style={styles.menuItem} onPress={item.onPress}>
                 <Text style={styles.menuItemTxt}>{item.label}</Text>
