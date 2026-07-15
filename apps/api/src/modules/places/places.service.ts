@@ -296,8 +296,9 @@ export class PlacesService {
       'places:hydrated',
       // Version de schéma d'hydratation : incrémenter invalide les tuiles
       // anciennes (ex. densité v1) et force une ré-hydratation plus riche.
-      // v4 : enrichissement photo des lieux sans média (ex. night-clubs).
-      'v4',
+      // v5 : déblocage des univers car_rental / car_dealership / tobacco
+      // (leurs types Google étaient dans la liste bloquée → 0 lieu persisté).
+      'v5',
       params.universe ?? 'all',
       params.lat.toFixed(2),
       params.lng.toFixed(2),

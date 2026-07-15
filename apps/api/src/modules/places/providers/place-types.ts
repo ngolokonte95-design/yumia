@@ -212,6 +212,12 @@ const BLOCK_EXEMPT_UNIVERSES = new Set<Universe>([
   'atm',
   'currency_exchange',
   'money_transfer',
+  // Univers dont les types Google demandés figurent AUSSI dans la liste bloquée
+  // (bloquée pour éviter la pollution des AUTRES univers) : sans exemption,
+  // ces univers ne peuvent persister aucun lieu.
+  'car_rental',     // 'car_rental' est bloqué globalement
+  'car_dealership', // 'car_dealer' est bloqué globalement
+  'tobacco',        // la plupart des tabacs sont taggés 'convenience_store'
 ]);
 
 /** Types Google à exclure de l'hydratation (épiceries, banques…). */
@@ -286,7 +292,6 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['performing_arts_theater','cultural_outing'],
   ['concert_hall',          'cultural_outing'],
   ['cultural_center',       'cultural_outing'],
-  ['comedy_club',           'cultural_outing'],
   ['event_venue',           'event_venue'],
   ['stadium',               'event_venue'],
   ['amphitheatre',          'event_venue'],

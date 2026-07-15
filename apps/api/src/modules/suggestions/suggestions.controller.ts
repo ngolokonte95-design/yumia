@@ -1,9 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { AiContext } from '@yumia/shared';
 import { DEFAULT_LOCALE } from '@yumia/shared';
 import { AiService } from '../ai/ai.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ContextDto } from './dto/context.dto';
 
 interface MoodResult {
@@ -17,6 +18,7 @@ interface MoodResult {
  * (En Phase 1, ce contrôleur croisera ces univers avec `places` pour produire un vrai Top 3.)
  */
 @ApiTags('suggestions')
+@UseGuards(JwtAuthGuard)
 @Controller('suggestions')
 export class SuggestionsController {
   constructor(private readonly ai: AiService) {}
