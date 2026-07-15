@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, Linking, Pressable, RefreshControl,
+  ActivityIndicator, Dimensions, FlatList, Image, Linking, Modal, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -367,7 +367,30 @@ export default function SocialTab() {
   };
 
   const openComments = (postId: string) => router.push(`/post/${postId}` as never);
-  const shareToDM = (_item: FeedPost) => router.push('/chat' as never);
+
+  // ── Partage d'un post en DM : sélecteur de conversation ─────────────────────
+  const [sharePost, setSharePost] = useState<FeedPost | null>(null);
+  const [shareConvs, setShareConvs] = useState<Array<{ id: string; isGroup?: boolean; title?: string | null; otherUser: { id: string; displayName: string; photoUrl?: string } | null }>>([]);
+  const [shareSending, setShareSending] = useState<string | null>(null);
+
+  const shareToDM = async (item: FeedPost) => {
+    if (!accessToken) return;
+    setSharePost(item);
+    const res = await fetch(`${API}/chat/conversations`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (res.ok) setShareConvs(await res.json());
+  };
+
+  const sendShare = async (convId: string) => {
+    if (!accessToken || !sharePost) return;
+    setShareSending(convId);
+    await fetch(`${API}/chat/conversations/${convId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ content: '📤 A partagé une publication', type: 'post_share', postId: sharePost.id }),
+    }).catch(() => {});
+    setShareSending(null);
+    setSharePost(null);
+  };
 
   if (loading) return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} /></View>;
 
@@ -623,6 +646,39 @@ export default function SocialTab() {
           )}
         </>
       )}
+
+      {/* ── Partage en DM : choisir la conversation ─────────────────────────── */}
+      <Modal visible={sharePost !== null} transparent animationType="slide" onRequestClose={() => setSharePost(null)}>
+        <Pressable style={styles.shareOverlay} onPress={() => setSharePost(null)}>
+          <View style={styles.shareSheet}>
+            <Text style={styles.shareTitle}>✈️ Envoyer à...</Text>
+            <FlatList
+              data={shareConvs}
+              keyExtractor={(c) => c.id}
+              style={{ maxHeight: 320 }}
+              ListEmptyComponent={<Text style={styles.shareEmpty}>Aucune conversation. Va sur un profil pour en démarrer une !</Text>}
+              renderItem={({ item: conv }) => {
+                const name = conv.isGroup ? (conv.title ?? 'Groupe') : (conv.otherUser?.displayName ?? '?');
+                return (
+                  <Pressable style={styles.shareRow} onPress={() => void sendShare(conv.id)}>
+                    {conv.otherUser?.photoUrl ? (
+                      <Image source={{ uri: conv.otherUser.photoUrl }} style={styles.shareAvatar} />
+                    ) : (
+                      <View style={[styles.shareAvatar, styles.storyAvatarFallback]}>
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>{conv.isGroup ? '👥' : name[0]}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.shareName}>{name}</Text>
+                    {shareSending === conv.id
+                      ? <ActivityIndicator color={colors.brand} size="small" />
+                      : <Text style={styles.shareSendTxt}>Envoyer</Text>}
+                  </Pressable>
+                );
+              }}
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -717,6 +773,15 @@ const styles = StyleSheet.create({
   peopleHeader: { paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 12 },
   peopleTitle: { ...typography.h3, color: colors.text, marginBottom: 2 },
   peopleSubtitle: { fontSize: 13, color: colors.textMuted },
+  // Partage en DM
+  shareOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  shareSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: 40 },
+  shareTitle: { color: colors.text, fontWeight: '800', fontSize: 16, marginBottom: 12 },
+  shareEmpty: { color: colors.textMuted, fontSize: 13, paddingVertical: 20, textAlign: 'center' },
+  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  shareAvatar: { width: 44, height: 44, borderRadius: 22 },
+  shareName: { flex: 1, color: colors.text, fontWeight: '600', fontSize: 14 },
+  shareSendTxt: { color: colors.brand, fontWeight: '700', fontSize: 13 },
   // Empty
   empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: spacing.xl },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },

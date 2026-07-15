@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FlatList, Image, KeyboardAvoidingView, Platform, Pressable,
+  FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,13 +14,24 @@ import { API_BASE_URL } from '../../lib/config';
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
 
+interface MessageReaction { messageId: string; userId: string; emoji: string }
+
 interface Message {
   id: string; conversationId: string; senderId: string;
   content: string; type: string; audioUrl?: string; duration?: number;
+  mediaUrl?: string | null; durationSec?: number | null;
+  replyToId?: string | null;
+  replyTo?: { id: string; content: string; senderId: string; type: string } | null;
+  reactions?: MessageReaction[];
+  sharedPost?: { id: string; mediaUrls: string[]; caption?: string | null; userId: string } | null;
+  storyId?: string | null;
+  oneTime?: boolean; oneTimeConsumed?: boolean;
   createdAt: string; senderPublicKey?: string;
   // type 'call' extras
   callType?: 'voice' | 'video'; callStatus?: 'missed' | 'answered' | 'declined'; callDuration?: number;
 }
+
+const REACTION_EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 
 interface Partner {
   id: string; displayName: string; photoUrl?: string; e2ePublicKey?: string;
@@ -116,6 +127,8 @@ export default function ChatRoomScreen() {
   const [decrypted, setDecrypted] = useState<Map<string, string>>(new Map());
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [actionMsg, setActionMsg] = useState<Message | null>(null); // appui long → réactions/répondre
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [partner, setPartner] = useState<Partner | null>(null);
@@ -217,7 +230,7 @@ export default function ChatRoomScreen() {
       const res = await fetch(`${API}/chat/conversations/${convId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ content, type, senderPublicKey }),
+        body: JSON.stringify({ content, type, senderPublicKey, replyToId: replyTo?.id }),
       });
       if (res.ok) {
         const msg: Message = await res.json();
@@ -226,6 +239,7 @@ export default function ChatRoomScreen() {
         setMessages((prev) => [...prev, displayed]);
         if (type === 'encrypted') setDecrypted((prev) => new Map([...prev, [msg.id, text]]));
         lastMsgDate.current = msg.createdAt;
+        setReplyTo(null);
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
       }
     } finally {
@@ -299,6 +313,28 @@ export default function ChatRoomScreen() {
     return msg.content;
   };
 
+  // ─── Réaction emoji (appui long → choisir) ────────────────────────────────
+  const react = async (msg: Message, emoji: string) => {
+    setActionMsg(null);
+    if (!accessToken) return;
+    const res = await fetch(`${API}/chat/messages/${msg.id}/react`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ emoji }),
+    });
+    if (res.ok) {
+      const { reactions } = await res.json() as { reactions: MessageReaction[] };
+      setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, reactions } : m));
+    }
+  };
+
+  /** Agrège les réactions d'un message : { '❤️': 2, '😂': 1 } */
+  const reactionSummary = (msg: Message) => {
+    const counts = new Map<string, number>();
+    for (const r of msg.reactions ?? []) counts.set(r.emoji, (counts.get(r.emoji) ?? 0) + 1);
+    return [...counts.entries()];
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -363,9 +399,48 @@ export default function ChatRoomScreen() {
                 ) : (
                   <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
                     {isAudio ? (
-                      <VoiceBubble audioUrl={item.audioUrl!} duration={item.duration} isMe={isMe} />
+                      <Pressable onLongPress={() => setActionMsg(item)}>
+                        <VoiceBubble audioUrl={(item.audioUrl ?? item.mediaUrl)!} duration={item.duration ?? item.durationSec ?? undefined} isMe={isMe} />
+                      </Pressable>
                     ) : (
-                      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
+                      <Pressable
+                        onLongPress={() => setActionMsg(item)}
+                        style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}
+                      >
+                        {/* Message cité (réponse) */}
+                        {item.replyTo ? (
+                          <View style={[styles.quoteBox, isMe && styles.quoteBoxMe]}>
+                            <Text style={[styles.quoteTxt, isMe && { color: 'rgba(255,255,255,0.8)' }]} numberOfLines={1}>
+                              ↩︎ {item.replyTo.content}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {/* Réponse à une story → vignette */}
+                        {item.type === 'story_reply' && item.mediaUrl ? (
+                          <View style={{ marginBottom: 6 }}>
+                            <Text style={[styles.storyReplyLabel, isMe && { color: 'rgba(255,255,255,0.75)' }]}>
+                              {isMe ? 'Tu as répondu à sa story' : 'A répondu à ta story'}
+                            </Text>
+                            <Image source={{ uri: item.mediaUrl }} style={styles.storyReplyThumb} />
+                          </View>
+                        ) : null}
+
+                        {/* Post partagé → carte cliquable */}
+                        {item.sharedPost ? (
+                          <Pressable
+                            style={styles.sharedPostCard}
+                            onPress={() => router.push(`/post/${item.sharedPost!.id}` as never)}
+                          >
+                            {item.sharedPost.mediaUrls[0] ? (
+                              <Image source={{ uri: item.sharedPost.mediaUrls[0] }} style={styles.sharedPostImg} />
+                            ) : null}
+                            {item.sharedPost.caption ? (
+                              <Text style={styles.sharedPostCaption} numberOfLines={2}>{item.sharedPost.caption}</Text>
+                            ) : null}
+                          </Pressable>
+                        ) : null}
+
                         <Text style={[styles.bubbleTxt, isMe && styles.bubbleTxtMe]}>
                           {getDisplayContent(item)}
                         </Text>
@@ -373,7 +448,16 @@ export default function ChatRoomScreen() {
                           {(isEnc) && <Text style={[styles.encIcon, isMe && { color: 'rgba(255,255,255,0.5)' }]}>🔐</Text>}
                           <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>{formatTime(item.createdAt)}</Text>
                         </View>
-                      </View>
+
+                        {/* Réactions */}
+                        {(item.reactions?.length ?? 0) > 0 && (
+                          <View style={[styles.reactionsRow, isMe && { alignSelf: 'flex-start' }]}>
+                            {reactionSummary(item).map(([emoji, count]) => (
+                              <Text key={emoji} style={styles.reactionChip}>{emoji}{count > 1 ? ` ${count}` : ''}</Text>
+                            ))}
+                          </View>
+                        )}
+                      </Pressable>
                     )}
                   </View>
                 )}
@@ -400,6 +484,17 @@ export default function ChatRoomScreen() {
           </View>
         ) : (
           /* ── Barre de saisie ──────────────────────────────────────────── */
+          <View>
+            {replyTo ? (
+              <View style={styles.replyBanner}>
+                <Text style={styles.replyBannerTxt} numberOfLines={1}>
+                  ↩︎ Réponse à : {replyTo.type === 'audio' ? '🎤 Message vocal' : getDisplayContent(replyTo)}
+                </Text>
+                <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
+                  <Text style={{ color: colors.textMuted, fontSize: 15 }}>✕</Text>
+                </Pressable>
+              </View>
+            ) : null}
           <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
             <Pressable style={styles.inputIconBtn} onPress={() => router.push('/camera' as never)}>
               <Text style={{ fontSize: 22 }}>📷</Text>
@@ -423,8 +518,30 @@ export default function ChatRoomScreen() {
               </Pressable>
             )}
           </View>
+          </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* ── Menu appui long : réactions + répondre ─────────────────────────── */}
+      <Modal visible={actionMsg !== null} transparent animationType="fade" onRequestClose={() => setActionMsg(null)}>
+        <Pressable style={styles.actionOverlay} onPress={() => setActionMsg(null)}>
+          <View style={styles.actionSheet}>
+            <View style={styles.reactionPicker}>
+              {REACTION_EMOJIS.map((e) => (
+                <Pressable key={e} onPress={() => actionMsg && void react(actionMsg, e)} hitSlop={6}>
+                  <Text style={styles.reactionPickerEmoji}>{e}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable
+              style={styles.actionRow}
+              onPress={() => { setReplyTo(actionMsg); setActionMsg(null); }}
+            >
+              <Text style={styles.actionRowTxt}>↩︎  Répondre</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -496,6 +613,27 @@ const styles = StyleSheet.create({
   voiceRecLabel: { fontSize: 13, color: colors.textMuted },
   voiceSendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
 
+  // Réponse / citation
+  replyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.md, marginTop: 6, backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 7, borderLeftWidth: 3, borderLeftColor: colors.brand },
+  replyBannerTxt: { flex: 1, fontSize: 12, color: colors.textMuted },
+  quoteBox: { backgroundColor: 'rgba(0,0,0,0.15)', borderLeftWidth: 3, borderLeftColor: colors.brand, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 6 },
+  quoteBoxMe: { backgroundColor: 'rgba(255,255,255,0.15)', borderLeftColor: '#fff' },
+  quoteTxt: { fontSize: 12, color: colors.textMuted },
+  // Story reply / post partagé
+  storyReplyLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4, fontStyle: 'italic' },
+  storyReplyThumb: { width: 90, height: 140, borderRadius: radius.md },
+  sharedPostCard: { borderRadius: radius.md, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.15)', marginBottom: 6, width: 200 },
+  sharedPostImg: { width: 200, height: 200 },
+  sharedPostCaption: { fontSize: 12, color: colors.text, padding: 8 },
+  // Réactions
+  reactionsRow: { flexDirection: 'row', gap: 4, marginTop: 6, alignSelf: 'flex-end' },
+  reactionChip: { backgroundColor: colors.surfaceElevated, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, fontSize: 12, color: colors.text, overflow: 'hidden' },
+  actionOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  actionSheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, width: '80%', gap: 10 },
+  reactionPicker: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6 },
+  reactionPickerEmoji: { fontSize: 30 },
+  actionRow: { paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
+  actionRowTxt: { color: colors.text, fontWeight: '700', fontSize: 15 },
   // Voice bubble
   voiceBubble: { flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: '75%', borderRadius: radius.lg, padding: 10, paddingHorizontal: 14, backgroundColor: colors.surface },
   voiceBubbleMe: { backgroundColor: colors.brand },
