@@ -18,6 +18,13 @@ function parseMusicTrack(raw?: string | null): MusicMeta | null {
   try { return JSON.parse(raw) as MusicMeta; } catch { return { title: raw }; }
 }
 
+interface Comment {
+  id: string; content: string; createdAt: string;
+  likesCount: number; likedByMe?: boolean; pinned?: boolean;
+  user: { id: string; displayName: string; photoUrl?: string } | null;
+  replies?: Comment[];
+}
+
 interface Post {
   id: string;
   userId: string;
@@ -27,13 +34,13 @@ interface Post {
   musicTrack?: string | null;
   likesCount: number;
   likedByMe: boolean;
+  hideLikeCount?: boolean;
+  commentsDisabled?: boolean;
+  editedAt?: string | null;
   createdAt: string;
   user: { id: string; displayName: string; photoUrl?: string } | null;
   place?: { name: string; universe: string; city?: string } | null;
-  comments: Array<{
-    id: string; content: string; createdAt: string;
-    user: { id: string; displayName: string; photoUrl?: string } | null;
-  }>;
+  comments: Comment[];
 }
 
 function PostVideoPlayer({ uri }: { uri: string }) {
@@ -71,6 +78,27 @@ export default function PostDetailScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Comptabilise une vue (stats de l'auteur).
+  useEffect(() => {
+    if (!accessToken || !id) return;
+    void fetch(`${API}/posts/${id}/view`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }).catch(() => {});
+  }, [accessToken, id]);
+
+  // Répondre à un commentaire précis.
+  const [replyTo, setReplyTo] = useState<Comment | null>(null);
+
+  const toggleCommentLike = async (commentId: string) => {
+    if (!accessToken || !post) return;
+    // Optimiste : bascule localement (racines et réponses).
+    const patch = (c: Comment): Comment => c.id === commentId
+      ? { ...c, likedByMe: !c.likedByMe, likesCount: c.likesCount + (c.likedByMe ? -1 : 1) }
+      : { ...c, replies: c.replies?.map(patch) };
+    setPost((p) => p ? { ...p, comments: p.comments.map(patch) } : p);
+    await fetch(`${API}/posts/comments/${commentId}/like`, {
+      method: 'POST', headers: { Authorization: `Bearer ${accessToken}` },
+    }).catch(() => {});
+  };
+
   const toggleLike = async () => {
     if (!post || !accessToken) return;
     const res = await fetch(`${API}/posts/${post.id}/like`, {
@@ -89,10 +117,11 @@ export default function PostDetailScreen() {
     const res = await fetch(`${API}/posts/${post.id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ content: comment.trim() }),
+      body: JSON.stringify({ content: comment.trim(), parentId: replyTo?.id }),
     });
     if (res.ok) {
       setComment('');
+      setReplyTo(null);
       void load();
     }
     setPosting(false);
@@ -182,40 +211,85 @@ export default function PostDetailScreen() {
 
         {post.caption ? <Text style={styles.caption}><Text style={styles.captionUser}>{post.user?.displayName} </Text>{post.caption}</Text> : null}
 
-        {/* Comments */}
+        {/* Comments — en fil, avec likes et réponses */}
         <View style={styles.commentsSection}>
           <Text style={styles.commentsTitle}>Commentaires</Text>
-          {post.comments.map((c) => (
-            <View key={c.id} style={styles.commentRow}>
-              <View style={[styles.commentAvatar, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
-                {c.user?.photoUrl ? (
-                  <Image source={{ uri: c.user.photoUrl }} style={styles.commentAvatar} />
-                ) : (
-                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{c.user?.displayName[0]}</Text>
-                )}
-              </View>
-              <View style={styles.commentBubble}>
-                <Text style={styles.commentUser}>{c.user?.displayName}</Text>
-                <Text style={styles.commentText}>{c.content}</Text>
-              </View>
+          {post.commentsDisabled ? (
+            <Text style={{ color: colors.textMuted, fontSize: 13 }}>Les commentaires sont désactivés sur ce post.</Text>
+          ) : post.comments.map((c) => (
+            <View key={c.id}>
+              <CommentRow
+                comment={c}
+                onLike={() => void toggleCommentLike(c.id)}
+                onReply={() => setReplyTo(c)}
+              />
+              {c.replies?.map((r) => (
+                <View key={r.id} style={{ paddingLeft: 38 }}>
+                  <CommentRow comment={r} onLike={() => void toggleCommentLike(r.id)} onReply={() => setReplyTo(c)} />
+                </View>
+              ))}
             </View>
           ))}
         </View>
       </ScrollView>
 
       {/* Comment input */}
-      <View style={[styles.commentBox, { paddingBottom: insets.bottom + 8 }]}>
-        <TextInput
-          style={styles.commentInput}
-          placeholder="Ajouter un commentaire..."
-          placeholderTextColor={colors.textMuted}
-          value={comment}
-          onChangeText={setComment}
-        />
-        <Pressable onPress={sendComment} disabled={!comment.trim() || posting} style={styles.sendBtn}>
-          {posting ? <ActivityIndicator color={colors.brand} size="small" /> : <Text style={styles.sendTxt}>Envoyer</Text>}
-        </Pressable>
+      {!post.commentsDisabled && (
+        <View style={[styles.commentBox, { paddingBottom: insets.bottom + 8, flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+          {replyTo ? (
+            <View style={styles.replyBanner}>
+              <Text style={styles.replyBannerText} numberOfLines={1}>
+                ↩︎ Réponse à <Text style={{ fontWeight: '700' }}>{replyTo.user?.displayName}</Text> : {replyTo.content}
+              </Text>
+              <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
+                <Text style={{ color: colors.textMuted, fontSize: 15 }}>✕</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder={replyTo ? `Répondre à ${replyTo.user?.displayName}...` : 'Ajouter un commentaire...'}
+              placeholderTextColor={colors.textMuted}
+              value={comment}
+              onChangeText={setComment}
+            />
+            <Pressable onPress={sendComment} disabled={!comment.trim() || posting} style={styles.sendBtn}>
+              {posting ? <ActivityIndicator color={colors.brand} size="small" /> : <Text style={styles.sendTxt}>Envoyer</Text>}
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike: () => void; onReply: () => void }) {
+  return (
+    <View style={styles.commentRow}>
+      <View style={[styles.commentAvatar, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
+        {c.user?.photoUrl ? (
+          <Image source={{ uri: c.user.photoUrl }} style={styles.commentAvatar} />
+        ) : (
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{c.user?.displayName[0]}</Text>
+        )}
       </View>
+      <View style={[styles.commentBubble, { flex: 1 }]}>
+        <Text style={styles.commentUser}>
+          {c.user?.displayName}{c.pinned ? '  📌' : ''}
+        </Text>
+        <Text style={styles.commentText}>{c.content}</Text>
+        <View style={styles.commentActions}>
+          <Text style={styles.commentAgo}>{formatAgo(c.createdAt)}</Text>
+          <Pressable onPress={onReply} hitSlop={6}>
+            <Text style={styles.commentActionTxt}>Répondre</Text>
+          </Pressable>
+        </View>
+      </View>
+      <Pressable onPress={onLike} hitSlop={8} style={{ alignItems: 'center', paddingTop: 6 }}>
+        <Text style={{ fontSize: 13 }}>{c.likedByMe ? '❤️' : '🤍'}</Text>
+        {c.likesCount > 0 && <Text style={styles.commentLikeCount}>{c.likesCount}</Text>}
+      </Pressable>
     </View>
   );
 }
@@ -260,6 +334,16 @@ const styles = StyleSheet.create({
   commentBubble: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 10 },
   commentUser: { fontWeight: '700', color: colors.text, fontSize: 13, marginBottom: 2 },
   commentText: { color: colors.text, fontSize: 14 },
+  commentActions: { flexDirection: 'row', gap: 14, marginTop: 6, alignItems: 'center' },
+  commentAgo: { fontSize: 11, color: colors.textMuted },
+  commentActionTxt: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
+  commentLikeCount: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  replyBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surface, borderRadius: radius.md,
+    paddingHorizontal: 10, paddingVertical: 7,
+  },
+  replyBannerText: { flex: 1, fontSize: 12, color: colors.textMuted },
   commentBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: spacing.md, paddingTop: 10,

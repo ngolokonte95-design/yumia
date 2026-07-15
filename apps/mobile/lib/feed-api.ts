@@ -20,6 +20,14 @@ export interface FeedPost {
   savedByMe: boolean;
   repostedByMe: boolean;
   isReel?: boolean;
+  pinned?: boolean;
+  archived?: boolean;
+  editedAt?: string | null;
+  commentsDisabled?: boolean;
+  hideLikeCount?: boolean;
+  coverUrl?: string | null;
+  viewsCount?: number;
+  hashtags?: string[];
   createdAt: string;
   user: { id: string; displayName: string; photoUrl?: string } | null;
   place?: { id?: string; name: string; city?: string; universe?: string } | null;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, Linking, Pressable, RefreshControl,
+  ActivityIndicator, Dimensions, FlatList, Image, Linking, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -111,6 +111,45 @@ function StoriesBar({
   );
 }
 
+// ── Carrousel de médias swipeable (façon Instagram) ──────────────────────────
+
+const SCREEN_W = Dimensions.get('window').width;
+
+function MediaCarousel({ urls, onPress }: { urls: string[]; onPress: () => void }) {
+  const [idx, setIdx] = useState(0);
+  return (
+    <View>
+      <FlatList
+        data={urls}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(u, i) => `${i}-${u}`}
+        onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
+        renderItem={({ item: url }) => (
+          <Pressable onPress={onPress}>
+            {isVideoUrl(url) ? (
+              <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 1 }} />
+            ) : (
+              <Image source={{ uri: url }} style={{ width: SCREEN_W, aspectRatio: 1 }} />
+            )}
+          </Pressable>
+        )}
+      />
+      {/* Compteur en haut à droite */}
+      <View style={styles.multiIndicator}>
+        <Text style={styles.multiIndicatorText}>{idx + 1}/{urls.length}</Text>
+      </View>
+      {/* Points d'index en bas */}
+      <View style={styles.carouselDots}>
+        {urls.map((_, i) => (
+          <View key={i} style={[styles.carouselDot, i === idx && styles.carouselDotActive]} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
 function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress }: {
@@ -140,8 +179,11 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
         <Text style={styles.postAgo}>{formatAgo(item.createdAt)}</Text>
       </Pressable>
 
-      {/* Média — vidéo (mediaUrls ou videoUrl) jouée inline, sinon photo */}
+      {/* Média — carrousel swipeable si plusieurs, vidéo jouée inline, sinon photo */}
       {(() => {
+        if (item.mediaUrls.length > 1) {
+          return <MediaCarousel urls={item.mediaUrls} onPress={() => onComment(item.id)} />;
+        }
         const media = item.mediaUrls[0];
         const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
         if (videoSrc) {
@@ -157,11 +199,6 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
           return (
             <Pressable onPress={() => onComment(item.id)}>
               <Image source={{ uri: media }} style={styles.postImage} />
-              {item.mediaUrls.length > 1 && (
-                <View style={styles.multiIndicator}>
-                  <Text style={styles.multiIndicatorText}>1/{item.mediaUrls.length}</Text>
-                </View>
-              )}
             </Pressable>
           );
         }
@@ -188,12 +225,14 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
       <View style={styles.postActions}>
         <Pressable style={styles.actionBtn} onPress={() => onLike(item.id)}>
           <Text style={styles.actionIcon}>{item.likedByMe ? '❤️' : '🤍'}</Text>
-          {item.likesCount > 0 && <Text style={styles.actionCount}>{item.likesCount}</Text>}
+          {!item.hideLikeCount && item.likesCount > 0 && <Text style={styles.actionCount}>{item.likesCount}</Text>}
         </Pressable>
-        <Pressable style={styles.actionBtn} onPress={() => onComment(item.id)}>
-          <Text style={styles.actionIcon}>💬</Text>
-          {item.commentsCount > 0 && <Text style={styles.actionCount}>{item.commentsCount}</Text>}
-        </Pressable>
+        {!item.commentsDisabled && (
+          <Pressable style={styles.actionBtn} onPress={() => onComment(item.id)}>
+            <Text style={styles.actionIcon}>💬</Text>
+            {item.commentsCount > 0 && <Text style={styles.actionCount}>{item.commentsCount}</Text>}
+          </Pressable>
+        )}
         <Pressable style={styles.actionBtn} onPress={() => onRepost(item.id)}>
           <Text style={[styles.actionIcon, item.repostedByMe && styles.actionIconActive]}>🔁</Text>
           {item.repostsCount > 0 && <Text style={styles.actionCount}>{item.repostsCount}</Text>}
@@ -637,6 +676,9 @@ const styles = StyleSheet.create({
   videoBadge: { position: 'absolute', top: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   multiIndicator: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
   multiIndicatorText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  carouselDots: { position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 5 },
+  carouselDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
+  carouselDotActive: { backgroundColor: '#fff', width: 7, height: 7, borderRadius: 3.5 },
   postActions: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, alignItems: 'center' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
   actionIcon: { fontSize: 22 },

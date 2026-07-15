@@ -145,6 +145,9 @@ export default function CreatePostScreen() {
   const [selectedMusic, setSelectedMusic] = useState<MusicTrack | null>(null);
   const [musicModalVisible, setMusicModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Options avancées (façon Instagram)
+  const [commentsDisabled, setCommentsDisabled] = useState(false);
+  const [hideLikeCount, setHideLikeCount] = useState(false);
 
   const openCamera = async () => {
     router.push('/camera?mode=post' as never);
@@ -178,8 +181,12 @@ export default function CreatePostScreen() {
     const form = new FormData();
     // Detect file extension from URI for correct MIME type
     const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-    form.append('file', { uri, type: mime, name: `photo.${ext}` } as any);
+    const mime = ext === 'png' ? 'image/png'
+      : ext === 'webp' ? 'image/webp'
+      : ext === 'mp4' ? 'video/mp4'
+      : ext === 'mov' ? 'video/quicktime'
+      : 'image/jpeg';
+    form.append('file', { uri, type: mime, name: `media.${ext}` } as any);
     try {
       const res = await fetch(`${API}/posts/upload`, {
         method: 'POST',
@@ -201,7 +208,7 @@ export default function CreatePostScreen() {
 
   const hasMedia = mode === 'photo' ? images.length > 0 : !!videoUri;
 
-  const submit = async () => {
+  const submit = async (asDraft = false) => {
     if (!hasMedia) {
       Alert.alert(mode === 'photo' ? 'Ajoute au moins une photo' : 'Sélectionne une vidéo');
       return;
@@ -209,6 +216,7 @@ export default function CreatePostScreen() {
     setLoading(true);
     try {
       let mediaUrls: string[] = [];
+      let videoUrl: string | undefined;
       if (mode === 'photo') {
         const uploaded = await Promise.all(images.map((uri) => uploadImage(uri)));
         mediaUrls = uploaded.filter((u): u is string => u !== null);
@@ -216,13 +224,25 @@ export default function CreatePostScreen() {
           Alert.alert('Erreur upload', `0/${images.length} photos uploadées. Vérifie les logs console.`);
           return;
         }
+      } else if (videoUri) {
+        // La vidéo doit être uploadée elle aussi (une URI locale ne serait lisible par personne).
+        const uploaded = await uploadImage(videoUri);
+        if (!uploaded) {
+          Alert.alert('Erreur upload', 'La vidéo n\'a pas pu être envoyée. Réessaie.');
+          return;
+        }
+        videoUrl = uploaded;
+        mediaUrls = [uploaded];
       }
 
       const body: Record<string, unknown> = {
         mediaUrls,
         caption: caption.trim() || undefined,
         musicTrack: selectedMusic ? JSON.stringify(selectedMusic) : undefined,
-        videoUrl: mode === 'video' ? videoUri : undefined,
+        videoUrl,
+        commentsDisabled: commentsDisabled || undefined,
+        hideLikeCount: hideLikeCount || undefined,
+        isDraft: asDraft || undefined,
       };
 
       const res = await fetch(`${API}/posts`, {
@@ -246,7 +266,7 @@ export default function CreatePostScreen() {
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.cancel}>Annuler</Text></Pressable>
         <Text style={styles.title}>Nouvelle publication</Text>
-        <Pressable onPress={submit} disabled={loading || !hasMedia} style={[styles.shareBtn, (!hasMedia || loading) && styles.shareBtnDisabled]}>
+        <Pressable onPress={() => void submit()} disabled={loading || !hasMedia} style={[styles.shareBtn, (!hasMedia || loading) && styles.shareBtnDisabled]}>
           {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.shareBtnText}>Partager</Text>}
         </Pressable>
       </View>
@@ -353,7 +373,7 @@ export default function CreatePostScreen() {
         {/* Caption */}
         <TextInput
           style={styles.captionInput}
-          placeholder="Écris une légende..."
+          placeholder="Écris une légende... (#hashtags acceptés)"
           placeholderTextColor={colors.textMuted}
           value={caption}
           onChangeText={setCaption}
@@ -361,6 +381,27 @@ export default function CreatePostScreen() {
           maxLength={500}
         />
         <Text style={styles.charCount}>{caption.length}/500</Text>
+
+        {/* Options avancées */}
+        <View style={styles.optionsBox}>
+          <Pressable style={styles.optionRow} onPress={() => setCommentsDisabled((v) => !v)}>
+            <Text style={styles.optionLabel}>💬 Désactiver les commentaires</Text>
+            <Text style={styles.optionToggle}>{commentsDisabled ? '✅' : '⬜'}</Text>
+          </Pressable>
+          <Pressable style={styles.optionRow} onPress={() => setHideLikeCount((v) => !v)}>
+            <Text style={styles.optionLabel}>❤️ Masquer le nombre de J'aime</Text>
+            <Text style={styles.optionToggle}>{hideLikeCount ? '✅' : '⬜'}</Text>
+          </Pressable>
+        </View>
+
+        {/* Brouillon */}
+        <Pressable
+          style={[styles.draftBtn, (!hasMedia || loading) && styles.shareBtnDisabled]}
+          disabled={loading || !hasMedia}
+          onPress={() => void submit(true)}
+        >
+          <Text style={styles.draftBtnText}>📝 Enregistrer comme brouillon</Text>
+        </Pressable>
       </ScrollView>
 
       <MusicPickerModal
@@ -457,6 +498,23 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   charCount: { fontSize: 12, color: colors.textMuted, textAlign: 'right', marginTop: 4 },
+  optionsBox: {
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border, marginTop: spacing.md,
+  },
+  optionRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  optionLabel: { fontSize: 14, color: colors.text },
+  optionToggle: { fontSize: 16 },
+  draftBtn: {
+    marginTop: spacing.md, alignItems: 'center', paddingVertical: 13,
+    borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  draftBtnText: { color: colors.text, fontWeight: '600', fontSize: 14 },
 });
 
 const modal = StyleSheet.create({
