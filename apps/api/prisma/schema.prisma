@@ -536,8 +536,22 @@ model Post {
   videoUrl   String?       // URL vidéo uploadée (optionnel)
   musicTrack String?       // ex: "Blinding Lights - The Weeknd"
   likesCount Int           @default(0)
+  viewsCount Int           @default(0)  // stats : nombre de vues
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
+
+  // Gestion de contenu (façon Instagram)
+  pinned           Boolean   @default(false) // épinglé en haut du profil (max 3 côté service)
+  archived         Boolean   @default(false) // masqué sans suppression
+  isDraft          Boolean   @default(false) // brouillon non publié
+  editedAt         DateTime?                 // dernière modification de la légende
+  commentsDisabled Boolean   @default(false)
+  hideLikeCount    Boolean   @default(false)
+  coverUrl         String?                   // couverture choisie pour un reel/vidéo
+  taggedUserIds    String[]  @default([])    // personnes identifiées
+  collabUserId     String?                   // co-auteur (post en collaboration)
+  hashtags         String[]  @default([])    // extraits de la légende, pour la recherche
+
   likes      PostLike[]
   comments   PostComment[]
   saves      PostSave[]
@@ -550,13 +564,15 @@ model Post {
 
 /// Enregistrement d'un post (bookmark) — comme « Enregistrer » sur Instagram.
 model PostSave {
-  postId    String
-  userId    String
-  createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId       String
+  userId       String
+  collectionId String?  // rangé dans une collection (optionnel)
+  createdAt    DateTime @default(now())
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@id([postId, userId])
   @@index([userId])
+  @@index([collectionId])
 }
 
 /// Republication d'un post (repost) — comme le « Reposter » d'Instagram/X.
@@ -584,14 +600,30 @@ model PostLike {
 }
 
 model PostComment {
-  id        String   @id @default(uuid())
-  postId    String
-  userId    String
-  content   String
-  createdAt DateTime @default(now())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  postId     String
+  userId     String
+  content    String
+  parentId   String?  // réponse en fil à un autre commentaire
+  likesCount Int      @default(0)
+  pinned     Boolean  @default(false) // épinglé par l'auteur du post
+  createdAt  DateTime @default(now())
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  likes      CommentLike[]
 
   @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+/// Like d'un commentaire.
+model CommentLike {
+  commentId String
+  userId    String
+  createdAt DateTime    @default(now())
+  comment   PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
   @@index([userId])
 }
 
@@ -672,9 +704,98 @@ model FollowRequest {
   @@index([targetId])
 }
 
+/// Collection de posts enregistrés (dossiers de bookmarks, façon Instagram).
+model SavedCollection {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  coverUrl  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Note éphémère (statut texte 24-72h affiché en haut des DM).
+model Note {
+  id        String   @id @default(uuid())
+  userId    String   @unique // une seule note active par utilisateur
+  text      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+/// Blocage : plus aucune interaction ni visibilité entre les deux comptes.
+model Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+/// Restriction discrète : ses commentaires ne sont visibles que par lui.
+model Restrict {
+  userId       String
+  restrictedId String
+  createdAt    DateTime @default(now())
+
+  @@id([userId, restrictedId])
+}
+
+/// Masquer (mute) les posts et/ou stories d'un compte sans se désabonner.
+model Mute {
+  userId      String
+  mutedId     String
+  mutePosts   Boolean  @default(true)
+  muteStories Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@id([userId, mutedId])
+}
+
+/// Signalement d'un contenu ou d'un compte.
+model Report {
+  id         String   @id @default(uuid())
+  reporterId String
+  targetType String   // 'post' | 'comment' | 'story' | 'user' | 'message'
+  targetId   String
+  reason     String
+  details    String?
+  status     String   @default("pending") // 'pending' | 'reviewed' | 'dismissed'
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([status])
+}
+
+/// Ami proche : accès aux stories « close friends ».
+model CloseFriend {
+  userId    String
+  friendId  String
+  createdAt DateTime @default(now())
+
+  @@id([userId, friendId])
+}
+
+/// Compte favori : ses posts sont priorisés dans le feed.
+model FavoriteUser {
+  userId     String
+  favoriteId String
+  createdAt  DateTime @default(now())
+
+  @@id([userId, favoriteId])
+}
+
 /// Conversation privée entre deux utilisateurs.
 model Conversation {
   id           String                    @id @default(uuid())
+  isGroup      Boolean                   @default(false)
+  title        String?                   // nom du groupe
+  photoUrl     String?                   // photo du groupe
+  creatorId    String?                   // créateur du groupe
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
   participants ConversationParticipant[]
@@ -695,8 +816,12 @@ model ConversationParticipant {
 enum MessageType {
   text
   image
+  video
+  audio
   place_share
   location_share
+  post_share
+  story_reply
 }
 
 model Message {
@@ -707,11 +832,29 @@ model Message {
   type           MessageType @default(text)
   mediaUrl       String?
   placeId        String?
+  postId         String?     // post partagé en DM
+  storyId        String?     // story à laquelle on répond
+  replyToId      String?     // réponse à un message précis
+  durationSec    Int?        // durée d'un message vocal
+  oneTime        Boolean     @default(false) // vue unique (photo/vidéo éphémère)
+  viewedOnceAt   DateTime?   // consommé (vue unique)
   createdAt      DateTime    @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reactions      MessageReaction[]
 
   @@index([conversationId, createdAt])
   @@index([senderId])
+}
+
+/// Réaction emoji sur un message (une par utilisateur et par message).
+model MessageReaction {
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
 }
 
 /// Story éphémère (disparaît après 24h) — photo ou vidéo courte.
@@ -721,19 +864,33 @@ enum StoryType {
 }
 
 model Story {
-  id        String    @id @default(uuid())
-  userId    String
-  mediaUrl  String
-  type      StoryType @default(photo)
-  caption   String?
-  placeId   String?
-  expiresAt DateTime
-  viewCount Int       @default(0)
-  createdAt DateTime  @default(now())
-  views     StoryView[]
+  id               String    @id @default(uuid())
+  userId           String
+  mediaUrl         String
+  type             StoryType @default(photo)
+  caption          String?
+  placeId          String?
+  expiresAt        DateTime
+  viewCount        Int       @default(0)
+  closeFriendsOnly Boolean   @default(false) // visible uniquement par les amis proches
+  stickers         Json?     // stickers posés sur la story : sondage, question, mention, lieu, texte… [{ kind, x, y, ... }]
+  createdAt        DateTime  @default(now())
+  views            StoryView[]
+  pollVotes        StoryPollVote[]
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// Vote sur le sticker sondage/quiz d'une story.
+model StoryPollVote {
+  storyId     String
+  userId      String
+  optionIndex Int
+  createdAt   DateTime @default(now())
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, userId])
 }
 
 model StoryView {
