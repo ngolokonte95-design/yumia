@@ -8,7 +8,7 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://207.154.198.77:4000/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.yumia.eu/api"
       },
       "android": { "buildType": "apk" }
     },
@@ -16,7 +16,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://207.154.198.77:4000/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.yumia.eu/api"
       },
       "android": { "buildType": "apk" }
     },
@@ -24,7 +24,7 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://207.154.198.77:4000/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.yumia.eu/api"
       },
       "android": { "buildType": "app-bundle" }
     }
