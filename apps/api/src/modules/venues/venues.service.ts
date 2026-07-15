@@ -2,24 +2,47 @@ import { Injectable } from '@nestjs/common';
 import type { Venue } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
-/**
- * Partenariats établissements : boost payant des suggestions.
- * Le boost (1-3) remonte un établissement en priorité dans les recommandations
- * tant que `boostExpiresAt` n'est pas dépassé.
- */
+function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 @Injectable()
 export class VenuesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Établissements actuellement boostés, triés par niveau de boost décroissant. */
-  boosted(limit = 20): Promise<Venue[]> {
-    return this.prisma.venue.findMany({
+  async boosted(params: {
+    limit?: number;
+    lat?: number;
+    lng?: number;
+    radius?: number;
+  }): Promise<Venue[]> {
+    const { limit = 20, lat, lng, radius = 50_000 } = params;
+
+    const candidates = await this.prisma.venue.findMany({
       where: {
         boostLevel: { gt: 0 },
         OR: [{ boostExpiresAt: null }, { boostExpiresAt: { gt: new Date() } }],
       },
       orderBy: [{ boostLevel: 'desc' }, { createdAt: 'desc' }],
-      take: limit,
+      take: 200,
     });
+
+    if (lat == null || lng == null) {
+      return candidates.slice(0, limit);
+    }
+
+    const nearby = candidates.filter(
+      (v) => v.lat == null || v.lng == null || haversineM(lat, lng, v.lat, v.lng) <= radius,
+    );
+
+    // Graceful fallback: si aucun venue à proximité, montrer quand-même les mieux boostés
+    return (nearby.length > 0 ? nearby : candidates).slice(0, limit);
   }
 }
