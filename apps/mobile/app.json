@@ -112,7 +112,7 @@
       "eas": {
         "projectId": "cb67721a-d8f2-476a-8cb7-8f4f1873d81d"
       },
-      "apiBaseUrl": "http://207.154.198.77:4000/api",
+      "apiBaseUrl": "https://api.yumia.eu/api",
       "googleMapsApiKey": "",
       "googleClientIdWeb": "",
       "googleClientIdIos": "",
