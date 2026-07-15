@@ -4,6 +4,7 @@ import {
   googleTypesToUniverse,
   universeToGoogleTypes,
   UNIVERSE_TEXT_QUERIES,
+  TEXT_FIRST_UNIVERSES,
 } from './place-types';
 import type {
   PlacesProvider,
@@ -75,6 +76,14 @@ export class GooglePlacesProvider implements PlacesProvider {
   constructor(private readonly apiKey: string) {}
 
   async searchNearby(params: ProviderNearbyParams): Promise<ProviderPlace[]> {
+    // Univers « niche » : recherche textuelle directe (types Google absents ou
+    // trop génériques) avec forceUniverse pour ne pas être reclassés.
+    if (params.universe && TEXT_FIRST_UNIVERSES.has(params.universe)) {
+      const textQuery = UNIVERSE_TEXT_QUERIES[params.universe];
+      if (textQuery) {
+        return this.searchTextNearby(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit, true);
+      }
+    }
     const includedTypes = universeToGoogleTypes(params.universe);
     try {
       return await this.request(params, includedTypes);

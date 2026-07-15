@@ -6,7 +6,9 @@ import { UNIVERSES, type Universe } from '@yumia/shared';
  */
 export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
   cannabis:          'coffeeshop coffee shop cannabis social club dispensary',
-  hookah:            'chicha shisha hookah narguile bar',
+  hookah:            'bar à chicha chicha shisha hookah narguilé lounge',
+  atm:               'distributeur automatique billets ATM retrait espèces',
+  money_transfer:    'transfert argent Western Union MoneyGram Ria envoi mandat cash',
   optician:          'opticien optician lunetterie eye care glasses',
   photo_spot:        'belvédère panorama viewpoint mirador terrasse panoramique',
   shooting:          'stand de tir armurerie shooting range gun range',
@@ -78,7 +80,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   bar:              ['bar'],
   pub:              ['pub', 'bar'],
   nightclub:        ['night_club'],
-  hookah:           ['hookah_bar', 'bar'],
+  hookah:           ['hookah_bar'], // 'bar' retiré : polluait avec des bars génériques (reclassés en 'bar')
   live_music:       ['live_music_venue', 'bar'],
   rooftop:          ['bar'],
   karaoke:          ['karaoke'],
@@ -179,12 +181,38 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Services du quotidien
   atm:              ['atm'],
   currency_exchange:['currency_exchange'],
+  money_transfer:   [], // aucun type Google — géré par text-search (voir TEXT_FIRST_UNIVERSES)
   // Événements
   event_venue:      ['event_venue', 'stadium', 'amphitheatre', 'convention_center'],
 };
 
 /** Recherche large par défaut quand aucun univers n'est précisé (home/explore). */
 const DEFAULT_TYPES = ['restaurant', 'cafe', 'bar', 'bakery', 'tourist_attraction', 'museum'];
+
+/**
+ * Univers « niche » dont les types Google sont absents ou trop génériques
+ * (ils reclasseraient les résultats). On les hydrate directement par recherche
+ * textuelle géolocalisée avec `forceUniverse`, sans passer par `searchNearby`.
+ *  - hookah          : `hookah_bar` rare/invalide → les bars génériques polluaient
+ *  - currency_exchange : type Google invalide (INVALID_ARGUMENT)
+ *  - money_transfer  : aucun type Google (Western Union/Ria souvent dans un commerce)
+ */
+export const TEXT_FIRST_UNIVERSES = new Set<Universe>([
+  'hookah',
+  'currency_exchange',
+  'money_transfer',
+]);
+
+/**
+ * Univers de service où les types « bloqués » compagnons (banque, finance…)
+ * sont légitimes : un ATM est souvent adossé à une banque, un bureau de change
+ * ou un point Western Union à un commerce. On ne les écarte donc pas.
+ */
+const BLOCK_EXEMPT_UNIVERSES = new Set<Universe>([
+  'atm',
+  'currency_exchange',
+  'money_transfer',
+]);
 
 /** Types Google à exclure de l'hydratation (épiceries, banques…). */
 export const BLOCKED_GOOGLE_TYPES = new Set([
@@ -209,8 +237,13 @@ export const BLOCKED_GOOGLE_TYPES = new Set([
   'warehouse_store',
 ]);
 
-/** Renvoie true si le lieu doit être écarté (tabac, épicerie, station…). */
-export function isBlockedPlace(types: string[]): boolean {
+/**
+ * Renvoie true si le lieu doit être écarté (épicerie, banque, grande surface…).
+ * Exception : pour les univers de service (ATM, change, transfert d'argent),
+ * les tags banque/finance sont attendus → on ne bloque pas.
+ */
+export function isBlockedPlace(types: string[], universe?: Universe): boolean {
+  if (universe && BLOCK_EXEMPT_UNIVERSES.has(universe)) return false;
   return types.some((t) => BLOCKED_GOOGLE_TYPES.has(t));
 }
 

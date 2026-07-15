@@ -34,6 +34,9 @@ const HYDRATE_EMPTY_RETRY_TTL_SECONDS = 6 * 60 * 60; // 6 h
 // Google à chaque chargement d'image. 6 h.
 const PHOTO_URL_CACHE_TTL_SECONDS = 6 * 60 * 60;
 const PHOTO_DEFAULT_WIDTH = 800;
+// Nombre max de lieux sans photo enrichis par Text Search lors d'une hydratation
+// de tuile — borne le surcoût API (1 appel/lieu) tout en comblant les manques.
+const PHOTO_ENRICH_BUDGET = 10;
 
 /** Lieu enrichi de sa distance (mètres) par rapport au point de recherche. */
 export type PlaceWithDistance = Place & { distanceMeters: number };
@@ -293,7 +296,8 @@ export class PlacesService {
       'places:hydrated',
       // Version de schéma d'hydratation : incrémenter invalide les tuiles
       // anciennes (ex. densité v1) et force une ré-hydratation plus riche.
-      'v3',
+      // v4 : enrichissement photo des lieux sans média (ex. night-clubs).
+      'v4',
       params.universe ?? 'all',
       params.lat.toFixed(2),
       params.lng.toFixed(2),
@@ -357,11 +361,22 @@ export class PlacesService {
   /** Upsert (dédup par providerPlaceId) des lieux importés + réindexation ES. Retourne les lieux sauvegardés. */
   private async persistProviderPlaces(places: ProviderPlace[]): Promise<Place[]> {
     const saved: Place[] = [];
+    let enrichBudget = PHOTO_ENRICH_BUDGET;
     for (const p of places) {
-      // Ignore tabac, épiceries, stations… et lieux mal notés.
-      if (isBlockedPlace(p.tags)) continue;
+      // Ignore épiceries, banques, stations… (sauf univers de service) et lieux mal notés.
+      if (isBlockedPlace(p.tags, p.universe)) continue;
       if (p.rating > 0 && p.rating < 3.0) continue;
       try {
+        // Lieu sans photo (ex. night-club renvoyé nu par searchNearby) : on tente
+        // un enrichissement Text Search par nom+position, dans un budget borné
+        // pour maîtriser le coût API.
+        if ((!p.photoRefs || p.photoRefs.length === 0) && enrichBudget > 0 && this.provider.findPhotoRefs) {
+          enrichBudget -= 1;
+          const refs = await this.provider
+            .findPhotoRefs(`${p.name} ${p.city}`.trim(), p.lat, p.lng)
+            .catch(() => [] as string[]);
+          if (refs.length > 0) p.photoRefs = refs;
+        }
         const photoUrls = this.buildPhotoUrls(p.photoRefs);
         const metadata =
           p.openingHours && p.openingHours.length > 0

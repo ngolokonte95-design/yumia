@@ -65,4 +65,10 @@ export interface PlacesProvider {
    * proxy `GET /places/photo`. `null` si non supporté ou indisponible.
    */
   resolvePhotoUrl?(ref: string, maxWidthPx: number): Promise<string | null>;
+  /**
+   * Retrouve les références photo d'un lieu par nom + position (Text Search),
+   * pour enrichir a posteriori les lieux importés sans photo (ex. night-clubs
+   * que `searchNearby` renvoie parfois sans média). `[]` si rien trouvé.
+   */
+  findPhotoRefs?(textQuery: string, lat: number, lng: number): Promise<string[]>;
 }

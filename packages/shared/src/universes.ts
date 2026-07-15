@@ -95,6 +95,7 @@ export const UNIVERSES = [
   // ── Services du quotidien ─────────────────────────────────────────────────
   'atm',
   'currency_exchange',
+  'money_transfer',
   'pharmacy',
   'fuel',
   'laundry',
@@ -247,6 +248,7 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   // Services du quotidien
   atm:             { key: 'atm',             emoji: '🏧',   i18nKey: 'universe.atm',             labelFr: 'Distributeurs ATM' },
   currency_exchange:{ key: 'currency_exchange', emoji: '💱', i18nKey: 'universe.currency_exchange', labelFr: 'Bureaux de change' },
+  money_transfer:  { key: 'money_transfer',  emoji: '💸',   i18nKey: 'universe.money_transfer',  labelFr: "Transfert d'argent" },
   // Automobile
   garage:          { key: 'garage',          emoji: '🔧',   i18nKey: 'universe.garage',          labelFr: 'Garages & Mécanique' },
   car_wash:        { key: 'car_wash',        emoji: '🫧',   i18nKey: 'universe.car_wash',        labelFr: 'Stations de lavage' },
@@ -314,7 +316,7 @@ export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
   {
     label: 'Services du quotidien',
     emoji: '🏧',
-    universes: ['atm', 'currency_exchange', 'post_office', 'fuel', 'laundry', 'coworking', 'tobacco', 'cannabis'],
+    universes: ['atm', 'currency_exchange', 'money_transfer', 'post_office', 'fuel', 'laundry', 'coworking', 'tobacco', 'cannabis'],
   },
   {
     label: 'Automobile',
