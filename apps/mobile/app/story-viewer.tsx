@@ -1,26 +1,81 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, Image, Pressable, StyleSheet, Text, View,
+  ActivityIndicator, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal,
+  Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useAuth } from '../lib/auth-context';
-import { feedApi, type StoryGroup } from '../lib/feed-api';
-import { colors, spacing } from '../theme/tokens';
+import { feedApi, type StoryGroup, type StorySticker } from '../lib/feed-api';
+import { colors, radius, spacing } from '../theme/tokens';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const STORY_MS = 5000;
+const VIDEO_STORY_MS = 15000;
+
+function StoryVideo({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => { p.loop = false; p.play(); });
+  return <VideoView player={player} style={styles.media} contentFit="cover" nativeControls={false} />;
+}
+
+/** Sticker sondage votable, superposé sur la story. */
+function PollSticker({ sticker, storyId, token }: { sticker: StorySticker; storyId: string; token: string }) {
+  const [results, setResults] = useState<number[]>([]);
+  const [myVote, setMyVote] = useState<number | null>(null);
+
+  useEffect(() => {
+    void feedApi.pollResults(token, storyId).then((r) => { setResults(r.results); setMyVote(r.myVote); });
+  }, [token, storyId]);
+
+  const vote = async (i: number) => {
+    const res = await feedApi.votePoll(token, storyId, i);
+    if (res) { setResults(res.results); setMyVote(res.myVote); }
+  };
+
+  const total = results.reduce((a, b) => a + b, 0);
+  const options = sticker.options ?? ['Oui', 'Non'];
+
+  return (
+    <View style={[styles.sticker, { left: `${Math.max(4, Math.min(60, sticker.x - 25))}%`, top: `${sticker.y}%`, width: '70%' }]}>
+      <View style={styles.pollBox}>
+        <Text style={styles.pollQuestion}>{sticker.question}</Text>
+        {options.map((opt, i) => {
+          const pct = total > 0 ? Math.round(((results[i] ?? 0) / total) * 100) : 0;
+          const voted = myVote !== null;
+          return (
+            <Pressable key={i} style={styles.pollOption} onPress={() => void vote(i)}>
+              {voted && <View style={[styles.pollFill, { width: `${pct}%` }, myVote === i && styles.pollFillMine]} />}
+              <View style={styles.pollOptionRow}>
+                <Text style={styles.pollOptionText}>{opt}{myVote === i ? ' ✓' : ''}</Text>
+                {voted && <Text style={styles.pollPct}>{pct}%</Text>}
+              </View>
+            </Pressable>
+          );
+        })}
+        {total > 0 && <Text style={styles.pollTotal}>{total} vote{total > 1 ? 's' : ''}</Text>}
+      </View>
+    </View>
+  );
+}
 
 export default function StoryViewerScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const { accessToken } = useAuth();
+  const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [group, setGroup] = useState<StoryGroup | null>(null);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replySent, setReplySent] = useState(false);
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const [viewers, setViewers] = useState<Array<{ viewedAt: string; user: { id: string; displayName: string; photoUrl?: string } }>>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isMine = group?.user?.id === me?.id;
 
   useEffect(() => {
     if (!accessToken || !userId) return;
@@ -39,18 +94,33 @@ export default function StoryViewerScreen() {
       if (i + 1 >= group.stories.length) { close(); return i; }
       return i + 1;
     });
+    setReplySent(false);
   }, [group, close]);
 
-  const prev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const prev = useCallback(() => { setIndex((i) => Math.max(0, i - 1)); setReplySent(false); }, []);
 
-  // Auto-avance + marque comme vue
+  // Auto-avance + marque comme vue (pause pendant la saisie / la liste des vues)
   useEffect(() => {
-    if (!group || !group.stories[index]) return;
-    if (accessToken) void feedApi.markStoryViewed(accessToken, group.stories[index].id);
+    if (!group || !group.stories[index] || paused || viewersOpen) return;
+    const story = group.stories[index];
+    if (accessToken) void feedApi.markStoryViewed(accessToken, story.id);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(next, STORY_MS);
+    timer.current = setTimeout(next, story.type === 'video' ? VIDEO_STORY_MS : STORY_MS);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [group, index, next, accessToken]);
+  }, [group, index, next, accessToken, paused, viewersOpen]);
+
+  const openViewers = async () => {
+    if (!accessToken || !group) return;
+    setViewersOpen(true);
+    const list = await feedApi.storyViewers(accessToken, group.stories[index].id);
+    setViewers(list);
+  };
+
+  const sendReply = async () => {
+    if (!accessToken || !group || !replyText.trim()) return;
+    const ok = await feedApi.replyToStory(accessToken, group.stories[index].id, replyText.trim());
+    if (ok) { setReplyText(''); setReplySent(true); setPaused(false); }
+  };
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator color="#fff" /></View>;
@@ -65,10 +135,15 @@ export default function StoryViewerScreen() {
   }
 
   const story = group.stories[index];
+  const stickers = (story.stickers ?? []) as StorySticker[];
 
   return (
-    <View style={styles.container}>
-      <Image source={{ uri: story.mediaUrl }} style={styles.media} resizeMode="cover" />
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {story.type === 'video' ? (
+        <StoryVideo key={story.id} uri={story.mediaUrl} />
+      ) : (
+        <Image source={{ uri: story.mediaUrl }} style={styles.media} resizeMode="cover" />
+      )}
 
       {/* Barres de progression */}
       <View style={[styles.progressRow, { top: insets.top + 8 }]}>
@@ -89,11 +164,47 @@ export default function StoryViewerScreen() {
           </View>
         )}
         <Text style={styles.name}>{group.user.displayName}</Text>
+        {story.closeFriendsOnly ? (
+          <View style={styles.cfBadge}><Text style={styles.cfBadgeTxt}>🟢 Amis proches</Text></View>
+        ) : null}
         <Pressable onPress={close} hitSlop={12}><Text style={styles.close}>✕</Text></Pressable>
       </View>
 
+      {/* Stickers superposés */}
+      {accessToken && stickers.map((st, i) => {
+        if (st.kind === 'poll' || st.kind === 'emoji_slider') {
+          return <PollSticker key={`${story.id}-${i}`} sticker={st} storyId={story.id} token={accessToken} />;
+        }
+        if (st.kind === 'question') {
+          return (
+            <View key={i} style={[styles.sticker, { left: '10%', top: `${st.y}%`, width: '80%' }]}>
+              <View style={styles.questionBox}>
+                <Text style={styles.questionText}>{st.question}</Text>
+                <Text style={styles.questionHint}>Réponds avec la barre en bas ⬇️</Text>
+              </View>
+            </View>
+          );
+        }
+        if (st.kind === 'mention' || st.kind === 'hashtag' || st.kind === 'location' || st.kind === 'text' || st.kind === 'link') {
+          const label = st.kind === 'mention' ? `@${st.label}` : st.kind === 'hashtag' ? `#${st.label}` : st.kind === 'location' ? `📍 ${st.label}` : (st.text ?? st.label ?? '');
+          if (!label) return null;
+          return (
+            <Pressable
+              key={i}
+              style={[styles.sticker, { left: `${Math.max(2, Math.min(70, st.x - 15))}%`, top: `${st.y}%` }]}
+              onPress={() => {
+                if (st.kind === 'mention' && st.userId) router.push(`/user/${st.userId}` as never);
+              }}
+            >
+              <View style={styles.labelSticker}><Text style={styles.labelStickerTxt}>{label}</Text></View>
+            </Pressable>
+          );
+        }
+        return null;
+      })}
+
       {story.caption ? (
-        <View style={[styles.captionWrap, { bottom: insets.bottom + 40 }]}>
+        <View style={[styles.captionWrap, { bottom: insets.bottom + 90 }]}>
           <Text style={styles.caption}>{story.caption}</Text>
         </View>
       ) : null}
@@ -101,7 +212,61 @@ export default function StoryViewerScreen() {
       {/* Zones tactiles précédent / suivant */}
       <Pressable style={styles.tapLeft} onPress={prev} />
       <Pressable style={styles.tapRight} onPress={next} />
-    </View>
+
+      {/* Barre du bas : vues (ma story) OU réponse en DM (story d'autrui) */}
+      {isMine ? (
+        <Pressable style={[styles.viewsBar, { bottom: insets.bottom + 16 }]} onPress={openViewers}>
+          <Text style={styles.viewsTxt}>👁 {story.viewCount ?? 0} vue{(story.viewCount ?? 0) > 1 ? 's' : ''} — voir qui</Text>
+        </Pressable>
+      ) : (
+        <View style={[styles.replyBar, { bottom: insets.bottom + 12 }]}>
+          <TextInput
+            style={styles.replyInput}
+            placeholder={replySent ? 'Réponse envoyée ✓' : `Répondre à ${group.user.displayName.split(' ')[0]}...`}
+            placeholderTextColor="rgba(255,255,255,0.6)"
+            value={replyText}
+            onChangeText={setReplyText}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
+            returnKeyType="send"
+            onSubmitEditing={() => void sendReply()}
+          />
+          <Pressable onPress={() => void sendReply()} disabled={!replyText.trim()} hitSlop={8}>
+            <Text style={[styles.replySend, !replyText.trim() && { opacity: 0.4 }]}>➤</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Liste des vues (ma story) */}
+      <Modal visible={viewersOpen} transparent animationType="slide" onRequestClose={() => setViewersOpen(false)}>
+        <Pressable style={styles.viewersOverlay} onPress={() => setViewersOpen(false)}>
+          <View style={styles.viewersSheet}>
+            <Text style={styles.viewersTitle}>👁 Vues ({viewers.length})</Text>
+            <FlatList
+              data={viewers}
+              keyExtractor={(v) => v.user.id}
+              style={{ maxHeight: height * 0.4 }}
+              ListEmptyComponent={<Text style={styles.viewersEmpty}>Personne n'a encore vu cette story.</Text>}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.viewerRow}
+                  onPress={() => { setViewersOpen(false); router.push(`/user/${item.user.id}` as never); }}
+                >
+                  {item.user.photoUrl ? (
+                    <Image source={{ uri: item.user.photoUrl }} style={styles.viewerAvatar} />
+                  ) : (
+                    <View style={[styles.viewerAvatar, styles.avatarFallback]}>
+                      <Text style={{ color: '#fff', fontWeight: '700' }}>{item.user.displayName[0]}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.viewerName}>{item.user.displayName}</Text>
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -112,16 +277,52 @@ const styles = StyleSheet.create({
   closeFallback: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.surface, borderRadius: 999 },
   closeTxt: { color: '#fff', fontWeight: '700' },
   media: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  progressRow: { position: 'absolute', left: spacing.sm, right: spacing.sm, flexDirection: 'row', gap: 4 },
+  progressRow: { position: 'absolute', left: spacing.sm, right: spacing.sm, flexDirection: 'row', gap: 4, zIndex: 5 },
   progressTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: 3, backgroundColor: '#fff' },
-  topBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  topBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 5 },
   avatar: { width: 36, height: 36, borderRadius: 18 },
   avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, color: '#fff', fontWeight: '700', fontSize: 15 },
+  cfBadge: { backgroundColor: 'rgba(43,182,115,0.9)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  cfBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
   close: { color: '#fff', fontSize: 22, fontWeight: '700' },
   captionWrap: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 12, padding: 12 },
   caption: { color: '#fff', fontSize: 15, textAlign: 'center' },
-  tapLeft: { position: 'absolute', left: 0, top: 80, bottom: 0, width: width * 0.3 },
-  tapRight: { position: 'absolute', right: 0, top: 80, bottom: 0, width: width * 0.7 },
+  tapLeft: { position: 'absolute', left: 0, top: 80, bottom: 110, width: width * 0.3 },
+  tapRight: { position: 'absolute', right: 0, top: 80, bottom: 110, width: width * 0.7 },
+  // Stickers
+  sticker: { position: 'absolute', zIndex: 6 },
+  pollBox: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: radius.lg, padding: 12, gap: 8 },
+  pollQuestion: { fontWeight: '800', fontSize: 15, color: '#111', textAlign: 'center' },
+  pollOption: { borderRadius: radius.md, borderWidth: 1.5, borderColor: '#E8621A', overflow: 'hidden', position: 'relative' },
+  pollFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: '#E8621A22' },
+  pollFillMine: { backgroundColor: '#E8621A44' },
+  pollOptionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 9 },
+  pollOptionText: { fontWeight: '700', color: '#E8621A', fontSize: 14 },
+  pollPct: { fontWeight: '800', color: '#111', fontSize: 13 },
+  pollTotal: { fontSize: 11, color: '#666', textAlign: 'center' },
+  questionBox: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 4 },
+  questionText: { fontWeight: '800', fontSize: 15, color: '#111', textAlign: 'center' },
+  questionHint: { fontSize: 11, color: '#888' },
+  labelSticker: { backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  labelStickerTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  // Barre du bas
+  viewsBar: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingVertical: 11, alignItems: 'center', zIndex: 6 },
+  viewsTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  replyBar: {
+    position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: 16, paddingVertical: 4, zIndex: 6,
+  },
+  replyInput: { flex: 1, color: '#fff', fontSize: 14, height: 40 },
+  replySend: { color: '#fff', fontSize: 20 },
+  // Viewers modal
+  viewersOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  viewersSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: 40 },
+  viewersTitle: { color: colors.textPrimary, fontWeight: '800', fontSize: 16, marginBottom: 12 },
+  viewersEmpty: { color: colors.textMuted, fontSize: 13, paddingVertical: 20, textAlign: 'center' },
+  viewerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  viewerAvatar: { width: 40, height: 40, borderRadius: 20 },
+  viewerName: { color: colors.textPrimary, fontWeight: '600', fontSize: 14 },
 });

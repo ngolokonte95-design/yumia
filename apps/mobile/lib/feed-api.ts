@@ -33,12 +33,33 @@ export interface FeedPost {
   place?: { id?: string; name: string; city?: string; universe?: string } | null;
 }
 
+/** Sticker posé sur une story (position x/y en % du cadre). */
+export interface StorySticker {
+  kind: 'poll' | 'question' | 'mention' | 'location' | 'hashtag' | 'text' | 'emoji_slider' | 'countdown' | 'link';
+  x: number;
+  y: number;
+  question?: string;
+  options?: string[];
+  userId?: string;
+  label?: string;
+  placeId?: string;
+  url?: string;
+  text?: string;
+  emoji?: string;
+  endsAt?: string;
+  color?: string;
+}
+
 export interface StoryItem {
   id: string;
   mediaUrl: string;
   type: 'photo' | 'video';
   caption?: string | null;
   seen: boolean;
+  closeFriendsOnly?: boolean;
+  stickers?: StorySticker[] | null;
+  viewCount?: number;
+  userId?: string;
   createdAt: string;
 }
 
@@ -100,12 +121,35 @@ export const feedApi = {
   globalStories: (token: string) =>
     fetch(`${API}/stories/global`, { headers: auth(token) }).then((r) => safe<StoryGroup[]>(r, [])),
 
-  createStory: (token: string, dto: { mediaUrl: string; type?: 'photo' | 'video'; caption?: string; placeId?: string }) =>
+  createStory: (token: string, dto: {
+    mediaUrl: string; type?: 'photo' | 'video'; caption?: string; placeId?: string;
+    closeFriendsOnly?: boolean; stickers?: StorySticker[];
+  }) =>
     fetch(`${API}/stories`, { method: 'POST', headers: json(token), body: JSON.stringify(dto) })
       .then((r) => safe<{ id: string } | null>(r, null)),
 
   markStoryViewed: (token: string, storyId: string) =>
     fetch(`${API}/stories/${storyId}/view`, { method: 'POST', headers: auth(token) }),
+
+  /** Qui a vu ma story (auteur uniquement). */
+  storyViewers: (token: string, storyId: string) =>
+    fetch(`${API}/stories/${storyId}/viewers`, { headers: auth(token) })
+      .then((r) => safe<Array<{ viewedAt: string; user: { id: string; displayName: string; photoUrl?: string } }>>(r, [])),
+
+  /** Vote sur le sondage d'une story. */
+  votePoll: (token: string, storyId: string, optionIndex: number) =>
+    fetch(`${API}/stories/${storyId}/poll-vote`, { method: 'POST', headers: json(token), body: JSON.stringify({ optionIndex }) })
+      .then((r) => safe<{ results: number[]; myVote: number } | null>(r, null)),
+
+  /** Résultats du sondage d'une story. */
+  pollResults: (token: string, storyId: string) =>
+    fetch(`${API}/stories/${storyId}/poll-results`, { headers: auth(token) })
+      .then((r) => safe<{ results: number[]; myVote: number | null }>(r, { results: [], myVote: null })),
+
+  /** Répondre à une story (part en DM chez l'auteur). */
+  replyToStory: (token: string, storyId: string, text: string) =>
+    fetch(`${API}/stories/${storyId}/reply`, { method: 'POST', headers: json(token), body: JSON.stringify({ text }) })
+      .then((r) => r.ok),
 
   // ── Highlights (à la une) ────────────────────────────────────────────────
   getHighlights: (token: string, userId: string) =>

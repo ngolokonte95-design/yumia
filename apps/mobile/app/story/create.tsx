@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Pressable, StyleSheet, Switch, Text, TextInput, View,
+  ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { feedApi } from '../../lib/feed-api';
+import { feedApi, type StorySticker } from '../../lib/feed-api';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 
 export default function CreateStoryScreen() {
@@ -20,6 +20,14 @@ export default function CreateStoryScreen() {
   const [pinToProfile, setPinToProfile] = useState(false);
   const [highlightTitle, setHighlightTitle] = useState('');
   const [loading, setLoading] = useState(false);
+  // Enrichissements façon Instagram
+  const [closeFriendsOnly, setCloseFriendsOnly] = useState(false);
+  const [pollEnabled, setPollEnabled] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptA, setPollOptA] = useState('Oui');
+  const [pollOptB, setPollOptB] = useState('Non');
+  const [questionEnabled, setQuestionEnabled] = useState(false);
+  const [questionText, setQuestionText] = useState('Pose-moi une question !');
 
   const openCamera = () => { router.push('/camera?mode=story' as never); };
 
@@ -43,7 +51,21 @@ export default function CreateStoryScreen() {
       const mediaUrl = await feedApi.uploadMedia(accessToken, uri);
       if (!mediaUrl) { Alert.alert('Erreur', "L'upload a échoué."); return; }
 
-      await feedApi.createStory(accessToken, { mediaUrl, type, caption: caption.trim() || undefined });
+      const stickers: StorySticker[] = [];
+      if (pollEnabled && pollQuestion.trim()) {
+        stickers.push({ kind: 'poll', x: 50, y: 62, question: pollQuestion.trim(), options: [pollOptA.trim() || 'Oui', pollOptB.trim() || 'Non'] });
+      }
+      if (questionEnabled && questionText.trim()) {
+        stickers.push({ kind: 'question', x: 50, y: 40, question: questionText.trim() });
+      }
+
+      await feedApi.createStory(accessToken, {
+        mediaUrl,
+        type,
+        caption: caption.trim() || undefined,
+        closeFriendsOnly: closeFriendsOnly || undefined,
+        stickers: stickers.length ? stickers : undefined,
+      });
 
       if (pinToProfile) {
         await feedApi.createHighlight(accessToken, highlightTitle.trim() || 'À la une', [{ mediaUrl, type, caption: caption.trim() || undefined }]);
@@ -65,7 +87,7 @@ export default function CreateStoryScreen() {
         </Pressable>
       </View>
 
-      <View style={{ padding: spacing.md, flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 40 }}>
         {uri ? (
           <View style={styles.previewWrap}>
             <Image source={{ uri }} style={styles.preview} />
@@ -122,7 +144,74 @@ export default function CreateStoryScreen() {
             maxLength={30}
           />
         )}
-      </View>
+
+        {/* Amis proches */}
+        <View style={styles.pinRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pinTitle}>🟢 Amis proches uniquement</Text>
+            <Text style={styles.pinHint}>Seuls tes amis proches verront cette story</Text>
+          </View>
+          <Switch value={closeFriendsOnly} onValueChange={setCloseFriendsOnly} trackColor={{ true: '#2BB673' }} />
+        </View>
+
+        {/* Sticker sondage */}
+        <View style={styles.pinRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pinTitle}>📊 Ajouter un sondage</Text>
+            <Text style={styles.pinHint}>Tes abonnés votent directement dans la story</Text>
+          </View>
+          <Switch value={pollEnabled} onValueChange={setPollEnabled} trackColor={{ true: colors.brand }} />
+        </View>
+        {pollEnabled && (
+          <View style={{ gap: 8, marginBottom: spacing.md }}>
+            <TextInput
+              style={[styles.caption, { marginBottom: 0 }]}
+              placeholder="Ta question (ex: On y va ce soir ?)"
+              placeholderTextColor={colors.textMuted}
+              value={pollQuestion}
+              onChangeText={setPollQuestion}
+              maxLength={80}
+            />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                style={[styles.caption, { flex: 1, marginBottom: 0 }]}
+                placeholder="Option 1"
+                placeholderTextColor={colors.textMuted}
+                value={pollOptA}
+                onChangeText={setPollOptA}
+                maxLength={22}
+              />
+              <TextInput
+                style={[styles.caption, { flex: 1, marginBottom: 0 }]}
+                placeholder="Option 2"
+                placeholderTextColor={colors.textMuted}
+                value={pollOptB}
+                onChangeText={setPollOptB}
+                maxLength={22}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Sticker question */}
+        <View style={styles.pinRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pinTitle}>💬 Boîte à questions</Text>
+            <Text style={styles.pinHint}>Tes abonnés te répondent en message privé</Text>
+          </View>
+          <Switch value={questionEnabled} onValueChange={setQuestionEnabled} trackColor={{ true: colors.brand }} />
+        </View>
+        {questionEnabled && (
+          <TextInput
+            style={styles.caption}
+            placeholder="Ton invite (ex: Pose-moi une question !)"
+            placeholderTextColor={colors.textMuted}
+            value={questionText}
+            onChangeText={setQuestionText}
+            maxLength={80}
+          />
+        )}
+      </ScrollView>
     </View>
   );
 }
