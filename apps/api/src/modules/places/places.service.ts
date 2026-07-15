@@ -296,9 +296,8 @@ export class PlacesService {
       'places:hydrated',
       // Version de schéma d'hydratation : incrémenter invalide les tuiles
       // anciennes (ex. densité v1) et force une ré-hydratation plus riche.
-      // v5 : déblocage des univers car_rental / car_dealership / tobacco
-      // (leurs types Google étaient dans la liste bloquée → 0 lieu persisté).
-      'v5',
+      // v6 : filtre rating abaissé 3.0 → 2.5 pour densifier les univers peu fournis
+      'v6',
       params.universe ?? 'all',
       params.lat.toFixed(2),
       params.lng.toFixed(2),
@@ -366,7 +365,7 @@ export class PlacesService {
     for (const p of places) {
       // Ignore épiceries, banques, stations… (sauf univers de service) et lieux mal notés.
       if (isBlockedPlace(p.tags, p.universe)) continue;
-      if (p.rating > 0 && p.rating < 3.0) continue;
+      if (p.rating > 0 && p.rating < 2.5) continue;
       try {
         // Lieu sans photo (ex. night-club renvoyé nu par searchNearby) : on tente
         // un enrichissement Text Search par nom+position, dans un budget borné

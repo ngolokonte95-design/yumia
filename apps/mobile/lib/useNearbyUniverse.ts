@@ -15,7 +15,7 @@ export function useNearbyUniverse(params: {
   /** Tant que `false`, on ne charge pas (ex. position pas encore résolue). */
   enabled?: boolean;
 }) {
-  const { lat, lng, universe, radius = 5000, limit = 30, enabled = true } = params;
+  const { lat, lng, universe, radius = 10000, limit = 30, enabled = true } = params;
   const { isOnline } = useNetworkStatus();
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
   const [loading, setLoading] = useState(universe !== null);
