@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal,
+  ActivityIndicator, Animated, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal,
   Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -74,6 +74,8 @@ export default function StoryViewerScreen() {
   const [viewersOpen, setViewersOpen] = useState(false);
   const [viewers, setViewers] = useState<Array<{ viewedAt: string; user: { id: string; displayName: string; photoUrl?: string } }>>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progress = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef<Animated.CompositeAnimation | null>(null);
 
   const isMine = group?.user?.id === me?.id;
 
@@ -99,15 +101,25 @@ export default function StoryViewerScreen() {
 
   const prev = useCallback(() => { setIndex((i) => Math.max(0, i - 1)); setReplySent(false); }, []);
 
-  // Auto-avance + marque comme vue (pause pendant la saisie / la liste des vues)
+  // Auto-avance + barre de progression animée (pause quand focus reply ou vues ouvertes)
   useEffect(() => {
-    if (!group || !group.stories[index] || paused || viewersOpen) return;
+    if (!group || !group.stories[index] || paused || viewersOpen) {
+      progressAnim.current?.stop();
+      return;
+    }
     const story = group.stories[index];
+    const ms = story.type === 'video' ? VIDEO_STORY_MS : STORY_MS;
     if (accessToken) void feedApi.markStoryViewed(accessToken, story.id);
+    progress.setValue(0);
+    progressAnim.current = Animated.timing(progress, { toValue: 1, duration: ms, useNativeDriver: false });
+    progressAnim.current.start(({ finished }) => { if (finished) next(); });
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(next, story.type === 'video' ? VIDEO_STORY_MS : STORY_MS);
-    return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [group, index, next, accessToken, paused, viewersOpen]);
+    timer.current = setTimeout(next, ms);
+    return () => {
+      progressAnim.current?.stop();
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [group, index, next, accessToken, paused, viewersOpen, progress]);
 
   const openViewers = async () => {
     if (!accessToken || !group) return;
@@ -149,7 +161,11 @@ export default function StoryViewerScreen() {
       <View style={[styles.progressRow, { top: insets.top + 8 }]}>
         {group.stories.map((s, i) => (
           <View key={s.id} style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: i < index ? '100%' : i === index ? '100%' : '0%' }]} />
+            {i < index ? (
+              <View style={[styles.progressFill, { width: '100%' }]} />
+            ) : i === index ? (
+              <Animated.View style={[styles.progressFill, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+            ) : null}
           </View>
         ))}
       </View>
@@ -202,6 +218,13 @@ export default function StoryViewerScreen() {
         }
         return null;
       })}
+
+      {story.musicTrack ? (
+        <View style={[styles.musicBar, { bottom: insets.bottom + (story.caption ? 140 : 90) }]}>
+          <Text style={styles.musicNote}>♫</Text>
+          <Text style={styles.musicTrack} numberOfLines={1}>{story.musicTrack}</Text>
+        </View>
+      ) : null}
 
       {story.caption ? (
         <View style={[styles.captionWrap, { bottom: insets.bottom + 90 }]}>
@@ -287,6 +310,9 @@ const styles = StyleSheet.create({
   cfBadge: { backgroundColor: 'rgba(43,182,115,0.9)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   cfBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
   close: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  musicBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, zIndex: 6 },
+  musicNote: { color: '#fff', fontSize: 14 },
+  musicTrack: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
   captionWrap: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 12, padding: 12 },
   caption: { color: '#fff', fontSize: 15, textAlign: 'center' },
   tapLeft: { position: 'absolute', left: 0, top: 80, bottom: 110, width: width * 0.3 },

@@ -2,6 +2,7 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const INTENT_KEY = (uid: string) => `social:intent:${uid}`;
 const EVENT_KEY  = (id: string)  => `social:event:${id}`;
@@ -45,6 +46,7 @@ export class SocialService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ── Follow / Unfollow ────────────────────────────────────────────────────
@@ -74,6 +76,13 @@ export class SocialService {
     }
 
     await this.prisma.follow.create({ data: { followerId, followingId } });
+    const follower = await this.prisma.user.findUnique({ where: { id: followerId }, select: { displayName: true } });
+    void this.notifications.sendToUser(
+      followingId,
+      '👤 Nouvel abonné',
+      `${follower?.displayName ?? 'Quelqu\'un'} a commencé à vous suivre`,
+      { type: 'new_follower', followerId },
+    );
     return { status: 'following' as const };
   }
 

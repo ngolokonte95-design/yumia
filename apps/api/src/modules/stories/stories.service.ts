@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { ChatService } from '../chat/chat.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Cron } from '@nestjs/schedule';
 
 /** Sticker posé sur une story (position en % du cadre). */
@@ -29,6 +30,7 @@ export class StoriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly chat: ChatService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(userId: string, dto: {
@@ -312,12 +314,20 @@ export class StoriesService {
     if (!story || story.expiresAt < new Date()) throw new NotFoundException('Story introuvable ou expirée');
     if (story.userId === userId) throw new BadRequestException('Impossible de répondre à sa propre story.');
     const conv = await this.chat.getOrCreateConversation(userId, story.userId);
-    return this.chat.sendMessage(conv.id, userId, {
+    const message = await this.chat.sendMessage(conv.id, userId, {
       content: text,
       type: 'story_reply',
       storyId,
       mediaUrl: story.mediaUrl,
     });
+    const replier = await this.prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
+    void this.notifications.sendToUser(
+      story.userId,
+      '↩️ Réponse à votre story',
+      `${replier?.displayName ?? 'Quelqu\'un'} a répondu : ${text.slice(0, 60)}`,
+      { type: 'story_reply', storyId },
+    );
+    return message;
   }
 
   async delete(storyId: string, userId: string) {

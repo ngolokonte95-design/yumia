@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import type { Post } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /** Extrait les hashtags (#mot) d'une légende, en minuscules, sans doublon. */
 function extractHashtags(caption?: string | null): string[] {
@@ -23,7 +24,10 @@ export interface CreatePostOptions {
 
 @Injectable()
 export class PostsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async createPost(
     userId: string,
@@ -379,21 +383,40 @@ export class PostsService {
       const updated = await this.prisma.post.update({
         where: { id: postId },
         data: { likesCount: { increment: 1 } },
-        select: { likesCount: true },
+        select: { likesCount: true, userId: true },
       });
+      if (updated.userId !== userId) {
+        const liker = await this.prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
+        void this.notifications.sendToUser(
+          updated.userId,
+          '❤️ Nouveau j\'aime',
+          `${liker?.displayName ?? 'Quelqu\'un'} a aimé votre publication`,
+          { type: 'post_like', postId },
+        );
+      }
       return { liked: true, likesCount: updated.likesCount };
     }
   }
 
   async addComment(userId: string, postId: string, content: string, parentId?: string) {
-    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, commentsDisabled: true } });
+    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, userId: true, commentsDisabled: true } });
     if (!post) throw new NotFoundException('Post introuvable');
     if (post.commentsDisabled) throw new ForbiddenException('Les commentaires sont désactivés sur ce post.');
     if (parentId) {
       const parent = await this.prisma.postComment.findUnique({ where: { id: parentId }, select: { postId: true } });
       if (!parent || parent.postId !== postId) throw new NotFoundException('Commentaire parent introuvable');
     }
-    return this.prisma.postComment.create({ data: { userId, postId, content, parentId } });
+    const comment = await this.prisma.postComment.create({ data: { userId, postId, content, parentId } });
+    if (post.userId !== userId) {
+      const commenter = await this.prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
+      void this.notifications.sendToUser(
+        post.userId,
+        '💬 Nouveau commentaire',
+        `${commenter?.displayName ?? 'Quelqu\'un'} a commenté : ${content.slice(0, 60)}`,
+        { type: 'post_comment', postId, commentId: comment.id },
+      );
+    }
+    return comment;
   }
 
   async deleteComment(userId: string, commentId: string) {

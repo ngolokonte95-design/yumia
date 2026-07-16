@@ -4,7 +4,7 @@
  * guides, aux sorties, au mode groupe et au classement.
  */
 import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
+import { Image, ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
@@ -12,6 +12,10 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useLocation } from '../../lib/useLocation';
 import { fetchBoostedVenues, type Venue } from '../../lib/business-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
+import { socialApi } from '../../lib/social-api';
+import { useAuth } from '../../lib/auth-context';
+
+type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number };
 
 const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; route: string }[] = [
   { key: 'guides', emoji: '🧭', label: 'Guides locaux', sub: 'Experts certifiés', route: '/guides' },
@@ -25,8 +29,10 @@ const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; r
 export default function ExplorerScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { accessToken } = useAuth();
   const { coords, resolving } = useLocation();
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
 
   useEffect(() => {
     if (resolving) return;
@@ -34,6 +40,13 @@ export default function ExplorerScreen() {
       .then((v) => setVenues(v.slice(0, 6)))
       .catch(() => {});
   }, [coords.lat, coords.lng, resolving]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    socialApi.searchUsers(accessToken, '', 10)
+      .then((users) => setSuggestedUsers(users.slice(0, 8)))
+      .catch(() => {});
+  }, [accessToken]);
 
   return (
     <ScrollView
@@ -97,6 +110,34 @@ export default function ExplorerScreen() {
         </View>
       ) : null}
 
+      {/* Personnes à suivre */}
+      {suggestedUsers.length > 0 ? (
+        <View style={styles.section}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>👥 Personnes à suivre</Text>
+            <Pressable onPress={() => router.push('/search' as never)}>
+              <Text style={styles.seeAll}>Voir plus</Text>
+            </Pressable>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+            {suggestedUsers.map((u) => (
+              <Pressable key={u.id} style={styles.peopleCard} onPress={() => router.push(`/user/${u.id}` as never)}>
+                {u.photoUrl ? (
+                  <Image source={{ uri: u.photoUrl }} style={styles.peopleAvatar} />
+                ) : (
+                  <View style={[styles.peopleAvatar, styles.peopleAvatarFallback]}>
+                    <Text style={styles.peopleAvatarTxt}>{u.displayName[0]}</Text>
+                  </View>
+                )}
+                <Text style={styles.peopleName} numberOfLines={1}>{u.displayName}</Text>
+                {u.bio ? <Text style={styles.peopleBio} numberOfLines={2}>{u.bio}</Text> : null}
+                <Text style={styles.peopleLevel}>Niv. {u.level}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
       {/* Catalogue d'univers — groupés par catégorie */}
       {UNIVERSE_CATEGORIES.map((cat) => (
         <View key={cat.label} style={styles.section}>
@@ -150,6 +191,17 @@ const styles = StyleSheet.create({
   eventVenue: { ...typography.label, color: colors.textMuted, flex: 1 },
   eventName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
   eventMeta: { ...typography.caption, color: colors.brandSoft, marginTop: 2 },
+
+  peopleCard: {
+    width: 120, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, padding: spacing.md, alignItems: 'center', gap: 4,
+  },
+  peopleAvatar: { width: 52, height: 52, borderRadius: 26, marginBottom: 4 },
+  peopleAvatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  peopleAvatarTxt: { color: '#fff', fontWeight: '800', fontSize: 20 },
+  peopleName: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', textAlign: 'center' },
+  peopleBio: { ...typography.label, color: colors.textMuted, fontSize: 10, textAlign: 'center' },
+  peopleLevel: { ...typography.label, color: colors.brandSoft, fontSize: 10, fontWeight: '700' },
 
   universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   universeCard: {

@@ -61,6 +61,7 @@ export interface StoryItem {
   viewCount?: number;
   userId?: string;
   createdAt: string;
+  musicTrack?: string | null;
 }
 
 export interface StoryGroup {
