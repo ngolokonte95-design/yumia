@@ -56,6 +56,7 @@ export class StoriesController {
     @Body() dto: {
       mediaUrl: string; type?: 'photo' | 'video'; caption?: string; placeId?: string;
       closeFriendsOnly?: boolean; stickers?: import('./stories.service').StorySticker[];
+      musicTrack?: string;
     },
   ) {
     return this.stories.create(user.sub, dto);

@@ -38,6 +38,7 @@ export class StoriesService {
     placeId?: string;
     closeFriendsOnly?: boolean;
     stickers?: StorySticker[];
+    musicTrack?: string;
   }) {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // +24h
     return this.prisma.story.create({
@@ -49,6 +50,7 @@ export class StoriesService {
         placeId: dto.placeId,
         closeFriendsOnly: dto.closeFriendsOnly ?? false,
         stickers: dto.stickers ? (dto.stickers as unknown as Prisma.InputJsonValue) : undefined,
+        musicTrack: dto.musicTrack,
         expiresAt,
       },
     });

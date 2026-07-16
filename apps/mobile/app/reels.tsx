@@ -17,11 +17,15 @@ const API = API_BASE_URL;
 type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
-function ReelVideo({ uri, active }: { uri: string; active: boolean }) {
+function ReelVideo({ uri, active, muted }: { uri: string; active: boolean; muted: boolean }) {
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
-    p.muted = false;
+    p.muted = muted;
   });
+
+  useEffect(() => {
+    try { player.muted = muted; } catch {}
+  }, [muted, player]);
 
   useEffect(() => {
     if (active) {
@@ -58,6 +62,7 @@ function ReelCard({
   const [muted, setMuted] = useState(false);
   const [liked, setLiked] = useState(item.likedByMe);
   const [likes, setLikes] = useState(item.likesCount);
+  const musicMeta = item.musicTrack ? (() => { try { return JSON.parse(item.musicTrack) as { title?: string; artist?: string; artworkUrl?: string }; } catch { return null; } })() : null;
 
   const handleLike = () => {
     setLiked((v) => !v);
@@ -73,7 +78,7 @@ function ReelCard({
       {/* Fond / vidéo */}
       {mediaUrl ? (
         isVideo ? (
-          <ReelVideo uri={mediaUrl} active={active} />
+          <ReelVideo uri={mediaUrl} active={active} muted={muted} />
         ) : (
           <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         )
@@ -132,9 +137,11 @@ function ReelCard({
           <Text style={styles.reelActionIcon}>···</Text>
         </Pressable>
 
-        {/* Miniature musique tournante */}
+        {/* Miniature musique */}
         <View style={styles.musicDisk}>
-          <Text style={{ fontSize: 18 }}>🎵</Text>
+          {musicMeta?.artworkUrl
+            ? <Image source={{ uri: musicMeta.artworkUrl }} style={styles.musicDiskImg} />
+            : <Text style={{ fontSize: 18 }}>🎵</Text>}
         </View>
       </View>
 
@@ -149,6 +156,9 @@ function ReelCard({
         </Pressable>
         {item.caption ? (
           <Text style={styles.reelCaption} numberOfLines={2}>{item.caption}</Text>
+        ) : null}
+        {musicMeta?.title ? (
+          <Text style={styles.reelMusicRow} numberOfLines={1}>🎵 {musicMeta.title}{musicMeta.artist ? ` • ${musicMeta.artist}` : ''}</Text>
         ) : null}
         {/* Barre de progression */}
         <View style={styles.reelProgressBar}>
@@ -334,7 +344,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)',
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  musicDiskImg: { width: 44, height: 44, borderRadius: 22 },
+  reelMusicRow: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginBottom: 6 },
 
   // Infos bas
   reelInfo: {

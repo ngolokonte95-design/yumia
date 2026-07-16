@@ -877,6 +877,7 @@ model Story {
   viewCount        Int       @default(0)
   closeFriendsOnly Boolean   @default(false) // visible uniquement par les amis proches
   stickers         Json?     // stickers posés sur la story : sondage, question, mention, lieu, texte… [{ kind, x, y, ... }]
+  musicTrack       String?   // JSON : { title, artist, artworkUrl, previewUrl, startMs, durationMs }
   createdAt        DateTime  @default(now())
   views            StoryView[]
   pollVotes        StoryPollVote[]

@@ -123,7 +123,7 @@ export const feedApi = {
 
   createStory: (token: string, dto: {
     mediaUrl: string; type?: 'photo' | 'video'; caption?: string; placeId?: string;
-    closeFriendsOnly?: boolean; stickers?: StorySticker[];
+    closeFriendsOnly?: boolean; stickers?: StorySticker[]; musicTrack?: string;
   }) =>
     fetch(`${API}/stories`, { method: 'POST', headers: json(token), body: JSON.stringify(dto) })
       .then((r) => safe<{ id: string } | null>(r, null)),
@@ -167,7 +167,13 @@ export const feedApi = {
     const form = new FormData();
     const name = uri.split('/').pop() ?? 'photo.jpg';
     const ext = name.split('.').pop()?.toLowerCase();
-    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    const mime = ext === 'png' ? 'image/png'
+      : ext === 'webp' ? 'image/webp'
+      : ext === 'mp4' ? 'video/mp4'
+      : ext === 'mov' ? 'video/quicktime'
+      : ext === 'm4v' ? 'video/mp4'
+      : ext === 'webm' ? 'video/webm'
+      : 'image/jpeg';
     // @ts-expect-error React Native FormData file shape
     form.append('file', { uri, name, type: mime });
     const r = await fetch(`${API}/posts/upload`, { method: 'POST', headers: auth(token), body: form });

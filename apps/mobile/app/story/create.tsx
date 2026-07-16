@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { feedApi, type StorySticker } from '../../lib/feed-api';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
 
 export default function CreateStoryScreen() {
   const { accessToken } = useAuth();
@@ -28,6 +29,8 @@ export default function CreateStoryScreen() {
   const [pollOptB, setPollOptB] = useState('Non');
   const [questionEnabled, setQuestionEnabled] = useState(false);
   const [questionText, setQuestionText] = useState('Pose-moi une question !');
+  const [selectedMusic, setSelectedMusic] = useState<MusicTrack | null>(null);
+  const [musicModalVisible, setMusicModalVisible] = useState(false);
 
   const openCamera = () => { router.push('/camera?mode=story' as never); };
 
@@ -65,6 +68,7 @@ export default function CreateStoryScreen() {
         caption: caption.trim() || undefined,
         closeFriendsOnly: closeFriendsOnly || undefined,
         stickers: stickers.length ? stickers : undefined,
+        musicTrack: selectedMusic ? JSON.stringify(selectedMusic) : undefined,
       });
 
       if (pinToProfile) {
@@ -125,6 +129,29 @@ export default function CreateStoryScreen() {
           onChangeText={setCaption}
           maxLength={200}
         />
+
+        {/* Musique */}
+        {selectedMusic ? (
+          <View style={styles.musicSelected}>
+            <Image source={{ uri: selectedMusic.artworkUrl }} style={styles.musicArtwork} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.musicTitle} numberOfLines={1}>{selectedMusic.title}</Text>
+              <Text style={styles.musicArtist} numberOfLines={1}>{selectedMusic.artist} · {selectedMusic.durationMs / 1000}s</Text>
+            </View>
+            <Pressable onPress={() => setMusicModalVisible(true)} style={styles.musicChangeBtn}>
+              <Text style={styles.musicChangeTxt}>Modifier</Text>
+            </Pressable>
+            <Pressable onPress={() => setSelectedMusic(null)}>
+              <Text style={{ color: colors.textMuted, fontSize: 18, paddingLeft: 4 }}>✕</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable style={styles.musicRow} onPress={() => setMusicModalVisible(true)}>
+            <Text style={{ fontSize: 20 }}>🎵</Text>
+            <Text style={styles.musicPlaceholder}>Ajouter une musique</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
+          </Pressable>
+        )}
 
         {/* À la une */}
         <View style={styles.pinRow}>
@@ -212,6 +239,12 @@ export default function CreateStoryScreen() {
           />
         )}
       </ScrollView>
+
+      <MusicPickerModal
+        visible={musicModalVisible}
+        onClose={() => setMusicModalVisible(false)}
+        onSelect={(track) => setSelectedMusic(track)}
+      />
     </View>
   );
 }
@@ -244,4 +277,12 @@ const styles = StyleSheet.create({
   pinRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
   pinTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
   pinHint: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  musicRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 14, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
+  musicPlaceholder: { flex: 1, color: colors.textMuted, fontSize: 14 },
+  musicSelected: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 10, marginBottom: spacing.md, borderWidth: 1.5, borderColor: colors.brand + '66' },
+  musicArtwork: { width: 46, height: 46, borderRadius: 6 },
+  musicTitle: { fontSize: 13, color: colors.text, fontWeight: '700' },
+  musicArtist: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  musicChangeBtn: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.border },
+  musicChangeTxt: { fontSize: 12, color: colors.brand, fontWeight: '600' },
 });

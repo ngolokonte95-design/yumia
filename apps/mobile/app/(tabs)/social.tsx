@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, Linking, Modal, Pressable, RefreshControl,
+  ActivityIndicator, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
@@ -152,7 +153,7 @@ function MediaCarousel({ urls, onPress }: { urls: string[]; onPress: () => void 
 
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
-function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress }: {
+function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, isMusicPlaying, onMusicPress }: {
   item: FeedPost;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
@@ -160,6 +161,8 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
   onComment: (id: string) => void;
   onShare: (item: FeedPost) => void;
   onUserPress: (id: string) => void;
+  isMusicPlaying?: boolean;
+  onMusicPress?: (postId: string, previewUrl: string) => void;
 }) {
   return (
     <View style={styles.postCard}>
@@ -210,13 +213,16 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
         const music = parseMusicTrack(item.musicTrack);
         if (!music) return null;
         return (
-          <Pressable style={styles.musicBadge} onPress={() => music.previewUrl ? void Linking.openURL(music.previewUrl) : null}>
+          <Pressable
+            style={styles.musicBadge}
+            onPress={() => music.previewUrl && onMusicPress ? onMusicPress(item.id, music.previewUrl) : null}
+          >
             {music.artworkUrl ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} /> : <Text style={{ fontSize: 18 }}>🎵</Text>}
             <View style={{ flex: 1 }}>
               <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
               {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
             </View>
-            {music.previewUrl ? <Text style={{ fontSize: 14 }}>▶️</Text> : null}
+            {music.previewUrl ? <Text style={{ fontSize: 16 }}>{isMusicPlaying ? '⏸' : '▶️'}</Text> : null}
           </Pressable>
         );
       })()}
@@ -280,36 +286,57 @@ export default function SocialTab() {
   const [following, setFollowing] = useState<Set<string>>(new Set());
   const [suggestions, setSuggestions] = useState<Array<{ id: string; displayName: string; photoUrl?: string; bio?: string }>>([]);
 
+  // Music playback in feed
+  const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
+  const musicSoundRef = useRef<Audio.Sound | null>(null);
+
+  const stopMusic = useCallback(async () => {
+    if (musicSoundRef.current) {
+      await musicSoundRef.current.stopAsync().catch(() => null);
+      await musicSoundRef.current.unloadAsync().catch(() => null);
+      musicSoundRef.current = null;
+    }
+    setPlayingMusicId(null);
+  }, []);
+
+  const handleMusicPress = useCallback(async (postId: string, previewUrl: string) => {
+    if (playingMusicId === postId) { await stopMusic(); return; }
+    await stopMusic();
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true });
+      musicSoundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((st) => { if (st.isLoaded && !st.isPlaying) setPlayingMusicId(null); });
+      setPlayingMusicId(postId);
+    } catch { setPlayingMusicId(null); }
+  }, [playingMusicId, stopMusic]);
+
+  useEffect(() => () => { void stopMusic(); }, [stopMusic]);
+
   const load = useCallback(async () => {
     if (!accessToken) return;
     const h = { Authorization: `Bearer ${accessToken}` };
-    const [storiesRes, globalRes, followRes, actRes, encRes] = await Promise.allSettled([
+    const [storiesRes, globalRes, followRes, actRes, encRes, followingRes, suggestionsRes] = await Promise.allSettled([
       feedApi.globalStories(accessToken),
       feedApi.globalFeed(accessToken),
       feedApi.followingFeed(accessToken),
       fetch(`${API}/social/feed`, { headers: h }),
       fetch(`${API}/discover/encounters`, { headers: h }),
+      me?.id ? fetch(`${API}/social/users/${me.id}/following`, { headers: h }) : Promise.resolve(null as unknown as Response),
+      me?.id ? fetch(`${API}/social/users/search?q=&limit=20`, { headers: h }) : Promise.resolve(null as unknown as Response),
     ]);
     if (storiesRes.status === 'fulfilled') setStories(storiesRes.value);
     if (globalRes.status === 'fulfilled') setGlobalPosts(globalRes.value);
     if (followRes.status === 'fulfilled') setFollowingPosts(followRes.value);
-    if (actRes.status === 'fulfilled' && actRes.value.ok) setFeed(await actRes.value.json());
-    if (encRes.status === 'fulfilled' && encRes.value.ok) setEncounters(await encRes.value.json());
-
-    if (me?.id) {
-      const [followingRes, suggestionsRes] = await Promise.allSettled([
-        fetch(`${API}/social/users/${me.id}/following`, { headers: h }),
-        fetch(`${API}/social/users/search?q=&limit=20`, { headers: h }),
-      ]);
-      if (followingRes.status === 'fulfilled' && followingRes.value.ok) {
-        const list = await followingRes.value.json() as Array<{ id: string }>;
-        setFollowing(new Set(list.map((u) => u.id)));
-      }
-      if (suggestionsRes.status === 'fulfilled' && suggestionsRes.value.ok) {
-        setSuggestions(await suggestionsRes.value.json());
-      }
+    if (actRes.status === 'fulfilled' && actRes.value?.ok) setFeed(await actRes.value.json());
+    if (encRes.status === 'fulfilled' && encRes.value?.ok) setEncounters(await encRes.value.json());
+    if (followingRes.status === 'fulfilled' && followingRes.value?.ok) {
+      const list = await followingRes.value.json() as Array<{ id: string }>;
+      setFollowing(new Set(list.map((u) => u.id)));
     }
-
+    if (suggestionsRes.status === 'fulfilled' && suggestionsRes.value?.ok) {
+      setSuggestions(await suggestionsRes.value.json());
+    }
     setLoading(false);
     setRefreshing(false);
   }, [accessToken, me?.id]);
@@ -417,6 +444,8 @@ export default function SocialTab() {
           onComment={openComments}
           onShare={shareToDM}
           onUserPress={(id) => router.push(`/user/${id}` as never)}
+          isMusicPlaying={playingMusicId === item.id}
+          onMusicPress={handleMusicPress}
         />
       )}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
@@ -426,8 +455,8 @@ export default function SocialTab() {
           <Text style={styles.emptyEmoji}>{emptyEmoji}</Text>
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
           <Text style={styles.emptyText}>{emptyText}</Text>
-          <Pressable style={styles.emptyBtn} onPress={() => router.push('/camera' as never)}>
-            <Text style={styles.emptyBtnText}>📷 Publier une photo</Text>
+          <Pressable style={styles.emptyBtn} onPress={() => router.push('/post/create' as never)}>
+            <Text style={styles.emptyBtnText}>📷 Photo · 🎬 Vidéo</Text>
           </Pressable>
         </View>
       }
