@@ -20,7 +20,7 @@ RUN npm run build --workspace=packages/shared
 
 # Générer le client Prisma puis compiler l'API NestJS.
 RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
-RUN npm run build --workspace=apps/api
+RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build --workspace=apps/api
 
 # ── Stage 2 : runner ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
