@@ -35,7 +35,7 @@ export default function UniverseScreen() {
     lat: coords.lat,
     lng: coords.lng,
     universe,
-    radius: 5000,
+    radius: 10000,
     limit: 60,
     enabled: !resolving,
   });
