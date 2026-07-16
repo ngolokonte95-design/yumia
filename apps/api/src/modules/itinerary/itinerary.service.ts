@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import type { Universe } from '@yumia/shared';
+import type { AppConfig } from '../../config/configuration';
 import { PlacesService } from '../places/places.service';
 
 export interface ItineraryRequest {
@@ -88,12 +90,75 @@ function stepTypeToUniverse(type: string): Universe | null {
   return STEP_TYPE_TO_UNIVERSE[key] ?? null;
 }
 
+/**
+ * Séquences de repli par mood — utilisées quand l'IA est indisponible (pas de
+ * clé) ou échoue. Chaque étape sera enrichie d'un vrai lieu via PlacesService,
+ * donc le `name` générique n'apparaît que si aucun lieu n'est trouvé.
+ * On garde une trame « journée » complète ; `sliceForDuration` la raccourcit.
+ */
+const FALLBACK_SEQUENCES: Record<string, ItineraryStep[]> = {
+  date: [
+    { time: '19h00', type: 'bar', name: 'Un bar à cocktails', description: "L'apéro pour démarrer la soirée en douceur.", duration: '1h', emoji: '🍸', tips: 'Réserve une table au calme.' },
+    { time: '20h30', type: 'restaurant', name: 'Un dîner romantique', description: 'Un restaurant à l\'ambiance intimiste pour deux.', duration: '1h30', emoji: '🍽️', tips: 'Demande une table à l\'écart.' },
+    { time: '22h30', type: 'photo', name: 'Un point de vue', description: 'Une vue pour finir la soirée en beauté.', duration: '45min', emoji: '🌆' },
+  ],
+  amis: [
+    { time: '11h00', type: 'brunch', name: 'Un brunch convivial', description: 'On se retrouve autour d\'un bon brunch.', duration: '1h30', emoji: '🥐' },
+    { time: '14h00', type: 'activité', name: 'Une activité de groupe', description: 'De quoi s\'amuser tous ensemble.', duration: '2h', emoji: '🎯' },
+    { time: '20h00', type: 'restaurant', name: 'Un resto entre amis', description: 'Bonne bouffe et bonne ambiance.', duration: '1h30', emoji: '🍽️' },
+    { time: '22h00', type: 'bar', name: 'Un dernier verre', description: 'On prolonge la soirée autour d\'un verre.', duration: '1h30', emoji: '🍹' },
+  ],
+  famille: [
+    { time: '10h00', type: 'activité', name: 'Une sortie ludique', description: 'Une activité qui plaît aux petits comme aux grands.', duration: '2h', emoji: '🎡' },
+    { time: '12h30', type: 'restaurant', name: 'Un déjeuner familial', description: 'Un restaurant avec menu enfant.', duration: '1h15', emoji: '🍽️' },
+    { time: '14h30', type: 'parc', name: 'Un parc', description: 'Une pause au grand air pour se dépenser.', duration: '1h30', emoji: '🌳' },
+    { time: '16h30', type: 'glace', name: 'Un goûter glacé', description: 'Une glace pour finir la journée en douceur.', duration: '45min', emoji: '🍦' },
+  ],
+  solo: [
+    { time: '10h00', type: 'cafe', name: 'Un café cosy', description: 'Un café pour lire ou travailler à ton rythme.', duration: '1h', emoji: '☕' },
+    { time: '11h30', type: 'musée', name: 'Un musée', description: 'Une visite culturelle à ton propre tempo.', duration: '2h', emoji: '🖼️' },
+    { time: '13h30', type: 'restaurant', name: 'Un déjeuner solo-friendly', description: 'Un bon repas, seul(e) mais bien accompagné(e) d\'un livre.', duration: '1h', emoji: '🍽️' },
+    { time: '15h00', type: 'balade', name: 'Une balade contemplative', description: 'Une promenade pour respirer et flâner.', duration: '1h30', emoji: '🚶' },
+  ],
+  touriste: [
+    { time: '10h00', type: 'monument', name: 'Un monument incontournable', description: 'Commence par un lieu emblématique de la ville.', duration: '1h30', emoji: '🏛️' },
+    { time: '11h30', type: 'musée', name: 'Un musée', description: 'Plonge dans la culture locale.', duration: '2h', emoji: '🖼️' },
+    { time: '13h30', type: 'restaurant', name: 'Une spécialité locale', description: 'Goûte la cuisine du terroir comme un local.', duration: '1h15', emoji: '🍽️' },
+    { time: '15h00', type: 'cafe', name: 'Une pause café', description: 'Un café comme les habitants du coin.', duration: '45min', emoji: '☕' },
+    { time: '16h30', type: 'photo', name: 'Un point de vue', description: 'Le meilleur panorama pour tes photos.', duration: '1h', emoji: '📸' },
+  ],
+};
+
+/** Nombre d'étapes retenues selon la durée choisie. */
+function stepCountForDuration(duration: string): number {
+  switch (duration) {
+    case 'demi-journée': return 3;
+    case 'soirée': return 3;
+    case 'journée': return 5;
+    case 'weekend': return 5;
+    default: return 4;
+  }
+}
+
 @Injectable()
 export class ItineraryService {
   private readonly logger = new Logger(ItineraryService.name);
-  private readonly ai = new Anthropic();
+  private readonly ai: Anthropic | null;
+  private readonly model: string;
 
-  constructor(private readonly places: PlacesService) {}
+  constructor(
+    private readonly places: PlacesService,
+    config: ConfigService,
+  ) {
+    const ai = config.get<AppConfig['ai']>('ai');
+    // On ne construit le client que si une clé est réellement configurée :
+    // `new Anthropic()` sans clé lève à la construction (crash au bootstrap).
+    // Sans clé → `this.ai = null` → repli déterministe garanti.
+    this.ai = ai?.provider === 'anthropic' && ai.anthropicApiKey
+      ? new Anthropic({ apiKey: ai.anthropicApiKey })
+      : null;
+    this.model = ai?.modelSmart ?? 'claude-sonnet-4-6';
+  }
 
   async generate(
     userId: string,
@@ -132,29 +197,39 @@ Génère 4-6 étapes bien enchaînées et réalistes.`;
     let steps: ItineraryStep[] = [];
     let summary = '';
 
-    try {
-      const response = await this.ai.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: prompt }],
-      });
+    // Tentative IA — seulement si un client est configuré (clé présente).
+    // Toute panne (pas de crédit, quota, timeout, JSON invalide…) bascule sur
+    // le repli déterministe : la fonctionnalité reste utilisable en permanence.
+    if (this.ai) {
+      try {
+        const response = await this.ai.messages.create({
+          model: this.model,
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: prompt }],
+        });
 
-      const raw = response.content[0].type === 'text' ? response.content[0].text : '';
+        const raw = response.content[0].type === 'text' ? response.content[0].text : '';
 
-      // Extrait le JSON même si Claude l'a enveloppé dans des backticks markdown
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON object found in response');
+        // Extrait le JSON même si Claude l'a enveloppé dans des backticks markdown
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('No JSON object found in response');
 
-      const parsed = JSON.parse(jsonMatch[0]) as { summary: string; steps: ItineraryStep[] };
-      summary = parsed.summary ?? '';
-      steps = parsed.steps ?? [];
-    } catch (err) {
-      this.logger.error(`[itinerary] generation error: ${String(err)}`);
-      return {
-        itinerary: '',
-        steps: [],
-        error: 'Impossible de générer l\'itinéraire. Réessaie dans quelques instants.',
-      };
+        const parsed = JSON.parse(jsonMatch[0]) as { summary: string; steps: ItineraryStep[] };
+        summary = parsed.summary ?? '';
+        steps = parsed.steps ?? [];
+      } catch (err) {
+        this.logger.warn(`[itinerary] IA indisponible, repli déterministe : ${String(err)}`);
+      }
+    }
+
+    // Repli : aucune étape IA (pas de clé, plus de crédit, erreur…) → trame
+    // pré-définie adaptée au mood, tronquée selon la durée demandée.
+    if (steps.length === 0) {
+      const sequence = FALLBACK_SEQUENCES[req.mood] ?? FALLBACK_SEQUENCES.amis;
+      steps = sequence.slice(0, stepCountForDuration(req.duration)).map((s) => ({ ...s }));
+      if (!summary) {
+        summary = `Un itinéraire ${req.duration} à ${city} pensé pour un moment ${req.mood}. Chaque étape est un vrai lieu près de toi.`;
+      }
     }
 
     // Enrichissement : tenter de lier chaque étape à un vrai lieu de la DB

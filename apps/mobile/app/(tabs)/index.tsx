@@ -225,11 +225,11 @@ export default function HomeScreen() {
           {MODE_CHIPS.map((m) => (
             <Pressable
               key={m.key}
-              style={[styles.modeChip, selectedMode === m.key && styles.modeChipActive]}
-              onPress={() => setSelectedMode(selectedMode === m.key ? null : m.key)}
+              style={styles.modeChip}
+              onPress={() => router.push(`/itinerary?mood=${m.mood}` as never)}
             >
               <Text style={styles.modeEmoji}>{m.emoji}</Text>
-              <Text style={[styles.modeLabel, selectedMode === m.key && styles.modeLabelActive]}>{m.label}</Text>
+              <Text style={styles.modeLabel}>{m.label}</Text>
             </Pressable>
           ))}
         </ScrollView>

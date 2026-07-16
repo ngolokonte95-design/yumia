@@ -27,6 +27,7 @@ export function useNearbyUniverse(params: {
     lng: lng.toFixed(3),
     universe: universe ?? 'none',
     r: String(radius),
+    l: String(limit),
   });
 
   const load = useCallback(async () => {

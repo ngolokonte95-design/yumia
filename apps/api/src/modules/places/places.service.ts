@@ -267,6 +267,18 @@ export class PlacesService {
       }
     }
 
+    // Trop peu de résultats même après hydratation → on tente un rayon élargi
+    // (ex. univers de niche : rooftop, nightclub, laser_game…). On ne touche
+    // pas le résultat du PG initial : l'appel élargi enrichit juste la DB et
+    // on relit dans le rayon original pour rester géographiquement cohérent.
+    if (this.provider.isEnabled && results.length < 5 && params.radius < 20_000) {
+      const wider = { ...params, radius: 20_000 };
+      const hydrated = await this.maybeHydrate(wider);
+      if (hydrated) {
+        results = await this.nearbyViaPg(params); // rayon original, DB enrichie
+      }
+    }
+
     return results;
   }
 
@@ -346,9 +358,11 @@ export class PlacesService {
         return false;
       }
       await this.persistProviderPlaces(found);
-      // Succès : on évite de rappeler l'API pour cette zone pendant 7 jours.
-      await this.redis.setJson(tileKey, true, HYDRATE_TILE_TTL_SECONDS).catch(() => undefined);
-      this.logger.log(`Hydratation : ${found.length} lieux importés (${tileKey}).`);
+      // Peu de résultats (< 5) : on retente dans 6h plutôt que 7 jours — la
+      // couverture Google peut s'améliorer ou un rayon plus large peut aider.
+      const ttl = found.length < 5 ? HYDRATE_EMPTY_RETRY_TTL_SECONDS : HYDRATE_TILE_TTL_SECONDS;
+      await this.redis.setJson(tileKey, true, ttl).catch(() => undefined);
+      this.logger.log(`Hydratation : ${found.length} lieux importés (${tileKey}, ttl=${ttl}s).`);
       return true;
     } catch (err) {
       this.logger.warn(`Hydratation échouée (${tileKey}) : ${(err as Error).message}`);
