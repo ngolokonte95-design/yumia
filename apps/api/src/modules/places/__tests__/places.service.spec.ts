@@ -305,8 +305,9 @@ describe('PlacesService', () => {
         },
       ]);
       const imported = { ...makePlace({ id: 'g-1', city: 'Tokyo' }), distanceMeters: 120 };
-      // 1er appel (pré-hydratation) : vide ; 2e appel (relecture PG) : le lieu importé.
-      prisma.$queryRaw.mockResolvedValueOnce([]).mockResolvedValueOnce([imported]);
+      // 1er appel (pré-hydratation) : vide ; relectures suivantes : le lieu importé.
+      // (le repli « rayon élargi 20 km » quand < 5 résultats ajoute une 3e lecture PG)
+      prisma.$queryRaw.mockResolvedValueOnce([]).mockResolvedValue([imported]);
       prisma.place.upsert.mockResolvedValue(imported);
 
       const result = await service.nearby({ lat: 35.68, lng: 139.69, radius: 3000, limit: 5 });

@@ -215,6 +215,13 @@ enum Universe {
   money_transfer
   tobacco
   post_office
+  bank
+  locksmith
+  phone_repair
+  // Automobile (suite)
+  ev_charging
+  auto_parts
+  driving_school
   // Événements
   event_venue
   // Valeurs héritées (non affichées dans l'UI — migration impossible en PG)

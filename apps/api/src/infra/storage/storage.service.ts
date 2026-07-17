@@ -58,7 +58,9 @@ export class StorageService {
     const ext = extname(originalName).toLowerCase() || '.bin';
     const filename = `${randomUUID()}${ext}`;
 
-    if (this.cfg.provider === 's3') {
+    // Router sur le client réellement initialisé : provider=s3 sans credentials
+    // doit retomber sur disk (sinon chaque upload jette « S3 non initialisé »).
+    if (this.s3) {
       return this.uploadToS3(buffer, `${subPath}/${filename}`, originalName);
     }
     return this.writeToDisk(buffer, subPath, filename);

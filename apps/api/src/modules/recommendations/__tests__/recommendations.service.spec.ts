@@ -135,7 +135,7 @@ describe('RecommendationsService', () => {
   });
 
   describe('feed', () => {
-    it('génère le feed via l\'IA et le met en cache', async () => {
+    it('génère le feed via l\'IA (échantillon frais, sans mise en cache)', async () => {
       aiMock.runStructured.mockResolvedValue({ reason: 'Découverte du jour', universesSuggested: ['cafe'] });
       placesMock.nearby.mockResolvedValue([
         mockPlace({ id: 'p1', universe: 'cafe', rating: 4.7, distanceMeters: 300 }),
@@ -145,27 +145,23 @@ describe('RecommendationsService', () => {
       const result = await service.feed({ lat: 48.856, lng: 2.352, radius: 3000, limit: 10 });
 
       expect(result.suggestions.length).toBeGreaterThan(0);
-      expect(redisMock.setJson).toHaveBeenCalledTimes(1);
-      expect(redisMock.setJson).toHaveBeenCalledWith(
-        expect.stringContaining('reco:feed'),
-        expect.objectContaining({ suggestions: expect.any(Array) }),
-        300,
-      );
+      // Le feed n'est volontairement PAS caché : chaque appel (refresh, load
+      // more) doit renvoyer un échantillon frais — voir commentaire du service.
+      expect(redisMock.setJson).not.toHaveBeenCalled();
     });
 
-    it('renvoie le résultat depuis le cache Redis sans appeler l\'IA', async () => {
-      const cachedFeed = {
-        generatedAtIso: new Date().toISOString(),
-        context: { mode: undefined, mood: undefined, city: undefined },
-        reason: 'Depuis le cache',
-        suggestions: [],
-      };
-      redisMock.getJson.mockResolvedValueOnce(cachedFeed);
+    it('ne lit ni n\'écrit de cache Redis (chaque appel régénère via l\'IA)', async () => {
+      aiMock.runStructured.mockResolvedValue({ reason: 'Frais', universesSuggested: ['cafe'] });
+      placesMock.nearby.mockResolvedValue([
+        mockPlace({ id: 'p1', universe: 'cafe', rating: 4.7, distanceMeters: 300 }),
+      ]);
 
-      const result = await service.feed({ lat: 48.856, lng: 2.352, radius: 3000, limit: 10 });
+      await service.feed({ lat: 48.856, lng: 2.352, radius: 3000, limit: 10 });
+      await service.feed({ lat: 48.856, lng: 2.352, radius: 3000, limit: 10 });
 
-      expect(result.reason).toBe('Depuis le cache');
-      expect(aiMock.runStructured).not.toHaveBeenCalled();
+      expect(aiMock.runStructured).toHaveBeenCalledTimes(2);
+      expect(redisMock.getJson).not.toHaveBeenCalled();
+      expect(redisMock.setJson).not.toHaveBeenCalled();
     });
   });
 

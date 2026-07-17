@@ -55,7 +55,9 @@ export default (): AppConfig => ({
     s3AccessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
     s3SecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
     ...(process.env.AWS_S3_ENDPOINT ? { s3Endpoint: process.env.AWS_S3_ENDPOINT } : {}),
-    publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL ?? 'http://localhost:4000',
+    // `||` (pas `??`) : compose injecte des chaînes vides qui passeraient `??`.
+    // Repli sur API_PUBLIC_BASE_URL : les URLs disk doivent pointer vers l'API.
+    publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL || process.env.API_PUBLIC_BASE_URL || 'http://localhost:4000',
   },
   ai: {
     provider: (process.env.AI_PROVIDER as 'anthropic' | 'mock') ?? 'mock',

@@ -96,6 +96,9 @@ export const UNIVERSES = [
   'atm',
   'currency_exchange',
   'money_transfer',
+  'bank',
+  'locksmith',
+  'phone_repair',
   'pharmacy',
   'fuel',
   'laundry',
@@ -116,6 +119,9 @@ export const UNIVERSES = [
   'car_dealership',
   'tire_shop',
   'motorcycle',
+  'ev_charging',
+  'auto_parts',
+  'driving_school',
   // ── Culte & Autres ────────────────────────────────────────────────────────
   'place_of_worship',
   'library',
@@ -249,12 +255,18 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   atm:             { key: 'atm',             emoji: '🏧',   i18nKey: 'universe.atm',             labelFr: 'Distributeurs ATM' },
   currency_exchange:{ key: 'currency_exchange', emoji: '💱', i18nKey: 'universe.currency_exchange', labelFr: 'Bureaux de change' },
   money_transfer:  { key: 'money_transfer',  emoji: '💸',   i18nKey: 'universe.money_transfer',  labelFr: "Transfert d'argent" },
+  bank:            { key: 'bank',            emoji: '🏦',   i18nKey: 'universe.bank',            labelFr: 'Banques & Agences' },
+  locksmith:       { key: 'locksmith',       emoji: '🔑',   i18nKey: 'universe.locksmith',       labelFr: 'Serruriers & Dépannage' },
+  phone_repair:    { key: 'phone_repair',    emoji: '📱',   i18nKey: 'universe.phone_repair',    labelFr: 'Téléphonie & Réparation mobile' },
   // Automobile
   garage:          { key: 'garage',          emoji: '🔧',   i18nKey: 'universe.garage',          labelFr: 'Garages & Mécanique' },
   car_wash:        { key: 'car_wash',        emoji: '🫧',   i18nKey: 'universe.car_wash',        labelFr: 'Stations de lavage' },
   car_dealership:  { key: 'car_dealership',  emoji: '🚘',   i18nKey: 'universe.car_dealership',  labelFr: 'Concessionnaires auto' },
   tire_shop:       { key: 'tire_shop',       emoji: '🔩',   i18nKey: 'universe.tire_shop',       labelFr: 'Centres de pneus' },
   motorcycle:      { key: 'motorcycle',      emoji: '🏍️',  i18nKey: 'universe.motorcycle',      labelFr: 'Moto & Scooter' },
+  ev_charging:     { key: 'ev_charging',     emoji: '🔌',   i18nKey: 'universe.ev_charging',     labelFr: 'Bornes de recharge électrique' },
+  auto_parts:      { key: 'auto_parts',      emoji: '🔋',   i18nKey: 'universe.auto_parts',      labelFr: 'Pièces auto & Accessoires' },
+  driving_school:  { key: 'driving_school',  emoji: '🚦',   i18nKey: 'universe.driving_school',  labelFr: 'Auto-écoles' },
   // Culte & Autres
   event_venue:     { key: 'event_venue',     emoji: '🎪',   i18nKey: 'universe.event_venue',     labelFr: 'Événements & Spectacles' },
 };
@@ -316,12 +328,12 @@ export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
   {
     label: 'Services du quotidien',
     emoji: '🏧',
-    universes: ['atm', 'currency_exchange', 'money_transfer', 'post_office', 'fuel', 'laundry', 'coworking', 'tobacco', 'cannabis'],
+    universes: ['atm', 'bank', 'currency_exchange', 'money_transfer', 'locksmith', 'phone_repair', 'post_office', 'fuel', 'laundry', 'coworking', 'tobacco', 'cannabis'],
   },
   {
     label: 'Automobile',
     emoji: '🔧',
-    universes: ['garage', 'car_wash', 'car_dealership', 'tire_shop', 'motorcycle'],
+    universes: ['garage', 'car_wash', 'car_dealership', 'tire_shop', 'motorcycle', 'ev_charging', 'auto_parts', 'driving_school'],
   },
   {
     label: 'Culte & Autres',

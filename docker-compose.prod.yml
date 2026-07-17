@@ -62,8 +62,10 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@yumia.app}
-      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-s3}
-      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-https://api.yumia.eu}
+      # disk par défaut tant qu'aucun credential S3 n'existe ; l'URL publique
+      # retombe sur API_PUBLIC_BASE_URL (voir configuration.ts).
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-disk}
+      STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:-}
       AWS_REGION: ${AWS_REGION:-eu-west-3}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}

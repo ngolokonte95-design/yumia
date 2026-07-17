@@ -73,7 +73,6 @@ export default function StoryViewerScreen() {
   const [replySent, setReplySent] = useState(false);
   const [viewersOpen, setViewersOpen] = useState(false);
   const [viewers, setViewers] = useState<Array<{ viewedAt: string; user: { id: string; displayName: string; photoUrl?: string } }>>([]);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -111,14 +110,11 @@ export default function StoryViewerScreen() {
     const ms = story.type === 'video' ? VIDEO_STORY_MS : STORY_MS;
     if (accessToken) void feedApi.markStoryViewed(accessToken, story.id);
     progress.setValue(0);
+    // L'animation est l'unique horloge d'avancement (un setTimeout parallèle
+    // doublerait l'appel à next() → saut de story / double router.back()).
     progressAnim.current = Animated.timing(progress, { toValue: 1, duration: ms, useNativeDriver: false });
     progressAnim.current.start(({ finished }) => { if (finished) next(); });
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(next, ms);
-    return () => {
-      progressAnim.current?.stop();
-      if (timer.current) clearTimeout(timer.current);
-    };
+    return () => { progressAnim.current?.stop(); };
   }, [group, index, next, accessToken, paused, viewersOpen, progress]);
 
   const openViewers = async () => {

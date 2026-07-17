@@ -29,7 +29,7 @@ const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; r
 export default function ExplorerScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const { coords, resolving } = useLocation();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
@@ -44,9 +44,9 @@ export default function ExplorerScreen() {
   useEffect(() => {
     if (!accessToken) return;
     socialApi.searchUsers(accessToken, '', 10)
-      .then((users) => setSuggestedUsers(users.slice(0, 8)))
+      .then((users) => setSuggestedUsers(users.filter((u) => u.id !== user?.id).slice(0, 8)))
       .catch(() => {});
-  }, [accessToken]);
+  }, [accessToken, user?.id]);
 
   return (
     <ScrollView
