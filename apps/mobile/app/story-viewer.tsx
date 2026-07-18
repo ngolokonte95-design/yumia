@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal,
   Platform, Pressable, StyleSheet, Text, TextInput, View,
@@ -6,9 +6,11 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { Audio } from 'expo-av';
 import { useAuth } from '../lib/auth-context';
 import { feedApi, type StoryGroup, type StorySticker } from '../lib/feed-api';
 import { colors, radius, spacing } from '../theme/tokens';
+import type { MusicTrack } from '../components/MusicPicker';
 
 const { width, height } = Dimensions.get('window');
 const STORY_MS = 5000;
@@ -75,6 +77,9 @@ export default function StoryViewerScreen() {
   const [viewers, setViewers] = useState<Array<{ viewedAt: string; user: { id: string; displayName: string; photoUrl?: string } }>>([]);
   const progress = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef<Animated.CompositeAnimation | null>(null);
+  const musicSoundRef = useRef<Audio.Sound | null>(null);
+  const diskRotation = useRef(new Animated.Value(0)).current;
+  const diskAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const isMine = group?.user?.id === me?.id;
 
@@ -86,6 +91,63 @@ export default function StoryViewerScreen() {
       setLoading(false);
     })();
   }, [accessToken, userId]);
+
+  const musicMeta = useMemo<MusicTrack | null>(() => {
+    const raw = group?.stories[index]?.musicTrack;
+    if (!raw) return null;
+    try { return JSON.parse(raw) as MusicTrack; } catch { return null; }
+  }, [group, index]);
+
+  // Charge/décharge la piste musicale à chaque changement de story
+  useEffect(() => {
+    if (!musicMeta?.previewUrl) {
+      musicSoundRef.current?.stopAsync().catch(() => null);
+      musicSoundRef.current?.unloadAsync().catch(() => null);
+      musicSoundRef.current = null;
+      return;
+    }
+    let sound: Audio.Sound | null = null;
+    const load = async () => {
+      try {
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        const { sound: s } = await Audio.Sound.createAsync(
+          { uri: musicMeta.previewUrl },
+          { shouldPlay: true, positionMillis: musicMeta.startMs ?? 0, isLooping: true },
+        );
+        sound = s;
+        musicSoundRef.current = s;
+      } catch {}
+    };
+    void load();
+    return () => {
+      sound?.stopAsync().catch(() => null);
+      sound?.unloadAsync().catch(() => null);
+      musicSoundRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
+  // Pause/reprise musique avec l'état de la story
+  useEffect(() => {
+    if (!musicSoundRef.current) return;
+    if (paused || viewersOpen) {
+      musicSoundRef.current.pauseAsync().catch(() => null);
+    } else {
+      musicSoundRef.current.playAsync().catch(() => null);
+    }
+  }, [paused, viewersOpen]);
+
+  // Rotation du disque vinyle
+  useEffect(() => {
+    diskAnimRef.current?.stop();
+    diskRotation.setValue(0);
+    if (musicMeta && !paused && !viewersOpen) {
+      diskAnimRef.current = Animated.loop(
+        Animated.timing(diskRotation, { toValue: 1, duration: 4000, useNativeDriver: true }),
+      );
+      diskAnimRef.current.start();
+    }
+  }, [musicMeta, paused, viewersOpen, diskRotation]);
 
   const close = useCallback(() => router.back(), [router]);
 
@@ -215,10 +277,15 @@ export default function StoryViewerScreen() {
         return null;
       })}
 
-      {story.musicTrack ? (
+      {musicMeta ? (
         <View style={[styles.musicBar, { bottom: insets.bottom + (story.caption ? 140 : 90) }]}>
-          <Text style={styles.musicNote}>♫</Text>
-          <Text style={styles.musicTrack} numberOfLines={1}>{story.musicTrack}</Text>
+          <Animated.Image
+            source={{ uri: musicMeta.artworkUrl }}
+            style={[styles.musicDisk, {
+              transform: [{ rotate: diskRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
+            }]}
+          />
+          <Text style={styles.musicTrackText} numberOfLines={1}>♫ {musicMeta.title} · {musicMeta.artist}</Text>
         </View>
       ) : null}
 
@@ -306,9 +373,9 @@ const styles = StyleSheet.create({
   cfBadge: { backgroundColor: 'rgba(43,182,115,0.9)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   cfBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
   close: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  musicBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, zIndex: 6 },
-  musicNote: { color: '#fff', fontSize: 14 },
-  musicTrack: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
+  musicBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, zIndex: 6 },
+  musicDisk: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)' },
+  musicTrackText: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
   captionWrap: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 12, padding: 12 },
   caption: { color: '#fff', fontSize: 15, textAlign: 'center' },
   tapLeft: { position: 'absolute', left: 0, top: 80, bottom: 110, width: width * 0.3 },

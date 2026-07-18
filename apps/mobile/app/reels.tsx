@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, Pressable,
+  ActivityIndicator, Animated, Dimensions, FlatList, Image, Pressable,
   Share, StyleSheet, Text, View, ViewToken,
 } from 'react-native';
+import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -59,10 +60,58 @@ function ReelCard({
   onFollow: (id: string) => void;
   screenHeight: number;
 }) {
-  const [muted, setMuted] = useState(false);
+  const musicMeta = item.musicTrack ? (() => {
+    try { return JSON.parse(item.musicTrack) as { title?: string; artist?: string; artworkUrl?: string; previewUrl?: string; startMs?: number }; }
+    catch { return null; }
+  })() : null;
+  const [muted, setMuted] = useState(!!musicMeta);
   const [liked, setLiked] = useState(item.likedByMe);
   const [likes, setLikes] = useState(item.likesCount);
-  const musicMeta = item.musicTrack ? (() => { try { return JSON.parse(item.musicTrack) as { title?: string; artist?: string; artworkUrl?: string }; } catch { return null; } })() : null;
+  const musicSoundRef = useRef<Audio.Sound | null>(null);
+  const diskAnim = useRef(new Animated.Value(0)).current;
+  const diskLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  // Lecture de la piste musicale synchronisée avec l'activité du reel
+  useEffect(() => {
+    if (!musicMeta?.previewUrl) return;
+    let sound: Audio.Sound | null = null;
+    if (active) {
+      const load = async () => {
+        try {
+          await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+          const { sound: s } = await Audio.Sound.createAsync(
+            { uri: musicMeta.previewUrl! },
+            { shouldPlay: true, positionMillis: musicMeta.startMs ?? 0, isLooping: true },
+          );
+          sound = s;
+          musicSoundRef.current = s;
+        } catch {}
+      };
+      void load();
+    } else {
+      musicSoundRef.current?.stopAsync().catch(() => null);
+      musicSoundRef.current?.unloadAsync().catch(() => null);
+      musicSoundRef.current = null;
+    }
+    return () => {
+      sound?.stopAsync().catch(() => null);
+      sound?.unloadAsync().catch(() => null);
+      musicSoundRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  // Rotation du disque vinyle
+  useEffect(() => {
+    diskLoopRef.current?.stop();
+    diskAnim.setValue(0);
+    if (active && musicMeta) {
+      diskLoopRef.current = Animated.loop(
+        Animated.timing(diskAnim, { toValue: 1, duration: 4000, useNativeDriver: true }),
+      );
+      diskLoopRef.current.start();
+    }
+  }, [active, musicMeta, diskAnim]);
 
   const handleLike = () => {
     setLiked((v) => !v);
@@ -137,12 +186,14 @@ function ReelCard({
           <Text style={styles.reelActionIcon}>···</Text>
         </Pressable>
 
-        {/* Miniature musique */}
-        <View style={styles.musicDisk}>
+        {/* Disque vinyle animé */}
+        <Animated.View style={[styles.musicDisk, {
+          transform: [{ rotate: diskAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
+        }]}>
           {musicMeta?.artworkUrl
             ? <Image source={{ uri: musicMeta.artworkUrl }} style={styles.musicDiskImg} />
             : <Text style={{ fontSize: 18 }}>🎵</Text>}
-        </View>
+        </Animated.View>
       </View>
 
       {/* Infos bas */}
