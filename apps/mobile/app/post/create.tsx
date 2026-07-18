@@ -52,7 +52,10 @@ export default function CreatePostScreen() {
     if (!result.canceled && result.assets[0]) setVideoUri(result.assets[0].uri);
   };
 
-  const uploadMedia = useCallback(async (uri: string): Promise<string | null> => {
+  // Remonte une erreur détaillée (statut + message serveur) au lieu de renvoyer
+  // silencieusement null : sans ça, un échec d'upload ou de config storage était
+  // indiscernable et masquait la vraie cause côté serveur.
+  const uploadMedia = useCallback(async (uri: string): Promise<string> => {
     const form = new FormData();
     const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
     const mime = ext === 'png' ? 'image/png'
@@ -63,16 +66,17 @@ export default function CreatePostScreen() {
       : ext === 'webm' ? 'video/webm'
       : 'image/jpeg';
     form.append('file', { uri, type: mime, name: `media.${ext}` } as unknown as Blob);
-    try {
-      const res = await fetch(`${API}/posts/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: form,
-      });
-      if (!res.ok) return null;
-      const data = await res.json() as { url: string };
-      return data.url;
-    } catch { return null; }
+    const res = await fetch(`${API}/posts/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`Upload média échoué (HTTP ${res.status}). ${txt.slice(0, 160)}`);
+    }
+    const data = await res.json() as { url: string };
+    return data.url;
   }, [accessToken]);
 
   const hasMedia = mode === 'photo' ? images.length > 0 : !!videoUri;
@@ -88,14 +92,10 @@ export default function CreatePostScreen() {
       let videoUrl: string | undefined;
 
       if (mode === 'photo') {
-        const uploaded = await Promise.all(images.map((uri) => uploadMedia(uri)));
-        mediaUrls = uploaded.filter((u): u is string => u !== null);
-        if (mediaUrls.length === 0) { Alert.alert('Erreur upload', `0/${images.length} photos uploadées.`); return; }
+        mediaUrls = await Promise.all(images.map((uri) => uploadMedia(uri)));
       } else if (videoUri) {
-        const uploaded = await uploadMedia(videoUri);
-        if (!uploaded) { Alert.alert('Erreur upload', "La vidéo n'a pas pu être envoyée."); return; }
-        videoUrl = uploaded;
-        mediaUrls = [uploaded];
+        videoUrl = await uploadMedia(videoUri);
+        mediaUrls = [videoUrl];
       }
 
       const body: Record<string, unknown> = {
@@ -124,8 +124,14 @@ export default function CreatePostScreen() {
         body: JSON.stringify(body),
       });
 
-      if (res.ok) { router.back(); }
-      else { Alert.alert('Erreur', 'Impossible de publier le post'); }
+      if (res.ok) {
+        router.back();
+      } else {
+        const txt = await res.text().catch(() => '');
+        Alert.alert('Erreur', `Publication échouée (HTTP ${res.status}). ${txt.slice(0, 200)}`);
+      }
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Échec de la publication.');
     } finally {
       setLoading(false);
     }

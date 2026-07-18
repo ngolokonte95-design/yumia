@@ -380,7 +380,10 @@ export default function ChatRoomScreen() {
             const isMe = item.senderId === myId;
             const prev = messages[index - 1];
             const showDate = !prev || new Date(item.createdAt).toDateString() !== new Date(prev.createdAt).toDateString();
-            const isAudio = item.type === 'audio' && item.audioUrl;
+            // Le backend renvoie l'URL dans `mediaUrl` (l'alias `audioUrl` n'est
+            // présent que sur le message optimiste local) → tester les deux, sinon
+            // le vocal qu'on vient d'envoyer s'affiche en bulle texte non lisible.
+            const isAudio = item.type === 'audio' && (item.audioUrl || item.mediaUrl);
             const isCall = item.type === 'call';
             const isEnc = item.type === 'encrypted';
 
