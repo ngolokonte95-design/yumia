@@ -221,7 +221,8 @@ enum Universe {
   // Automobile (suite)
   ev_charging
   auto_parts
-  driving_school
+  car_inspection
+  driving_school // LEGACY — remplacé par car_inspection avant tout usage (enum PG non supprimable)
   // Événements
   event_venue
   // Valeurs héritées (non affichées dans l'UI — migration impossible en PG)

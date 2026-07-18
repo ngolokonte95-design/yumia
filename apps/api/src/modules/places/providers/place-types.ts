@@ -49,7 +49,7 @@ export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
   post_office:          'poste bureau de poste Colissimo colis envoi courrier',
   locksmith:            'serrurier locksmith dépannage serrure clé urgence ouverture porte',
   phone_repair:         'réparation téléphone smartphone écran cassé phone repair GSM mobile',
-  driving_school:       'auto-école driving school permis de conduire leçons conduite code',
+  car_inspection:       'contrôle technique automobile vehicle inspection centre contrôle Dekra Autosur MOT ITV',
   // Automobile
   car_dealership:       'concessionnaire automobile concession voiture neuve garage vente',
   tire_shop:            'pneus centre pneus pneumatiques Euromaster Norauto roues',
@@ -191,7 +191,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Automobile (suite)
   ev_charging:      ['electric_vehicle_charging_station'],
   auto_parts:       ['auto_parts_store'],
-  driving_school:   [], // pas de type Table A fiable — text-search (TEXT_FIRST_UNIVERSES)
+  car_inspection:   [], // pas de type Table A fiable — text-search (TEXT_FIRST_UNIVERSES)
   // Événements
   event_venue:      ['event_venue', 'stadium', 'amphitheatre', 'convention_center'],
 };
@@ -211,7 +211,7 @@ export const TEXT_FIRST_UNIVERSES = new Set<Universe>([
   'hookah',
   'currency_exchange',
   'money_transfer',
-  'driving_school', // pas de type Google Table A fiable
+  'car_inspection', // pas de type Google Table A fiable
 ]);
 
 /**
