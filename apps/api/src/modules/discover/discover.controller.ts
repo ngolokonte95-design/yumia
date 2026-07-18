@@ -9,7 +9,7 @@ export class DiscoverController {
 
   @Get('world-map')
   worldMap(@Req() req: any, @Query('interestedIn') interestedIn?: string) {
-    return this.discoverService.getWorldMapUsers(req.user.id, interestedIn);
+    return this.discoverService.getWorldMapUsers(req.user.sub, interestedIn);
   }
 
   @Get('swipe')
@@ -20,12 +20,12 @@ export class DiscoverController {
     @Query('limit') limit?: string,
     @Query('interestedIn') interestedIn?: string,
   ) {
-    return this.discoverService.getSwipeProfiles(req.user.id, +lat, +lng, limit ? +limit : 10, interestedIn);
+    return this.discoverService.getSwipeProfiles(req.user.sub, +lat, +lng, limit ? +limit : 10, interestedIn);
   }
 
   @Post('swipe/:userId/seen')
   markSeen(@Req() req: any, @Param('userId') userId: string) {
-    return this.discoverService.markSeen(req.user.id, userId);
+    return this.discoverService.markSeen(req.user.sub, userId);
   }
 
   @Post('encounter')
@@ -33,11 +33,11 @@ export class DiscoverController {
     @Req() req: any,
     @Body() body: { placeId: string; lat: number; lng: number },
   ) {
-    return this.discoverService.checkEncounters(req.user.id, body.placeId, body.lat, body.lng);
+    return this.discoverService.checkEncounters(req.user.sub, body.placeId, body.lat, body.lng);
   }
 
   @Get('encounters')
   myEncounters(@Req() req: any, @Query('limit') limit?: string) {
-    return this.discoverService.getMyEncounters(req.user.id, limit ? +limit : 20);
+    return this.discoverService.getMyEncounters(req.user.sub, limit ? +limit : 20);
   }
 }
