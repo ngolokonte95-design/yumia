@@ -217,8 +217,17 @@ function ReelCard({
         </View>
       </View>
 
-      {/* Icône son */}
-      <Pressable style={styles.muteBtn} onPress={() => setMuted((v) => !v)}>
+      {/* Icône son — mute vidéo ET piste musicale */}
+      <Pressable style={styles.muteBtn} onPress={() => {
+        setMuted((v) => {
+          const next = !v;
+          if (musicSoundRef.current) {
+            if (next) { musicSoundRef.current.pauseAsync().catch(() => null); }
+            else { musicSoundRef.current.playAsync().catch(() => null); }
+          }
+          return next;
+        });
+      }}>
         <Text style={{ fontSize: 20, color: '#fff' }}>{muted ? '🔇' : '🔊'}</Text>
       </Pressable>
     </View>

@@ -106,6 +106,10 @@ export const feedApi = {
   savedPosts: (token: string, limit = 30) =>
     fetch(`${API}/posts/saved?limit=${limit}`, { headers: auth(token) }).then((r) => safe<FeedPost[]>(r, [])),
 
+  deletePost: (token: string, postId: string) =>
+    fetch(`${API}/posts/${postId}`, { method: 'DELETE', headers: auth(token) })
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); }),
+
   toggleLike: (token: string, postId: string) =>
     fetch(`${API}/posts/${postId}/like`, { method: 'POST', headers: auth(token) })
       .then((r) => safe<{ liked: boolean; likesCount: number }>(r, { liked: false, likesCount: 0 })),

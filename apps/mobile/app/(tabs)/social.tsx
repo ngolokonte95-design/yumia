@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { Audio } from 'expo-av';
@@ -153,7 +153,7 @@ function MediaCarousel({ urls, onPress }: { urls: string[]; onPress: () => void 
 
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
-function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, isMusicPlaying, onMusicPress }: {
+function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, isMusicPlaying, onMusicPress, currentUserId, onDelete }: {
   item: FeedPost;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
@@ -163,7 +163,25 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
   onUserPress: (id: string) => void;
   isMusicPlaying?: boolean;
   onMusicPress?: (postId: string, previewUrl: string) => void;
+  currentUserId?: string;
+  onDelete?: (id: string) => void;
 }) {
+  const isOwner = !!currentUserId && item.userId === currentUserId;
+
+  const handleMenu = () => {
+    Alert.alert('Publication', undefined, [
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => Alert.alert('Supprimer ?', 'Cette action est irréversible.', [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: () => onDelete?.(item.id) },
+        ]),
+      },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
   return (
     <View style={styles.postCard}>
       {/* Auteur */}
@@ -180,6 +198,11 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
           {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
         </View>
         <Text style={styles.postAgo}>{formatAgo(item.createdAt)}</Text>
+        {isOwner && (
+          <Pressable onPress={handleMenu} hitSlop={12} style={{ marginLeft: 'auto', paddingHorizontal: 6 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 18, letterSpacing: 1 }}>···</Text>
+          </Pressable>
+        )}
       </Pressable>
 
       {/* Média — carrousel swipeable si plusieurs, vidéo jouée inline, sinon photo */}
@@ -312,6 +335,16 @@ export default function SocialTab() {
   }, [playingMusicId, stopMusic]);
 
   useEffect(() => () => { void stopMusic(); }, [stopMusic]);
+
+  const handleDeletePost = useCallback(async (postId: string) => {
+    if (!accessToken) return;
+    try {
+      await feedApi.deletePost(accessToken, postId);
+      setGlobalPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch {
+      Alert.alert('Erreur', 'Impossible de supprimer la publication.');
+    }
+  }, [accessToken]);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -446,6 +479,8 @@ export default function SocialTab() {
           onUserPress={(id) => router.push(`/user/${id}` as never)}
           isMusicPlaying={playingMusicId === item.id}
           onMusicPress={handleMusicPress}
+          currentUserId={me?.id}
+          onDelete={handleDeletePost}
         />
       )}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
