@@ -4,7 +4,7 @@ import {
   Share, StyleSheet, Text, View, ViewToken,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAuth } from '../lib/auth-context';
@@ -73,7 +73,10 @@ function ReelCard({
 
   // Lecture de la piste musicale synchronisée avec l'activité du reel
   useEffect(() => {
-    if (!musicMeta?.previewUrl) return;
+    // Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-av : on ignore
+    // les anciennes pistes qui pointent encore vers ces CDN (sinon « Unable to open URL »).
+    const playable = musicMeta?.previewUrl && !/dzcdn\.net|itunes\.apple\.com|mzstatic\.com/i.test(musicMeta.previewUrl);
+    if (!playable) return;
     let sound: Audio.Sound | null = null;
     if (active) {
       const load = async () => {
@@ -85,6 +88,13 @@ function ReelCard({
           );
           sound = s;
           musicSoundRef.current = s;
+          // Gère les erreurs async (URL AAC protégée, réseau, etc.)
+          s.setOnPlaybackStatusUpdate((st) => {
+            if (!st.isLoaded && st.error) {
+              s.unloadAsync().catch(() => null);
+              if (musicSoundRef.current === s) musicSoundRef.current = null;
+            }
+          });
         } catch {}
       };
       void load();
@@ -243,7 +253,14 @@ export default function ReelsScreen() {
   const [reels, setReels] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [screenFocused, setScreenFocused] = useState(true);
   const [following, setFollowing] = useState<Set<string>>(new Set());
+
+  // Stop tout l'audio quand l'utilisateur quitte l'écran reels
+  useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
+    return () => setScreenFocused(false);
+  }, []));
 
   const screenH = H; // Hauteur totale
 
@@ -340,7 +357,7 @@ export default function ReelsScreen() {
           renderItem={({ item, index }) => (
             <ReelCard
               item={item}
-              active={index === activeIndex}
+              active={index === activeIndex && screenFocused}
               onLike={toggleLike}
               onComment={(id) => router.push(`/post/${id}` as never)}
               onShare={(it) => void Share.share({ message: `Regarde ce reel sur Yumia 🎬` })}

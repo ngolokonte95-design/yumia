@@ -244,6 +244,7 @@ export default function CreateStoryScreen() {
         visible={musicModalVisible}
         onClose={() => setMusicModalVisible(false)}
         onSelect={(track) => setSelectedMusic(track)}
+        accessToken={accessToken}
       />
     </View>
   );

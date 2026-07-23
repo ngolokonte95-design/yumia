@@ -109,6 +109,16 @@ function mimeFromName(name: string): string {
     '.png': 'image/png',
     '.webp': 'image/webp',
     '.heic': 'image/heic',
+    // audio (previews musicaux, messages vocaux) — le Content-Type est requis
+    // pour qu'iOS/AVFoundation accepte de décoder le flux.
+    '.mp3': 'audio/mpeg',
+    '.m4a': 'audio/mp4',
+    '.aac': 'audio/aac',
+    '.wav': 'audio/wav',
+    // vidéo (reels, stories)
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.webm': 'video/webm',
   };
   return map[ext] ?? 'application/octet-stream';
 }

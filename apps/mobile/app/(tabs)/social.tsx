@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
-  ScrollView, StyleSheet, Text, TextInput, View,
+  ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -25,6 +25,16 @@ interface MusicMeta { title: string; artist?: string; artworkUrl?: string; previ
 function parseMusicTrack(raw?: string | null): MusicMeta | null {
   if (!raw) return null;
   try { return JSON.parse(raw) as MusicMeta; } catch { return { title: raw }; }
+}
+
+/**
+ * Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-av (AVFoundation les
+ * rejette → « Unable to open URL »). Seules les pistes réhébergées sur Yumia sont
+ * jouables. On ignore donc les anciennes pistes pointant encore vers ces CDN.
+ */
+function isPlayableAudioUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return !/dzcdn\.net|itunes\.apple\.com|mzstatic\.com/i.test(url);
 }
 
 type Tab = 'foryou' | 'following' | 'activity' | 'encounters' | 'people';
@@ -205,49 +215,60 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
         )}
       </Pressable>
 
-      {/* Média — carrousel swipeable si plusieurs, vidéo jouée inline, sinon photo */}
+      {/* Média + musique en overlay (façon Instagram) */}
       {(() => {
-        if (item.mediaUrls.length > 1) {
-          return <MediaCarousel urls={item.mediaUrls} onPress={() => onComment(item.id)} />;
-        }
-        const media = item.mediaUrls[0];
-        const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
-        if (videoSrc) {
-          return videoSrc.startsWith('http')
-            ? <PostVideo uri={videoSrc} style={styles.postImage} />
-            : (
-              <View style={[styles.postImage, styles.videoPlaceholder]}>
-                <Text style={{ fontSize: 48 }}>🎬</Text>
-              </View>
-            );
-        }
-        if (media) {
-          return (
-            <Pressable onPress={() => onComment(item.id)}>
-              <Image source={{ uri: media }} style={styles.postImage} />
-            </Pressable>
-          );
-        }
-        return null;
-      })()}
-
-      {/* Musique */}
-      {item.musicTrack && (() => {
         const music = parseMusicTrack(item.musicTrack);
-        if (!music) return null;
-        return (
+
+        let mediaEl: ReactNode = null;
+        if (item.mediaUrls.length > 1) {
+          mediaEl = <MediaCarousel urls={item.mediaUrls} onPress={() => onComment(item.id)} />;
+        } else {
+          const media = item.mediaUrls[0];
+          const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
+          if (videoSrc) {
+            mediaEl = videoSrc.startsWith('http')
+              ? <PostVideo uri={videoSrc} style={styles.postImage} />
+              : (
+                <View style={[styles.postImage, styles.videoPlaceholder]}>
+                  <Text style={{ fontSize: 48 }}>🎬</Text>
+                </View>
+              );
+          } else if (media) {
+            mediaEl = (
+              <Pressable onPress={() => onComment(item.id)}>
+                <Image source={{ uri: media }} style={styles.postImage} />
+              </Pressable>
+            );
+          }
+        }
+
+        const musicPill = music ? (
           <Pressable
-            style={styles.musicBadge}
-            onPress={() => music.previewUrl && onMusicPress ? onMusicPress(item.id, music.previewUrl) : null}
+            style={styles.musicOverlay}
+            onPress={() => music.previewUrl && onMusicPress ? onMusicPress(item.id, music.previewUrl) : undefined}
           >
-            {music.artworkUrl ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} /> : <Text style={{ fontSize: 18 }}>🎵</Text>}
-            <View style={{ flex: 1 }}>
+            {music.artworkUrl
+              ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
+              : <Text style={{ fontSize: 16 }}>🎵</Text>}
+            <View style={{ flex: 1, overflow: 'hidden' }}>
               <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
               {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
             </View>
-            {music.previewUrl ? <Text style={{ fontSize: 16 }}>{isMusicPlaying ? '⏸' : '▶️'}</Text> : null}
+            {music.previewUrl ? <Text style={{ fontSize: 15, color: '#fff' }}>{isMusicPlaying ? '⏸' : '▶'}</Text> : null}
           </Pressable>
-        );
+        ) : null;
+
+        if (mediaEl && musicPill) {
+          return (
+            <View style={{ position: 'relative' }}>
+              {mediaEl}
+              {musicPill}
+            </View>
+          );
+        }
+        if (mediaEl) return mediaEl;
+        if (musicPill) return <View style={styles.musicStandalone}>{musicPill}</View>;
+        return null;
       })()}
 
       {/* Actions — like · commentaire · republier · message  (+ enregistrer à droite) */}
@@ -322,17 +343,68 @@ export default function SocialTab() {
     setPlayingMusicId(null);
   }, []);
 
+  // Callback de statut partagé — gère aussi les erreurs async (URL non lisible)
+  const makeStatusCb = useCallback((snd: Audio.Sound) => (st: { isLoaded: boolean; isPlaying?: boolean; isBuffering?: boolean; error?: string }) => {
+    if (!st.isLoaded) {
+      if (st.error) {
+        snd.unloadAsync().catch(() => null);
+        if (musicSoundRef.current === snd) { musicSoundRef.current = null; setPlayingMusicId(null); }
+      }
+      return;
+    }
+    if (!st.isPlaying && !st.isBuffering) setPlayingMusicId(null);
+  }, []);
+
+  // Tap manuel : toggle play/stop
   const handleMusicPress = useCallback(async (postId: string, previewUrl: string) => {
     if (playingMusicId === postId) { await stopMusic(); return; }
+    if (!isPlayableAudioUrl(previewUrl)) {
+      Alert.alert('Musique indisponible', 'Cette piste doit être republiée pour être écoutée.');
+      return;
+    }
     await stopMusic();
     try {
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true });
+      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
       musicSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((st) => { if (st.isLoaded && !st.isPlaying) setPlayingMusicId(null); });
+      sound.setOnPlaybackStatusUpdate(makeStatusCb(sound));
       setPlayingMusicId(postId);
     } catch { setPlayingMusicId(null); }
-  }, [playingMusicId, stopMusic]);
+  }, [playingMusicId, stopMusic, makeStatusCb]);
+
+  // Auto-play à la visibilité (ne redémarre pas si déjà en cours)
+  const autoPlayPost = useCallback(async (postId: string, previewUrl: string) => {
+    if (playingMusicId === postId) return;
+    if (!isPlayableAudioUrl(previewUrl)) { await stopMusic(); return; }
+    await stopMusic();
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
+      musicSoundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate(makeStatusCb(sound));
+      setPlayingMusicId(postId);
+    } catch { setPlayingMusicId(null); }
+  }, [playingMusicId, stopMusic, makeStatusCb]);
+
+  // Refs stables pour le callback viewability (évite de recréer la fonction)
+  const autoPlayPostRef = useRef(autoPlayPost);
+  autoPlayPostRef.current = autoPlayPost;
+  const stopMusicRef = useRef(stopMusic);
+  stopMusicRef.current = stopMusic;
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const onViewablePostsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const top = viewableItems[0]?.item as { musicTrack?: string | null; id: string } | undefined;
+    if (!top?.musicTrack) { void stopMusicRef.current(); return; }
+    const music = parseMusicTrack(top.musicTrack);
+    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void autoPlayPostRef.current(top.id, music.previewUrl);
+    else void stopMusicRef.current();
+  }).current;
+
+  // Stop la musique quand l'utilisateur quitte l'écran
+  useFocusEffect(useCallback(() => {
+    return () => { void stopMusic(); };
+  }, [stopMusic]));
 
   useEffect(() => () => { void stopMusic(); }, [stopMusic]);
 
@@ -341,8 +413,10 @@ export default function SocialTab() {
     try {
       await feedApi.deletePost(accessToken, postId);
       setGlobalPosts((prev) => prev.filter((p) => p.id !== postId));
-    } catch {
-      Alert.alert('Erreur', 'Impossible de supprimer la publication.');
+      setFollowingPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      Alert.alert('Erreur', `Impossible de supprimer (${detail})`);
     }
   }, [accessToken]);
 
@@ -375,6 +449,14 @@ export default function SocialTab() {
   }, [accessToken, me?.id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Recharge le feed au retour sur l'écran (ex : après avoir publié un post),
+  // en sautant le tout premier focus déjà couvert par le montage ci-dessus.
+  const firstFocusRef = useRef(true);
+  useFocusEffect(useCallback(() => {
+    if (firstFocusRef.current) { firstFocusRef.current = false; return; }
+    void load();
+  }, [load]));
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -458,6 +540,8 @@ export default function SocialTab() {
     <FlatList
       data={data}
       keyExtractor={(p) => p.id}
+      onViewableItemsChanged={onViewablePostsChanged}
+      viewabilityConfig={viewabilityConfig}
       ListHeaderComponent={withStories ? (
         <StoriesBar
           groups={stories}
@@ -805,9 +889,11 @@ const styles = StyleSheet.create({
   actionIconActive: { opacity: 1 },
   actionCount: { fontWeight: '700', color: colors.text, fontSize: 13 },
   musicBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.sm, marginTop: 2, marginBottom: 2, backgroundColor: colors.background + 'cc', borderRadius: radius.lg, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
-  musicArtwork: { width: 34, height: 34, borderRadius: 4 },
-  musicTitle: { fontSize: 12, color: colors.text, fontWeight: '700' },
-  musicArtist: { fontSize: 11, color: colors.textMuted },
+  musicOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 12, paddingVertical: 8 },
+  musicStandalone: { marginHorizontal: spacing.sm, marginTop: 2, marginBottom: 2 },
+  musicArtwork: { width: 32, height: 32, borderRadius: 4 },
+  musicTitle: { fontSize: 12, color: '#fff', fontWeight: '700' },
+  musicArtist: { fontSize: 11, color: 'rgba(255,255,255,0.75)' },
   postCaption: { paddingHorizontal: spacing.sm, paddingBottom: 4, fontSize: 13, color: colors.text, lineHeight: 18 },
   postComments: { paddingHorizontal: spacing.sm, paddingBottom: spacing.sm, fontSize: 13, color: colors.textMuted },
   // Activité

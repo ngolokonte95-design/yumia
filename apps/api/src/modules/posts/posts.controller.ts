@@ -16,6 +16,26 @@ export class PostsController {
     private readonly storage: StorageService,
   ) {}
 
+  /** POST /posts/audio-proxy — télécharge un preview audio depuis un CDN tiers (Deezer, iTunes)
+   *  côté serveur et le stocke de façon permanente. Évite les restrictions AVFoundation sur iOS. */
+  @Post('audio-proxy')
+  async proxyAudio(@Body() dto: { url: string }): Promise<{ url: string }> {
+    if (!dto?.url) throw new BadRequestException('url requis');
+    let buffer: Buffer;
+    try {
+      const resp = await fetch(dto.url, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'audio/*,*/*' },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!resp.ok) throw new Error(`CDN ${resp.status}`);
+      buffer = Buffer.from(await resp.arrayBuffer());
+    } catch (e) {
+      throw new BadRequestException(`Téléchargement audio échoué : ${(e as Error).message}`);
+    }
+    const url = await this.storage.save(buffer, 'preview.mp3', 'music');
+    return { url };
+  }
+
   /** POST /posts/upload — upload un média (photo, vidéo ou audio) et retourne son URL publique.
    *  Sert aussi bien aux posts/reels/stories qu'aux messages vocaux du chat. */
   @Post('upload')

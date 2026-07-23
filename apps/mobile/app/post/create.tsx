@@ -280,6 +280,7 @@ export default function CreatePostScreen() {
         visible={musicModalVisible}
         onClose={() => setMusicModalVisible(false)}
         onSelect={(track) => setSelectedMusic(track)}
+        accessToken={accessToken}
       />
     </View>
   );

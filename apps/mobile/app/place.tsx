@@ -181,8 +181,8 @@ export default function PlaceScreen() {
     const { lat, lng } = place.location;
     const label = encodeURIComponent(place.name);
     const url = Platform.OS === 'ios'
-      ? `maps:?q=${label}&ll=${lat},${lng}`
-      : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+      ? `https://maps.apple.com/?q=${label}&ll=${lat},${lng}`
+      : `https://maps.google.com/?q=${lat},${lng}`;
     void Linking.openURL(url);
   }
 

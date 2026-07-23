@@ -1,14 +1,16 @@
 /**
- * Sélecteur de musique en 2 phases (Recherche iTunes → Sélecteur de clip).
- * Exporté pour être partagé entre post/create.tsx et story/create.tsx.
+ * Sélecteur de musique — iTunes (Apple Music) + Deezer.
+ * Aucune clé API requise : les deux sources sont publiques et gratuites.
+ * Previews 30 secondes pour chaque source.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, FlatList, Image, Modal,
+  ActivityIndicator, Alert, Animated, FlatList, Image, Modal,
   PanResponder, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { API_BASE_URL } from '../lib/config';
 
 const PREVIEW_S = 30;
 const WAVEFORM_W = 288;
@@ -24,15 +26,66 @@ export interface MusicTrack {
   durationMs: number;
 }
 
-interface ItunesResult {
-  trackId: number;
+// ── Type unifié pour toutes les sources ─────────────────────────────────────
+
+interface SearchResult {
+  id: string;
   trackName: string;
   artistName: string;
-  artworkUrl100: string;
+  artworkUrl: string;
   previewUrl: string;
 }
 
-function generateBars(seed: number): number[] {
+type SourceTab = 'itunes' | 'deezer';
+
+// ── Fonctions de recherche ───────────────────────────────────────────────────
+
+async function searchItunes(query: string): Promise<SearchResult[]> {
+  const r = await fetch(
+    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=20&media=music`,
+  );
+  const d = await r.json() as {
+    results: Array<{ trackId: number; trackName: string; artistName: string; artworkUrl100: string; previewUrl: string }>
+  };
+  return (d.results ?? [])
+    .filter((t) => t.previewUrl)
+    .map((t) => ({
+      id: String(t.trackId),
+      trackName: t.trackName,
+      artistName: t.artistName,
+      artworkUrl: t.artworkUrl100.replace('100x100', '300x300'),
+      previewUrl: t.previewUrl,
+    }));
+}
+
+async function searchDeezer(query: string): Promise<SearchResult[]> {
+  const r = await fetch(
+    `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=20`,
+  );
+  const d = await r.json() as {
+    data?: Array<{
+      id: number;
+      title: string;
+      artist: { name: string };
+      album: { cover_medium: string };
+      preview: string;
+    }>
+  };
+  return (d.data ?? [])
+    .filter((t) => t.preview)
+    .map((t) => ({
+      id: String(t.id),
+      trackName: t.title,
+      artistName: t.artist.name,
+      artworkUrl: t.album.cover_medium,
+      previewUrl: t.preview,
+    }));
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function generateBars(id: string): number[] {
+  const seed = parseInt(id, 10) || id.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   return Array.from({ length: BAR_COUNT }, (_, i) => {
     const x = Math.abs(((seed * 48_271 + i * 16_807) >>> 0) % 80);
     return 16 + x;
@@ -43,13 +96,13 @@ function fmtSec(s: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-// ── Sélecteur de clip ──────────────────────────────────────────────────────────
+// ── Sélecteur de clip ─────────────────────────────────────────────────────────
 
 function ClipSelector({
   track, onConfirm, onBack,
 }: {
-  track: ItunesResult;
-  onConfirm: (startMs: number, durationMs: number) => void;
+  track: SearchResult;
+  onConfirm: (startMs: number, durationMs: number) => void | Promise<void>;
   onBack: () => void;
 }) {
   const [clipSec, setClipSec] = useState(15);
@@ -60,7 +113,7 @@ function ClipSelector({
   const offsetRef = useRef(0);
   const maxXRef = useRef(0);
   const startSecRef = useRef(0);
-  const bars = useMemo(() => generateBars(track.trackId), [track.trackId]);
+  const bars = useMemo(() => generateBars(track.id), [track.id]);
   const winW = (clipSec / PREVIEW_S) * WAVEFORM_W;
 
   useEffect(() => {
@@ -146,7 +199,7 @@ function ClipSelector({
       </View>
 
       <View style={cs.trackRow}>
-        <Image source={{ uri: track.artworkUrl100 }} style={cs.artwork} />
+        <Image source={{ uri: track.artworkUrl }} style={cs.artwork} />
         <View style={{ flex: 1 }}>
           <Text style={cs.trackName} numberOfLines={1}>{track.trackName}</Text>
           <Text style={cs.artistName} numberOfLines={1}>{track.artistName}</Text>
@@ -201,49 +254,87 @@ function ClipSelector({
   );
 }
 
-// ── Modale principale ──────────────────────────────────────────────────────────
+// ── Modale principale ─────────────────────────────────────────────────────────
 
 export function MusicPickerModal({
-  visible, onClose, onSelect,
+  visible, onClose, onSelect, accessToken,
 }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (track: MusicTrack) => void;
+  accessToken?: string | null;
 }) {
   const [phase, setPhase] = useState<'search' | 'clip'>('search');
+  const [source, setSource] = useState<SourceTab>('deezer');
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ItunesResult[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [pending, setPending] = useState<ItunesResult | null>(null);
+  const [pending, setPending] = useState<SearchResult | null>(null);
+  const [uploading, setUploading] = useState(false);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!visible) {
-      setPhase('search'); setQuery(''); setResults([]); setPending(null);
+      setPhase('search'); setQuery(''); setResults([]); setPending(null); setUploading(false);
     }
   }, [visible]);
 
   useEffect(() => {
+    setResults([]);
+  }, [source]);
+
+  useEffect(() => {
     if (timeout.current) clearTimeout(timeout.current);
-    if (!query.trim()) { setResults([]); return; }
+    if (!query.trim()) { setResults([]); setSearching(false); return; }
     setSearching(true);
     timeout.current = setTimeout(async () => {
       try {
-        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&entity=song&limit=15&media=music`);
-        const d = await r.json() as { results: ItunesResult[] };
-        setResults(d.results ?? []);
+        const res = source === 'deezer'
+          ? await searchDeezer(query)
+          : await searchItunes(query);
+        setResults(res);
       } catch { setResults([]); }
       finally { setSearching(false); }
     }, 400);
-  }, [query]);
+  }, [query, source]);
 
-  const handleConfirm = (startMs: number, durationMs: number) => {
+  const handleConfirm = async (startMs: number, durationMs: number) => {
     if (!pending) return;
+    let finalPreviewUrl = pending.previewUrl;
+    if (accessToken) {
+      setUploading(true);
+      let proxyOk = false;
+      try {
+        const resp = await fetch(`${API_BASE_URL}/posts/audio-proxy`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ url: pending.previewUrl }),
+        });
+        if (resp.ok) {
+          const json = await resp.json() as { url: string };
+          finalPreviewUrl = json.url;
+          proxyOk = true;
+        }
+      } catch { /* réseau KO */ }
+      finally { setUploading(false); }
+      // Sans URL permanente, la lecture échouera (le CDN bloque expo-av) :
+      // on prévient plutôt que de stocker une piste injouable en silence.
+      if (!proxyOk) {
+        Alert.alert(
+          'Musique indisponible',
+          "Impossible d'enregistrer cet extrait pour l'instant. Réessaie dans un moment.",
+        );
+        return;
+      }
+    }
     onSelect({
       title: pending.trackName,
       artist: pending.artistName,
-      artworkUrl: pending.artworkUrl100.replace('100x100', '300x300'),
-      previewUrl: pending.previewUrl,
+      artworkUrl: pending.artworkUrl,
+      previewUrl: finalPreviewUrl,
       startMs,
       durationMs,
     });
@@ -253,13 +344,36 @@ export function MusicPickerModal({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       {phase === 'clip' && pending ? (
-        <ClipSelector track={pending} onConfirm={handleConfirm} onBack={() => setPhase('search')} />
+        uploading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            <ActivityIndicator color={colors.brand} size="large" />
+            <Text style={{ color: colors.textMuted, fontSize: 14 }}>Enregistrement de la musique…</Text>
+          </View>
+        ) : (
+          <ClipSelector track={pending} onConfirm={handleConfirm} onBack={() => setPhase('search')} />
+        )
       ) : (
         <View style={ms.container}>
           <View style={ms.header}>
             <Text style={ms.title}>🎵 Choisir une musique</Text>
             <Pressable onPress={onClose}><Text style={ms.close}>✕</Text></Pressable>
           </View>
+
+          {/* Onglets source */}
+          <View style={ms.sourceTabs}>
+            {(['itunes', 'deezer'] as SourceTab[]).map((s) => (
+              <Pressable
+                key={s}
+                style={[ms.sourceTab, source === s && ms.sourceTabActive]}
+                onPress={() => setSource(s)}
+              >
+                <Text style={[ms.sourceTabText, source === s && ms.sourceTabTextActive]}>
+                  {s === 'itunes' ? '🍎 Apple Music' : '🟢 Deezer'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           <View style={ms.searchRow}>
             <TextInput
               style={ms.searchInput}
@@ -272,9 +386,10 @@ export function MusicPickerModal({
             />
             {searching && <ActivityIndicator color={colors.brand} style={{ marginLeft: 8 }} />}
           </View>
+
           <FlatList
             data={results}
-            keyExtractor={(item) => String(item.trackId)}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingBottom: 40 }}
             ListEmptyComponent={
               query.trim() && !searching ? (
@@ -283,12 +398,15 @@ export function MusicPickerModal({
                 <View style={ms.empty}>
                   <Text style={ms.emptyEmoji}>🎧</Text>
                   <Text style={ms.emptyText}>Tape le nom d'une chanson ou d'un artiste</Text>
+                  <Text style={ms.emptyHint}>
+                    {source === 'deezer' ? 'Deezer · ~90 millions de titres' : 'Apple Music · ~100 millions de titres'}
+                  </Text>
                 </View>
               ) : null
             }
             renderItem={({ item }) => (
               <Pressable style={ms.trackRow} onPress={() => { setPending(item); setPhase('clip'); }}>
-                <Image source={{ uri: item.artworkUrl100 }} style={ms.artwork} />
+                <Image source={{ uri: item.artworkUrl }} style={ms.artwork} />
                 <View style={{ flex: 1 }}>
                   <Text style={ms.trackName} numberOfLines={1}>{item.trackName}</Text>
                   <Text style={ms.artistName} numberOfLines={1}>{item.artistName}</Text>
@@ -303,7 +421,7 @@ export function MusicPickerModal({
   );
 }
 
-// ── Styles clip selector ────────────────────────────────────────────────────────
+// ── Styles clip selector ──────────────────────────────────────────────────────
 
 const cs = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.md },
@@ -334,14 +452,19 @@ const cs = StyleSheet.create({
   confirmTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
 
-// ── Styles modale de recherche ─────────────────────────────────────────────────
+// ── Styles modale de recherche ────────────────────────────────────────────────
 
 const ms = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   title: { ...typography.h3, color: colors.text },
   close: { fontSize: 20, color: colors.textMuted, paddingHorizontal: 8 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginVertical: spacing.md },
+  sourceTabs: { flexDirection: 'row', marginHorizontal: spacing.md, marginTop: spacing.sm, marginBottom: 4, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 4 },
+  sourceTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: radius.md },
+  sourceTabActive: { backgroundColor: colors.background },
+  sourceTabText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  sourceTabTextActive: { color: colors.brand, fontWeight: '700' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginVertical: spacing.sm },
   searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   artwork: { width: 50, height: 50, borderRadius: 6 },
@@ -350,4 +473,5 @@ const ms = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: spacing.xl },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  emptyHint: { fontSize: 12, color: colors.textMuted + '99', marginTop: 6, textAlign: 'center' },
 });
