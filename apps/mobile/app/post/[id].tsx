@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, Linking, Modal, Pressable,
+  ActivityIndicator, FlatList, Image, Modal, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { Audio } from 'expo-av';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
@@ -16,6 +17,16 @@ interface MusicMeta { title: string; artist?: string; artworkUrl?: string; previ
 function parseMusicTrack(raw?: string | null): MusicMeta | null {
   if (!raw) return null;
   try { return JSON.parse(raw) as MusicMeta; } catch { return { title: raw }; }
+}
+
+/**
+ * Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-av (AVFoundation les
+ * rejette → « Unable to open URL »). Seules les pistes réhébergées sur Yumia sont
+ * jouables. On ignore donc les anciennes pistes pointant encore vers ces CDN.
+ */
+function isPlayableAudioUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return !/dzcdn\.net|itunes\.apple\.com|mzstatic\.com/i.test(url);
 }
 
 interface Comment {
@@ -71,6 +82,49 @@ export default function PostDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const musicSoundRef = useRef<Audio.Sound | null>(null);
+
+  const stopMusic = useCallback(async () => {
+    if (musicSoundRef.current) {
+      await musicSoundRef.current.stopAsync().catch(() => null);
+      await musicSoundRef.current.unloadAsync().catch(() => null);
+      musicSoundRef.current = null;
+    }
+    setIsMusicPlaying(false);
+  }, []);
+
+  const toggleMusic = useCallback(async (previewUrl: string) => {
+    if (musicSoundRef.current) { await stopMusic(); return; }
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
+      musicSoundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((st) => {
+        if (!st.isLoaded) {
+          if (st.error) {
+            sound.unloadAsync().catch(() => null);
+            if (musicSoundRef.current === sound) { musicSoundRef.current = null; setIsMusicPlaying(false); }
+          }
+          return;
+        }
+        if (!st.isPlaying && !st.isBuffering) setIsMusicPlaying(false);
+      });
+      setIsMusicPlaying(true);
+    } catch { setIsMusicPlaying(false); }
+  }, [stopMusic]);
+
+  // Auto-play dès l'ouverture du post (façon Instagram), stop si on quitte l'écran.
+  useEffect(() => {
+    const music = parseMusicTrack(post?.musicTrack);
+    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void toggleMusic(music.previewUrl);
+    return () => { void stopMusic(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post?.id]);
+
+  useFocusEffect(useCallback(() => {
+    return () => { void stopMusic(); };
+  }, [stopMusic]));
 
   const load = useCallback(async () => {
     if (!accessToken || !id) return;
@@ -213,7 +267,7 @@ export default function PostDetailScreen() {
           return (
             <Pressable
               style={styles.musicBadge}
-              onPress={() => music.previewUrl ? void Linking.openURL(music.previewUrl) : null}
+              onPress={() => music.previewUrl && isPlayableAudioUrl(music.previewUrl) ? void toggleMusic(music.previewUrl) : null}
             >
               {music.artworkUrl
                 ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
@@ -222,7 +276,7 @@ export default function PostDetailScreen() {
                 <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
                 {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
               </View>
-              {music.previewUrl ? <Text style={{ fontSize: 18 }}>▶️</Text> : null}
+              {music.previewUrl ? <Text style={{ fontSize: 18 }}>{isMusicPlaying ? '⏸' : '▶️'}</Text> : null}
             </Pressable>
           );
         })()}

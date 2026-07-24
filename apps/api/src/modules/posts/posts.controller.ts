@@ -41,7 +41,7 @@ export class PostsController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', {
     storage: memoryStorage(),
-    limits: { fileSize: 60 * 1024 * 1024 },
+    limits: { fileSize: 300 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       const ok = new Set([
         // images

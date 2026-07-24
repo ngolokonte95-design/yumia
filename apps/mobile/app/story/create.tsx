@@ -8,7 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { feedApi, type StorySticker } from '../../lib/feed-api';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { API_BASE_URL } from '../../lib/config';
 import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
+
+const API = API_BASE_URL;
 
 export default function CreateStoryScreen() {
   const { accessToken } = useAuth();
@@ -62,20 +65,34 @@ export default function CreateStoryScreen() {
         stickers.push({ kind: 'question', x: 50, y: 40, question: questionText.trim() });
       }
 
-      await feedApi.createStory(accessToken, {
-        mediaUrl,
-        type,
-        caption: caption.trim() || undefined,
-        closeFriendsOnly: closeFriendsOnly || undefined,
-        stickers: stickers.length ? stickers : undefined,
-        musicTrack: selectedMusic ? JSON.stringify(selectedMusic) : undefined,
+      // Appel direct (pas feedApi.createStory) pour remonter l'erreur réelle du
+      // serveur au lieu de l'avaler silencieusement — sans ça, un échec de
+      // création laissait croire que la story avait été publiée.
+      const res = await fetch(`${API}/stories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          mediaUrl,
+          type,
+          caption: caption.trim() || undefined,
+          closeFriendsOnly: closeFriendsOnly || undefined,
+          stickers: stickers.length ? stickers : undefined,
+          musicTrack: selectedMusic ? JSON.stringify(selectedMusic) : undefined,
+        }),
       });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        Alert.alert('Erreur', `Publication de la story échouée (HTTP ${res.status}). ${txt.slice(0, 200)}`);
+        return;
+      }
 
       if (pinToProfile) {
         await feedApi.createHighlight(accessToken, highlightTitle.trim() || 'À la une', [{ mediaUrl, type, caption: caption.trim() || undefined }]);
       }
 
       router.back();
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Échec de la publication.');
     } finally {
       setLoading(false);
     }

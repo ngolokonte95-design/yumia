@@ -49,6 +49,7 @@ export default function SocialProfileScreen() {
   const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeHighlight, setActiveHighlight] = useState<StoryHighlight | null>(null);
+  const [hasActiveStory, setHasActiveStory] = useState(false);
   const [profileTab, setProfileTab] = useState<ProfileTab>('grid');
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
@@ -66,11 +67,12 @@ export default function SocialProfileScreen() {
   const load = useCallback(async () => {
     if (!accessToken || !user?.id) return;
     const h = { Authorization: `Bearer ${accessToken}` };
-    const [profileRes, postsRes, highlightsRes, suggestionsRes] = await Promise.allSettled([
+    const [profileRes, postsRes, highlightsRes, suggestionsRes, storiesRes] = await Promise.allSettled([
       fetch(`${API}/social/users/${user.id}`, { headers: h }),
       fetch(`${API}/posts/user/${user.id}?limit=30`, { headers: h }),
       feedApi.getHighlights(accessToken, user.id),
       fetch(`${API}/social/users/search?q=&limit=6`, { headers: h }),
+      feedApi.globalStories(accessToken),
     ]);
     if (profileRes.status === 'fulfilled' && profileRes.value.ok) {
       setSocialStats(await profileRes.value.json() as SocialStats);
@@ -84,6 +86,10 @@ export default function SocialProfileScreen() {
     if (suggestionsRes.status === 'fulfilled' && suggestionsRes.value.ok) {
       const all = await suggestionsRes.value.json() as Suggestion[];
       setSuggestions(all.filter((u) => u.id !== user.id).slice(0, 5));
+    }
+    if (storiesRes.status === 'fulfilled') {
+      const mine = storiesRes.value.find((g) => g.user?.id === user.id);
+      setHasActiveStory(!!mine && mine.stories.length > 0);
     }
     setLoading(false);
   }, [accessToken, user?.id, user?.id]);
@@ -154,20 +160,26 @@ export default function SocialProfileScreen() {
       {/* Avatar + stats */}
       <View style={styles.profileTop}>
         {/* Avatar avec bulle + */}
-        <Pressable style={styles.avatarWrap} onPress={() => router.push('/story/create' as never)}>
-          <View style={styles.avatarRing}>
-            {photoUrl ? (
-              <Image source={{ uri: photoUrl }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarLetter}>{displayName[0]?.toUpperCase()}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.storyPlusBadge}>
+        <View style={styles.avatarWrap}>
+          <Pressable
+            onPress={() => hasActiveStory
+              ? router.push(`/story-viewer?userId=${user?.id}` as never)
+              : router.push('/story/create' as never)}
+          >
+            <View style={[styles.avatarRing, hasActiveStory && styles.avatarRingActive]}>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.avatarLetter}>{displayName[0]?.toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
+          <Pressable style={styles.storyPlusBadge} onPress={() => router.push('/story/create' as never)} hitSlop={8}>
             <Text style={styles.storyPlusTxt}>+</Text>
-          </View>
-        </Pressable>
+          </Pressable>
+        </View>
 
         {/* Stats */}
         <View style={styles.statsBlock}>
@@ -479,9 +491,10 @@ const styles = StyleSheet.create({
   avatarWrap: { position: 'relative' },
   avatarRing: {
     width: 90, height: 90, borderRadius: 45,
-    borderWidth: 2.5, borderColor: colors.brand,
+    borderWidth: 2.5, borderColor: colors.border, borderStyle: 'dashed',
     padding: 2,
   },
+  avatarRingActive: { borderColor: colors.brand, borderStyle: 'solid' },
   avatar: { width: '100%', height: '100%', borderRadius: 100 },
   avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   avatarLetter: { fontSize: 34, color: '#fff', fontWeight: '700' },

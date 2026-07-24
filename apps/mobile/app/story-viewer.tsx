@@ -154,7 +154,10 @@ export default function StoryViewerScreen() {
   const next = useCallback(() => {
     setIndex((i) => {
       if (!group) return i;
-      if (i + 1 >= group.stories.length) { close(); return i; }
+      // Ne pas naviguer depuis l'updater de setState (rendu d'un autre
+      // composant en cours) : ça déclenche « Cannot update a component while
+      // rendering a different component ». On diffère la fermeture après le commit.
+      if (i + 1 >= group.stories.length) { setTimeout(close, 0); return i; }
       return i + 1;
     });
     setReplySent(false);
