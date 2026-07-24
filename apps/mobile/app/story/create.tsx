@@ -55,7 +55,6 @@ export default function CreateStoryScreen() {
     setLoading(true);
     try {
       const mediaUrl = await feedApi.uploadMedia(accessToken, uri);
-      if (!mediaUrl) { Alert.alert('Erreur', "L'upload a échoué."); return; }
 
       const stickers: StorySticker[] = [];
       if (pollEnabled && pollQuestion.trim()) {

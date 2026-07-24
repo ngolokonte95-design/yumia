@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, Dimensions, Image, PanResponder,
+  ActivityIndicator, Alert, Animated, Dimensions, Image, PanResponder,
   Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -278,6 +278,11 @@ export default function CameraScreen() {
       form.append('file', { uri: preview.uri, type: isVideo ? 'video/mp4' : 'image/jpeg', name: isVideo ? 'reel.mp4' : 'photo.jpg' } as never);
 
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
+      if (!up.ok) {
+        const txt = await up.text().catch(() => '');
+        Alert.alert('Erreur', `Upload échoué (HTTP ${up.status}). ${txt.slice(0, 200)}`);
+        return;
+      }
       const { url } = await up.json() as { url: string };
 
       if (saveToMemories) {
@@ -289,15 +294,28 @@ export default function CameraScreen() {
       }
 
       if (publishTarget === 'story') {
-        await fetch(`${API}/stories`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ mediaUrl: url, type: isVideo ? 'video' : 'image', caption }) });
+        const storyType = isVideo ? 'video' : 'photo';
+        const sRes = await fetch(`${API}/stories`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ mediaUrl: url, type: storyType, caption }) });
+        if (!sRes.ok) {
+          const txt = await sRes.text().catch(() => '');
+          Alert.alert('Erreur', `Publication de la story échouée (HTTP ${sRes.status}). ${txt.slice(0, 200)}`);
+          return;
+        }
         if (pinToProfile) {
-          await fetch(`${API}/stories/highlights`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ title: highlightTitle.trim() || 'À la une', items: [{ mediaUrl: url, type: isVideo ? 'video' : 'image', caption }] }) });
+          await fetch(`${API}/stories/highlights`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ title: highlightTitle.trim() || 'À la une', items: [{ mediaUrl: url, type: storyType, caption }] }) });
         }
         router.replace('/(tabs)/social' as never);
       } else {
-        await fetch(`${API}/posts`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ mediaUrls: [url], caption, mediaType: isVideo ? 'video' : 'photo', isReel: publishTarget === 'reel' }) });
+        const pRes = await fetch(`${API}/posts`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ mediaUrls: [url], caption, mediaType: isVideo ? 'video' : 'photo', isReel: publishTarget === 'reel' }) });
+        if (!pRes.ok) {
+          const txt = await pRes.text().catch(() => '');
+          Alert.alert('Erreur', `Publication échouée (HTTP ${pRes.status}). ${txt.slice(0, 200)}`);
+          return;
+        }
         router.replace(publishTarget === 'reel' ? '/reels' : '/(tabs)/social' as never);
       }
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Échec de la publication.');
     } finally { setUploading(false); }
   };
 
@@ -525,7 +543,10 @@ export default function CameraScreen() {
 
       {/* ── CONTRÔLES DU BAS ───────────────────────────────────────────────── */}
       <View style={[styles.shutterRow, { bottom: insets.bottom + 105 }]}>
-        <Pressable style={styles.shutterSide} onPress={() => router.push('/post/create' as never)}>
+        <Pressable
+          style={styles.shutterSide}
+          onPress={() => router.push((mode === 'story' ? '/story/create' : '/post/create') as never)}
+        >
           <Text style={{ fontSize: 30 }}>🖼️</Text>
           <Text style={styles.shutterSideLabel}>Galerie</Text>
         </Pressable>

@@ -333,8 +333,15 @@ export default function SocialTab() {
   // Music playback in feed
   const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
   const musicSoundRef = useRef<Audio.Sound | null>(null);
+  // Jeton de génération : incrémenté à chaque tentative de lecture. Si une
+  // tentative plus récente démarre avant que la précédente ait fini de charger
+  // (scroll rapide), la précédente se voit "périmée" à son retour et se décharge
+  // immédiatement au lieu d'écraser la ref — sinon deux sons jouent en parallèle
+  // (l'ancien devient orphelin, plus jamais stoppable).
+  const playGenRef = useRef(0);
 
   const stopMusic = useCallback(async () => {
+    playGenRef.current += 1;
     if (musicSoundRef.current) {
       await musicSoundRef.current.stopAsync().catch(() => null);
       await musicSoundRef.current.unloadAsync().catch(() => null);
@@ -355,6 +362,31 @@ export default function SocialTab() {
     if (!st.isPlaying && !st.isBuffering) setPlayingMusicId(null);
   }, []);
 
+  const startTrack = useCallback(async (postId: string, previewUrl: string) => {
+    const myGen = ++playGenRef.current;
+    if (musicSoundRef.current) {
+      await musicSoundRef.current.stopAsync().catch(() => null);
+      await musicSoundRef.current.unloadAsync().catch(() => null);
+      musicSoundRef.current = null;
+    }
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
+      if (myGen !== playGenRef.current) {
+        // Une tentative plus récente a démarré pendant le chargement : on
+        // décharge ce son orphelin sans jamais l'assigner à la ref.
+        await sound.stopAsync().catch(() => null);
+        await sound.unloadAsync().catch(() => null);
+        return;
+      }
+      musicSoundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate(makeStatusCb(sound));
+      setPlayingMusicId(postId);
+    } catch {
+      if (myGen === playGenRef.current) setPlayingMusicId(null);
+    }
+  }, [makeStatusCb]);
+
   // Tap manuel : toggle play/stop
   const handleMusicPress = useCallback(async (postId: string, previewUrl: string) => {
     if (playingMusicId === postId) { await stopMusic(); return; }
@@ -362,29 +394,15 @@ export default function SocialTab() {
       Alert.alert('Musique indisponible', 'Cette piste doit être republiée pour être écoutée.');
       return;
     }
-    await stopMusic();
-    try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
-      musicSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate(makeStatusCb(sound));
-      setPlayingMusicId(postId);
-    } catch { setPlayingMusicId(null); }
-  }, [playingMusicId, stopMusic, makeStatusCb]);
+    await startTrack(postId, previewUrl);
+  }, [playingMusicId, stopMusic, startTrack]);
 
   // Auto-play à la visibilité (ne redémarre pas si déjà en cours)
   const autoPlayPost = useCallback(async (postId: string, previewUrl: string) => {
     if (playingMusicId === postId) return;
     if (!isPlayableAudioUrl(previewUrl)) { await stopMusic(); return; }
-    await stopMusic();
-    try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
-      musicSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate(makeStatusCb(sound));
-      setPlayingMusicId(postId);
-    } catch { setPlayingMusicId(null); }
-  }, [playingMusicId, stopMusic, makeStatusCb]);
+    await startTrack(postId, previewUrl);
+  }, [playingMusicId, stopMusic, startTrack]);
 
   // Refs stables pour le callback viewability (évite de recréer la fonction)
   const autoPlayPostRef = useRef(autoPlayPost);

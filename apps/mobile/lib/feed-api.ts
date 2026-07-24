@@ -136,6 +136,10 @@ export const feedApi = {
   markStoryViewed: (token: string, storyId: string) =>
     fetch(`${API}/stories/${storyId}/view`, { method: 'POST', headers: auth(token) }),
 
+  deleteStory: (token: string, storyId: string) =>
+    fetch(`${API}/stories/${storyId}`, { method: 'DELETE', headers: auth(token) })
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); }),
+
   /** Qui a vu ma story (auteur uniquement). */
   storyViewers: (token: string, storyId: string) =>
     fetch(`${API}/stories/${storyId}/viewers`, { headers: auth(token) })
@@ -168,7 +172,10 @@ export const feedApi = {
     fetch(`${API}/stories/highlights/${id}`, { method: 'DELETE', headers: auth(token) }),
 
   // ── Upload média (réutilise l'endpoint posts/upload) ──────────────────────
-  uploadMedia: async (token: string, uri: string): Promise<string | null> => {
+  // Remonte le statut HTTP + le corps de la réponse en cas d'échec au lieu de
+  // l'avaler silencieusement (sans ça, un 413/400/500 se résumait à un vague
+  // "L'upload a échoué" sans indice sur la vraie cause).
+  uploadMedia: async (token: string, uri: string): Promise<string> => {
     const form = new FormData();
     const name = uri.split('/').pop() ?? 'photo.jpg';
     const ext = name.split('.').pop()?.toLowerCase();
@@ -182,7 +189,11 @@ export const feedApi = {
     // @ts-expect-error React Native FormData file shape
     form.append('file', { uri, name, type: mime });
     const r = await fetch(`${API}/posts/upload`, { method: 'POST', headers: auth(token), body: form });
-    const d = await safe<{ url: string } | null>(r, null);
-    return d?.url ?? null;
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      throw new Error(`Upload média échoué (HTTP ${r.status}). ${txt.slice(0, 160)}`);
+    }
+    const d = await r.json() as { url: string };
+    return d.url;
   },
 };

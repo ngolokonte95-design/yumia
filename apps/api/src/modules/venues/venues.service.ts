@@ -38,11 +38,15 @@ export class VenuesService {
       return candidates.slice(0, limit);
     }
 
+    // Un venue sans coordonnées ne peut pas être vérifié comme proche : on
+    // l'exclut plutôt que de le traiter par défaut comme "à proximité".
+    // Pas de repli global non plus — sinon dès qu'aucun venue n'est réellement
+    // proche, on affichait les mieux boostés du monde entier (bug rapporté :
+    // « lieux partout dans le monde » au lieu d'être filtré par région).
     const nearby = candidates.filter(
-      (v) => v.lat == null || v.lng == null || haversineM(lat, lng, v.lat, v.lng) <= radius,
+      (v) => v.lat != null && v.lng != null && haversineM(lat, lng, v.lat, v.lng) <= radius,
     );
 
-    // Graceful fallback: si aucun venue à proximité, montrer quand-même les mieux boostés
-    return (nearby.length > 0 ? nearby : candidates).slice(0, limit);
+    return nearby.slice(0, limit);
   }
 }

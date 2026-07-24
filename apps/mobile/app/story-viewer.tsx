@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal,
+  ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal,
   Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Audio } from 'expo-av';
+import * as MediaLibrary from 'expo-media-library';
+import { Directory, File, Paths } from 'expo-file-system';
 import { useAuth } from '../lib/auth-context';
 import { feedApi, type StoryGroup, type StorySticker } from '../lib/feed-api';
 import { colors, radius, spacing } from '../theme/tokens';
@@ -195,6 +197,53 @@ export default function StoryViewerScreen() {
     if (ok) { setReplyText(''); setReplySent(true); setPaused(false); }
   };
 
+  const [saving, setSaving] = useState(false);
+  const saveStory = async () => {
+    if (!group) return;
+    const story = group.stories[index];
+    setSaving(true);
+    setPaused(true);
+    try {
+      const perm = await MediaLibrary.requestPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Permission refusée', 'Autorise l\'accès aux photos pour enregistrer.'); return; }
+      const dest = new Directory(Paths.cache, `story-${story.id}-${Date.now()}`);
+      dest.create();
+      const file = await File.downloadFileAsync(story.mediaUrl, dest, { idempotent: true });
+      await MediaLibrary.saveToLibraryAsync(file.uri);
+      Alert.alert('Enregistré', 'La story a été enregistrée dans tes photos.');
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer cette story.');
+    } finally {
+      setSaving(false);
+      setPaused(false);
+    }
+  };
+
+  const deleteStory = () => {
+    if (!accessToken || !group) return;
+    const story = group.stories[index];
+    setPaused(true);
+    Alert.alert('Supprimer cette story ?', 'Cette action est irréversible.', [
+      { text: 'Annuler', style: 'cancel', onPress: () => setPaused(false) },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await feedApi.deleteStory(accessToken, story.id);
+            if (group.stories.length <= 1) { close(); return; }
+            setGroup((g) => g ? { ...g, stories: g.stories.filter((s) => s.id !== story.id) } : g);
+            setIndex((i) => Math.min(i, group.stories.length - 2));
+            setPaused(false);
+          } catch {
+            Alert.alert('Erreur', 'Impossible de supprimer cette story.');
+            setPaused(false);
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator color="#fff" /></View>;
   }
@@ -302,11 +351,19 @@ export default function StoryViewerScreen() {
       <Pressable style={styles.tapLeft} onPress={prev} />
       <Pressable style={styles.tapRight} onPress={next} />
 
-      {/* Barre du bas : vues (ma story) OU réponse en DM (story d'autrui) */}
+      {/* Barre du bas : vues + enregistrer/supprimer (ma story) OU réponse en DM (story d'autrui) */}
       {isMine ? (
-        <Pressable style={[styles.viewsBar, { bottom: insets.bottom + 16 }]} onPress={openViewers}>
-          <Text style={styles.viewsTxt}>👁 {story.viewCount ?? 0} vue{(story.viewCount ?? 0) > 1 ? 's' : ''} — voir qui</Text>
-        </Pressable>
+        <View style={[styles.myStoryRow, { bottom: insets.bottom + 16 }]}>
+          <Pressable style={styles.viewsBar} onPress={openViewers}>
+            <Text style={styles.viewsTxt}>👁 {story.viewCount ?? 0} vue{(story.viewCount ?? 0) > 1 ? 's' : ''} — voir qui</Text>
+          </Pressable>
+          <Pressable style={styles.circleActionBtn} onPress={() => void saveStory()} disabled={saving} hitSlop={8}>
+            {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.circleActionTxt}>💾</Text>}
+          </Pressable>
+          <Pressable style={styles.circleActionBtn} onPress={deleteStory} hitSlop={8}>
+            <Text style={styles.circleActionTxt}>🗑️</Text>
+          </Pressable>
+        </View>
       ) : (
         <View style={[styles.replyBar, { bottom: insets.bottom + 12 }]}>
           <TextInput
@@ -400,7 +457,10 @@ const styles = StyleSheet.create({
   labelSticker: { backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   labelStickerTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
   // Barre du bas
-  viewsBar: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingVertical: 11, alignItems: 'center', zIndex: 6 },
+  myStoryRow: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 6 },
+  viewsBar: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingVertical: 11, alignItems: 'center' },
+  circleActionBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  circleActionTxt: { fontSize: 19 },
   viewsTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
   replyBar: {
     position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10,
