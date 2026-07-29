@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
@@ -552,7 +552,15 @@ export default function SocialTab() {
     setSharePost(null);
   };
 
-  if (loading) return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} /></View>;
+  // Pas de blocage plein écran sur `loading` : l'en-tête (logo, recherche,
+  // onglets) et la barre de stories s'affichent immédiatement, seule la zone
+  // de contenu montre un indicateur le temps que les données arrivent. Avant
+  // ce fix, les 7 requêtes parallèles de load() devaient TOUTES aboutir avant
+  // qu'on affiche quoi que ce soit — Social était la seule page avec ce temps
+  // de chargement plein écran.
+  const emptyOrLoading = (content: ReactElement): ReactElement => loading
+    ? <ActivityIndicator color={colors.brand} style={{ marginTop: 60 }} />
+    : content;
 
   const renderPostList = (data: FeedPost[], emptyEmoji: string, emptyTitle: string, emptyText: string, withStories: boolean) => (
     <FlatList
@@ -587,7 +595,7 @@ export default function SocialTab() {
       )}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
       contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
-      ListEmptyComponent={
+      ListEmptyComponent={emptyOrLoading(
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>{emptyEmoji}</Text>
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
@@ -596,7 +604,7 @@ export default function SocialTab() {
             <Text style={styles.emptyBtnText}>📷 Photo · 🎬 Vidéo</Text>
           </Pressable>
         </View>
-      }
+      )}
     />
   );
 
@@ -723,13 +731,13 @@ export default function SocialTab() {
               )}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
               contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
-              ListEmptyComponent={
+              ListEmptyComponent={emptyOrLoading(
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>🏃</Text>
                   <Text style={styles.emptyTitle}>Pas d'activité</Text>
                   <Text style={styles.emptyText}>Suis des utilisateurs pour voir ce qu'ils font.</Text>
                 </View>
-              }
+              )}
             />
           )}
 
@@ -755,13 +763,13 @@ export default function SocialTab() {
                   <Text style={styles.encounterLevel}>Niv. {item.otherUser?.level}</Text>
                 </Pressable>
               )}
-              ListEmptyComponent={
+              ListEmptyComponent={emptyOrLoading(
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>⚡</Text>
                   <Text style={styles.emptyTitle}>Aucune rencontre</Text>
                   <Text style={styles.emptyText}>Rends-toi dans des lieux pour croiser d'autres utilisateurs Yumia !</Text>
                 </View>
-              }
+              )}
             />
           )}
 
@@ -801,13 +809,13 @@ export default function SocialTab() {
                   </Pressable>
                 );
               }}
-              ListEmptyComponent={
+              ListEmptyComponent={emptyOrLoading(
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>👥</Text>
                   <Text style={styles.emptyTitle}>Aucune suggestion</Text>
                   <Text style={styles.emptyText}>Utilise la barre de recherche pour trouver des utilisateurs à suivre.</Text>
                 </View>
-              }
+              )}
             />
           )}
         </>

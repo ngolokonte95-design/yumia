@@ -1,31 +1,14 @@
-import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
-import { Image } from 'expo-image';
+import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MODE_META, UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
+import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
-import { SuggestionCard } from '../../components/SuggestionCard';
 import { YumiaLogo } from '../../components/YumiaLogo';
-import { ExperienceCard } from '../../components/ExperienceCard';
-import { PaywallModal } from '../../components/PaywallModal';
-import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
-import { useTop3 } from '../../lib/useTop3';
-import { useExperience } from '../../lib/useExperience';
 import { useLocation } from '../../lib/useLocation';
 import { useAuth } from '../../lib/auth-context';
-import { recordVisit } from '../../lib/passport-api';
-import { useSaved } from '../../lib/useSaved';
 import { useI18n } from '../../lib/useI18n';
-import { placeStore } from '../../lib/place-store';
 import { useWeather } from '../../lib/useWeather';
-import { SkeletonCard } from '../../components/SkeletonCard';
-import { useTrending } from '../../lib/useTrending';
-import { usePlanLimits } from '../../lib/usePlanLimits';
-import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
-import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
-import type { Universe } from '@yumia/shared';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
 const UNIVERSE_CUSTOM_ICONS: Partial<Record<string, (props: { size: number }) => ReturnType<typeof CannabisIcon>>> = {
@@ -51,8 +34,6 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
     return { title: `${t('greeting_evening')}, ${first}`, sub: t('greeting_sub_evening') };
   return { title: `${t('greeting_night')}, ${first}`, sub: t('greeting_sub_night') };
 }
-
-const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];
 
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
@@ -87,94 +68,17 @@ function universeRoute(u: string): string {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { accessToken, user } = useAuth();
+  const { user } = useAuth();
   const { t } = useI18n();
   const { title: greetTitle, sub: greetSub } = buildGreeting(user?.displayName ?? 'toi', t);
-  const { coords, resolving, isFallback, city } = useLocation();
+  const { coords, city } = useLocation();
   const weather = useWeather(coords.lat, coords.lng);
-  const [selectedMode, setSelectedMode] = useState<Mode | null>(null);
-  const [upsell, setUpsell] = useState<string | null>(null);
-  const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
-  const { checkLimit, recordUsage } = usePlanLimits();
-
-  const isItinerary = selectedMode !== null && ITINERARY_MODES.includes(selectedMode);
-  const prefs = {
-    favoriteUniverses: user?.preferences?.favoriteUniverses,
-    restrictions: user?.preferences?.restrictions,
-  };
-
-  const trending = useTrending({
-    lat: coords.lat,
-    lng: coords.lng,
-    radius: 5_000,
-    limit: 8,
-    enabled: !resolving,
-  });
-
-  // Params mémoïsés et STABLES : sans ça, `localTimeIso: new Date()` (qui change
-  // à chaque render) faisait re-fetcher le Top 3 en boucle → écran qui "vibre" +
-  // ThrottlerException (429). On arrondit l'heure à l'heure pleine et on ne
-  // dépend que de valeurs primitives.
-  const top3Params = useMemo(
-    () => {
-      const hour = new Date();
-      hour.setMinutes(0, 0, 0);
-      return {
-        lat: coords.lat,
-        lng: coords.lng,
-        locale: user?.locale ?? 'fr',
-        localTimeIso: hour.toISOString(),
-        mode: selectedMode ?? undefined,
-        weather: weather ?? undefined,
-        city: city ?? undefined,
-        favoriteUniverses: user?.preferences?.favoriteUniverses,
-        restrictions: user?.preferences?.restrictions,
-      };
-    },
-    [
-      coords.lat,
-      coords.lng,
-      user?.locale,
-      selectedMode,
-      weather?.tempC,
-      weather?.condition,
-      city,
-      user?.preferences?.favoriteUniverses,
-      user?.preferences?.restrictions,
-    ],
-  );
-
-  const top3 = useTop3(top3Params, !resolving && !isItinerary);
-
-  const experience = useExperience(
-    {
-      lat: coords.lat,
-      lng: coords.lng,
-      mode: (selectedMode ?? 'date') as Mode,
-      locale: 'fr',
-      ...prefs,
-    },
-    !resolving && isItinerary,
-  );
-
-  const sectionTitle = isItinerary
-    ? `${MODE_META[selectedMode!].emoji} ${MODE_META[selectedMode!].labelFr}`
-    : t('top3_title');
 
   return (
-    <>
-    <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
     <ScrollView
       style={styles.screen}
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
       showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={top3.loading && !resolving}
-          onRefresh={() => top3.refetch()}
-          tintColor={colors.brand}
-        />
-      }
     >
       {/* Logo Yumia — bien visible en haut de la Home */}
       <View style={[styles.section, { alignItems: 'center', marginBottom: spacing.sm }]}>
@@ -249,220 +153,7 @@ export default function HomeScreen() {
           </View>
         </View>
       ))}
-
-      {/* Pipeline lieux : rangées horizontales par univers clé */}
-      {(['restaurant', 'bar', 'nightclub'] as Universe[]).map((u) => (
-        <UniverseRow
-          key={u}
-          universe={u}
-          lat={coords.lat}
-          lng={coords.lng}
-          enabled={!resolving}
-          onSeeAll={() => router.push((u === 'nightclub' ? '/nightclub' : `/universe?u=${u}`) as never)}
-          onCardPress={(p) => {
-            placeStore.set({
-              place: {
-                id: p.id, name: p.name, universe: p.universe,
-                location: { lat: p.lat, lng: p.lng },
-                city: p.city, countryCode: p.countryCode,
-                rating: p.rating, priceTier: p.priceTier as 1 | 2 | 3 | 4,
-                photoUrls: p.photoUrls, tags: p.tags,
-              },
-              compatibility: 0,
-              distanceMeters: Math.round(p.distanceMeters),
-              reason: `${UNIVERSE_META[p.universe]?.emoji ?? '📍'} ${UNIVERSE_META[p.universe]?.labelFr ?? p.universe}`,
-              engine: 'mood',
-            });
-            router.push('/place');
-          }}
-        />
-      ))}
-
-      {/* Tendances près de toi */}
-      {(trending.places.length > 0 || trending.loading) && !resolving ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔥 Tendances près de toi</Text>
-          {trending.loading ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <View key={i} style={styles.trendingSkeletonCard} />
-              ))}
-            </ScrollView>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
-              {trending.places.map((place) => (
-                <TrendingCard
-                  key={place.id}
-                  place={place}
-                  onPress={() => {
-                    placeStore.set({
-                      place: {
-                        id: place.id,
-                        name: place.name,
-                        universe: place.universe,
-                        location: { lat: place.lat, lng: place.lng },
-                        city: place.city,
-                        countryCode: place.countryCode,
-                        rating: place.rating,
-                        priceTier: place.priceTier as 1 | 2 | 3 | 4,
-                        photoUrls: place.photoUrls,
-                        tags: place.tags,
-                      },
-                      compatibility: 0,
-                      distanceMeters: Math.round(place.distanceMeters),
-                      reason: `🔥 Tendance — ${place.visitCount} visites récentes`,
-                      engine: 'mood',
-                    });
-                    router.push('/place');
-                  }}
-                />
-              ))}
-            </ScrollView>
-          )}
-        </View>
-      ) : null}
-
-      {/* Section principale : Top 3 ou Itinéraire selon le mode */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{sectionTitle}</Text>
-
-        {!isItinerary && top3.data?.reason ? (
-          <Text style={styles.top3Reason}>{top3.data.reason}</Text>
-        ) : null}
-        {isFallback && !resolving ? (
-          <Text style={styles.fallbackHint}>{t('location_fallback')}</Text>
-        ) : null}
-
-        <PaywallModal visible={limitError !== null} onClose={clearLimitError} />
-
-        {resolving ? (
-          <View style={{ gap: spacing.md }}>
-            <SkeletonCard /><SkeletonCard /><SkeletonCard />
-          </View>
-        ) : isItinerary ? (
-          experience.loading ? (
-            <StateBox loading text={t('ai_planning')} />
-          ) : experience.error ? (
-            <StateBox text={experience.error} onRetry={experience.refetch} />
-          ) : experience.data ? (
-            <ExperienceCard
-              result={experience.data}
-              savedIds={savedIds}
-              onSave={accessToken ? (id, willSave) => willSave ? save(id) : unsave(id) : undefined}
-              onVisit={
-                accessToken
-                  ? (placeId, feedback) => recordVisit(accessToken, placeId, feedback)
-                  : undefined
-              }
-              onStepPress={(step) => { placeStore.set({ place: step.place, compatibility: 0, reason: step.reason, engine: 'mood' }); router.push('/place'); }}
-            />
-          ) : null
-        ) : top3.loading ? (
-          <View style={{ gap: spacing.md }}>
-            <SkeletonCard /><SkeletonCard /><SkeletonCard />
-          </View>
-        ) : top3.error ? (
-          <StateBox text={top3.error} onRetry={top3.refetch} />
-        ) : top3.data && top3.data.suggestions.length > 0 ? (
-          <View style={{ gap: spacing.md }}>
-            {top3.data.suggestions.map((s) => (
-              <SuggestionCard
-                key={s.place.id}
-                suggestion={s}
-                isSaved={savedIds.has(s.place.id)}
-                onPress={() => { placeStore.set(s); router.push('/place'); }}
-                onSave={accessToken ? (id, willSave) => willSave ? save(id) : unsave(id) : undefined}
-                onVisit={
-                  accessToken
-                    ? async (feedback) => recordVisit(accessToken, s.place.id, feedback)
-                    : undefined
-                }
-              />
-            ))}
-          </View>
-        ) : (
-          <StateBox text={t('no_results')} />
-        )}
-      </View>
-
     </ScrollView>
-    </>
-  );
-}
-
-function UniverseRow({
-  universe, lat, lng, enabled, onSeeAll, onCardPress,
-}: {
-  universe: Universe;
-  lat: number;
-  lng: number;
-  enabled: boolean;
-  onSeeAll: () => void;
-  onCardPress: (p: NearbyPlace) => void;
-}) {
-  const { places, loading } = useNearbyUniverse({ lat, lng, universe, radius: 5000, limit: 8, enabled });
-  const meta = UNIVERSE_META[universe];
-  if (!loading && places.length === 0) return null;
-  return (
-    <View style={styles.section}>
-      <View style={styles.rowHeader}>
-        <Text style={styles.sectionTitle}>{meta.emoji}  {meta.labelFr}</Text>
-        <Pressable onPress={onSeeAll}><Text style={styles.rowSeeAll}>Voir tout →</Text></Pressable>
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.trendingSkeletonCard} />)
-          : places.map((p) => <PlaceCard key={p.id} place={p} onPress={() => onCardPress(p)} />)
-        }
-      </ScrollView>
-    </View>
-  );
-}
-
-function PlaceCard({ place, onPress }: { place: NearbyPlace; onPress: () => void }) {
-  const meta = UNIVERSE_META[place.universe];
-  const distText = place.distanceMeters < 1000
-    ? `${Math.round(place.distanceMeters)} m`
-    : `${(place.distanceMeters / 1000).toFixed(1)} km`;
-  return (
-    <Pressable style={styles.trendingCard} onPress={onPress}>
-      {place.photoUrls?.[0] ? (
-        <Image source={{ uri: place.photoUrls[0] }} style={styles.trendingImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
-      ) : (
-        <View style={styles.trendingImgPlaceholder}>
-          <Text style={{ fontSize: 32 }}>{meta?.emoji ?? '📍'}</Text>
-        </View>
-      )}
-      <View style={styles.trendingInfo}>
-        <Text style={styles.trendingName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.trendingMeta}>{distText} · ⭐ {place.rating.toFixed(1)}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function TrendingCard({ place, onPress }: { place: TrendingPlace; onPress: () => void }) {
-  const meta = UNIVERSE_META[place.universe];
-  const distKm = place.distanceMeters < 1000
-    ? `${Math.round(place.distanceMeters)} m`
-    : `${(place.distanceMeters / 1000).toFixed(1)} km`;
-  return (
-    <Pressable style={styles.trendingCard} onPress={onPress}>
-      {place.photoUrls?.[0] ? (
-        <Image source={{ uri: place.photoUrls[0] }} style={styles.trendingImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
-      ) : (
-        <View style={styles.trendingImgPlaceholder}>
-          <Text style={{ fontSize: 32 }}>{meta?.emoji ?? '📍'}</Text>
-        </View>
-      )}
-      <View style={styles.trendingVisitBadge}>
-        <Text style={styles.trendingVisitText}>{place.visitCount} visites</Text>
-      </View>
-      <View style={styles.trendingInfo}>
-        <Text style={styles.trendingName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.trendingMeta}>{distKm} · ⭐ {place.rating.toFixed(1)}</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -476,28 +167,6 @@ function weatherEmoji(condition: string): string {
   if (c.includes('overcast')) return '☁️';
   if (c.includes('partly') || c.includes('mostly')) return '⛅';
   return '☀️';
-}
-
-function StateBox({
-  loading = false,
-  text,
-  onRetry,
-}: {
-  loading?: boolean;
-  text?: string;
-  onRetry?: () => void;
-}) {
-  return (
-    <View style={styles.stateBox}>
-      {loading && <ActivityIndicator color={colors.brand} />}
-      {text ? <Text style={styles.stateText}>{text}</Text> : null}
-      {onRetry ? (
-        <Pressable style={styles.retryBtn} onPress={onRetry}>
-          <Text style={styles.retryText}>Réessayer</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -573,66 +242,4 @@ const styles = StyleSheet.create({
   universeEmoji: { fontSize: 22 },
   universeLabel: { ...typography.label, color: colors.textSecondary, textAlign: 'center', fontSize: 9, lineHeight: 12 },
   sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },
-  top3Reason: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: -spacing.sm,
-    marginBottom: spacing.md,
-  },
-  fallbackHint: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.md },
-  stateBox: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  stateText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  retryText: { ...typography.caption, color: colors.textPrimary },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
-  rowSeeAll: { ...typography.caption, color: colors.brand, fontWeight: '600' },
-  trendingRow: { gap: spacing.md, paddingRight: spacing.md },
-  trendingCard: {
-    width: 148,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-  },
-  trendingImg: { width: '100%', height: 96 },
-  trendingImgPlaceholder: {
-    width: '100%',
-    height: 96,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trendingVisitBadge: {
-    position: 'absolute',
-    top: spacing.xs,
-    right: spacing.xs,
-    backgroundColor: `${colors.brand}CC`,
-    borderRadius: radius.pill,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-  },
-  trendingVisitText: { ...typography.label, color: '#fff', fontSize: 11 },
-  trendingInfo: { padding: spacing.sm, gap: 2 },
-  trendingName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  trendingMeta: { ...typography.caption, color: colors.textSecondary },
-  trendingSkeletonCard: {
-    width: 148,
-    height: 148,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.md,
-  },
 });

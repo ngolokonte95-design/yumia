@@ -430,13 +430,63 @@ export class AuthService {
 
   /**
    * Supprime définitivement le compte et toutes les données associées.
-   * Prisma cascade supprime les relations liées (RefreshToken, Visit, Passport, etc.)
-   * à condition que les FK aient onDelete: Cascade dans le schéma.
+   *
+   * Seule une poignée de relations (RefreshToken, PasswordResetToken, Visit,
+   * SavedPlace, EarnedBadge, Streak, GroupMember) ont un onDelete: Cascade
+   * déclaré dans le schéma — pour tout le reste (posts, stories, likes,
+   * commentaires, mutes, blocages, conversations…) le champ `userId` est une
+   * colonne brute sans relation Prisma : `user.delete()` seul les laisserait
+   * orphelins en base (aucune erreur, mais des données jamais nettoyées,
+   * contraire à ce qu'on promet dans l'app : « toutes tes données seront
+   * effacées »). On nettoie donc explicitement chaque table concernée avant
+   * de supprimer l'utilisateur, dans une transaction pour rester atomique.
    */
   async deleteAccount(userId: string): Promise<void> {
-    // Révoque d'abord tous les refresh tokens pour invalider les sessions actives.
-    await this.prisma.refreshToken.deleteMany({ where: { userId } });
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.$transaction([
+      // Interactions de cet utilisateur sur du contenu qui ne lui appartient
+      // pas (ses propres posts/stories seront supprimés juste après et
+      // entraîneront en cascade ses propres PostLike/PostComment/etc. via
+      // postId — mais pas ses likes/commentaires sur les posts des autres).
+      this.prisma.postLike.deleteMany({ where: { userId } }),
+      this.prisma.commentLike.deleteMany({ where: { userId } }),
+      this.prisma.postComment.deleteMany({ where: { userId } }),
+      this.prisma.postSave.deleteMany({ where: { userId } }),
+      this.prisma.repost.deleteMany({ where: { userId } }),
+      this.prisma.storyView.deleteMany({ where: { userId } }),
+      this.prisma.storyPollVote.deleteMany({ where: { userId } }),
+
+      // Contenu possédé par l'utilisateur (cascade vers PostLike/PostComment/
+      // PostSave/Repost/StoryView/StoryPollVote/StoryHighlightItem restants).
+      this.prisma.post.deleteMany({ where: { userId } }),
+      this.prisma.story.deleteMany({ where: { userId } }),
+      this.prisma.storyHighlight.deleteMany({ where: { userId } }),
+      this.prisma.savedCollection.deleteMany({ where: { userId } }),
+      this.prisma.placeReview.deleteMany({ where: { userId } }),
+      this.prisma.note.deleteMany({ where: { userId } }),
+      this.prisma.userQuest.deleteMany({ where: { userId } }),
+      this.prisma.meetupRsvp.deleteMany({ where: { userId } }),
+      this.prisma.conversationParticipant.deleteMany({ where: { userId } }),
+      this.prisma.messageReaction.deleteMany({ where: { userId } }),
+
+      // Graphe social — relations dirigées dans les deux sens (l'utilisateur
+      // a mute/bloqué/mis en ami proche/favori quelqu'un, ou l'inverse).
+      this.prisma.mute.deleteMany({ where: { OR: [{ userId }, { mutedId: userId }] } }),
+      this.prisma.restrict.deleteMany({ where: { OR: [{ userId }, { restrictedId: userId }] } }),
+      this.prisma.closeFriend.deleteMany({ where: { OR: [{ userId }, { friendId: userId }] } }),
+      this.prisma.favoriteUser.deleteMany({ where: { OR: [{ userId }, { favoriteId: userId }] } }),
+
+      // Registres financiers (billets, réservations guide) : conservés pour
+      // la comptabilité/commission mais anonymisés — userId y est déjà
+      // nullable pour ce cas d'usage.
+      this.prisma.ticket.updateMany({ where: { userId }, data: { userId: null } }),
+      this.prisma.guideBooking.updateMany({ where: { userId }, data: { userId: null } }),
+
+      // Révoque toutes les sessions actives avant de supprimer le compte
+      // (redondant avec le cascade du schéma, gardé explicite par clarté).
+      this.prisma.refreshToken.deleteMany({ where: { userId } }),
+
+      this.prisma.user.delete({ where: { id: userId } }),
+    ]);
     this.logger.log(`Compte supprimé : userId=${userId}`);
   }
 

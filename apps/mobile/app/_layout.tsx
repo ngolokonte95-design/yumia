@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
+import * as SplashScreen from 'expo-splash-screen';
 import { colors } from '../theme/tokens';
 import { AuthProvider, useAuth } from '../lib/auth-context';
 import { OfflineBanner } from '../components/OfflineBanner';
@@ -19,6 +20,13 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 initSentry();
 initPurchases();
 
+// Garde le splash natif visible tant qu'AuthGate n'a pas déterminé et appliqué
+// la bonne route de démarrage. Sans ça, le splash se cache dès le premier
+// rendu JS (avant que l'auth soit résolue) et on voit brièvement le dernier
+// écran mis en cache par l'OS avant que la vraie route (Home, login…) prenne
+// sa place — perçu comme "une page qui apparaît et disparaît".
+void SplashScreen.preventAutoHideAsync().catch(() => null);
+
 /**
  * Garde de navigation selon l'état d'authentification + onboarding.
  * - non connecté hors (auth) → /login
@@ -30,6 +38,7 @@ function AuthGate() {
   const { status, user, accessToken } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [routeReady, setRouteReady] = useState(false);
 
   usePushNotifications(accessToken);
   useDailyDigest();
@@ -47,6 +56,7 @@ function AuthGate() {
 
     if (status === 'unauthenticated') {
       if (!inAuthGroup) router.replace('/login');
+      setRouteReady(true);
       return;
     }
 
@@ -61,8 +71,21 @@ function AuthGate() {
     } else if (onboardingDone && (inAuthGroup || inOnboarding)) {
       router.replace('/(tabs)');
     }
+    setRouteReady(true);
   }, [status, user, segments, router]);
 
+  // Cache le splash natif seulement une fois la route finale déterminée (et
+  // laissée le temps de peindre), pas dès le premier rendu JS.
+  useEffect(() => {
+    if (!routeReady) return;
+    const id = requestAnimationFrame(() => { void SplashScreen.hideAsync().catch(() => null); });
+    return () => cancelAnimationFrame(id);
+  }, [routeReady]);
+
+  // Le Stack doit rester monté dès que le statut est connu (sinon
+  // router.replace() ci-dessus s'exécute sans navigateur monté) : le rendu
+  // "intermédiaire" avant que routeReady ne soit vrai reste invisible car le
+  // splash natif recouvre encore tout l'écran à ce moment-là.
   if (status === 'loading') {
     return (
       <View style={styles.splash}>
@@ -78,9 +101,14 @@ function AuthGate() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(onboarding)" />
+      {/* Ces trois écrans ne sont jamais atteints par une navigation voulue par
+          l'utilisateur — AuthGate y redirige automatiquement via router.replace
+          au démarrage. Avec l'animation par défaut, ce replace jouait un slide
+          visible (l'écran sortant glissait à gauche pendant que le nouveau
+          arrivait), perçu comme "une page qui apparaît et disparaît". */}
+      <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+      <Stack.Screen name="(auth)" options={{ animation: 'none' }} />
+      <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
       <Stack.Screen name="(premium)" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group-session" options={{ animation: 'slide_from_bottom' }} />
