@@ -9,6 +9,7 @@ export function PostVideo({ uri, style }: { uri: string; style?: ViewStyle }) {
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = true;
+    p.play();
   });
 
   return (

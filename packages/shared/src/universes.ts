@@ -200,7 +200,7 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   bowling:         { key: 'bowling',         emoji: '🎳',   i18nKey: 'universe.bowling',         labelFr: 'Bowling' },
   casino:          { key: 'casino',          emoji: '🎰',   i18nKey: 'universe.casino',          labelFr: 'Casinos' },
   skatepark:       { key: 'skatepark',       emoji: '🛹',   i18nKey: 'universe.skatepark',       labelFr: 'Skateparks & Sports urbains' },
-  cannabis:        { key: 'cannabis',        emoji: '🍃',   i18nKey: 'universe.cannabis',        labelFr: 'Coffee shops & Cannabis' },
+  cannabis:        { key: 'cannabis',        emoji: '🍃',   i18nKey: 'universe.cannabis',        labelFr: 'Coffee shops' },
   shooting:        { key: 'shooting',        emoji: '🎯',   i18nKey: 'universe.shooting',        labelFr: 'Armureries & Stands de tir' },
   // Bien-être & Beauté
   spa:             { key: 'spa',             emoji: '🧖',   i18nKey: 'universe.spa',             labelFr: 'Spa & Bien-être' },

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -131,6 +131,10 @@ export default function ChatRoomScreen() {
   const [actionMsg, setActionMsg] = useState<Message | null>(null); // appui long → réactions/répondre
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  // Extrait enregistré en attente d'écoute/envoi (façon Snap : on peut le
+  // réécouter et le jeter avant de l'envoyer réellement).
+  const [voicePreview, setVoicePreview] = useState<{ uri: string; duration: number } | null>(null);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
   const [partner, setPartner] = useState<Partner | null>(null);
   const [e2eActive, setE2eActive] = useState(false);
 
@@ -139,6 +143,7 @@ export default function ChatRoomScreen() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const previewSoundRef = useRef<Audio.Sound | null>(null);
 
   // ─── Chargement du partenaire ────────────────────────────────────────────
   const loadPartner = useCallback(async () => {
@@ -208,6 +213,9 @@ export default function ChatRoomScreen() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [loadHistory, loadPartner, poll]);
 
+  // Coupe l'écoute de l'extrait vocal en attente si on quitte l'écran.
+  useEffect(() => () => { void previewSoundRef.current?.unloadAsync().catch(() => null); }, []);
+
   // ─── Envoi de message (chiffré si possible) ───────────────────────────────
   const send = async () => {
     if (!input.trim() || sending || !accessToken || !convId) return;
@@ -259,8 +267,9 @@ export default function ChatRoomScreen() {
     recTimerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
   };
 
-  const sendVoice = async () => {
-    if (!recordingRef.current || !accessToken || !convId) return;
+  /** Arrête l'enregistrement et passe en écran de prévisualisation (pas d'envoi direct). */
+  const stopVoiceToPreview = async () => {
+    if (!recordingRef.current) return;
     if (recTimerRef.current) clearInterval(recTimerRef.current);
     setIsRecordingVoice(false);
     const dur = recordingSeconds;
@@ -268,7 +277,62 @@ export default function ChatRoomScreen() {
     await recordingRef.current.stopAndUnloadAsync();
     const uri = recordingRef.current.getURI();
     recordingRef.current = null;
-    if (!uri) return;
+    if (uri) setVoicePreview({ uri, duration: dur });
+  };
+
+  const cancelVoice = async () => {
+    if (recTimerRef.current) clearInterval(recTimerRef.current);
+    await recordingRef.current?.stopAndUnloadAsync();
+    recordingRef.current = null;
+    setIsRecordingVoice(false);
+    setRecordingSeconds(0);
+  };
+
+  /** Rejoue/pause l'extrait en attente d'envoi. */
+  const togglePreviewPlayback = async () => {
+    if (!voicePreview) return;
+    if (previewSoundRef.current) {
+      if (previewPlaying) {
+        await previewSoundRef.current.pauseAsync();
+        setPreviewPlaying(false);
+      } else {
+        await previewSoundRef.current.playFromPositionAsync(0);
+        setPreviewPlaying(true);
+      }
+      return;
+    }
+    await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+    const { sound } = await Audio.Sound.createAsync({ uri: voicePreview.uri }, { shouldPlay: true });
+    previewSoundRef.current = sound;
+    sound.setOnPlaybackStatusUpdate((st) => {
+      if (st.isLoaded && !st.isPlaying && st.positionMillis > 0 && st.positionMillis === st.durationMillis) {
+        setPreviewPlaying(false);
+      }
+    });
+    setPreviewPlaying(true);
+  };
+
+  const stopPreviewSound = async () => {
+    if (previewSoundRef.current) {
+      await previewSoundRef.current.stopAsync().catch(() => null);
+      await previewSoundRef.current.unloadAsync().catch(() => null);
+      previewSoundRef.current = null;
+    }
+    setPreviewPlaying(false);
+  };
+
+  /** Jette l'extrait enregistré sans l'envoyer. */
+  const discardVoicePreview = async () => {
+    await stopPreviewSound();
+    setVoicePreview(null);
+  };
+
+  /** Envoie réellement l'extrait prévisualisé. */
+  const confirmSendVoice = async () => {
+    if (!voicePreview || !accessToken || !convId) return;
+    await stopPreviewSound();
+    const { uri, duration: dur } = voicePreview;
+    setVoicePreview(null);
     setSending(true);
     try {
       const form = new FormData();
@@ -288,14 +352,6 @@ export default function ChatRoomScreen() {
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
       }
     } finally { setSending(false); }
-  };
-
-  const cancelVoice = async () => {
-    if (recTimerRef.current) clearInterval(recTimerRef.current);
-    await recordingRef.current?.stopAndUnloadAsync();
-    recordingRef.current = null;
-    setIsRecordingVoice(false);
-    setRecordingSeconds(0);
   };
 
   // ─── Appel ────────────────────────────────────────────────────────────────
@@ -325,6 +381,21 @@ export default function ChatRoomScreen() {
     if (res.ok) {
       const { reactions } = await res.json() as { reactions: MessageReaction[] };
       setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, reactions } : m));
+    }
+  };
+
+  // ─── Suppression (réservée à ses propres messages) ─────────────────────────
+  const deleteMessage = async (msg: Message) => {
+    setActionMsg(null);
+    if (!accessToken) return;
+    const res = await fetch(`${API}/chat/messages/${msg.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (res.ok) {
+      setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+    } else {
+      Alert.alert('Erreur', 'Impossible de supprimer ce message.');
     }
   };
 
@@ -481,8 +552,24 @@ export default function ChatRoomScreen() {
               <Text style={styles.voiceRecTime}>{fmtSec(recordingSeconds)}</Text>
               <Text style={styles.voiceRecLabel}>En cours...</Text>
             </View>
-            <Pressable style={styles.voiceSendBtn} onPress={sendVoice}>
-              <Text style={{ fontSize: 22, color: '#fff' }}>↑</Text>
+            {/* Arrête l'enregistrement et passe en écoute avant envoi (pas d'envoi direct). */}
+            <Pressable style={styles.voiceSendBtn} onPress={() => void stopVoiceToPreview()}>
+              <Text style={{ fontSize: 20, color: '#fff' }}>⏹</Text>
+            </Pressable>
+          </View>
+        ) : voicePreview ? (
+          /* ── Prévisualisation avant envoi (façon Snapchat) ────────────────── */
+          <View style={[styles.voiceBar, { paddingBottom: insets.bottom + 8 }]}>
+            <Pressable style={styles.voiceCancelBtn} onPress={() => void discardVoicePreview()}>
+              <Text style={styles.voiceCancelTxt}>🗑️</Text>
+            </Pressable>
+            <Pressable style={styles.voiceIndicator} onPress={() => void togglePreviewPlayback()}>
+              <Text style={{ fontSize: 18 }}>{previewPlaying ? '⏸' : '▶️'}</Text>
+              <Text style={styles.voiceRecTime}>{fmtSec(voicePreview.duration)}</Text>
+              <Text style={styles.voiceRecLabel}>{previewPlaying ? 'Lecture...' : 'Écouter'}</Text>
+            </Pressable>
+            <Pressable style={styles.voiceSendBtn} onPress={() => void confirmSendVoice()} disabled={sending}>
+              {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: 22, color: '#fff' }}>↑</Text>}
             </Pressable>
           </View>
         ) : (
@@ -542,6 +629,21 @@ export default function ChatRoomScreen() {
             >
               <Text style={styles.actionRowTxt}>↩︎  Répondre</Text>
             </Pressable>
+            {actionMsg?.senderId === myId ? (
+              <Pressable
+                style={styles.actionRow}
+                onPress={() => {
+                  const msg = actionMsg;
+                  setActionMsg(null);
+                  Alert.alert('Supprimer ce message ?', 'Cette action est irréversible.', [
+                    { text: 'Annuler', style: 'cancel' },
+                    { text: 'Supprimer', style: 'destructive', onPress: () => msg && void deleteMessage(msg) },
+                  ]);
+                }}
+              >
+                <Text style={[styles.actionRowTxt, { color: colors.danger }]}>🗑️  Supprimer</Text>
+              </Pressable>
+            ) : null}
           </View>
         </Pressable>
       </Modal>

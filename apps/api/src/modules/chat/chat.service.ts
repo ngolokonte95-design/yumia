@@ -219,6 +219,18 @@ export class ChatService {
     return { reactions };
   }
 
+  /** Supprime un message — réservé à son expéditeur. */
+  async deleteMessage(messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { senderId: true },
+    });
+    if (!message) throw new NotFoundException('Message introuvable');
+    if (message.senderId !== userId) throw new ForbiddenException('Seul l\'expéditeur peut supprimer ce message.');
+    await this.prisma.message.delete({ where: { id: messageId } });
+    return { ok: true };
+  }
+
   /** Marque un média « vue unique » comme consommé. */
   async markOneTimeViewed(messageId: string, userId: string) {
     const message = await this.prisma.message.findUnique({

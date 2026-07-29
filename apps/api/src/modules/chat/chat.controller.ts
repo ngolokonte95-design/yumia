@@ -105,6 +105,12 @@ export class ChatController {
     return this.chat.toggleReaction(id, user.sub, dto.emoji);
   }
 
+  /** DELETE /api/chat/messages/:id — supprimer un message (réservé à l'expéditeur) */
+  @Delete('messages/:id')
+  deleteMessage(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {
+    return this.chat.deleteMessage(id, user.sub);
+  }
+
   /** POST /api/chat/messages/:id/viewed-once — consommer un média vue unique */
   @Post('messages/:id/viewed-once')
   viewedOnce(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {

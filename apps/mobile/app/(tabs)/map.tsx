@@ -313,7 +313,7 @@ export default function MapScreen() {
           {universe === 'cannabis' ? (
             <>
               <CannabisIcon size={16} />
-              <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>Cannabis</Text>
+              <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>Coffee shops</Text>
             </>
           ) : (
             <Text style={styles.filterButtonText} numberOfLines={1}>

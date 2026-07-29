@@ -18,7 +18,15 @@ const API = API_BASE_URL;
 type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
-function ReelVideo({ uri, active, muted }: { uri: string; active: boolean; muted: boolean }) {
+function ReelVideo({
+  uri, active, muted, progressAnim,
+}: {
+  uri: string;
+  active: boolean;
+  muted: boolean;
+  /** Avancement 0→1 de la lecture, piloté sans re-render (Animated.Value). */
+  progressAnim: Animated.Value;
+}) {
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = muted;
@@ -35,6 +43,23 @@ function ReelVideo({ uri, active, muted }: { uri: string; active: boolean; muted
       player.pause();
     }
   }, [active, player]);
+
+  // Alimente la barre de progression. `timeUpdateEventInterval` vaut 0 par
+  // défaut (= événement jamais émis), il faut donc l'activer explicitement.
+  // On écrit dans un Animated.Value plutôt que dans un state React pour ne pas
+  // re-rendre toute la carte plusieurs fois par seconde.
+  useEffect(() => {
+    if (!active) {
+      progressAnim.setValue(0);
+      return;
+    }
+    try { player.timeUpdateEventInterval = 0.2; } catch {}
+    const sub = player.addListener('timeUpdate', ({ currentTime }) => {
+      const total = player.duration;
+      progressAnim.setValue(total > 0 ? Math.min(1, currentTime / total) : 0);
+    });
+    return () => sub.remove();
+  }, [active, player, progressAnim]);
 
   return (
     <VideoView
@@ -70,6 +95,7 @@ function ReelCard({
   const musicSoundRef = useRef<Audio.Sound | null>(null);
   const diskAnim = useRef(new Animated.Value(0)).current;
   const diskLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   // Lecture de la piste musicale synchronisée avec l'activité du reel
   useEffect(() => {
@@ -137,7 +163,7 @@ function ReelCard({
       {/* Fond / vidéo */}
       {mediaUrl ? (
         isVideo ? (
-          <ReelVideo uri={mediaUrl} active={active} muted={muted} />
+          <ReelVideo uri={mediaUrl} active={active} muted={muted} progressAnim={progressAnim} />
         ) : (
           <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         )
@@ -221,9 +247,19 @@ function ReelCard({
         {musicMeta?.title ? (
           <Text style={styles.reelMusicRow} numberOfLines={1}>🎵 {musicMeta.title}{musicMeta.artist ? ` • ${musicMeta.artist}` : ''}</Text>
         ) : null}
-        {/* Barre de progression */}
+        {/* Barre de progression — suit la lecture pour une vidéo ; pour un
+            reel photo (pas de timeline) on garde la barre pleine. */}
         <View style={styles.reelProgressBar}>
-          <View style={[styles.reelProgressFill, { width: active ? '100%' : '0%' }]} />
+          {isVideo ? (
+            <Animated.View
+              style={[
+                styles.reelProgressFill,
+                { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+              ]}
+            />
+          ) : (
+            <View style={[styles.reelProgressFill, { width: active ? '100%' : '0%' }]} />
+          )}
         </View>
       </View>
 
