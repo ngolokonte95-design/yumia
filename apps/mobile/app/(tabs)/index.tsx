@@ -81,6 +81,12 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
+      {/* Météo — tout en haut, avant même le logo : c'est l'info la plus
+          rapide à checker en ouvrant l'app. */}
+      <View style={[styles.section, { marginBottom: spacing.sm }]}>
+        <WeatherCard lat={coords.lat} lng={coords.lng} />
+      </View>
+
       {/* Logo Yumia — bien visible en haut de la Home */}
       <View style={[styles.section, { alignItems: 'center', marginBottom: spacing.sm }]}>
         <YumiaLogo height={150} />
@@ -96,13 +102,6 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
-      </View>
-
-      {/* Météo — carte pleine largeur plutôt qu'une pastille : elle annonce
-          l'écran complet qui se cache derrière, et donne déjà une suggestion
-          de sortie adaptée au temps qu'il fait. */}
-      <View style={styles.section}>
-        <WeatherCard lat={coords.lat} lng={coords.lng} city={city ?? undefined} />
       </View>
 
       {/* Barre de recherche conversationnelle */}

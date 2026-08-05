@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PressableScale } from '../ui';
-import { colors, elevation, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { elevation, gradients, radius, spacing, typography } from '../../theme/tokens';
 import { useWeatherReport } from '../../lib/useWeatherReport';
 import {
   activitiesFor, dayMomentAt, KIND_LABEL, kindEmoji,
@@ -28,19 +28,20 @@ function skyColors(kind: WeatherKind, moment: DayMoment): readonly string[] {
 }
 
 /**
- * Carte météo de l'accueil.
+ * Bandeau météo de l'accueil, tout en haut de l'écran.
  *
- * Remplace la pastille de température, trop discrète pour laisser deviner
- * qu'un écran complet se cache derrière. La carte reprend l'ambiance du ciel
- * du moment et annonce déjà la valeur de Yumia : ce qu'il y a à faire par ce
- * temps-là.
+ * Volontairement compact (une seule ligne) : c'est l'info la plus rapide à
+ * vérifier en ouvrant l'app, elle ne doit pas prendre le pas sur le reste de
+ * la page. La ville n'y est pas répétée puisqu'elle apparaît juste en dessous
+ * dans le message d'accueil. L'aperçu de recommandation en fin de ligne est
+ * ce qui distingue la météo Yumia d'un simple thermomètre.
  */
-export function WeatherCard({ lat, lng, city }: { lat: number; lng: number; city?: string }) {
+export function WeatherCard({ lat, lng }: { lat: number; lng: number }) {
   const router = useRouter();
   const { report } = useWeatherReport(lat, lng);
 
   // Pas de squelette : tant que la météo n'est pas là, mieux vaut ne rien
-  // afficher que réserver un bloc vide en haut de l'accueil.
+  // afficher que réserver un bandeau vide en haut de l'accueil.
   if (!report) return null;
 
   const { current, astro, coordinates } = report;
@@ -57,35 +58,28 @@ export function WeatherCard({ lat, lng, city }: { lat: number; lng: number; city
     >
       <LinearGradient
         colors={skyColors(current.kind, moment) as [string, string, ...string[]]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0.4 }}
         style={styles.card}
       >
-        <View style={styles.left}>
-          <Text style={styles.temp}>{current.tempC}°</Text>
-          <View style={styles.leftMeta}>
-            <Text style={styles.condition}>{KIND_LABEL[current.kind]}</Text>
-            {today && (
-              <Text style={styles.minmax}>↑{today.maxC}°  ↓{today.minC}°</Text>
-            )}
-          </View>
+        <Text style={styles.icon}>{kindEmoji(current.kind, current.isDay)}</Text>
+
+        <View style={styles.meta}>
+          <Text style={styles.temp} numberOfLines={1}>
+            {current.tempC}° · {KIND_LABEL[current.kind]}
+          </Text>
+          {today && (
+            <Text style={styles.minmax}>↑{today.maxC}° ↓{today.minC}°</Text>
+          )}
         </View>
 
-        <View style={styles.right}>
-          <Text style={styles.icon}>{kindEmoji(current.kind, current.isDay)}</Text>
-          {city ? <Text style={styles.city} numberOfLines={1}>{city}</Text> : null}
-        </View>
-
-        {/* Aperçu de la recommandation : c'est ce qui distingue la météo de
-            Yumia d'un simple thermomètre. */}
         {suggestion && (
-          <View style={styles.suggestion}>
-            <Text style={styles.suggestionTxt} numberOfLines={1}>
-              {suggestion.emoji} {suggestion.label} · {suggestion.reason}
-            </Text>
-            <Text style={styles.chevron}>›</Text>
-          </View>
+          <Text style={styles.suggestion} numberOfLines={1}>
+            {suggestion.emoji} {suggestion.label}
+          </Text>
         )}
+
+        <Text style={styles.chevron}>›</Text>
       </LinearGradient>
     </PressableScale>
   );
@@ -94,25 +88,17 @@ export function WeatherCard({ lat, lng, city }: { lat: number; lng: number; city
 const styles = StyleSheet.create({
   wrap: { ...elevation.medium, borderRadius: radius.lg },
   card: {
-    borderRadius: radius.lg, padding: spacing.md,
-    overflow: 'hidden',
-  },
-  left: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
-  temp: {
-    fontSize: 46, fontWeight: '300', color: '#fff',
-    letterSpacing: -2, lineHeight: 50,
-  },
-  leftMeta: { paddingBottom: 6, gap: 1 },
-  condition: { ...typography.body, color: '#fff', fontWeight: '700' },
-  minmax: { ...typography.caption, color: 'rgba(255,255,255,0.8)' },
-  right: { position: 'absolute', top: spacing.md, right: spacing.md, alignItems: 'flex-end', gap: 2 },
-  icon: { fontSize: 34 },
-  city: { ...typography.label, color: 'rgba(255,255,255,0.85)', maxWidth: 110 },
-  suggestion: {
+    borderRadius: radius.lg, overflow: 'hidden',
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    marginTop: spacing.md, paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.28)',
+    paddingHorizontal: spacing.md, paddingVertical: 10,
   },
-  suggestionTxt: { ...typography.caption, color: 'rgba(255,255,255,0.92)', flex: 1, fontWeight: '600' },
-  chevron: { fontSize: 22, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
+  icon: { fontSize: 22 },
+  meta: { gap: 0 },
+  temp: { ...typography.body, color: '#fff', fontWeight: '700' },
+  minmax: { ...typography.label, color: 'rgba(255,255,255,0.78)' },
+  suggestion: {
+    flex: 1, textAlign: 'right',
+    ...typography.caption, color: 'rgba(255,255,255,0.9)', fontWeight: '600',
+  },
+  chevron: { fontSize: 20, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
 });
