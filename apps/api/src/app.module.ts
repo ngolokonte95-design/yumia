@@ -20,6 +20,7 @@ import { GroupsModule } from './modules/groups/groups.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SavedModule } from './modules/saved/saved.module';
+import { FavoritesModule } from './modules/favorites/favorites.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { VenuesModule } from './modules/venues/venues.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
@@ -83,6 +84,7 @@ import { CallsModule } from './modules/calls/calls.module';
     PlacesModule,
     RecommendationsModule,
     SavedModule,
+    FavoritesModule,
     SuggestionsModule,
     WebhooksModule,
     VenuesModule,

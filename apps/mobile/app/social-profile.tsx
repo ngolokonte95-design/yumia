@@ -393,7 +393,7 @@ export default function SocialProfileScreen() {
             { icon: '⚙️', label: 'Paramètres & confidentialité', onPress: () => { setShowMenu(false); router.push('/settings' as never); } },
             { icon: '👥', label: 'Demandes d\'abonnement', onPress: () => { setShowMenu(false); router.push('/follow-requests' as never); } },
             { icon: '📁', label: 'Archivés & brouillons', onPress: () => { setShowMenu(false); router.push('/archive' as never); } },
-            { icon: '🔖', label: 'Enregistrements & collections', onPress: () => { setShowMenu(false); router.push('/collections' as never); } },
+            { icon: '❤️', label: 'Favoris & collections', onPress: () => { setShowMenu(false); router.push('/favorites' as never); } },
             { icon: '🟢', label: 'Amis proches', onPress: () => { setShowMenu(false); router.push('/close-friends?type=close-friends' as never); } },
             { icon: '⭐', label: 'Favoris', onPress: () => { setShowMenu(false); router.push('/close-friends?type=favorites' as never); } },
             { icon: '🚫', label: 'Comptes bloqués', onPress: () => { setShowMenu(false); router.push('/blocked' as never); } },

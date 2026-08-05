@@ -269,7 +269,7 @@ export default function ProfileScreen() {
       {/* Réglages */}
       <View style={styles.section}>
         {[
-          { key: 'saved', label: '🤍 Mes adresses sauvegardées', onPress: () => router.push('/saved') },
+          { key: 'saved', label: '❤️ Mes favoris', onPress: () => router.push('/favorites' as never) },
           { key: 'locale', label: '🌐 Langue & région', onPress: () => setShowLocalePicker(true) },
           { key: 'notifs', label: '🔔 Notifications', onPress: () => router.push('/notifications') },
           { key: 'privacy', label: '🔒 Confidentialité', onPress: () => router.push('/settings') },

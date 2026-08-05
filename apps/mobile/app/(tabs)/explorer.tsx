@@ -43,7 +43,7 @@ const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; r
   { key: 'group', emoji: '👥', label: 'Sortie en groupe', sub: 'Décidez ensemble', route: '/group' },
   { key: 'surprise', emoji: '🎲', label: 'Surprise Me', sub: 'L\'IA choisit', route: '/surprise' },
   { key: 'leaderboard', emoji: '🏆', label: 'Classement', sub: 'Compare-toi', route: '/leaderboard' },
-  { key: 'saved', emoji: '🤍', label: 'Sauvegardés', sub: 'Tes adresses', route: '/saved' },
+  { key: 'saved', emoji: '❤️', label: 'Favoris', sub: 'Lieux & publications', route: '/favorites' },
 ];
 
 const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];

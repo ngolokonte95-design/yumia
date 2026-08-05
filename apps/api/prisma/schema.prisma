@@ -300,10 +300,14 @@ model SavedPlace {
   placeId   String
   place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
   listName  String   @default("a_essayer")
+  /// Collection de favoris (partagée avec les publications enregistrées).
+  /// Nullable : un lieu peut rester dans les favoris sans être rangé.
+  collectionId String?
   createdAt DateTime @default(now())
 
   @@unique([userId, placeId, listName])
   @@index([userId])
+  @@index([collectionId])
 }
 
 // ----------------------------------------------------------------------------
