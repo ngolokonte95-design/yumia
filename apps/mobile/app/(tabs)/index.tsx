@@ -8,7 +8,7 @@ import { YumiaLogo } from '../../components/YumiaLogo';
 import { useLocation } from '../../lib/useLocation';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
-import { useWeather } from '../../lib/useWeather';
+import { WeatherCard } from '../../components/weather/WeatherCard';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
 const UNIVERSE_CUSTOM_ICONS: Partial<Record<string, (props: { size: number }) => ReturnType<typeof CannabisIcon>>> = {
@@ -74,7 +74,6 @@ export default function HomeScreen() {
   const { t } = useI18n();
   const { title: greetTitle, sub: greetSub } = buildGreeting(user?.displayName ?? 'toi', t);
   const { coords, city } = useLocation();
-  const weather = useWeather(coords.lat, coords.lng);
 
   return (
     <ScrollView
@@ -96,18 +95,14 @@ export default function HomeScreen() {
               {city ? `📍 ${city} · ` : ''}{greetSub}
             </Text>
           </View>
-          {/* La pastille météo ouvre l'écran météo complet. `as never` : les
-              types de routes sont générés par le serveur de dev et ne
-              connaissent /weather qu'après un premier démarrage — même
-              convention que les autres push de cet écran. */}
-          {weather ? (
-            <Pressable style={styles.weatherPill} onPress={() => router.push('/weather' as never)}>
-              <Text style={styles.weatherText}>
-                {weatherEmoji(weather.condition)} {weather.tempC}°
-              </Text>
-            </Pressable>
-          ) : null}
         </View>
+      </View>
+
+      {/* Météo — carte pleine largeur plutôt qu'une pastille : elle annonce
+          l'écran complet qui se cache derrière, et donne déjà une suggestion
+          de sortie adaptée au temps qu'il fait. */}
+      <View style={styles.section}>
+        <WeatherCard lat={coords.lat} lng={coords.lng} city={city ?? undefined} />
       </View>
 
       {/* Barre de recherche conversationnelle */}
@@ -163,35 +158,12 @@ export default function HomeScreen() {
   );
 }
 
-function weatherEmoji(condition: string): string {
-  const c = condition.toLowerCase();
-  if (c.includes('thunder')) return '⛈️';
-  if (c.includes('snow')) return '❄️';
-  if (c.includes('heavy rain') || c.includes('shower')) return '🌧️';
-  if (c.includes('rain') || c.includes('drizzle')) return '🌦️';
-  if (c.includes('fog')) return '🌫️';
-  if (c.includes('overcast')) return '☁️';
-  if (c.includes('partly') || c.includes('mostly')) return '⛅';
-  return '☀️';
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
   greetingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   greeting: { ...typography.display, color: colors.textPrimary },
   subGreeting: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
-  weatherPill: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  weatherText: { ...typography.caption, color: colors.textSecondary },
   search: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

@@ -1,15 +1,16 @@
 /**
- * Météo légère pour la recommandation contextuelle (accueil, explorer, for-you).
+ * Météo légère pour la recommandation contextuelle (explorer, for-you).
  *
  * Ne renvoie que température + condition : c'est tout ce dont le moteur de
  * reco a besoin. Pour l'écran météo complet, utiliser `useWeatherReport`.
  *
- * Passe par la même couche Services que le reste de l'application — changer de
- * fournisseur météo se répercute donc ici automatiquement.
+ * Délègue à `useWeatherReport` plutôt que de refaire son propre appel : les
+ * deux tapaient la même source avec deux caches distincts, donc deux
+ * requêtes réseau quand plusieurs onglets étaient montés en même temps.
  */
-import { useEffect, useState } from 'react';
-import { cacheGet, cacheKey, cacheSet } from './cache';
-import { getWeatherProvider } from './services/weather';
+import { useMemo } from 'react';
+import { useWeatherReport } from './useWeatherReport';
+import type { WeatherKind } from './services/weather';
 
 export interface WeatherContext {
   tempC: number;
@@ -20,10 +21,8 @@ export interface WeatherContext {
   condition: string;
 }
 
-const CACHE_TTL = 15 * 60_000;
-
 /** Vocabulaire normalisé → libellés attendus par le moteur de recommandation. */
-const CONDITION_LABEL: Record<string, string> = {
+const CONDITION_LABEL: Record<WeatherKind, string> = {
   clear: 'clear',
   partly_cloudy: 'partly cloudy',
   cloudy: 'overcast',
@@ -36,37 +35,13 @@ const CONDITION_LABEL: Record<string, string> = {
 };
 
 export function useWeather(lat: number, lng: number): WeatherContext | null {
-  const [weather, setWeather] = useState<WeatherContext | null>(null);
+  const { report } = useWeatherReport(lat, lng);
 
-  useEffect(() => {
-    if (!lat || !lng) return;
-    let cancelled = false;
-
-    const ck = cacheKey('weather', { lat: lat.toFixed(2), lng: lng.toFixed(2) });
-
-    (async () => {
-      const cached = await cacheGet<WeatherContext>(ck);
-      if (cached && !cancelled) {
-        setWeather(cached.data);
-        if (!cached.stale) return;
-      }
-
-      try {
-        const report = await getWeatherProvider().fetchReport({ lat, lng });
-        if (cancelled) return;
-        const result: WeatherContext = {
-          tempC: report.current.tempC,
-          condition: CONDITION_LABEL[report.current.kind] ?? 'clear',
-        };
-        setWeather(result);
-        void cacheSet(ck, result, CACHE_TTL);
-      } catch {
-        // best-effort — la météo n'est qu'un signal d'appoint pour la reco.
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [lat, lng]);
-
-  return weather;
+  return useMemo(() => {
+    if (!report) return null;
+    return {
+      tempC: report.current.tempC,
+      condition: CONDITION_LABEL[report.current.kind] ?? 'clear',
+    };
+  }, [report]);
 }
