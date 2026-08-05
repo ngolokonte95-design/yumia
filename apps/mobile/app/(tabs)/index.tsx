@@ -94,12 +94,16 @@ export default function HomeScreen() {
               {city ? `📍 ${city} · ` : ''}{greetSub}
             </Text>
           </View>
+          {/* La pastille météo ouvre l'écran météo complet. `as never` : les
+              types de routes sont générés par le serveur de dev et ne
+              connaissent /weather qu'après un premier démarrage — même
+              convention que les autres push de cet écran. */}
           {weather ? (
-            <View style={styles.weatherPill}>
+            <Pressable style={styles.weatherPill} onPress={() => router.push('/weather' as never)}>
               <Text style={styles.weatherText}>
                 {weatherEmoji(weather.condition)} {weather.tempC}°
               </Text>
-            </View>
+            </Pressable>
           ) : null}
         </View>
       </View>

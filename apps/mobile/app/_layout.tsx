@@ -117,6 +117,7 @@ function AuthGate() {
       <Stack.Screen name="place" />
       <Stack.Screen name="saved" />
       <Stack.Screen name="universe" />
+      <Stack.Screen name="weather" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="leaderboard" />
       <Stack.Screen name="surprise" options={{ animation: 'slide_from_bottom' }} />
