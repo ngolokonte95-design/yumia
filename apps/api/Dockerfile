@@ -9,7 +9,13 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
 # Installer toutes les dépendances (y compris devDeps pour la compilation).
-RUN npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root
+#
+# Le `npm cache clean` doit rester dans le MÊME RUN : dans une instruction
+# séparée, le cache serait déjà figé dans la couche précédente et le supprimer
+# ensuite n'allègerait rien. Sans ça, /root/.npm/_cacache pèse plusieurs
+# centaines de Mo par étape — cause d'un « no space left on device » à l'export.
+RUN npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root \
+    && npm cache clean --force
 
 # Copier les sources.
 COPY packages/shared ./packages/shared
@@ -37,7 +43,8 @@ COPY package.json package-lock.json* ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
-RUN npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root --omit=dev
+RUN npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root --omit=dev \
+    && npm cache clean --force
 
 # Artefacts compilés depuis le builder.
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
