@@ -52,6 +52,16 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
 ];
 
+/** Découpe les raccourcis en colonnes de 2, pour un défilement horizontal sur 2 lignes. */
+const SHORTCUT_COLUMNS = FEATURE_SHORTCUTS.reduce<(typeof FEATURE_SHORTCUTS)[number][][]>(
+  (columns, item, i) => {
+    if (i % 2 === 0) columns.push([item]);
+    else columns[columns.length - 1].push(item);
+    return columns;
+  },
+  [],
+);
+
 const MODE_CHIPS: { key: Mode; emoji: string; label: string; mood: string }[] = [
   { key: 'date', emoji: '❤️', label: 'Date', mood: 'date' },
   { key: 'family', emoji: '👨‍👩‍👧', label: 'Famille', mood: 'famille' },
@@ -111,14 +121,19 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Fonctionnalités — raccourcis compacts */}
+      {/* Fonctionnalités — raccourcis compacts, sur 2 lignes superposées
+          plutôt qu'une seule rangée trop chargée. */}
       <View style={styles.section}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
-          {FEATURE_SHORTCUTS.map((s) => (
-            <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
-              <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
-              <Text style={styles.shortcutLabel}>{s.label}</Text>
-            </Pressable>
+          {SHORTCUT_COLUMNS.map((column, i) => (
+            <View key={i} style={styles.shortcutColumn}>
+              {column.map((s) => (
+                <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
+                  <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
+                  <Text style={styles.shortcutLabel} numberOfLines={1}>{s.label}</Text>
+                </Pressable>
+              ))}
+            </View>
           ))}
         </ScrollView>
       </View>
@@ -173,18 +188,19 @@ const styles = StyleSheet.create({
   },
   searchText: { ...typography.body, color: colors.textMuted },
   shortcutsRow: { gap: spacing.sm, paddingRight: spacing.md },
+  shortcutColumn: { gap: spacing.sm },
   shortcut: {
-    width: 72,
+    width: 60,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 7,
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
-  shortcutEmoji: { fontSize: 22 },
-  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 11 },
+  shortcutEmoji: { fontSize: 18 },
+  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 9.5 },
   modesRow: { gap: spacing.sm, paddingRight: spacing.md },
   modeChip: {
     backgroundColor: colors.surfaceElevated,
