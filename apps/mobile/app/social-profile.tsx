@@ -22,8 +22,20 @@ interface Post {
   mediaUrls: string[];
   likesCount: number;
   caption?: string;
-  mediaType?: 'photo' | 'video';
   pinned?: boolean;
+}
+
+/**
+ * Détecte une vidéo par l'extension de son URL. Le backend ne renvoie aucun
+ * champ `mediaType` — s'y fier (comme le faisait ce fichier) faisait
+ * silencieusement échouer toute détection vidéo : la grille et l'onglet Reels
+ * du profil affichaient les vidéos comme des <Image> cassées. Même détection
+ * que dans le feed (social.tsx) et le profil des autres utilisateurs
+ * (user/[id].tsx), pour rester cohérent.
+ */
+function isVideoUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
 }
 
 interface SocialStats {
@@ -142,7 +154,7 @@ export default function SocialProfileScreen() {
     }
   };
 
-  const videoPosts = posts.filter((p) => p.mediaType === 'video');
+  const videoPosts = posts.filter((p) => isVideoUrl(p.mediaUrls[0]));
   const repostData: Post[] = [];
   const taggedData: Post[] = [];
 
@@ -339,7 +351,7 @@ export default function SocialProfileScreen() {
             onLongPress={() => setPostMenu(item)}
           >
             {item.mediaUrls[0] ? (
-              item.mediaType === 'video'
+              isVideoUrl(item.mediaUrls[0])
                 ? <VideoThumb uri={item.mediaUrls[0]} style={styles.gridImg} />
                 : <Image source={{ uri: item.mediaUrls[0] }} style={styles.gridImg} />
             ) : (
@@ -352,7 +364,7 @@ export default function SocialProfileScreen() {
                 <Text style={{ fontSize: 11 }}>📌</Text>
               </View>
             )}
-            {item.mediaType === 'video' && (
+            {isVideoUrl(item.mediaUrls[0]) && (
               <View style={styles.videoIcon}>
                 <Text style={{ fontSize: 13, color: '#fff' }}>▶</Text>
               </View>

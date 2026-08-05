@@ -20,6 +20,18 @@ function parseMusicTrack(raw?: string | null): MusicMeta | null {
 }
 
 /**
+ * Détecte une URL vidéo par son extension. Le champ `post.videoUrl` n'est pas
+ * systématiquement renseigné : la plupart des vidéos vivent dans `mediaUrls[0]`
+ * (comme dans le feed). S'appuyer uniquement sur `videoUrl` faisait passer ces
+ * posts par le rendu `<Image>`, qui ne sait pas décoder un .mp4 — d'où des
+ * publications vidéo qui s'affichaient cassées sur l'écran de détail.
+ */
+function isVideoUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
+}
+
+/**
  * Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-av (AVFoundation les
  * rejette → « Unable to open URL »). Seules les pistes réhébergées sur Yumia sont
  * jouables. On ignore donc les anciennes pistes pointant encore vers ces CDN.
@@ -208,6 +220,12 @@ export default function PostDetailScreen() {
   if (loading) return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} /></View>;
   if (!post) return <View style={[styles.center, { paddingTop: insets.top }]}><Text style={{ color: colors.textMuted }}>Post introuvable</Text></View>;
 
+  // Même ordre de détection que le feed (social.tsx) : mediaUrls[0] d'abord
+  // s'il a une extension vidéo, sinon repli sur `videoUrl`. Sans ce repli, un
+  // post vidéo dont le fichier ne vit que dans mediaUrls passait par l'<Image>,
+  // qui ne le décode pas — d'où des publications affichées cassées.
+  const videoSrc = isVideoUrl(post.mediaUrls[0]) ? post.mediaUrls[0] : (post.videoUrl ?? undefined);
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
@@ -236,10 +254,10 @@ export default function PostDetailScreen() {
         </Pressable>
 
         {/* Video player */}
-        {post.videoUrl && <PostVideo uri={post.videoUrl} style={styles.postVideo} />}
+        {videoSrc && <PostVideo uri={videoSrc} style={styles.postVideo} />}
 
         {/* Images carousel */}
-        {!post.videoUrl && post.mediaUrls.length > 0 && (
+        {!videoSrc && post.mediaUrls.length > 0 && (
           <View>
             <ScrollView
               horizontal pagingEnabled showsHorizontalScrollIndicator={false}
