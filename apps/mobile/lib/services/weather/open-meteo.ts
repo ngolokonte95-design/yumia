@@ -2,7 +2,7 @@ import { buildAstro } from './astro';
 import { kindFromWmoCode } from './wmo';
 import { WeatherUnavailableError, type WeatherProvider } from './provider';
 import type {
-  AirQuality, Coordinates, CurrentWeather, DayPoint, HourPoint, WeatherReport,
+  AirGridPoint, AirQuality, Coordinates, CurrentWeather, DayPoint, HourPoint, WeatherReport,
 } from './types';
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -92,6 +92,53 @@ export class OpenMeteoProvider implements WeatherProvider {
       airQuality: air,
       fetchedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Grille de qualité de l'air en **un seul appel** : Open-Meteo accepte des
+   * listes de coordonnées séparées par des virgules et renvoie un tableau de
+   * résultats. 25 points coûtent donc une requête, pas 25.
+   */
+  async fetchAirQualityGrid(
+    center: Coordinates, spanDegrees: number, size: number, signal?: AbortSignal,
+  ): Promise<AirGridPoint[]> {
+    const lats: number[] = [];
+    const lngs: number[] = [];
+    const step = size > 1 ? (spanDegrees * 2) / (size - 1) : 0;
+
+    for (let i = 0; i < size; i += 1) {
+      for (let j = 0; j < size; j += 1) {
+        lats.push(center.lat - spanDegrees + step * i);
+        lngs.push(center.lng - spanDegrees + step * j);
+      }
+    }
+
+    const params = new URLSearchParams({
+      latitude: lats.map((v) => v.toFixed(3)).join(','),
+      longitude: lngs.map((v) => v.toFixed(3)).join(','),
+      current: 'european_aqi',
+    });
+
+    const res = await fetch(`${AIR_QUALITY_URL}?${params}`, { signal });
+    if (!res.ok) throw new WeatherUnavailableError(`Qualité de l'air : HTTP ${res.status}`);
+
+    const data = (await res.json()) as Array<{
+      latitude?: number; longitude?: number; current?: { european_aqi?: number };
+    }>;
+    if (!Array.isArray(data)) return [];
+
+    return data.flatMap((p, i) => {
+      const index = p.current?.european_aqi;
+      if (typeof index !== 'number') return [];
+      return [{
+        // Open-Meteo cale les coordonnées sur sa grille : on garde les siennes,
+        // qui reflètent l'emplacement réel de la mesure.
+        lat: p.latitude ?? lats[i],
+        lng: p.longitude ?? lngs[i],
+        index,
+        level: airQualityLevel(index),
+      }];
+    });
   }
 
   private async fetchForecast(lat: number, lng: number, signal?: AbortSignal): Promise<RawForecast> {

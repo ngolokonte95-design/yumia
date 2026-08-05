@@ -31,3 +31,6 @@ export { activitiesFor, type ActivitySuggestion } from './activities';
 export {
   formatLocalHour, formatLocalTime, formatLocalWeekday, isSameLocalDay,
 } from './format';
+export {
+  getRadarProvider, setRadarProvider, type RadarFrame, type RadarProvider,
+} from './radar';

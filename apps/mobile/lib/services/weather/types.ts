@@ -89,6 +89,20 @@ export interface AirQuality {
   nitrogenDioxide: number;
 }
 
+/**
+ * Point d'une grille de qualité de l'air, pour la carte.
+ *
+ * Les modèles de qualité de l'air ont une résolution d'environ 11 km : à
+ * l'échelle d'une ville, tous les points renverraient la même valeur. La grille
+ * n'a donc de sens que sur une emprise large (plusieurs dizaines de km).
+ */
+export interface AirGridPoint {
+  lat: number;
+  lng: number;
+  index: number;
+  level: AirQuality['level'];
+}
+
 export interface Astro {
   sunrise: string;
   sunset: string;

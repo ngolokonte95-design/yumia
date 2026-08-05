@@ -7,6 +7,7 @@
  * une erreur ici décale toute la météo d'une destination lointaine.
  */
 import { OpenMeteoProvider } from '../services/weather/open-meteo';
+import { RainViewerProvider } from '../services/weather/radar';
 import { activitiesFor } from '../services/weather/activities';
 import { moonAt, moonPhaseLabel } from '../services/weather/astro';
 import { formatLocalTime, formatLocalWeekday } from '../services/weather/format';
@@ -147,6 +148,90 @@ describe('OpenMeteoProvider', () => {
     await expect(
       new OpenMeteoProvider().fetchReport({ lat: 35.68, lng: 139.65 }),
     ).rejects.toThrow(/quotidiennes/);
+  });
+});
+
+describe('grille de qualité de l\'air', () => {
+  const realFetch = global.fetch;
+  afterEach(() => { global.fetch = realFetch; });
+
+  it('interroge tous les points en une seule requête', async () => {
+    const spy = jest.fn(() => Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(
+        Array.from({ length: 25 }, (_, i) => ({
+          latitude: 48 + i * 0.1,
+          longitude: 2 + i * 0.1,
+          current: { european_aqi: 10 + i * 3 },
+        })),
+      ),
+    } as unknown as Response));
+    global.fetch = spy as never;
+
+    const grid = await new OpenMeteoProvider()
+      .fetchAirQualityGrid({ lat: 48.85, lng: 2.35 }, 0.6, 5);
+
+    // 25 points mais un seul aller-retour réseau : c'est tout l'intérêt de
+    // l'API groupée d'Open-Meteo.
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(grid).toHaveLength(25);
+
+    const url = String(spy.mock.calls[0][0]);
+    expect(url.split('latitude=')[1].split('&')[0].split('%2C')).toHaveLength(25);
+  });
+
+  it('ignore les points sans mesure plutôt que de produire des trous', async () => {
+    global.fetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([
+        { latitude: 48, longitude: 2, current: { european_aqi: 30 } },
+        { latitude: 49, longitude: 3, current: {} },
+        { latitude: 50, longitude: 4, current: { european_aqi: 85 } },
+      ]),
+    } as unknown as Response)) as never;
+
+    const grid = await new OpenMeteoProvider()
+      .fetchAirQualityGrid({ lat: 48.85, lng: 2.35 }, 0.6, 2);
+
+    expect(grid).toHaveLength(2);
+    expect(grid[0].level).toBe('fair');
+    expect(grid[1].level).toBe('very_poor');
+  });
+});
+
+describe('radar de précipitations', () => {
+  const realFetch = global.fetch;
+  afterEach(() => { global.fetch = realFetch; });
+
+  it('construit les gabarits de tuiles et distingue les prévisions', async () => {
+    global.fetch = jest.fn(() => Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        host: 'https://tilecache.rainviewer.com',
+        radar: {
+          past: [{ time: 1785930000, path: '/v2/radar/abc' }],
+          nowcast: [{ time: 1785931200, path: '/v2/radar/def' }],
+        },
+      }),
+    } as unknown as Response)) as never;
+
+    const frames = await new RainViewerProvider().fetchFrames();
+
+    expect(frames).toHaveLength(2);
+    expect(frames[0].forecast).toBe(false);
+    expect(frames[1].forecast).toBe(true);
+    // Les jetons {z}/{x}/{y} doivent survivre : react-native-maps les remplace.
+    expect(frames[0].tileUrlTemplate)
+      .toBe('https://tilecache.rainviewer.com/v2/radar/abc/256/{z}/{x}/{y}/2/1_1.png');
+    expect(frames[0].time).toBe(new Date(1785930000 * 1000).toISOString());
+  });
+
+  it('remonte une erreur si l\'index radar est injoignable', async () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: false, status: 503 } as Response)) as never;
+    await expect(new RainViewerProvider().fetchFrames()).rejects.toThrow(/503/);
   });
 });
 

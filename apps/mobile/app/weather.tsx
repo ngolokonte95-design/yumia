@@ -11,6 +11,7 @@ import { DailyForecast } from '../components/weather/DailyForecast';
 import { MetricsGrid } from '../components/weather/MetricsGrid';
 import { AirQualityCard } from '../components/weather/AirQualityCard';
 import { SunPath } from '../components/weather/SunPath';
+import { WeatherMaps } from '../components/weather/WeatherMaps';
 import { WeatherActivities } from '../components/weather/WeatherActivities';
 import { useLocation } from '../lib/useLocation';
 import { useWeatherReport } from '../lib/useWeatherReport';
@@ -113,6 +114,8 @@ export default function WeatherScreen() {
 
         <HourlyStrip hours={report.hourly} utcOffsetSeconds={utcOffsetSeconds} />
         <DailyForecast days={report.daily} utcOffsetSeconds={utcOffsetSeconds} />
+
+        <WeatherMaps center={report.coordinates} utcOffsetSeconds={utcOffsetSeconds} />
 
         <MetricsGrid current={current} />
 

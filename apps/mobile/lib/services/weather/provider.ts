@@ -1,4 +1,4 @@
-import type { Coordinates, WeatherReport } from './types';
+import type { AirGridPoint, Coordinates, WeatherReport } from './types';
 
 /**
  * Contrat que doit remplir tout fournisseur météo.
@@ -17,6 +17,23 @@ export interface WeatherProvider {
    * @throws si le réseau échoue ou si la réponse est inexploitable.
    */
   fetchReport(coords: Coordinates, signal?: AbortSignal): Promise<WeatherReport>;
+
+  /**
+   * Grille de qualité de l'air autour d'un point, pour la carte.
+   *
+   * Optionnel : tous les fournisseurs ne savent pas interroger plusieurs
+   * coordonnées d'un coup. L'écran masque simplement la carte de l'air si la
+   * méthode est absente.
+   *
+   * @param spanDegrees Demi-emprise en degrés de part et d'autre du centre.
+   * @param size        Côté de la grille (`size × size` points).
+   */
+  fetchAirQualityGrid?(
+    center: Coordinates,
+    spanDegrees: number,
+    size: number,
+    signal?: AbortSignal,
+  ): Promise<AirGridPoint[]>;
 }
 
 /** Erreur normalisée — permet à l'UI de distinguer un souci réseau d'un bug. */
