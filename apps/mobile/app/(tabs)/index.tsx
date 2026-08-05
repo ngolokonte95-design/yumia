@@ -35,9 +35,9 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
   return { title: `${t('greeting_night')}, ${first}`, sub: t('greeting_sub_night') };
 }
 
-// Sorties, Guides, Classement et Groupe vivent déjà dans Explorer
-// (QUICK_ACTIONS) ; Nearby existe dans l'onglet social sous « 🗺️ Carte ».
-// Pas de doublon entre onglets.
+// Sorties, Guides et Groupe vivent déjà dans Explorer (QUICK_ACTIONS) ;
+// Nearby existe dans l'onglet social sous « 🗺️ Carte ». Classement reste
+// aussi accessible depuis Explorer — voulu en double ici.
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
   { key: 'chatbot', emoji: '🤖', label: 'Assistant', route: '/chatbot' },
@@ -45,6 +45,7 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   { key: 'quests', emoji: '🏆', label: 'Quêtes', route: '/quests' },
   { key: 'chat', emoji: '💬', label: 'Messages', route: '/chat' },
   { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
+  { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
   { key: 'saved', emoji: '❤️', label: 'Favoris', route: '/favorites' },
   { key: 'calendar', emoji: '🗓️', label: 'Calendrier', route: '/calendar' },
   { key: 'notebook', emoji: '📝', label: 'Notes', route: '/notebook' },
@@ -188,17 +189,17 @@ const styles = StyleSheet.create({
   shortcutsRow: { gap: spacing.sm, paddingRight: spacing.md },
   shortcutColumn: { gap: spacing.sm },
   shortcut: {
-    width: 60,
+    width: 72,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.md,
-    paddingVertical: 7,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
   },
-  shortcutEmoji: { fontSize: 18 },
-  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 9.5 },
+  shortcutEmoji: { fontSize: 22 },
+  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 11 },
   modesRow: { gap: spacing.sm, paddingRight: spacing.md },
   modeChip: {
     backgroundColor: colors.surfaceElevated,
