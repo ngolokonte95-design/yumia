@@ -37,13 +37,12 @@ import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 
 type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number };
 
-// Favoris et Surprise Me vivent déjà dans Home (FEATURE_SHORTCUTS) — pas de
-// doublon entre onglets.
+// Favoris, Surprise Me et Classement vivent déjà dans Home
+// (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
 const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; route: string }[] = [
   { key: 'guides', emoji: '🧭', label: 'Guides locaux', sub: 'Experts certifiés', route: '/guides' },
   { key: 'sorties', emoji: '🎟️', label: 'Sorties & billets', sub: 'Événements près de toi', route: '/sorties' },
   { key: 'group', emoji: '👥', label: 'Sortie en groupe', sub: 'Décidez ensemble', route: '/group' },
-  { key: 'leaderboard', emoji: '🏆', label: 'Classement', sub: 'Compare-toi', route: '/leaderboard' },
 ];
 
 const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];

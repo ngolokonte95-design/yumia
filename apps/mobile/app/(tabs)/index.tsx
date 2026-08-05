@@ -36,8 +36,8 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
 }
 
 // Sorties, Guides et Groupe vivent déjà dans Explorer (QUICK_ACTIONS) ;
-// Nearby existe dans l'onglet social sous « 🗺️ Carte ». Classement reste
-// aussi accessible depuis Explorer — voulu en double ici.
+// Nearby existe dans l'onglet social sous « 🗺️ Carte ». Classement a été
+// déplacé ici depuis Explorer (retiré là-bas) — plus de doublon.
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
   { key: 'chatbot', emoji: '🤖', label: 'Assistant', route: '/chatbot' },
@@ -189,17 +189,17 @@ const styles = StyleSheet.create({
   shortcutsRow: { gap: spacing.sm, paddingRight: spacing.md },
   shortcutColumn: { gap: spacing.sm },
   shortcut: {
-    width: 72,
+    width: 65,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 7,
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
-  shortcutEmoji: { fontSize: 22 },
-  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 11 },
+  shortcutEmoji: { fontSize: 20 },
+  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
   modesRow: { gap: spacing.sm, paddingRight: spacing.md },
   modeChip: {
     backgroundColor: colors.surfaceElevated,
