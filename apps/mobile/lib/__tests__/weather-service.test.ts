@@ -156,7 +156,9 @@ describe('grille de qualité de l\'air', () => {
   afterEach(() => { global.fetch = realFetch; });
 
   it('interroge tous les points en une seule requête', async () => {
-    const spy = jest.fn(() => Promise.resolve({
+    // Le paramètre est typé explicitement : sans lui, TypeScript infere un
+    // tuple d'arguments vide et `mock.calls[0][0]` devient inaccessible.
+    const spy = jest.fn((_url: string) => Promise.resolve({
       ok: true,
       status: 200,
       json: () => Promise.resolve(

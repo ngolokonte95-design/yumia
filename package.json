@@ -19,6 +19,16 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
+  "//overrides": [
+    "react-native-worklets porte un runtime moteur JS + natif qui doivent",
+    "correspondre exactement. Le runtime Expo (SDK 54) embarque la 0.5.1 ;",
+    "sans cette contrainte, npm installe la 0.8.3 pour satisfaire la plage",
+    "large de react-native-reanimated, et on se retrouve avec deux copies —",
+    "d'ou un plantage au demarrage de Reanimated."
+  ],
+  "overrides": {
+    "react-native-worklets": "0.5.1"
+  },
   "devDependencies": {
     "sharp": "^0.33.5",
     "typescript": "^5.6.3"
