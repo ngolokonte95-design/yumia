@@ -84,6 +84,13 @@ export const gradients = {
   brandSoft: ['rgba(232,98,26,0.22)', 'rgba(92,78,204,0.18)'] as const,
   /** Voile sombre bas d'écran — lisibilité du texte sur média. */
   scrim: ['transparent', 'rgba(14,14,18,0.85)', '#0E0E12'] as const,
+  /**
+   * Voile plein écran très léger, posé sur les fonds d'ambiance (ciel météo).
+   * Assez discret pour laisser vivre le dégradé — un voile trop opaque écrase
+   * la couleur et rend du même coup le flou des cartes invisible, faute de
+   * contraste à diffuser.
+   */
+  skyVeil: ['rgba(14,14,18,0.05)', 'rgba(14,14,18,0.28)', 'rgba(14,14,18,0.55)'] as const,
   /** Voile sombre haut d'écran. */
   scrimTop: ['rgba(14,14,18,0.9)', 'transparent'] as const,
   /** Surface vitrée : léger éclat en haut, transparent en bas. */
@@ -95,6 +102,8 @@ export const gradients = {
   weatherRain: ['#1A2430', '#33475C', '#546A80'] as const,
   weatherSnow: ['#2E3A4A', '#5A6B7D', '#93A5B5'] as const,
   weatherFog: ['#2A2E36', '#4A505C', '#727884'] as const,
+  /** Couvert : gris-bleu profond, plus vivant qu'un simple gris de brouillard. */
+  weatherCloudy: ['#243044', '#3E5068', '#6B7C93'] as const,
   weatherStorm: ['#0D1017', '#232838', '#3D3350'] as const,
   weatherSunrise: ['#2B2350', '#B85A3C', '#F0A868'] as const,
   weatherSunset: ['#1E1B3A', '#7B3F6E', '#E8621A'] as const,

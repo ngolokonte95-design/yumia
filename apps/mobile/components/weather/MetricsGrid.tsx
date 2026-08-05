@@ -118,7 +118,9 @@ export function MetricsGrid({ current }: { current: CurrentWeather }) {
 
       <Tile
         index={4}
-        icon="🔵"
+        // Le cyclone évoque directement les systèmes de pression, là où un
+        // simple rond ne signifiait rien.
+        icon="🌀"
         label="Pression"
         value={`${current.pressureHpa} hPa`}
         hint={pressureHint(current.pressureHpa)}

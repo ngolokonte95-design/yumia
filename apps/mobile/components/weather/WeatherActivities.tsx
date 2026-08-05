@@ -33,8 +33,11 @@ export function WeatherActivities({ current }: { current: CurrentWeather }) {
               haptic
               onPress={() => router.push(`/universe?u=${s.universe}` as never)}
             >
-              <GlassCard rounded={radius.md} style={styles.card} glow={i === 0 ? 'brand' : undefined}>
-                <View style={styles.cardInner}>
+              <GlassCard rounded={radius.md} style={styles.card}>
+                {/* La suggestion la plus pertinente se distingue par un liseré
+                    de marque plutôt que par une ombre colorée : sur iOS, un
+                    halo se diffuse en tache floue autour de la carte. */}
+                <View style={[styles.cardInner, i === 0 && styles.cardTop]}>
                   <Text style={styles.emoji}>{s.emoji}</Text>
                   <Text style={styles.label} numberOfLines={1}>{s.label}</Text>
                   <Text style={styles.reason} numberOfLines={1}>{s.reason}</Text>
@@ -61,6 +64,9 @@ const styles = StyleSheet.create({
   card: { width: 124, height: 124 },
   cardInner: {
     flex: 1, padding: spacing.md, justifyContent: 'space-between',
+  },
+  cardTop: {
+    borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md,
   },
   emoji: { fontSize: 30 },
   label: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },

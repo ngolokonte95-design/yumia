@@ -67,6 +67,12 @@ export function GlassCard({
 const styles = StyleSheet.create({
   // `overflow: hidden` est indispensable : c'est lui qui découpe le flou aux
   // coins arrondis (sinon le BlurView déborde en rectangle).
-  clip: { overflow: 'hidden' },
+  //
+  // `flex: 1` l'est tout autant : quand l'appelant impose une hauteur fixe
+  // (carte carrée du carrousel d'activités), sans lui cette vue ne la reprend
+  // pas, et la chaîne de `flex: 1` en dessous s'effondre à zéro — la carte
+  // s'affiche alors comme un simple trait. Avec une hauteur automatique, le
+  // flex se contente du contenu, donc le comportement reste inchangé.
+  clip: { flex: 1, overflow: 'hidden' },
   inner: { flex: 1 },
 });

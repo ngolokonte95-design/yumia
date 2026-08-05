@@ -101,7 +101,7 @@ export function WeatherMaps({
               style={[styles.segment, layer === l && styles.segmentActive]}
             >
               <Text style={[styles.segmentText, layer === l && styles.segmentTextActive]}>
-                {l === 'rain' ? '🌧️ Pluie' : '🌬️ Air'}
+                {l === 'rain' ? '🌧️ Pluie' : '🍃 Air'}
               </Text>
             </PressableScale>
           ))}
@@ -121,6 +121,10 @@ export function WeatherMaps({
           }}
           showsUserLocation
           toolbarEnabled={false}
+          // Sans ça, Apple Maps s'affiche en thème clair : le vert vif jure
+          // avec toute l'interface sombre. iOS uniquement — sur Android,
+          // Google Maps demanderait un `customMapStyle`.
+          userInterfaceStyle="dark"
         >
           {layer === 'rain' && frame && (
             <UrlTile

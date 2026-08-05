@@ -32,8 +32,8 @@ function skyColors(kind: WeatherKind, moment: DayMoment): readonly string[] {
     case 'partly_cloudy': return gradients.weatherClear;
     case 'thunderstorm': return gradients.weatherStorm;
     case 'snow': return gradients.weatherSnow;
-    case 'fog':
-    case 'cloudy': return gradients.weatherFog;
+    case 'fog': return gradients.weatherFog;
+    case 'cloudy': return gradients.weatherCloudy;
     case 'rain':
     case 'heavy_rain':
     case 'drizzle': return gradients.weatherRain;
@@ -148,7 +148,13 @@ function SunGlow() {
   return <Animated.View style={[styles.sunGlow, style]} pointerEvents="none" />;
 }
 
-/** Bandes de brume qui glissent lentement à l'horizontale. */
+/**
+ * Bandes de brume qui glissent lentement à l'horizontale.
+ *
+ * Le voile est un dégradé transparent → blanc → transparent, et non un aplat :
+ * un aplat, même très peu opaque, garde des bords nets et se lit comme une
+ * pastille flottante plutôt que comme de la brume.
+ */
 function FogBand({ top, delay, duration }: { top: number; delay: number; duration: number }) {
   const drift = useSharedValue(0);
 
@@ -161,7 +167,16 @@ function FogBand({ top, delay, duration }: { top: number; delay: number; duratio
     transform: [{ translateX: -W + drift.value * (W * 2) }],
   }));
 
-  return <Animated.View style={[styles.fogBand, { top }, style]} pointerEvents="none" />;
+  return (
+    <Animated.View style={[styles.fogBand, { top }, style]} pointerEvents="none">
+      <LinearGradient
+        colors={['transparent', 'rgba(255,255,255,0.07)', 'rgba(255,255,255,0.07)', 'transparent']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </Animated.View>
+  );
 }
 
 /** Éclair : flash bref et espacé, jamais stroboscopique. */
@@ -231,10 +246,11 @@ export function WeatherSky({
 
       {kind === 'thunderstorm' && <Lightning />}
 
-      {/* Voile sombre en bas : garantit la lisibilité du texte quel que soit
-          le ciel affiché derrière. */}
+      {/* Voile de lisibilité, volontairement très léger : il doit assurer le
+          contraste du texte sans effacer le ciel. Un voile opaque rendrait
+          aussi le flou des cartes invisible, faute de couleur à diffuser. */}
       <LinearGradient
-        colors={gradients.scrim}
+        colors={gradients.skyVeil}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
@@ -262,10 +278,8 @@ const styles = StyleSheet.create({
     width: W * 1.1, height: W * 1.1, borderRadius: W,
     backgroundColor: 'rgba(255,204,120,0.5)',
   },
-  fogBand: {
-    position: 'absolute', left: 0, width: W * 2, height: 78,
-    backgroundColor: 'rgba(255,255,255,0.055)',
-    borderRadius: 60,
-  },
+  // Pas de couleur de fond ici : c'est le dégradé enfant qui peint la brume,
+  // avec des bords fondus. Une hauteur généreuse évite l'effet « barre ».
+  fogBand: { position: 'absolute', left: 0, width: W * 2, height: 120 },
   lightning: { backgroundColor: 'rgba(226,232,255,0.9)' },
 });
