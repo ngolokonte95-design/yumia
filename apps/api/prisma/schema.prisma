@@ -69,6 +69,7 @@ model User {
   visits              Visit[]
   savedPlaces         SavedPlace[]
   calendarEvents      CalendarEvent[]
+  notebookNotes       NotebookNote[]
   earnedBadges        EarnedBadge[]
   streak              Streak?
   groupSessions       GroupMember[]
@@ -776,6 +777,54 @@ model CalendarEvent {
 
   @@index([userId, startAt])
   @@index([placeId])
+}
+
+/// Note du bloc-notes Yumia.
+///
+/// ⚠️ À ne pas confondre avec le modèle `Note` ci-dessous, qui est le statut
+/// éphémère affiché en haut des DM — un nom hérité, sans rapport.
+///
+/// **Synchronisation multi-appareils :** dernier écrivain gagne, arbitré par
+/// `updatedAt`. Un vrai merge par champ (CRDT) serait disproportionné pour des
+/// notes personnelles rarement éditées depuis deux appareils à la fois ; le
+/// client renvoie l'`updatedAt` qu'il connaît, ce qui permet de détecter qu'il
+/// écrase une version plus récente.
+model NotebookNote {
+  id      String  @id @default(uuid())
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title   String?
+  content String  @default("")
+  /// note | checklist
+  kind    String  @default("note")
+  /// Éléments de checklist : [{ id, text, done }]. JSON car la forme est
+  /// purement applicative et n'a pas vocation à être requêtée.
+  items   Json    @default("[]")
+
+  color    String?
+  pinned   Boolean @default(false)
+  archived Boolean @default(false)
+  favorite Boolean @default(false)
+
+  photoUrls String[] @default([])
+  links     String[] @default([])
+
+  /// Rattachements — c'est ce qui relie le bloc-notes au reste de Yumia.
+  placeId   String?
+  placeName String?
+  lat       Float?
+  lng       Float?
+  /// Journée à laquelle la note se rapporte (note de voyage, de sortie…).
+  noteDate  DateTime?
+  /// Événement du calendrier lié.
+  calendarEventId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@index([userId, archived])
+  @@index([calendarEventId])
 }
 
 /// Note éphémère (statut texte 24-72h affiché en haut des DM).

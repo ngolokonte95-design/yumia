@@ -22,6 +22,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SavedModule } from './modules/saved/saved.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { NotebookModule } from './modules/notebook/notebook.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { VenuesModule } from './modules/venues/venues.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
@@ -87,6 +88,7 @@ import { CallsModule } from './modules/calls/calls.module';
     SavedModule,
     FavoritesModule,
     CalendarModule,
+    NotebookModule,
     SuggestionsModule,
     WebhooksModule,
     VenuesModule,

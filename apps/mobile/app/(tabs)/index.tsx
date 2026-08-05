@@ -48,6 +48,7 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
   { key: 'saved', emoji: '❤️', label: 'Favoris', route: '/favorites' },
   { key: 'calendar', emoji: '🗓️', label: 'Calendrier', route: '/calendar' },
+  { key: 'notebook', emoji: '📝', label: 'Notes', route: '/notebook' },
   { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
 ];
 

@@ -176,10 +176,22 @@ export default function CalendarScreen() {
       />
 
       <View style={styles.agendaHeader}>
-        <Text style={styles.agendaTitle}>{formatLongDate(selected)}</Text>
-        <Text style={styles.agendaCount}>
-          {dayEvents.length === 0 ? 'Rien de prévu' : `${dayEvents.length} événement${dayEvents.length > 1 ? 's' : ''}`}
-        </Text>
+        <View style={styles.agendaHeadRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.agendaTitle}>{formatLongDate(selected)}</Text>
+            <Text style={styles.agendaCount}>
+              {dayEvents.length === 0 ? 'Rien de prévu' : `${dayEvents.length} événement${dayEvents.length > 1 ? 's' : ''}`}
+            </Text>
+          </View>
+          {/* Passerelle vers le bloc-notes : les notes de la journée se
+              retrouvent au même endroit que le programme de cette journée. */}
+          <PressableScale
+            onPress={() => router.push(`/notebook?date=${dayKey(selected)}` as never)}
+            style={styles.notesBtn}
+          >
+            <Text style={styles.notesBtnTxt}>📝 Notes du jour</Text>
+          </PressableScale>
+        </View>
       </View>
 
       {loading ? (
@@ -290,6 +302,12 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
     marginTop: spacing.sm,
   },
+  agendaHeadRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  notesBtn: {
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: radius.pill, backgroundColor: colors.surface,
+  },
+  notesBtnTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
   agendaTitle: { ...typography.title, color: colors.textPrimary },
   agendaCount: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
 
