@@ -21,6 +21,7 @@ import { MailerModule } from './modules/mailer/mailer.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SavedModule } from './modules/saved/saved.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { VenuesModule } from './modules/venues/venues.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
@@ -85,6 +86,7 @@ import { CallsModule } from './modules/calls/calls.module';
     RecommendationsModule,
     SavedModule,
     FavoritesModule,
+    CalendarModule,
     SuggestionsModule,
     WebhooksModule,
     VenuesModule,

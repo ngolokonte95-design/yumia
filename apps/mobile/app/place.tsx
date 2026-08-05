@@ -444,6 +444,20 @@ export default function PlaceScreen() {
             <Pressable style={styles.actionBtn} onPress={handleOpenMaps}>
               <Text style={styles.actionText}>🗺️ Maps</Text>
             </Pressable>
+            {/* Le calendrier récupère nom, adresse et catégorie du lieu : plus
+                rien à ressaisir. La catégorie retenue dépend de l'univers. */}
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => router.push(
+                `/calendar?title=${encodeURIComponent(place.name)}`
+                + `&placeId=${encodeURIComponent(place.id)}`
+                + `&placeName=${encodeURIComponent(place.name)}`
+                + `&address=${encodeURIComponent(place.city ?? '')}`
+                + `&category=${calendarCategoryFor(place.universe)}` as never,
+              )}
+            >
+              <Text style={styles.actionText}>🗓️ Agenda</Text>
+            </Pressable>
           </View>
 
           {/* Réserver autour de ce lieu (guides / sorties) */}
@@ -746,6 +760,26 @@ const similarStyles = StyleSheet.create({
   name: { ...typography.caption, color: colors.textPrimary, fontWeight: '600', marginTop: 4 },
   meta: { ...typography.label, color: colors.textMuted },
 });
+
+/**
+ * Traduit un univers Yumia en catégorie de calendrier.
+ *
+ * Les 108 univers sont bien plus fins que les 7 catégories d'agenda : on
+ * regroupe par intention plutôt que d'imposer « Personnel » à tout le monde.
+ */
+function calendarCategoryFor(universe: string): string {
+  const FOOD = ['restaurant', 'cafe', 'bar', 'bakery', 'brunch', 'dessert', 'pub',
+    'ice_cream', 'chocolatier', 'wine_cellar', 'tea_house', 'juice_bar',
+    'food_truck', 'local_specialty', 'rooftop'];
+  const STAY = ['hotel', 'camping', 'campground'];
+  const SHOW = ['nightclub', 'live_music', 'karaoke', 'comedy_club', 'cinema',
+    'event_venue', 'casino'];
+
+  if (FOOD.includes(universe)) return 'restaurant';
+  if (STAY.includes(universe)) return 'hotel';
+  if (SHOW.includes(universe)) return 'event';
+  return 'activity';
+}
 
 function formatDistance(m: number): string {
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;

@@ -68,6 +68,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   visits              Visit[]
   savedPlaces         SavedPlace[]
+  calendarEvents      CalendarEvent[]
   earnedBadges        EarnedBadge[]
   streak              Streak?
   groupSessions       GroupMember[]
@@ -728,6 +729,53 @@ model SavedCollection {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+/// Événement du calendrier personnel Yumia.
+///
+/// **Fuseaux :** `startAt`/`endAt` sont des instants absolus (UTC) et `timezone`
+/// conserve le fuseau IANA du lieu de l'événement. Les deux sont nécessaires :
+/// un dîner réservé à Tokyo doit rester à 20h heure de Tokyo, même consulté
+/// depuis Paris. Stocker seulement l'UTC perdrait l'intention, stocker
+/// seulement l'heure murale empêcherait tout tri chronologique fiable.
+///
+/// **Récurrence :** `rrule` suit la RFC 5545 (ex. « FREQ=YEARLY » pour un
+/// anniversaire). Le format standard plutôt qu'un encodage maison, pour rendre
+/// possible la synchronisation future avec Apple et Google Calendar.
+model CalendarEvent {
+  id       String  @id @default(uuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title    String
+  notes    String?
+  /// restaurant | activity | travel | hotel | event | personal | birthday
+  category String  @default("personal")
+
+  startAt  DateTime
+  endAt    DateTime?
+  /// Fuseau IANA du lieu de l'événement (ex. « Europe/Paris »).
+  timezone String   @default("UTC")
+  allDay   Boolean  @default(false)
+
+  /// Règle de récurrence RFC 5545. Null = événement ponctuel.
+  rrule    String?
+  /// Occurrences supprimées d'une série, en instants ISO UTC.
+  excludedDates DateTime[] @default([])
+
+  /// Minutes avant le début pour la notification. Null = pas de rappel.
+  reminderMinutes Int?
+
+  /// Rattachement à un lieu Yumia — permet « Ajouter au calendrier » depuis
+  /// une fiche, et de retrouver l'adresse sans la ressaisir.
+  placeId   String?
+  placeName String?
+  address   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, startAt])
+  @@index([placeId])
 }
 
 /// Note éphémère (statut texte 24-72h affiché en haut des DM).
