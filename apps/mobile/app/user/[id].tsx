@@ -9,10 +9,16 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { feedApi, type FeedPost, type StoryHighlight } from '../../lib/feed-api';
+import { VideoThumb } from '../../components/VideoThumb';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
 const GRID_ITEM = (SW - 3) / 3;
+
+function isVideoUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
+}
 
 interface UserProfile {
   id: string; displayName: string; photoUrl?: string; bio?: string;
@@ -297,7 +303,9 @@ export default function UserProfileScreen() {
         renderItem={({ item }) => (
           <Pressable style={styles.gridItem} onPress={() => router.push(`/post/${item.id}` as never)}>
             {item.mediaUrls[0] ? (
-              <Image source={{ uri: item.mediaUrls[0] }} style={styles.gridImg} />
+              isVideoUrl(item.mediaUrls[0])
+                ? <VideoThumb uri={item.mediaUrls[0]} style={styles.gridImg} />
+                : <Image source={{ uri: item.mediaUrls[0] }} style={styles.gridImg} />
             ) : (
               <View style={[styles.gridImg, styles.gridPlaceholder]}>
                 <Text style={{ fontSize: 20 }}>📷</Text>

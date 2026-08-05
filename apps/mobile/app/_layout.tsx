@@ -3,6 +3,7 @@ import { AppState, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Updates from 'expo-updates';
 import * as SplashScreen from 'expo-splash-screen';
 import { colors } from '../theme/tokens';
@@ -167,17 +168,22 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <StatusBar style="light" />
-        <AuthProvider>
-          <AuthGate />
-        </AuthProvider>
-        <OfflineBanner />
-      </SafeAreaProvider>
+      {/* Requis par react-native-gesture-handler : doit envelopper toute l'app
+          et porter flex:1, sinon les gestes ne sont pas captés. */}
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <AuthProvider>
+            <AuthGate />
+          </AuthProvider>
+          <OfflineBanner />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </ErrorBoundary>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   splash: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 });

@@ -9,6 +9,7 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { feedApi, type StoryHighlight } from '../lib/feed-api';
+import { VideoThumb } from '../components/VideoThumb';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -338,7 +339,9 @@ export default function SocialProfileScreen() {
             onLongPress={() => setPostMenu(item)}
           >
             {item.mediaUrls[0] ? (
-              <Image source={{ uri: item.mediaUrls[0] }} style={styles.gridImg} />
+              item.mediaType === 'video'
+                ? <VideoThumb uri={item.mediaUrls[0]} style={styles.gridImg} />
+                : <Image source={{ uri: item.mediaUrls[0] }} style={styles.gridImg} />
             ) : (
               <View style={[styles.gridImg, styles.gridPlaceholder]}>
                 <Text style={{ fontSize: 22 }}>📷</Text>

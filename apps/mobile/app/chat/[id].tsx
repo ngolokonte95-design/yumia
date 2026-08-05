@@ -49,7 +49,7 @@ function fmtDuration(s: number) {
 }
 
 // ── Bulle vocale ──────────────────────────────────────────────────────────────
-function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration?: number; isMe: boolean }) {
+function VoiceBubble({ audioUrl, duration, isMe, onLongPress }: { audioUrl: string; duration?: number; isMe: boolean; onLongPress?: () => void }) {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
@@ -75,7 +75,7 @@ function VoiceBubble({ audioUrl, duration, isMe }: { audioUrl: string; duration?
   const progress = total > 0 ? pos / total : 0;
 
   return (
-    <Pressable onPress={toggle} style={[styles.voiceBubble, isMe && styles.voiceBubbleMe]}>
+    <Pressable onPress={toggle} onLongPress={onLongPress} style={[styles.voiceBubble, isMe && styles.voiceBubbleMe]}>
       <Text style={[styles.voicePlayIcon, isMe && { color: '#fff' }]}>{playing ? '⏸' : '▶'}</Text>
       <View style={styles.voiceWave}>
         <View style={[styles.voiceTrack, { backgroundColor: isMe ? 'rgba(255,255,255,0.25)' : colors.border }]}>
@@ -473,9 +473,12 @@ export default function ChatRoomScreen() {
                 ) : (
                   <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
                     {isAudio ? (
-                      <Pressable onLongPress={() => setActionMsg(item)}>
-                        <VoiceBubble audioUrl={(item.audioUrl ?? item.mediaUrl)!} duration={item.duration ?? item.durationSec ?? undefined} isMe={isMe} />
-                      </Pressable>
+                      <VoiceBubble
+                        audioUrl={(item.audioUrl ?? item.mediaUrl)!}
+                        duration={item.duration ?? item.durationSec ?? undefined}
+                        isMe={isMe}
+                        onLongPress={() => setActionMsg(item)}
+                      />
                     ) : (
                       <Pressable
                         onLongPress={() => setActionMsg(item)}

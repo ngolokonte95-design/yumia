@@ -4,7 +4,7 @@ import {
   Share, StyleSheet, Text, View, ViewToken,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAuth } from '../lib/auth-context';
@@ -19,17 +19,20 @@ type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
 function ReelVideo({
-  uri, active, muted, progressAnim,
+  uri, active, muted, progressAnim, startAtSec,
 }: {
   uri: string;
   active: boolean;
   muted: boolean;
   /** Avancement 0→1 de la lecture, piloté sans re-render (Animated.Value). */
   progressAnim: Animated.Value;
+  /** Position de départ (continuité avec la lecture depuis le feed). */
+  startAtSec?: number;
 }) {
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = muted;
+    if (startAtSec) p.currentTime = startAtSec;
   });
 
   useEffect(() => {
@@ -44,22 +47,25 @@ function ReelVideo({
     }
   }, [active, player]);
 
-  // Alimente la barre de progression. `timeUpdateEventInterval` vaut 0 par
-  // défaut (= événement jamais émis), il faut donc l'activer explicitement.
-  // On écrit dans un Animated.Value plutôt que dans un state React pour ne pas
-  // re-rendre toute la carte plusieurs fois par seconde.
+  // Alimente la barre de progression en lisant directement la position réelle
+  // du player à intervalle régulier (plutôt qu'un chrono figé type
+  // Animated.timing, qui suppose une durée fixe depuis 0 et dérive dès que la
+  // lecture ne démarre pas pile à 0 — ex : continuité depuis le feed via
+  // `startAtSec`, mise en buffer, etc.). Se resynchronise donc automatiquement.
   useEffect(() => {
     if (!active) {
-      progressAnim.setValue(0);
+      progressAnim.setValue(startAtSec && player.duration > 0 ? startAtSec / player.duration : 0);
       return;
     }
-    try { player.timeUpdateEventInterval = 0.2; } catch {}
-    const sub = player.addListener('timeUpdate', ({ currentTime }) => {
-      const total = player.duration;
-      progressAnim.setValue(total > 0 ? Math.min(1, currentTime / total) : 0);
-    });
-    return () => sub.remove();
-  }, [active, player, progressAnim]);
+    const interval = setInterval(() => {
+      const dur = player.duration;
+      if (dur > 0) {
+        const ratio = Math.min(1, Math.max(0, player.currentTime / dur));
+        progressAnim.setValue(ratio);
+      }
+    }, 150);
+    return () => clearInterval(interval);
+  }, [active, player, progressAnim, startAtSec]);
 
   return (
     <VideoView
@@ -74,7 +80,7 @@ function ReelVideo({
 // ── Carte d'un reel ──────────────────────────────────────────────────────────
 function ReelCard({
   item, active, onLike, onComment, onShare, onUserPress, onFollow,
-  screenHeight,
+  screenHeight, startAtSec,
 }: {
   item: FeedPost;
   active: boolean;
@@ -84,6 +90,7 @@ function ReelCard({
   onUserPress: (id: string) => void;
   onFollow: (id: string) => void;
   screenHeight: number;
+  startAtSec?: number;
 }) {
   const musicMeta = item.musicTrack ? (() => {
     try { return JSON.parse(item.musicTrack) as { title?: string; artist?: string; artworkUrl?: string; previewUrl?: string; startMs?: number }; }
@@ -92,10 +99,27 @@ function ReelCard({
   const [muted, setMuted] = useState(!!musicMeta);
   const [liked, setLiked] = useState(item.likedByMe);
   const [likes, setLikes] = useState(item.likesCount);
+  const [paused, setPaused] = useState(false);
+  const [showPlayIcon, setShowPlayIcon] = useState(false);
+  const playIconOpacity = useRef(new Animated.Value(0)).current;
   const musicSoundRef = useRef<Audio.Sound | null>(null);
   const diskAnim = useRef(new Animated.Value(0)).current;
   const diskLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
+  // Reprend en lecture automatique quand on revient sur ce reel après l'avoir
+  // quitté (comme Instagram : la pause manuelle ne "colle" pas au scroll).
+  useEffect(() => { if (!active) setPaused(false); }, [active]);
+  const effectiveActive = active && !paused;
+
+  const togglePause = () => {
+    setPaused((v) => !v);
+    setShowPlayIcon(true);
+    playIconOpacity.stopAnimation();
+    playIconOpacity.setValue(1);
+    Animated.timing(playIconOpacity, {
+      toValue: 0, duration: 450, delay: 350, useNativeDriver: true,
+    }).start(({ finished }) => { if (finished) setShowPlayIcon(false); });
+  };
 
   // Lecture de la piste musicale synchronisée avec l'activité du reel
   useEffect(() => {
@@ -137,17 +161,25 @@ function ReelCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
+  // Pause/reprend la piste musicale déjà chargée quand on met la vidéo en
+  // pause manuellement (sans recharger le son, contrairement au montage/
+  // démontage ci-dessus qui suit le scroll).
+  useEffect(() => {
+    if (paused) musicSoundRef.current?.pauseAsync().catch(() => null);
+    else if (active) musicSoundRef.current?.playAsync().catch(() => null);
+  }, [paused, active]);
+
   // Rotation du disque vinyle
   useEffect(() => {
     diskLoopRef.current?.stop();
     diskAnim.setValue(0);
-    if (active && musicMeta) {
+    if (effectiveActive && musicMeta) {
       diskLoopRef.current = Animated.loop(
         Animated.timing(diskAnim, { toValue: 1, duration: 4000, useNativeDriver: true }),
       );
       diskLoopRef.current.start();
     }
-  }, [active, musicMeta, diskAnim]);
+  }, [effectiveActive, musicMeta, diskAnim]);
 
   const handleLike = () => {
     setLiked((v) => !v);
@@ -163,7 +195,7 @@ function ReelCard({
       {/* Fond / vidéo */}
       {mediaUrl ? (
         isVideo ? (
-          <ReelVideo uri={mediaUrl} active={active} muted={muted} progressAnim={progressAnim} />
+          <ReelVideo uri={mediaUrl} active={effectiveActive} muted={muted} progressAnim={progressAnim} startAtSec={startAtSec} />
         ) : (
           <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         )
@@ -174,8 +206,15 @@ function ReelCard({
       {/* Overlay gradient bas */}
       <View style={styles.reelOverlay} />
 
-      {/* Tap pour mute/unmute */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={() => setMuted((v) => !v)} />
+      {/* Tap au milieu pour mettre pause / relire (façon Instagram) */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={togglePause} />
+      {showPlayIcon && (
+        <Animated.View style={[styles.pauseIconWrap, { opacity: playIconOpacity }]} pointerEvents="none">
+          <View style={styles.pauseIconCircle}>
+            <Text style={styles.pauseIconTxt}>{paused ? '▶' : '⏸'}</Text>
+          </View>
+        </Animated.View>
+      )}
 
       {/* Boutons droite */}
       <View style={styles.reelActions}>
@@ -247,20 +286,21 @@ function ReelCard({
         {musicMeta?.title ? (
           <Text style={styles.reelMusicRow} numberOfLines={1}>🎵 {musicMeta.title}{musicMeta.artist ? ` • ${musicMeta.artist}` : ''}</Text>
         ) : null}
-        {/* Barre de progression — suit la lecture pour une vidéo ; pour un
-            reel photo (pas de timeline) on garde la barre pleine. */}
-        <View style={styles.reelProgressBar}>
-          {isVideo ? (
-            <Animated.View
-              style={[
-                styles.reelProgressFill,
-                { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
-              ]}
-            />
-          ) : (
-            <View style={[styles.reelProgressFill, { width: active ? '100%' : '0%' }]} />
-          )}
-        </View>
+      </View>
+
+      {/* Barre de progression — pleine largeur, indépendante du padding des
+          infos ; suit la lecture pour une vidéo, pleine pour un reel photo. */}
+      <View style={styles.reelProgressBar}>
+        {isVideo ? (
+          <Animated.View
+            style={[
+              styles.reelProgressFill,
+              { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+            ]}
+          />
+        ) : (
+          <View style={[styles.reelProgressFill, { width: active ? '100%' : '0%' }]} />
+        )}
       </View>
 
       {/* Icône son — mute vidéo ET piste musicale */}
@@ -284,6 +324,8 @@ function ReelCard({
 export default function ReelsScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
+  const { postId, t } = useLocalSearchParams<{ postId?: string; t?: string }>();
+  const startAtSec = t ? parseFloat(t) : undefined;
   const insets = useSafeAreaInsets();
   const [reelTab, setReelTab] = useState<ReelTab>('foryou');
   const [reels, setReels] = useState<FeedPost[]>([]);
@@ -291,6 +333,7 @@ export default function ReelsScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [screenFocused, setScreenFocused] = useState(true);
   const [following, setFollowing] = useState<Set<string>>(new Set());
+  const flatListRef = useRef<FlatList<FeedPost>>(null);
 
   // Stop tout l'audio quand l'utilisateur quitte l'écran reels
   useFocusEffect(useCallback(() => {
@@ -308,13 +351,37 @@ export default function ReelsScreen() {
         ? await feedApi.globalFeed(accessToken, 30)
         : await feedApi.followingFeed(accessToken, 30);
       // On filtre les posts avec media (vidéos en priorité, photos aussi)
-      setReels(feed.filter((p) => p.mediaUrls?.length > 0));
+      let list = feed.filter((p) => p.mediaUrls?.length > 0);
+
+      let targetIndex = 0;
+      if (postId) {
+        const existingIdx = list.findIndex((p) => p.id === postId);
+        if (existingIdx >= 0) {
+          targetIndex = existingIdx;
+        } else {
+          // Le post ouvert depuis le feed n'est pas dans les 30 premiers reels :
+          // on le récupère et on l'insère en tête pour y arriver directement.
+          try {
+            const res = await fetch(`${API}/posts/${postId}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+            if (res.ok) {
+              const single = (await res.json()) as FeedPost;
+              if (single?.mediaUrls?.length > 0) {
+                list = [single, ...list];
+                targetIndex = 0;
+              }
+            }
+          } catch {}
+        }
+      }
+
+      setReels(list);
+      setActiveIndex(targetIndex);
     } catch {
       setReels([]);
     } finally {
       setLoading(false);
     }
-  }, [accessToken, reelTab]);
+  }, [accessToken, reelTab, postId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -382,12 +449,18 @@ export default function ReelsScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={reels}
           keyExtractor={(p) => p.id}
           pagingEnabled
           snapToInterval={screenH}
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
+          initialScrollIndex={activeIndex > 0 ? activeIndex : undefined}
+          getItemLayout={(_, index) => ({ length: screenH, offset: screenH * index, index })}
+          onScrollToIndexFailed={({ index }) => {
+            setTimeout(() => flatListRef.current?.scrollToIndex({ index, animated: false }), 50);
+          }}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
           renderItem={({ item, index }) => (
@@ -399,6 +472,7 @@ export default function ReelsScreen() {
               onShare={(it) => void Share.share({ message: `Regarde ce reel sur Yumia 🎬` })}
               onUserPress={(id) => router.push(`/user/${id}` as never)}
               onFollow={toggleFollow}
+              startAtSec={item.id === postId ? startAtSec : undefined}
               screenHeight={screenH}
             />
           )}
@@ -476,10 +550,22 @@ const styles = StyleSheet.create({
   reelFollowTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
   reelCaption: { color: '#fff', fontSize: 14, lineHeight: 20, marginBottom: 10 },
   reelProgressBar: {
+    position: 'absolute', bottom: 10, left: 0, right: 0,
     height: 2, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 1,
-    marginTop: 4,
   },
   reelProgressFill: { height: '100%', backgroundColor: '#fff', borderRadius: 1 },
+
+  // Icône pause/lecture (tap au milieu)
+  pauseIconWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pauseIconCircle: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pauseIconTxt: { fontSize: 28, color: '#fff' },
 
   // Mute
   muteBtn: {

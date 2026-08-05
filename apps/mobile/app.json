@@ -7,6 +7,7 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    "newArchEnabled": true,
     "updates": {
       "enabled": false
     },

@@ -126,7 +126,7 @@ function StoriesBar({
 
 const SCREEN_W = Dimensions.get('window').width;
 
-function MediaCarousel({ urls, onPress }: { urls: string[]; onPress: () => void }) {
+function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; onPress: () => void; active?: boolean; onExpand?: (t: number) => void }) {
   const [idx, setIdx] = useState(0);
   return (
     <View>
@@ -137,10 +137,10 @@ function MediaCarousel({ urls, onPress }: { urls: string[]; onPress: () => void 
         showsHorizontalScrollIndicator={false}
         keyExtractor={(u, i) => `${i}-${u}`}
         onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
-        renderItem={({ item: url }) => (
+        renderItem={({ item: url, index }) => (
           <Pressable onPress={onPress}>
             {isVideoUrl(url) ? (
-              <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 1 }} />
+              <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 4 / 5 }} active={active && index === idx} onExpand={onExpand} />
             ) : (
               <Image source={{ uri: url }} style={{ width: SCREEN_W, aspectRatio: 1 }} />
             )}
@@ -163,7 +163,7 @@ function MediaCarousel({ urls, onPress }: { urls: string[]; onPress: () => void 
 
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
-function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, isMusicPlaying, onMusicPress, currentUserId, onDelete }: {
+function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, isMusicPlaying, onMusicPress, currentUserId, onDelete, isActive }: {
   item: FeedPost;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
@@ -175,8 +175,12 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
   onMusicPress?: (postId: string, previewUrl: string) => void;
   currentUserId?: string;
   onDelete?: (id: string) => void;
+  /** Le post est actuellement visible à l'écran (feed) — coupe le son sinon. */
+  isActive?: boolean;
 }) {
   const isOwner = !!currentUserId && item.userId === currentUserId;
+  const router = useRouter();
+  const goFullscreen = (t: number) => router.push(`/reels?postId=${item.id}&t=${Math.floor(t)}` as never);
 
   const handleMenu = () => {
     Alert.alert('Publication', undefined, [
@@ -221,13 +225,13 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
 
         let mediaEl: ReactNode = null;
         if (item.mediaUrls.length > 1) {
-          mediaEl = <MediaCarousel urls={item.mediaUrls} onPress={() => onComment(item.id)} />;
+          mediaEl = <MediaCarousel urls={item.mediaUrls} onPress={() => onComment(item.id)} active={isActive} onExpand={goFullscreen} />;
         } else {
           const media = item.mediaUrls[0];
           const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
           if (videoSrc) {
             mediaEl = videoSrc.startsWith('http')
-              ? <PostVideo uri={videoSrc} style={styles.postImage} />
+              ? <PostVideo uri={videoSrc} style={styles.postVideo} active={isActive} onExpand={goFullscreen} />
               : (
                 <View style={[styles.postImage, styles.videoPlaceholder]}>
                   <Text style={{ fontSize: 48 }}>🎬</Text>
@@ -332,6 +336,14 @@ export default function SocialTab() {
 
   // Music playback in feed
   const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
+  const [visiblePostId, setVisiblePostId] = useState<string | null>(null);
+  // Coupe les vidéos du feed quand on quitte l'écran (ex: bascule plein écran
+  // vers /reels) pour éviter que les deux sons se chevauchent.
+  const [screenFocused, setScreenFocused] = useState(true);
+  useFocusEffect(useCallback(() => {
+    setScreenFocused(true);
+    return () => setScreenFocused(false);
+  }, []));
   const musicSoundRef = useRef<Audio.Sound | null>(null);
   // Jeton de génération : incrémenté à chaque tentative de lecture. Si une
   // tentative plus récente démarre avant que la précédente ait fini de charger
@@ -413,6 +425,7 @@ export default function SocialTab() {
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
   const onViewablePostsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const top = viewableItems[0]?.item as { musicTrack?: string | null; id: string } | undefined;
+    setVisiblePostId(top?.id ?? null);
     if (!top?.musicTrack) { void stopMusicRef.current(); return; }
     const music = parseMusicTrack(top.musicTrack);
     if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void autoPlayPostRef.current(top.id, music.previewUrl);
@@ -591,6 +604,7 @@ export default function SocialTab() {
           onMusicPress={handleMusicPress}
           currentUserId={me?.id}
           onDelete={handleDeletePost}
+          isActive={visiblePostId === item.id && screenFocused}
         />
       )}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
@@ -902,6 +916,7 @@ const styles = StyleSheet.create({
   postPlace: { fontSize: 11, color: colors.textMuted },
   postAgo: { marginLeft: 'auto', fontSize: 12, color: colors.textMuted },
   postImage: { width: '100%', aspectRatio: 1 },
+  postVideo: { width: '100%', aspectRatio: 4 / 5 },
   videoPlaceholder: { backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   videoBadge: { position: 'absolute', top: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   multiIndicator: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },

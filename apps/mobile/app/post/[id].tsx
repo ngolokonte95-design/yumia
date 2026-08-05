@@ -5,11 +5,11 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import { Audio } from 'expo-av';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
+import { PostVideo } from '../../components/PostVideo';
 
 const API = API_BASE_URL;
 
@@ -52,11 +52,6 @@ interface Post {
   user: { id: string; displayName: string; photoUrl?: string } | null;
   place?: { name: string; universe: string; city?: string } | null;
   comments: Comment[];
-}
-
-function PostVideoPlayer({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (p) => { p.loop = true; });
-  return <VideoView player={player} style={styles.postVideo} contentFit="cover" nativeControls />;
 }
 
 function formatAgo(iso: string) {
@@ -241,7 +236,7 @@ export default function PostDetailScreen() {
         </Pressable>
 
         {/* Video player */}
-        {post.videoUrl && <PostVideoPlayer uri={post.videoUrl} />}
+        {post.videoUrl && <PostVideo uri={post.videoUrl} style={styles.postVideo} />}
 
         {/* Images carousel */}
         {!post.videoUrl && post.mediaUrls.length > 0 && (
@@ -427,7 +422,7 @@ const styles = StyleSheet.create({
   placeName: { fontSize: 12, color: colors.textMuted },
   ago: { marginLeft: 'auto', fontSize: 12, color: colors.textMuted },
   postImage: { width: 375, height: 375 },
-  postVideo: { width: '100%', height: 375 },
+  postVideo: { width: '100%', aspectRatio: 4 / 5 },
   musicBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: 8,
