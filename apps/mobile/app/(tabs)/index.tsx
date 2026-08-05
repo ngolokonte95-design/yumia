@@ -35,21 +35,19 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
   return { title: `${t('greeting_night')}, ${first}`, sub: t('greeting_sub_night') };
 }
 
+// Sorties, Guides, Classement et Groupe vivent déjà dans Explorer
+// (QUICK_ACTIONS) ; Nearby existe dans l'onglet social sous « 🗺️ Carte ».
+// Pas de doublon entre onglets.
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
   { key: 'chatbot', emoji: '🤖', label: 'Assistant', route: '/chatbot' },
   { key: 'itinerary', emoji: '✨', label: 'Itinéraire', route: '/itinerary' },
-  { key: 'nearby', emoji: '📍', label: 'Nearby', route: '/nearby-users' },
   { key: 'quests', emoji: '🏆', label: 'Quêtes', route: '/quests' },
   { key: 'chat', emoji: '💬', label: 'Messages', route: '/chat' },
-  { key: 'sorties', emoji: '🎟️', label: 'Sorties', route: '/sorties' },
-  { key: 'group', emoji: '👥', label: 'Groupe', route: '/group' },
   { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
-  { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
   { key: 'saved', emoji: '❤️', label: 'Favoris', route: '/favorites' },
   { key: 'calendar', emoji: '🗓️', label: 'Calendrier', route: '/calendar' },
   { key: 'notebook', emoji: '📝', label: 'Notes', route: '/notebook' },
-  { key: 'guides', emoji: '🧑‍🏫', label: 'Guides', route: '/guides' },
 ];
 
 /** Découpe les raccourcis en colonnes de 2, pour un défilement horizontal sur 2 lignes. */
