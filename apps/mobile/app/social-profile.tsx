@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   avatarWrap: { position: 'relative' },
   avatarRing: {
     width: 90, height: 90, borderRadius: 45,
-    borderWidth: 2.5, borderColor: colors.border, borderStyle: 'dashed',
+    borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
     padding: 2,
   },
   avatarRingActive: { borderColor: colors.brand, borderStyle: 'solid' },
