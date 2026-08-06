@@ -103,9 +103,11 @@ function ReelCard({
     catch { return null; }
   })() : null;
   const [muted, setMuted] = useState(!!musicMeta);
-  // Le son coupé par l'auteur est irréversible pour le spectateur — le tap
-  // sur l'icône son (ci-dessous) ne doit pas pouvoir le contourner.
-  const effectiveMuted = muted || !!item.videoMuted;
+  // Le son d'origine de la vidéo est coupé pour de bon dès qu'une musique a été
+  // ajoutée (elle la remplace, les deux ne doivent jamais jouer ensemble) — comme
+  // le son coupé par l'auteur, ce n'est pas quelque chose que le spectateur peut
+  // contourner avec l'icône son (qui ne contrôle alors que la musique).
+  const effectiveMuted = muted || !!item.videoMuted || !!musicMeta;
   const [liked, setLiked] = useState(item.likedByMe);
   const [likes, setLikes] = useState(item.likesCount);
   const [paused, setPaused] = useState(false);

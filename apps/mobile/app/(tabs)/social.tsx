@@ -164,7 +164,7 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
 
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
-function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, isMusicPlaying, onMusicPress, currentUserId, onDelete, isActive }: {
+function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, currentUserId, onDelete, isActive }: {
   item: FeedPost;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
@@ -172,8 +172,6 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
   onComment: (id: string) => void;
   onShare: (item: FeedPost) => void;
   onUserPress: (id: string) => void;
-  isMusicPlaying?: boolean;
-  onMusicPress?: (postId: string, previewUrl: string) => void;
   currentUserId?: string;
   onDelete?: (id: string) => void;
   /** Le post est actuellement visible à l'écran (feed) — coupe le son sinon. */
@@ -239,7 +237,9 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
                   active={isActive}
                   onExpand={goFullscreen}
                   overlays={item.overlays}
-                  videoMuted={item.videoMuted}
+                  // Une musique ajoutée remplace le son d'origine de la vidéo — les
+                  // deux ne doivent jamais jouer en même temps.
+                  videoMuted={item.videoMuted || !!music}
                   voiceTrackUrl={item.voiceTrackUrl}
                 />
               )
@@ -257,11 +257,11 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
           }
         }
 
+        // Musique intégrée à la publication (comme la piste audio d'une vidéo) : elle
+        // se joue automatiquement tant que le post est visible, sans contrôle pause/
+        // play dédié — ce n'est plus une option que le spectateur peut couper à part.
         const musicPill = music ? (
-          <Pressable
-            style={styles.musicOverlay}
-            onPress={() => music.previewUrl && onMusicPress ? onMusicPress(item.id, music.previewUrl) : undefined}
-          >
+          <View style={styles.musicOverlay}>
             {music.artworkUrl
               ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
               : <Text style={{ fontSize: 16 }}>🎵</Text>}
@@ -269,8 +269,7 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
               <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
               {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
             </View>
-            {music.previewUrl ? <Text style={{ fontSize: 15, color: '#fff' }}>{isMusicPlaying ? '⏸' : '▶'}</Text> : null}
-          </Pressable>
+          </View>
         ) : null;
 
         if (mediaEl && musicPill) {
@@ -409,16 +408,6 @@ export default function SocialTab() {
       if (myGen === playGenRef.current) setPlayingMusicId(null);
     }
   }, [makeStatusCb]);
-
-  // Tap manuel : toggle play/stop
-  const handleMusicPress = useCallback(async (postId: string, previewUrl: string) => {
-    if (playingMusicId === postId) { await stopMusic(); return; }
-    if (!isPlayableAudioUrl(previewUrl)) {
-      Alert.alert('Musique indisponible', 'Cette piste doit être republiée pour être écoutée.');
-      return;
-    }
-    await startTrack(postId, previewUrl);
-  }, [playingMusicId, stopMusic, startTrack]);
 
   // Auto-play à la visibilité (ne redémarre pas si déjà en cours)
   const autoPlayPost = useCallback(async (postId: string, previewUrl: string) => {
@@ -611,8 +600,6 @@ export default function SocialTab() {
           onComment={openComments}
           onShare={shareToDM}
           onUserPress={(id) => router.push(`/user/${id}` as never)}
-          isMusicPlaying={playingMusicId === item.id}
-          onMusicPress={handleMusicPress}
           currentUserId={me?.id}
           onDelete={handleDeletePost}
           isActive={visiblePostId === item.id && screenFocused}
