@@ -54,6 +54,17 @@ export class Top3Dto {
   @IsIn(UNIVERSES as unknown as string[], { each: true })
   favoriteUniverses?: Universe[];
 
+  /**
+   * Restreint STRICTEMENT les suggestions à cet univers (ex. Surprise Me avec
+   * un univers choisi). Contrairement à `favoriteUniverses`, qui ne fait que
+   * pondérer le score, ce champ filtre les candidats avant classement — sans
+   * quoi un univers "choisi" pourrait quand même se faire déclasser par un
+   * lieu mieux noté d'un autre univers.
+   */
+  @IsOptional()
+  @IsIn(UNIVERSES as unknown as string[])
+  universeFilter?: Universe;
+
   /** Restrictions (végétarien, halal…) — filtre les univers incompatibles. */
   @IsOptional()
   @IsArray()

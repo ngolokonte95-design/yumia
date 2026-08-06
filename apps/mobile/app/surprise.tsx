@@ -12,9 +12,13 @@ import {
   ActivityIndicator,
   Animated,
   Platform,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { UNIVERSE_CATEGORIES, UNIVERSE_META } from '@yumia/shared';
+import type { Universe } from '@yumia/shared';
 import { safeMeta } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
@@ -37,6 +41,10 @@ export default function SurpriseScreen() {
   const [spins, setSpins] = useState(0);
   const [upsell, setUpsell] = useState<string | null>(null);
   const { checkLimit, recordUsage } = usePlanLimits();
+
+  // `null` = tous les univers (comportement d'origine).
+  const [universeFilter, setUniverseFilter] = useState<Universe | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Shake animation for the dice
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -71,11 +79,16 @@ export default function SurpriseScreen() {
         localTimeIso: new Date().toISOString(),
         city: city ?? undefined,
         favoriteUniverses: user?.preferences?.favoriteUniverses,
+        universeFilter: universeFilter ?? undefined,
         restrictions: user?.preferences?.restrictions,
       });
 
       if (!data.suggestions.length) {
-        setError('Aucune surprise près de toi pour l\'instant. Réessaie !');
+        setError(
+          universeFilter
+            ? `Aucun lieu de ce type près de toi pour l'instant. Essaie un autre univers, ou réessaie !`
+            : 'Aucune surprise près de toi pour l\'instant. Réessaie !',
+        );
         return;
       }
 
@@ -91,12 +104,20 @@ export default function SurpriseScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loading, coords, city, user, shake, fadeAnim, checkLimit, recordUsage]);
+  }, [loading, coords, city, user, universeFilter, shake, fadeAnim, checkLimit, recordUsage]);
 
   function goToDetail() {
     if (!result) return;
     placeStore.set(result);
     router.push('/place');
+  }
+
+  /** Change l'univers ciblé : le résultat affiché devient obsolète, on l'efface. */
+  function selectUniverse(u: Universe | null) {
+    setUniverseFilter(u);
+    setPickerOpen(false);
+    setResult(null);
+    setError(null);
   }
 
   const meta = result ? safeMeta(result.place.universe) : null;
@@ -118,6 +139,16 @@ export default function SurpriseScreen() {
         <Text style={styles.sub}>
           L'IA choisit pour toi. Un tap, un endroit. Pas le temps de chercher.
         </Text>
+
+        {/* Univers dans lequel le dé est lancé — "Tous" par défaut (comportement
+            d'origine). Le changer relance une nouvelle surprise à vide plutôt
+            que de laisser un résultat de l'ancien univers affiché. */}
+        <Pressable style={styles.universePicker} onPress={() => setPickerOpen(true)}>
+          <Text style={styles.universePickerText}>
+            {universeFilter ? `${UNIVERSE_META[universeFilter].emoji} ${UNIVERSE_META[universeFilter].labelFr}` : '🎲 Tous les univers'}
+          </Text>
+          <Text style={styles.universePickerChevron}>▾</Text>
+        </Pressable>
 
         {/* Main dice button */}
         <Animated.View style={{ transform: [{ translateX }] }}>
@@ -169,6 +200,48 @@ export default function SurpriseScreen() {
           </Text>
         ) : null}
       </View>
+
+      <Modal
+        visible={pickerOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setPickerOpen(false)}>
+          <Pressable style={styles.sheet} onPress={() => undefined}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Univers du dé</Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Pressable
+                style={[styles.universeRow, universeFilter === null && styles.universeRowActive]}
+                onPress={() => selectUniverse(null)}
+              >
+                <Text style={styles.universeRowEmoji}>🎲</Text>
+                <Text style={styles.universeRowLabel}>Tous les univers</Text>
+                {universeFilter === null && <Text style={styles.universeRowCheck}>✓</Text>}
+              </Pressable>
+
+              {UNIVERSE_CATEGORIES.map((cat) => (
+                <View key={cat.label} style={styles.categoryBlock}>
+                  <Text style={styles.categoryLabel}>{cat.emoji} {cat.label}</Text>
+                  {cat.universes.map((u) => (
+                    <Pressable
+                      key={u}
+                      style={[styles.universeRow, universeFilter === u && styles.universeRowActive]}
+                      onPress={() => selectUniverse(u)}
+                    >
+                      <Text style={styles.universeRowEmoji}>{UNIVERSE_META[u].emoji}</Text>
+                      <Text style={styles.universeRowLabel}>{UNIVERSE_META[u].labelFr}</Text>
+                      {universeFilter === u && <Text style={styles.universeRowCheck}>✓</Text>}
+                    </Pressable>
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -205,6 +278,50 @@ const styles = StyleSheet.create({
   diceEmoji: { fontSize: 56 },
   tapHint: { ...typography.caption, color: colors.textMuted },
   errorText: { ...typography.body, color: colors.danger, textAlign: 'center' },
+
+  universePicker: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  universePickerText: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
+  universePickerChevron: { color: colors.textMuted, fontSize: 12 },
+
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    maxHeight: '80%',
+  },
+  sheetHandle: {
+    width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border,
+    alignSelf: 'center', marginBottom: spacing.sm,
+  },
+  sheetTitle: {
+    ...typography.heading, color: colors.textPrimary,
+    textAlign: 'center', paddingBottom: spacing.sm,
+  },
+  categoryBlock: { marginTop: spacing.md },
+  categoryLabel: {
+    ...typography.label, color: colors.textMuted, textTransform: 'uppercase',
+    paddingBottom: spacing.xs,
+  },
+  universeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingVertical: 11, paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  universeRowActive: { backgroundColor: `${colors.brand}18` },
+  universeRowEmoji: { fontSize: 18, width: 26 },
+  universeRowLabel: { ...typography.body, color: colors.textPrimary, flex: 1 },
+  universeRowCheck: { ...typography.body, color: colors.brand, fontWeight: '700' },
 
   card: {
     width: '100%',

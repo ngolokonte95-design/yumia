@@ -42,6 +42,8 @@ export interface Top3Params {
   locale?: string;
   localTimeIso?: string;
   favoriteUniverses?: Universe[];
+  /** Restreint STRICTEMENT les résultats à cet univers (ex. Surprise Me ciblé). */
+  universeFilter?: Universe;
   restrictions?: string[];
   weather?: { tempC: number; condition: string };
 }

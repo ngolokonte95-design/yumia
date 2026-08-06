@@ -167,6 +167,8 @@ export class RecommendationsService {
     localTimeIso?: string;
     locale?: string;
     favoriteUniverses?: Universe[];
+    /** Restreint strictement les résultats à cet univers (ex. Surprise Me ciblé). */
+    universeFilter?: Universe;
     restrictions?: string[];
     weather?: AiContext['weather'];
     maxPriceTier?: number;
@@ -191,6 +193,9 @@ export class RecommendationsService {
     // Cache Redis : clé basée sur position (arrondie à ~200 m), rayon, mode, mood
     // ET la query — sinon deux recherches différentes au même endroit (ex.
     // "couscous" vs "boire un verre") renverraient le même résultat mis en cache.
+    // `universeFilter` y figure aussi : sans lui, un Surprise Me "restaurants"
+    // pourrait servir le résultat en cache d'un Surprise Me "musées" au même
+    // endroit.
     const cacheKey = [
       'reco:top3',
       input.lat.toFixed(2),
@@ -199,6 +204,7 @@ export class RecommendationsService {
       input.mode ?? '',
       input.mood ?? '',
       (input.query ?? '').toLowerCase().trim().slice(0, 60),
+      input.universeFilter ?? '',
       locale,
     ].join(':');
 
@@ -208,7 +214,7 @@ export class RecommendationsService {
       return cached;
     }
 
-    let { reason, suggestions } = await this.rank(ctx, input.radius, 3, 'mood');
+    let { reason, suggestions } = await this.rank(ctx, input.radius, 3, 'mood', input.universeFilter);
     if (input.maxPriceTier != null) {
       suggestions = suggestions.filter(
         (s) => s.place.priceTier <= (input.maxPriceTier as number),
@@ -418,6 +424,13 @@ export class RecommendationsService {
     radius: number,
     limit: number,
     engine: Suggestion['engine'],
+    /**
+     * Filtre STRICT (pas une simple pondération) : appliqué aux candidats
+     * avant classement, pas après. Filtrer après coup sur un top-N déjà
+     * restreint (comme `maxPriceTier` plus haut) renverrait souvent 0 ou 1
+     * résultat, faute de savoir a priori si le top-N contient l'univers voulu.
+     */
+    universeFilter?: Universe,
   ): Promise<{ reason: string; suggestions: Suggestion[] }> {
     const selectedEngine = this.selectEngine(ctx);
     this.logger.debug(`Moteur sélectionné : ${selectedEngine}`);
@@ -465,17 +478,28 @@ export class RecommendationsService {
 
     // Exclut les univers "destination volontaire" (culte, magasins, spa…) des
     // suggestions spontanées : une église proche et bien notée ne doit jamais
-    // sortir pour une envie de couscous. Les matchs de plat échappent à ce filtre
-    // (lieux food explicitement demandés).
+    // sortir pour une envie de couscous. Les matchs de plat échappent à ce
+    // filtre (lieux food explicitement demandés) — et de même pour un univers
+    // explicitement choisi par l'utilisateur (ex. Surprise Me → "Spa") : cette
+    // exclusion ne vaut que pour des suggestions spontanées, pas un choix assumé.
     const recommendable = raw.filter(
-      (p) => dishMatchIds.has(p.id) || !RECO_EXCLUDED_UNIVERSES.has(p.universe as string),
+      (p) => dishMatchIds.has(p.id)
+        || p.universe === universeFilter
+        || !RECO_EXCLUDED_UNIVERSES.has(p.universe as string),
     );
 
     // Fusionne les matchs de plat dans le pool (dédup par id), puis applique les
     // restrictions alimentaires (ex. « sans alcool ») à l'ensemble.
     const byId = new Map<string, PlaceWithDistance>();
     for (const p of [...dishMatches, ...recommendable]) byId.set(p.id, p);
-    const candidates = this.filterByRestrictions([...byId.values()], restrictions);
+    const withRestrictions = this.filterByRestrictions([...byId.values()], restrictions);
+
+    // Filtre STRICT : contrairement à `favoriteUniverses` (simple pondération
+    // dans scoreOf), un universeFilter explicite doit garantir que TOUS les
+    // résultats appartiennent à cet univers, jamais juste le favoriser.
+    const candidates = universeFilter
+      ? withRestrictions.filter((p) => p.universe === universeFilter)
+      : withRestrictions;
 
     const scored = candidates.map((place) => {
       const base = this.scoreOf(place, radius, suggestedUniverses, favoriteUniverses);

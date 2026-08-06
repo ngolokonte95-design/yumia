@@ -328,6 +328,72 @@ describe('RecommendationsService', () => {
     });
   });
 
+  describe('top3 — universeFilter (Surprise Me ciblé)', () => {
+    it('ne renvoie que des lieux de l\'univers demandé, jamais les autres', async () => {
+      aiMock.runStructured.mockResolvedValue({ reason: '', universesSuggested: [] });
+      placesMock.nearby.mockResolvedValue([
+        mockPlace({ id: 'r1', universe: 'restaurant', rating: 4.9, distanceMeters: 100 }),
+        mockPlace({ id: 'r2', universe: 'restaurant', rating: 4.2, distanceMeters: 300 }),
+        // Mieux noté et plus proche que les restaurants, mais mauvais univers :
+        // ne doit JAMAIS apparaître (contrairement à favoriteUniverses, qui ne
+        // fait que pondérer et le laisserait passer).
+        mockPlace({ id: 'm1', universe: 'museum', rating: 5.0, distanceMeters: 50 }),
+      ]);
+
+      const result = await service.top3({
+        lat: 48.856, lng: 2.352, radius: 3000, universeFilter: 'restaurant',
+      });
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      result.suggestions.forEach((s) => expect(s.place.universe).toBe('restaurant'));
+    });
+
+    it('lève l\'exclusion des univers "destination volontaire" quand choisis explicitement', async () => {
+      // spa fait partie de RECO_EXCLUDED_UNIVERSES (jamais suggéré spontanément).
+      // Un choix explicite doit passer outre, sinon le dé ne renverrait jamais rien.
+      aiMock.runStructured.mockResolvedValue({ reason: '', universesSuggested: [] });
+      placesMock.nearby.mockResolvedValue([
+        mockPlace({ id: 's1', universe: 'spa', rating: 4.5, distanceMeters: 200 }),
+      ]);
+
+      const result = await service.top3({
+        lat: 48.856, lng: 2.352, radius: 3000, universeFilter: 'spa',
+      });
+
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].place.universe).toBe('spa');
+    });
+
+    it('sans universeFilter, garde l\'exclusion des univers "destination volontaire"', async () => {
+      aiMock.runStructured.mockResolvedValue({ reason: '', universesSuggested: [] });
+      placesMock.nearby.mockResolvedValue([
+        mockPlace({ id: 's1', universe: 'spa', rating: 4.9, distanceMeters: 100 }),
+        mockPlace({ id: 'r1', universe: 'restaurant', rating: 4.0, distanceMeters: 500 }),
+      ]);
+
+      const result = await service.top3({ lat: 48.856, lng: 2.352, radius: 3000 });
+
+      expect(result.suggestions.map((s) => s.place.universe)).not.toContain('spa');
+    });
+
+    it('distingue le cache d\'un universeFilter de celui sans filtre, au même endroit', async () => {
+      aiMock.runStructured.mockResolvedValue({ reason: '', universesSuggested: [] });
+      placesMock.nearby.mockResolvedValue([
+        mockPlace({ id: 'r1', universe: 'restaurant', rating: 4.5, distanceMeters: 200 }),
+        mockPlace({ id: 'm1', universe: 'museum', rating: 4.5, distanceMeters: 200 }),
+      ]);
+
+      await service.top3({ lat: 48.856, lng: 2.352, radius: 3000, universeFilter: 'restaurant' });
+      await service.top3({ lat: 48.856, lng: 2.352, radius: 3000, universeFilter: 'museum' });
+
+      // Deux clés de cache distinctes doivent avoir été écrites : sinon le
+      // second appel resservirait le résultat "restaurant" en cache pour
+      // une demande "museum" au même endroit.
+      const keys = redisMock.setJson.mock.calls.map((c: unknown[]) => c[0]);
+      expect(new Set(keys).size).toBe(2);
+    });
+  });
+
   describe('scoreOf — boost des univers favoris', () => {
     it('classe un lieu d\'univers favori devant un non-favori à note/distance égales', async () => {
       aiMock.runStructured.mockResolvedValue({ reason: '', universesSuggested: [] });

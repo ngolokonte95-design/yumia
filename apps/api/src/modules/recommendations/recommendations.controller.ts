@@ -37,6 +37,7 @@ export class RecommendationsController {
       localTimeIso: dto.localTimeIso,
       locale: dto.locale,
       favoriteUniverses: dto.favoriteUniverses,
+      universeFilter: dto.universeFilter,
       restrictions: dto.restrictions,
       weather: dto.weather,
     });
