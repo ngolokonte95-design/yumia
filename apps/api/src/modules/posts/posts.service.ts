@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import type { Post } from '@prisma/client';
+import type { Post, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -9,6 +9,11 @@ function extractHashtags(caption?: string | null): string[] {
   const matches = caption.match(/#([\p{L}\p{N}_]+)/gu) ?? [];
   return [...new Set(matches.map((m) => m.slice(1).toLowerCase()))].slice(0, 30);
 }
+
+/** Élément superposé à une vidéo, recomposé à la lecture (jamais gravé dans le fichier). */
+export type PostOverlay =
+  | { kind: 'text'; id: string; x: number; y: number; text: string; color: string; fontSize: number; rotation?: number }
+  | { kind: 'draw'; id: string; path: string; color: string; strokeWidth: number };
 
 export interface CreatePostOptions {
   placeId?: string;
@@ -20,6 +25,9 @@ export interface CreatePostOptions {
   commentsDisabled?: boolean;
   hideLikeCount?: boolean;
   isDraft?: boolean;
+  overlays?: PostOverlay[];
+  videoMuted?: boolean;
+  voiceTrackUrl?: string;
 }
 
 @Injectable()
@@ -50,6 +58,9 @@ export class PostsService {
         hideLikeCount: opts.hideLikeCount ?? false,
         isDraft: opts.isDraft ?? false,
         hashtags: extractHashtags(caption),
+        overlays: opts.overlays as unknown as Prisma.InputJsonValue | undefined,
+        videoMuted: opts.videoMuted ?? false,
+        voiceTrackUrl: opts.voiceTrackUrl,
       },
     });
   }

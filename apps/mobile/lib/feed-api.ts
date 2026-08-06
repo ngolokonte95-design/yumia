@@ -6,6 +6,17 @@ import { API_BASE_URL } from './config';
 
 const API = API_BASE_URL;
 
+/**
+ * Élément superposé à une vidéo (texte ou tracé), façon CapCut.
+ *
+ * Recomposé à la LECTURE par le client — jamais gravé dans le fichier vidéo,
+ * qui reste inchangé. `x`/`y` sont en pourcentage du cadre (0–100), comme les
+ * stickers de Story, pour rester indépendants de la taille d'affichage réelle.
+ */
+export type PostOverlay =
+  | { kind: 'text'; id: string; x: number; y: number; text: string; color: string; fontSize: number; rotation?: number }
+  | { kind: 'draw'; id: string; path: string; color: string; strokeWidth: number };
+
 export interface FeedPost {
   id: string;
   userId: string;
@@ -28,6 +39,9 @@ export interface FeedPost {
   coverUrl?: string | null;
   viewsCount?: number;
   hashtags?: string[];
+  overlays?: PostOverlay[] | null;
+  videoMuted?: boolean;
+  voiceTrackUrl?: string | null;
   createdAt: string;
   user: { id: string; displayName: string; photoUrl?: string } | null;
   place?: { id?: string; name: string; city?: string; universe?: string } | null;

@@ -5,7 +5,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { PostsService } from './posts.service';
+import { PostsService, type PostOverlay } from './posts.service';
 import { StorageService } from '../../infra/storage/storage.service';
 
 @Controller('posts')
@@ -65,6 +65,7 @@ export class PostsController {
     caption?: string; mediaUrls: string[]; placeId?: string; videoUrl?: string; musicTrack?: string;
     taggedUserIds?: string[]; collabUserId?: string; coverUrl?: string;
     commentsDisabled?: boolean; hideLikeCount?: boolean; isDraft?: boolean;
+    overlays?: PostOverlay[]; videoMuted?: boolean; voiceTrackUrl?: string;
   }) {
     return this.postsService.createPost(req.user.sub, body.caption, body.mediaUrls, {
       placeId: body.placeId,
@@ -76,6 +77,9 @@ export class PostsController {
       commentsDisabled: body.commentsDisabled,
       hideLikeCount: body.hideLikeCount,
       isDraft: body.isDraft,
+      overlays: body.overlays,
+      videoMuted: body.videoMuted,
+      voiceTrackUrl: body.voiceTrackUrl,
     });
   }
 

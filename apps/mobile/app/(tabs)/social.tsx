@@ -12,6 +12,7 @@ import { API_BASE_URL } from '../../lib/config';
 import { feedApi, type FeedPost, type StoryGroup } from '../../lib/feed-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PostVideo } from '../../components/PostVideo';
+import { LollipopIcon } from '../../components/icons/LollipopIcon';
 
 const API = API_BASE_URL;
 
@@ -231,7 +232,17 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
           const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
           if (videoSrc) {
             mediaEl = videoSrc.startsWith('http')
-              ? <PostVideo uri={videoSrc} style={styles.postVideo} active={isActive} onExpand={goFullscreen} />
+              ? (
+                <PostVideo
+                  uri={videoSrc}
+                  style={styles.postVideo}
+                  active={isActive}
+                  onExpand={goFullscreen}
+                  overlays={item.overlays}
+                  videoMuted={item.videoMuted}
+                  voiceTrackUrl={item.voiceTrackUrl}
+                />
+              )
               : (
                 <View style={[styles.postImage, styles.videoPlaceholder]}>
                   <Text style={{ fontSize: 48 }}>🎬</Text>
@@ -653,8 +664,9 @@ export default function SocialTab() {
           <Pressable onPress={() => router.push('/social-profile')} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>👤 Mon profil</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/discover-people')} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>🔍 Découvrir</Text>
+          <Pressable onPress={() => router.push('/discover-people')} style={[styles.headerBtn, styles.headerBtnRow]}>
+            <LollipopIcon size={14} />
+            <Text style={styles.headerBtnText}>Tind</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/nearby-users')} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>🗺️ Carte</Text>
@@ -888,6 +900,7 @@ const styles = StyleSheet.create({
   header: { paddingBottom: 6 },
   headerActions: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md },
   headerBtn: { backgroundColor: colors.surface, borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
+  headerBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   headerBtnText: { fontSize: 12, color: colors.text, fontWeight: '600' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginBottom: spacing.sm, gap: 8 },
   searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },

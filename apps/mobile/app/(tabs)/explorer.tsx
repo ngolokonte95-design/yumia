@@ -242,14 +242,14 @@ export default function ExplorerScreen() {
       ) : null}
 
       {/* Pipeline lieux : rangées horizontales par univers clé */}
-      {(['restaurant', 'bar', 'nightclub'] as Universe[]).map((u) => (
+      {(['restaurant', 'dessert', 'place_of_worship'] as Universe[]).map((u) => (
         <UniverseRow
           key={u}
           universe={u}
           lat={coords.lat}
           lng={coords.lng}
           enabled={!resolving}
-          onSeeAll={() => router.push((u === 'nightclub' ? '/nightclub' : `/universe?u=${u}`) as never)}
+          onSeeAll={() => router.push(`/universe?u=${u}` as never)}
           onCardPress={(p) => {
             placeStore.set({
               place: {

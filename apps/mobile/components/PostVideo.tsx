@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Audio } from 'expo-av';
+import { PostOverlays } from './PostOverlays';
+import type { PostOverlay } from '../lib/feed-api';
 
 /**
  * Lecteur vidéo inline pour le feed. Son activé par défaut (contrôlé par le
@@ -8,14 +11,31 @@ import { Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from 'rea
  * Instagram). Tap au centre = pause/lecture, avec icône qui flashe brièvement.
  * `uri` doit être une URL http(s) accessible.
  */
-export function PostVideo({ uri, style, active = true, onExpand }: { uri: string; style?: ViewStyle; active?: boolean; onExpand?: (currentTime: number) => void }) {
+export function PostVideo({
+  uri, style, active = true, onExpand, overlays, videoMuted = false, voiceTrackUrl,
+}: {
+  uri: string;
+  style?: ViewStyle;
+  active?: boolean;
+  onExpand?: (currentTime: number) => void;
+  /** Texte et dessins superposés, choisis par l'auteur à la publication. */
+  overlays?: PostOverlay[] | null;
+  /**
+   * Son de la vidéo coupé — choix de l'auteur, irréversible pour le
+   * spectateur (différent du tap-pour-pause, qui contrôle la lecture).
+   */
+  videoMuted?: boolean;
+  /** Voix off enregistrée, jouée en parallèle de la vidéo. */
+  voiceTrackUrl?: string | null;
+}) {
   const [playing, setPlaying] = useState(true);
   const [showIcon, setShowIcon] = useState(false);
   const iconOpacity = useRef(new Animated.Value(0)).current;
+  const voiceSoundRef = useRef<Audio.Sound | null>(null);
 
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
-    p.muted = false;
+    p.muted = videoMuted;
     p.audioMixingMode = 'doNotMix';
     if (active) p.play();
   });
@@ -29,6 +49,40 @@ export function PostVideo({ uri, style, active = true, onExpand }: { uri: string
     if (active) player.play();
     else player.pause();
   }, [active, player]);
+
+  // La voix off suit l'activité de la vidéo — chargée/déchargée à chaque
+  // passage actif/inactif, comme la musique des reels (lib/reels.tsx).
+  useEffect(() => {
+    if (!voiceTrackUrl) return;
+    let sound: Audio.Sound | null = null;
+
+    if (active) {
+      const load = async () => {
+        try {
+          await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+          const { sound: s } = await Audio.Sound.createAsync(
+            { uri: voiceTrackUrl },
+            { shouldPlay: true, isLooping: true },
+          );
+          sound = s;
+          voiceSoundRef.current = s;
+        } catch {
+          // best-effort — une voix off manquante ne doit pas casser la vidéo
+        }
+      };
+      void load();
+    } else {
+      voiceSoundRef.current?.stopAsync().catch(() => null);
+      voiceSoundRef.current?.unloadAsync().catch(() => null);
+      voiceSoundRef.current = null;
+    }
+
+    return () => {
+      sound?.stopAsync().catch(() => null);
+      sound?.unloadAsync().catch(() => null);
+      voiceSoundRef.current = null;
+    };
+  }, [active, voiceTrackUrl]);
 
   const flashIcon = () => {
     setShowIcon(true);
@@ -47,6 +101,7 @@ export function PostVideo({ uri, style, active = true, onExpand }: { uri: string
   return (
     <View style={style}>
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
+      <PostOverlays overlays={overlays} />
       <Pressable style={StyleSheet.absoluteFill} onPress={toggle} />
       {onExpand && (
         <Pressable style={styles.expandBtn} onPress={() => onExpand(player.currentTime ?? 0)} hitSlop={10}>

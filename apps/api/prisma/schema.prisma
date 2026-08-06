@@ -569,6 +569,17 @@ model Post {
   collabUserId     String?                   // co-auteur (post en collaboration)
   hashtags         String[]  @default([])    // extraits de la légende, pour la recherche
 
+  /// Texte et dessins superposés à la vidéo, façon CapCut. Recomposés à la
+  /// LECTURE par le client (comme Story.stickers) — jamais gravés dans le
+  /// fichier vidéo, qui reste inchangé. [{ kind: 'text'|'draw', id, x, y, ... }]
+  overlays      Json?
+  /// Son de la vidéo coupé à la lecture, choix de l'auteur (irréversible pour
+  /// le spectateur — différent du mute par appui, qui contrôle la pause).
+  videoMuted    Boolean @default(false)
+  /// Voix off enregistrée, jouée en parallèle de la vidéo (même mécanisme que
+  /// musicTrack, mais un simple fichier audio et non un JSON).
+  voiceTrackUrl String?
+
   likes      PostLike[]
   comments   PostComment[]
   saves      PostSave[]

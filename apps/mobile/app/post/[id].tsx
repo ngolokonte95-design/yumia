@@ -10,6 +10,7 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { PostVideo } from '../../components/PostVideo';
+import type { PostOverlay } from '../../lib/feed-api';
 
 const API = API_BASE_URL;
 
@@ -55,6 +56,9 @@ interface Post {
   mediaUrls: string[];
   videoUrl?: string | null;
   musicTrack?: string | null;
+  overlays?: PostOverlay[] | null;
+  videoMuted?: boolean;
+  voiceTrackUrl?: string | null;
   likesCount: number;
   likedByMe: boolean;
   hideLikeCount?: boolean;
@@ -254,7 +258,15 @@ export default function PostDetailScreen() {
         </Pressable>
 
         {/* Video player */}
-        {videoSrc && <PostVideo uri={videoSrc} style={styles.postVideo} />}
+        {videoSrc && (
+          <PostVideo
+            uri={videoSrc}
+            style={styles.postVideo}
+            overlays={post.overlays}
+            videoMuted={post.videoMuted}
+            voiceTrackUrl={post.voiceTrackUrl}
+          />
+        )}
 
         {/* Images carousel */}
         {!videoSrc && post.mediaUrls.length > 0 && (

@@ -10,6 +10,7 @@ import { feedApi, type StorySticker } from '../../lib/feed-api';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
+import { PostVideo } from '../../components/PostVideo';
 
 const API = API_BASE_URL;
 
@@ -110,8 +111,12 @@ export default function CreateStoryScreen() {
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 40 }}>
         {uri ? (
           <View style={styles.previewWrap}>
-            <Image source={{ uri }} style={styles.preview} />
-            {type === 'video' && <View style={styles.videoTag}><Text style={{ color: '#fff' }}>🎬 Vidéo</Text></View>}
+            {/* Vrai lecteur pour une vidéo — une <Image> ne sait pas décoder un
+                .mp4 (même bug que la grille de profil, corrigé ailleurs) et ne
+                permettait aucune prévisualisation réelle avant publication. */}
+            {type === 'video'
+              ? <PostVideo uri={uri} style={styles.preview} />
+              : <Image source={{ uri }} style={styles.preview} />}
             <Pressable style={styles.changeBtn} onPress={() => setUri(null)}>
               <Text style={styles.changeTxt}>Changer</Text>
             </Pressable>
@@ -275,8 +280,7 @@ const styles = StyleSheet.create({
   shareBtnDisabled: { opacity: 0.4 },
   shareBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   previewWrap: { position: 'relative', borderRadius: radius.xl, overflow: 'hidden', marginBottom: spacing.md },
-  preview: { width: '100%', aspectRatio: 0.7, borderRadius: radius.xl },
-  videoTag: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 4 },
+  preview: { width: '100%', aspectRatio: 0.7, borderRadius: radius.xl, overflow: 'hidden' },
   changeBtn: { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 8 },
   changeTxt: { color: '#fff', fontWeight: '700' },
   pickGrid: { marginBottom: spacing.md, gap: spacing.md },

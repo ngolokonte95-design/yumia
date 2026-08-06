@@ -10,6 +10,9 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
+import { PostVideo } from '../../components/PostVideo';
+import { VideoEditor } from '../../components/postEditor/VideoEditor';
+import type { PostOverlay } from '../../lib/feed-api';
 
 const API = API_BASE_URL;
 
@@ -30,6 +33,13 @@ export default function CreatePostScreen() {
   const [commentsDisabled, setCommentsDisabled] = useState(false);
   const [hideLikeCount, setHideLikeCount] = useState(false);
 
+  // Éditeur vidéo façon CapCut : texte, dessin, son coupé, voix off.
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [overlays, setOverlays] = useState<PostOverlay[]>([]);
+  const [videoMuted, setVideoMuted] = useState(false);
+  /** URI locale (pas encore hébergée) — uploadée seulement à la publication. */
+  const [voiceUri, setVoiceUri] = useState<string | null>(null);
+
   const openCamera = () => { router.push('/camera?mode=post' as never); };
 
   const pickImages = async () => {
@@ -45,10 +55,22 @@ export default function CreatePostScreen() {
   const pickVideo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: false,
+      // Sur iOS, ouvre l'éditeur natif (recadrage/trim) avant de renvoyer la
+      // vidéo — la « modification avant publication » façon Instagram, sans
+      // dépendance native supplémentaire ni nouveau build.
+      allowsEditing: true,
+      // Applique réellement la limite déjà annoncée dans l'UI ("Max 60
+      // secondes"), qui n'était jusqu'ici qu'indicative.
+      videoMaxDuration: 60,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]) setVideoUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      setVideoUri(result.assets[0].uri);
+      // Une nouvelle vidéo invalide les modifications faites sur l'ancienne.
+      setOverlays([]);
+      setVideoMuted(false);
+      setVoiceUri(null);
+    }
   };
 
   // Remonte une erreur détaillée (statut + message serveur) au lieu de renvoyer
@@ -63,6 +85,8 @@ export default function CreatePostScreen() {
       : ext === 'mov' ? 'video/quicktime'
       : ext === 'm4v' ? 'video/mp4'
       : ext === 'webm' ? 'video/webm'
+      // Voix off enregistrée (expo-av) — même type que les vocaux du chat.
+      : ext === 'm4a' || ext === 'caf' ? 'audio/m4a'
       : 'image/jpeg';
     form.append('file', { uri, type: mime, name: `media.${ext}` } as unknown as Blob);
     const res = await fetch(`${API}/posts/upload`, {
@@ -89,11 +113,19 @@ export default function CreatePostScreen() {
     try {
       let mediaUrls: string[] = [];
       let videoUrl: string | undefined;
+      let voiceTrackUrl: string | undefined;
 
       if (mode === 'photo') {
         mediaUrls = await Promise.all(images.map((uri) => uploadMedia(uri)));
       } else if (videoUri) {
-        videoUrl = await uploadMedia(videoUri);
+        // Uploads indépendants : un échec de la voix off ne doit pas
+        // empêcher la vidéo elle-même d'être publiée.
+        const uploads = await Promise.all([
+          uploadMedia(videoUri),
+          voiceUri ? uploadMedia(voiceUri) : Promise.resolve(undefined),
+        ]);
+        videoUrl = uploads[0];
+        voiceTrackUrl = uploads[1];
         mediaUrls = [videoUrl];
       }
 
@@ -104,6 +136,9 @@ export default function CreatePostScreen() {
         commentsDisabled: commentsDisabled || undefined,
         hideLikeCount: hideLikeCount || undefined,
         isDraft: asDraft || undefined,
+        overlays: mode === 'video' && overlays.length > 0 ? overlays : undefined,
+        videoMuted: mode === 'video' && videoMuted ? true : undefined,
+        voiceTrackUrl,
       };
 
       if (selectedMusic) {
@@ -195,12 +230,26 @@ export default function CreatePostScreen() {
         {/* Video picker */}
         {mode === 'video' && (
           videoUri ? (
-            <View style={styles.videoSelected}>
-              <Text style={styles.videoIcon}>🎬</Text>
-              <Text style={styles.videoName} numberOfLines={1}>Vidéo sélectionnée</Text>
-              <Pressable onPress={() => setVideoUri(null)}>
-                <Text style={{ color: '#f87171', fontWeight: '700' }}>✕ Retirer</Text>
-              </Pressable>
+            <View style={styles.videoPreviewWrap}>
+              {/* Vrai aperçu qui joue, plutôt qu'un bandeau statique : on doit
+                  pouvoir voir ce qu'on s'apprête à publier, comme Instagram. */}
+              <PostVideo
+                uri={videoUri}
+                style={styles.videoPreview}
+                overlays={overlays}
+                videoMuted={videoMuted}
+              />
+              <View style={styles.videoPreviewActions}>
+                <Pressable style={[styles.videoPreviewBtn, styles.videoPreviewBtnPrimary]} onPress={() => setEditorOpen(true)}>
+                  <Text style={[styles.videoPreviewBtnTxt, { color: '#fff' }]}>✏️ Modifier</Text>
+                </Pressable>
+                <Pressable style={styles.videoPreviewBtn} onPress={() => void pickVideo()}>
+                  <Text style={styles.videoPreviewBtnTxt}>🔁 Changer</Text>
+                </Pressable>
+                <Pressable style={styles.videoPreviewBtn} onPress={() => setVideoUri(null)}>
+                  <Text style={[styles.videoPreviewBtnTxt, { color: '#f87171' }]}>✕ Retirer</Text>
+                </Pressable>
+              </View>
             </View>
           ) : (
             <View style={styles.mediaChoiceRow}>
@@ -217,8 +266,9 @@ export default function CreatePostScreen() {
           )
         )}
 
-        {/* Music picker */}
-        {selectedMusic ? (
+        {/* Music picker — en mode vidéo, la musique se choisit depuis
+            l'éditeur (✏️ Modifier), pour éviter deux entrées redondantes. */}
+        {mode === 'photo' && (selectedMusic ? (
           <View style={styles.musicSelected}>
             <Image source={{ uri: selectedMusic.artworkUrl }} style={styles.musicArtwork} />
             <View style={{ flex: 1 }}>
@@ -240,6 +290,16 @@ export default function CreatePostScreen() {
             <Text style={styles.musicPlaceholder}>Ajouter une musique</Text>
             <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
           </Pressable>
+        ))}
+
+        {/* Aperçu discret des ajouts de l'éditeur, en mode vidéo */}
+        {mode === 'video' && videoUri && (overlays.length > 0 || selectedMusic || voiceUri || videoMuted) && (
+          <View style={styles.editorSummary}>
+            {overlays.length > 0 && <Text style={styles.editorSummaryTxt}>✏️ {overlays.length} ajout{overlays.length > 1 ? 's' : ''}</Text>}
+            {selectedMusic && <Text style={styles.editorSummaryTxt} numberOfLines={1}>🎵 {selectedMusic.title}</Text>}
+            {voiceUri && <Text style={styles.editorSummaryTxt}>🎙️ Voix off</Text>}
+            {videoMuted && <Text style={styles.editorSummaryTxt}>🔇 Son coupé</Text>}
+          </View>
         )}
 
         {/* Caption */}
@@ -281,6 +341,24 @@ export default function CreatePostScreen() {
         onSelect={(track) => setSelectedMusic(track)}
         accessToken={accessToken}
       />
+
+      {videoUri && (
+        <VideoEditor
+          visible={editorOpen}
+          uri={videoUri}
+          initial={{ overlays, videoMuted, voiceTrackUri: voiceUri }}
+          initialMusic={selectedMusic}
+          accessToken={accessToken}
+          onClose={() => setEditorOpen(false)}
+          onDone={(result) => {
+            setOverlays(result.overlays);
+            setVideoMuted(result.videoMuted);
+            setVoiceUri(result.voiceTrackUri);
+            setSelectedMusic(result.music);
+            setEditorOpen(false);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -328,13 +406,29 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  videoSelected: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md,
-    marginBottom: spacing.md, borderWidth: 1, borderColor: colors.brand + '44',
+  videoPreviewWrap: { marginBottom: spacing.md },
+  videoPreview: {
+    width: '100%', aspectRatio: 4 / 5, borderRadius: radius.xl,
+    overflow: 'hidden', backgroundColor: colors.surface,
   },
-  videoIcon: { fontSize: 28 },
-  videoName: { flex: 1, color: colors.text, fontWeight: '600', fontSize: 14 },
+  videoPreviewActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  videoPreviewBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 10,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  videoPreviewBtnPrimary: { backgroundColor: colors.brand, borderColor: colors.brand },
+  videoPreviewBtnTxt: { color: colors.text, fontWeight: '600', fontSize: 13 },
+  editorSummary: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  editorSummaryTxt: {
+    fontSize: 12, color: colors.textSecondary, fontWeight: '600',
+    backgroundColor: colors.surface, borderRadius: radius.pill,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderWidth: 1, borderColor: colors.border,
+  },
   musicRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.surface, borderRadius: radius.lg,

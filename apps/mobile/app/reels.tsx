@@ -10,7 +10,8 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
-import { feedApi, type FeedPost } from '../lib/feed-api';
+import { feedApi, type FeedPost, type PostOverlay } from '../lib/feed-api';
+import { PostOverlays } from '../components/PostOverlays';
 
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -19,7 +20,7 @@ type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
 function ReelVideo({
-  uri, active, muted, progressAnim, startAtSec,
+  uri, active, muted, progressAnim, startAtSec, overlays,
 }: {
   uri: string;
   active: boolean;
@@ -28,6 +29,8 @@ function ReelVideo({
   progressAnim: Animated.Value;
   /** Position de départ (continuité avec la lecture depuis le feed). */
   startAtSec?: number;
+  /** Texte et dessins superposés à la publication d'origine. */
+  overlays?: PostOverlay[] | null;
 }) {
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -68,12 +71,15 @@ function ReelVideo({
   }, [active, player, progressAnim, startAtSec]);
 
   return (
-    <VideoView
-      player={player}
-      style={StyleSheet.absoluteFill}
-      contentFit="cover"
-      nativeControls={false}
-    />
+    <>
+      <VideoView
+        player={player}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+      />
+      <PostOverlays overlays={overlays} />
+    </>
   );
 }
 
@@ -97,12 +103,16 @@ function ReelCard({
     catch { return null; }
   })() : null;
   const [muted, setMuted] = useState(!!musicMeta);
+  // Le son coupé par l'auteur est irréversible pour le spectateur — le tap
+  // sur l'icône son (ci-dessous) ne doit pas pouvoir le contourner.
+  const effectiveMuted = muted || !!item.videoMuted;
   const [liked, setLiked] = useState(item.likedByMe);
   const [likes, setLikes] = useState(item.likesCount);
   const [paused, setPaused] = useState(false);
   const [showPlayIcon, setShowPlayIcon] = useState(false);
   const playIconOpacity = useRef(new Animated.Value(0)).current;
   const musicSoundRef = useRef<Audio.Sound | null>(null);
+  const voiceSoundRef = useRef<Audio.Sound | null>(null);
   const diskAnim = useRef(new Animated.Value(0)).current;
   const diskLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -169,6 +179,43 @@ function ReelCard({
     else if (active) musicSoundRef.current?.playAsync().catch(() => null);
   }, [paused, active]);
 
+  // Voix off enregistrée à la publication — même mécanisme que la musique,
+  // jouée en parallèle (les deux peuvent coexister, comme une vraie piste
+  // audio de vidéo).
+  useEffect(() => {
+    if (!item.voiceTrackUrl) return;
+    let sound: Audio.Sound | null = null;
+    if (active) {
+      const load = async () => {
+        try {
+          await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+          const { sound: s } = await Audio.Sound.createAsync(
+            { uri: item.voiceTrackUrl! },
+            { shouldPlay: true, isLooping: true },
+          );
+          sound = s;
+          voiceSoundRef.current = s;
+        } catch {}
+      };
+      void load();
+    } else {
+      voiceSoundRef.current?.stopAsync().catch(() => null);
+      voiceSoundRef.current?.unloadAsync().catch(() => null);
+      voiceSoundRef.current = null;
+    }
+    return () => {
+      sound?.stopAsync().catch(() => null);
+      sound?.unloadAsync().catch(() => null);
+      voiceSoundRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, item.voiceTrackUrl]);
+
+  useEffect(() => {
+    if (paused) voiceSoundRef.current?.pauseAsync().catch(() => null);
+    else if (active) voiceSoundRef.current?.playAsync().catch(() => null);
+  }, [paused, active]);
+
   // Rotation du disque vinyle
   useEffect(() => {
     diskLoopRef.current?.stop();
@@ -195,7 +242,14 @@ function ReelCard({
       {/* Fond / vidéo */}
       {mediaUrl ? (
         isVideo ? (
-          <ReelVideo uri={mediaUrl} active={effectiveActive} muted={muted} progressAnim={progressAnim} startAtSec={startAtSec} />
+          <ReelVideo
+            uri={mediaUrl}
+            active={effectiveActive}
+            muted={effectiveMuted}
+            progressAnim={progressAnim}
+            startAtSec={startAtSec}
+            overlays={item.overlays}
+          />
         ) : (
           <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
         )
@@ -303,19 +357,26 @@ function ReelCard({
         )}
       </View>
 
-      {/* Icône son — mute vidéo ET piste musicale */}
-      <Pressable style={styles.muteBtn} onPress={() => {
-        setMuted((v) => {
-          const next = !v;
-          if (musicSoundRef.current) {
-            if (next) { musicSoundRef.current.pauseAsync().catch(() => null); }
-            else { musicSoundRef.current.playAsync().catch(() => null); }
-          }
-          return next;
-        });
-      }}>
-        <Text style={{ fontSize: 20, color: '#fff' }}>{muted ? '🔇' : '🔊'}</Text>
-      </Pressable>
+      {/* Icône son — mute vidéo ET piste musicale. Non interactive si l'auteur
+          a coupé le son à la publication : ce choix ne se contourne pas. */}
+      {item.videoMuted ? (
+        <View style={styles.muteBtn}>
+          <Text style={{ fontSize: 20, color: '#fff' }}>🔇</Text>
+        </View>
+      ) : (
+        <Pressable style={styles.muteBtn} onPress={() => {
+          setMuted((v) => {
+            const next = !v;
+            if (musicSoundRef.current) {
+              if (next) { musicSoundRef.current.pauseAsync().catch(() => null); }
+              else { musicSoundRef.current.playAsync().catch(() => null); }
+            }
+            return next;
+          });
+        }}>
+          <Text style={{ fontSize: 20, color: '#fff' }}>{muted ? '🔇' : '🔊'}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }

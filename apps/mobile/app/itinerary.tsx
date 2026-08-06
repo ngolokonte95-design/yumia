@@ -222,8 +222,15 @@ export default function ItineraryScreen() {
               onPress={() => setBudget(b.key)}
             >
               <Text style={styles.budgetEmoji}>{b.emoji}</Text>
-              <View>
-                <Text style={[styles.budgetLabel, budget === b.key && styles.chipLabelActive]}>{b.label}</Text>
+              <View style={styles.budgetTextCol}>
+                <Text
+                  style={[styles.budgetLabel, budget === b.key && styles.chipLabelActive]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
+                  {b.label}
+                </Text>
                 <Text style={[styles.budgetDesc, budget === b.key && { color: 'rgba(255,255,255,0.8)' }]}>{b.desc}</Text>
               </View>
             </Pressable>
@@ -393,15 +400,19 @@ const styles = StyleSheet.create({
   durationEmoji: { fontSize: 16 },
   durationLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
   budgetChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: colors.surface, borderRadius: radius.md,
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingHorizontal: 10, paddingVertical: 10,
     borderWidth: 1.5, borderColor: colors.border,
-    flex: 1, minWidth: '30%',
+    flexGrow: 1, flexBasis: '30%',
   },
-  budgetEmoji: { fontSize: 18 },
-  budgetLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
-  budgetDesc: { fontSize: 11, color: colors.textMuted },
+  budgetEmoji: { fontSize: 16 },
+  // flex:1 est indispensable : sans lui, cette colonne prend sa largeur
+  // naturelle et « Économique » (bien plus long que « Moyen »/« Premium »)
+  // déborde du cadre de la case au lieu de s'y adapter.
+  budgetTextCol: { flex: 1 },
+  budgetLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '700' },
+  budgetDesc: { fontSize: 10, color: colors.textMuted },
   chipLabelActive: { color: '#fff' },
 
   input: {
