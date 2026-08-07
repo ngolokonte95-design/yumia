@@ -1,24 +1,82 @@
 /**
- * NOTIFICATION CENTER — historique des notifications push reçues.
- * Les données sont stockées localement dans SecureStore par le listener
- * démarré dans _layout.tsx.
+ * CENTRE DE NOTIFICATIONS — historique persistant côté serveur.
+ * Chaque notification envoyée en push (like, commentaire, abonné, appel,
+ * badge…) est aussi enregistrée par l'API — voir lib/notifications-api.ts.
+ * Contrairement à l'ancienne version (SecureStore, par appareil), l'historique
+ * est donc le même sur tous les appareils, et n'est pas perdu si une push a
+ * été manquée hors-ligne.
  */
-import { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
-import { useNotificationHistory } from '../lib/useNotificationHistory';
-import type { StoredNotification } from '../lib/useNotificationHistory';
+import { useAuth } from '../lib/auth-context';
+import { notificationsApi, type ServerNotification } from '../lib/notifications-api';
+import { notificationTarget } from '../lib/notificationRouting';
+import { clearUnreadCountLocally, refreshUnreadCount } from '../lib/useNotifications';
+
+const TYPE_ICON: Record<string, string> = {
+  post_like: '❤️',
+  post_comment: '💬',
+  new_follower: '👤',
+  story_reply: '↩️',
+  incoming_call: '📞',
+  encounter: '⚡',
+  badge_unlocked: '🏆',
+  level_up: '🚀',
+  streak_milestone: '🔥',
+  streak_danger: '🔥',
+  daily_digest: '🌅',
+  closing_soon: '⏰',
+  generic: '🔔',
+};
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { items, markAllRead } = useNotificationHistory();
+  const { accessToken } = useAuth();
 
+  const [items, setItems] = useState<ServerNotification[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!accessToken) return;
+    const page = await notificationsApi.list(accessToken);
+    setItems(page.items);
+    setNextCursor(page.nextCursor);
+    setLoading(false);
+  }, [accessToken]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  // Tout marquer lu à l'ouverture (comme avant) — mais synchronisé côté
+  // serveur désormais, donc valable sur tous les appareils.
   useEffect(() => {
-    void markAllRead();
-  }, [markAllRead]);
+    if (!accessToken) return;
+    clearUnreadCountLocally();
+    void notificationsApi.markAllRead(accessToken).then(() => refreshUnreadCount(accessToken));
+  }, [accessToken]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
+  const loadMore = useCallback(async () => {
+    if (!accessToken || !nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    const page = await notificationsApi.list(accessToken, nextCursor);
+    setItems((prev) => [...prev, ...page.items]);
+    setNextCursor(page.nextCursor);
+    setLoadingMore(false);
+  }, [accessToken, nextCursor, loadingMore]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -30,7 +88,11 @@ export default function NotificationsScreen() {
         <Text style={styles.title}>Notifications</Text>
       </View>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.brand} />
+        </View>
+      ) : items.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>🔔</Text>
           <Text style={styles.emptyText}>Aucune notification pour le moment.</Text>
@@ -42,22 +104,32 @@ export default function NotificationsScreen() {
           keyExtractor={(n) => n.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => <NotifRow item={item} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.brand} />
+          }
+          onEndReachedThreshold={0.4}
+          onEndReached={() => void loadMore()}
+          renderItem={({ item }) => (
+            <NotifRow item={item} onPress={() => router.push(notificationTarget(item) as never)} />
+          )}
+          ListFooterComponent={
+            loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : null
+          }
         />
       )}
     </View>
   );
 }
 
-function NotifRow({ item }: { item: StoredNotification }) {
-  const date = new Date(item.receivedAt);
+function NotifRow({ item, onPress }: { item: ServerNotification; onPress: () => void }) {
+  const date = new Date(item.createdAt);
   const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
   return (
-    <View style={[styles.row, !item.read && styles.rowUnread]}>
+    <Pressable style={[styles.row, !item.read && styles.rowUnread]} onPress={onPress}>
       <View style={styles.iconBox}>
-        <Text style={styles.icon}>🔔</Text>
+        <Text style={styles.icon}>{TYPE_ICON[item.type] ?? '🔔'}</Text>
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{item.title}</Text>
@@ -65,7 +137,7 @@ function NotifRow({ item }: { item: StoredNotification }) {
         <Text style={styles.rowTime}>{dateStr} · {timeStr}</Text>
       </View>
       {!item.read ? <View style={styles.unreadDot} /> : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -84,6 +156,7 @@ const styles = StyleSheet.create({
   backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
   title: { ...typography.heading, color: colors.textPrimary },
 
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
   emptyEmoji: { fontSize: 56 },
   emptyText: { ...typography.heading, color: colors.textPrimary, textAlign: 'center' },

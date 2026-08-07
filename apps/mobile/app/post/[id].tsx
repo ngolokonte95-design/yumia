@@ -93,7 +93,6 @@ export default function PostDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const musicSoundRef = useRef<Audio.Sound | null>(null);
 
   const stopMusic = useCallback(async () => {
@@ -102,33 +101,30 @@ export default function PostDetailScreen() {
       await musicSoundRef.current.unloadAsync().catch(() => null);
       musicSoundRef.current = null;
     }
-    setIsMusicPlaying(false);
   }, []);
 
-  const toggleMusic = useCallback(async (previewUrl: string) => {
-    if (musicSoundRef.current) { await stopMusic(); return; }
+  // La musique fait partie intégrante de la publication (comme dans le fil,
+  // social.tsx) : elle se joue automatiquement, pas de pause/lecture manuelle
+  // à part — seul le tap sur la vidéo (ci-dessous) la met en pause, avec elle.
+  const startMusic = useCallback(async (previewUrl: string) => {
+    await stopMusic();
     try {
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
       const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
       musicSoundRef.current = sound;
       sound.setOnPlaybackStatusUpdate((st) => {
-        if (!st.isLoaded) {
-          if (st.error) {
-            sound.unloadAsync().catch(() => null);
-            if (musicSoundRef.current === sound) { musicSoundRef.current = null; setIsMusicPlaying(false); }
-          }
-          return;
+        if (!st.isLoaded && st.error) {
+          sound.unloadAsync().catch(() => null);
+          if (musicSoundRef.current === sound) musicSoundRef.current = null;
         }
-        if (!st.isPlaying && !st.isBuffering) setIsMusicPlaying(false);
       });
-      setIsMusicPlaying(true);
-    } catch { setIsMusicPlaying(false); }
+    } catch { /* pas de musique, tant pis pour la musique — pas pour le post */ }
   }, [stopMusic]);
 
   // Auto-play dès l'ouverture du post (façon Instagram), stop si on quitte l'écran.
   useEffect(() => {
     const music = parseMusicTrack(post?.musicTrack);
-    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void toggleMusic(music.previewUrl);
+    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void startMusic(music.previewUrl);
     return () => { void stopMusic(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post?.id]);
@@ -136,6 +132,18 @@ export default function PostDetailScreen() {
   useFocusEffect(useCallback(() => {
     return () => { void stopMusic(); };
   }, [stopMusic]));
+
+  // Tap pause/lecture sur la vidéo → musique en pause/reprise avec elle.
+  const onVideoPlayingChange = useCallback((playing: boolean) => {
+    if (playing) musicSoundRef.current?.playAsync().catch(() => null);
+    else musicSoundRef.current?.pauseAsync().catch(() => null);
+  }, []);
+
+  // Vidéo qui boucle → musique resynchronisée au même instant (sinon elle
+  // dérive sur son propre cycle, indépendant de la vidéo).
+  const onVideoLoop = useCallback(() => {
+    musicSoundRef.current?.setPositionAsync(0).catch(() => null);
+  }, []);
 
   const load = useCallback(async () => {
     if (!accessToken || !id) return;
@@ -229,6 +237,7 @@ export default function PostDetailScreen() {
   // post vidéo dont le fichier ne vit que dans mediaUrls passait par l'<Image>,
   // qui ne le décode pas — d'où des publications affichées cassées.
   const videoSrc = isVideoUrl(post.mediaUrls[0]) ? post.mediaUrls[0] : (post.videoUrl ?? undefined);
+  const music = parseMusicTrack(post.musicTrack);
 
   return (
     <KeyboardAvoidingView
@@ -263,8 +272,12 @@ export default function PostDetailScreen() {
             uri={videoSrc}
             style={styles.postVideo}
             overlays={post.overlays}
-            videoMuted={post.videoMuted}
+            // Une musique ajoutée remplace le son d'origine de la vidéo — les
+            // deux ne doivent jamais jouer en même temps (même règle que le fil).
+            videoMuted={post.videoMuted || !!music}
             voiceTrackUrl={post.voiceTrackUrl}
+            onPlayingChange={music ? onVideoPlayingChange : undefined}
+            onLoop={music ? onVideoLoop : undefined}
           />
         )}
 
@@ -289,26 +302,19 @@ export default function PostDetailScreen() {
           </View>
         )}
 
-        {/* Music badge */}
-        {post.musicTrack && (() => {
-          const music = parseMusicTrack(post.musicTrack);
-          if (!music) return null;
-          return (
-            <Pressable
-              style={styles.musicBadge}
-              onPress={() => music.previewUrl && isPlayableAudioUrl(music.previewUrl) ? void toggleMusic(music.previewUrl) : null}
-            >
-              {music.artworkUrl
-                ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
-                : <Text style={styles.musicIcon}>🎵</Text>}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
-                {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
-              </View>
-              {music.previewUrl ? <Text style={{ fontSize: 18 }}>{isMusicPlaying ? '⏸' : '▶️'}</Text> : null}
-            </Pressable>
-          );
-        })()}
+        {/* Music badge — intégrée à la publication, pas de pause/lecture à part
+            (le tap sur la vidéo la contrôle, voir onPlayingChange ci-dessus). */}
+        {music && (
+          <View style={styles.musicBadge}>
+            {music.artworkUrl
+              ? <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
+              : <Text style={styles.musicIcon}>🎵</Text>}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
+              {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
+            </View>
+          </View>
+        )}
 
         {/* Actions */}
         <View style={styles.actions}>

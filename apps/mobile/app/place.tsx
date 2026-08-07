@@ -770,7 +770,7 @@ const similarStyles = StyleSheet.create({
 function calendarCategoryFor(universe: string): string {
   const FOOD = ['restaurant', 'cafe', 'bar', 'bakery', 'brunch', 'dessert', 'pub',
     'ice_cream', 'chocolatier', 'wine_cellar', 'tea_house', 'juice_bar',
-    'food_truck', 'local_specialty', 'rooftop'];
+    'food_truck', 'butcher', 'rooftop'];
   const STAY = ['hotel', 'camping', 'campground'];
   const SHOW = ['nightclub', 'live_music', 'karaoke', 'comedy_club', 'cinema',
     'event_venue', 'casino'];

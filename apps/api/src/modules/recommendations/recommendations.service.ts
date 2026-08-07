@@ -54,7 +54,7 @@ const EXPERIENCE_FALLBACKS: Record<
   travel: [
     { order: 1, labelFr: 'Découverte', universe: 'cultural_outing', reasonFr: "Imprègne-toi de la culture locale." },
     { order: 2, labelFr: 'Pause café', universe: 'cafe', reasonFr: 'Un café comme un local.' },
-    { order: 3, labelFr: 'Spécialité locale', universe: 'local_specialty', reasonFr: 'La cuisine du terroir.' },
+    { order: 3, labelFr: 'Spécialité locale', universe: 'restaurant', reasonFr: 'La cuisine du terroir.' },
   ],
   default: [
     { order: 1, labelFr: 'Pour commencer', universe: 'cafe', reasonFr: 'Un bon point de départ.' },

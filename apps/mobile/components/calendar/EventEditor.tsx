@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Modal, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { PressableScale } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -159,7 +159,10 @@ export function EventEditor({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.backdrop}
+      >
         <View style={styles.sheet}>
           <View style={styles.handle} />
 
@@ -293,7 +296,7 @@ export function EventEditor({
             <View style={{ height: spacing.xxl }} />
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

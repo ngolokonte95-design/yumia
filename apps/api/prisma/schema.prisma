@@ -73,6 +73,7 @@ model User {
   earnedBadges        EarnedBadge[]
   streak              Streak?
   groupSessions       GroupMember[]
+  notifications       Notification[]
 
   @@index([countryCode])
   @@index([expoPushToken])
@@ -111,7 +112,8 @@ enum Universe {
   tea_house
   juice_bar
   food_truck
-  local_specialty
+  local_specialty // LEGACY — remplacé par 'butcher' (migration 20260807110000)
+  butcher
   // Bars & Soirées
   bar
   pub
@@ -1119,4 +1121,29 @@ model GuideBooking {
 
   @@index([guideId])
   @@index([userId])
+}
+
+/// Centre de notifications — persistance server-side de ce qui est envoyé en
+/// push (voir NotificationsService.sendToUser/sendBatch). Avant ce modèle,
+/// chaque push était fire-and-forget : rien n'était stocké côté serveur, donc
+/// une notif manquée hors-ligne était perdue pour de bon, et le badge/l'écran
+/// "Notifications" du mobile ne lisaient qu'un historique local (SecureStore,
+/// par appareil, effacé à la désinstallation).
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// post_like | post_comment | new_follower | story_reply | incoming_call |
+  /// encounter | badge_unlocked | level_up | streak_milestone |
+  /// streak_danger | daily_digest | closing_soon | generic
+  type      String
+  title     String
+  body      String
+  /// Contexte pour le deep-link côté mobile (postId, userId, callId…).
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, read])
 }

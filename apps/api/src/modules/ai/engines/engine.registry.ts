@@ -46,7 +46,7 @@ const UNIVERSE_INSTRUCTION =
   `Exemples : plat/cuisine/nourriture → restaurant | boisson/bière/verre → bar | café/travail → cafe | ` +
   `gâteau/pâtisserie → bakery | sortie/musée/visite → cultural_outing | discothèque/club → nightclub | ` +
   `cocktail/afterwork → bar | vin → wine_cellar | glace → ice_cream | chocolat → chocolatier | ` +
-  `bulle/thé → bubble_tea | spécialité locale → local_specialty | terrasse → rooftop | ` +
+  `bulle/thé → bubble_tea | boucherie/viande → butcher | terrasse → rooftop | ` +
   `soirée/boîte → nightlife | massage/soin → spa | sport/salle → fitness | film → cinema | ` +
   `marché → market | parc/nature → park | jeux/escape → escape_game | musique live → live_music.`;
 
@@ -148,7 +148,7 @@ export const ENGINE_REGISTRY: Record<AiEngine, EngineDefinition> = {
     system: SYSTEM_BASE,
     buildPrompt: (ctx) =>
       `Assemble une séquence de 3 étapes (ex. apéro → dîner → bar) adaptée au mode "${ctx.mode ?? 'date'}" et au contexte : ${ctxSummary(ctx)}. ` +
-      `Pour chaque étape, fournis : order (1/2/3), labelFr (libellé humain), universe (un parmi : restaurant, cafe, bakery, dessert, bar, bubble_tea, local_specialty, ice_cream, chocolatier, wine_cellar, tourist_activity, rooftop, cultural_outing, nightlife), reasonFr (1 phrase).`,
+      `Pour chaque étape, fournis : order (1/2/3), labelFr (libellé humain), universe (un parmi : restaurant, cafe, bakery, dessert, bar, bubble_tea, butcher, ice_cream, chocolatier, wine_cellar, tourist_activity, rooftop, cultural_outing, nightlife), reasonFr (1 phrase).`,
     jsonSchema: {
       type: 'object',
       additionalProperties: false,

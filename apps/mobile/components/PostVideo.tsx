@@ -12,7 +12,7 @@ import type { PostOverlay } from '../lib/feed-api';
  * `uri` doit être une URL http(s) accessible.
  */
 export function PostVideo({
-  uri, style, active = true, onExpand, overlays, videoMuted = false, voiceTrackUrl,
+  uri, style, active = true, onExpand, overlays, videoMuted = false, voiceTrackUrl, onPlayingChange, onLoop,
 }: {
   uri: string;
   style?: ViewStyle;
@@ -27,6 +27,19 @@ export function PostVideo({
   videoMuted?: boolean;
   /** Voix off enregistrée, jouée en parallèle de la vidéo. */
   voiceTrackUrl?: string | null;
+  /**
+   * Prévient l'écran parent d'un tap pause/lecture — nécessaire pour la
+   * musique du post, qui vit hors de ce composant (chargée par le fil pour
+   * suivre le défilement) : sans ce callback, mettre la vidéo en pause ne
+   * mettait pas la musique en pause, les deux continuaient indépendamment.
+   */
+  onPlayingChange?: (playing: boolean) => void;
+  /**
+   * Prévient l'écran parent à chaque bouclage de la vidéo (elle est en
+   * lecture en boucle) — sert à faire redémarrer la musique du post en même
+   * temps, sinon elle continue son propre cycle sans jamais se resynchroniser.
+   */
+  onLoop?: () => void;
 }) {
   const [playing, setPlaying] = useState(true);
   const [showIcon, setShowIcon] = useState(false);
@@ -41,9 +54,32 @@ export function PostVideo({
   });
 
   useEffect(() => {
-    const sub = player.addListener('playingChange', ({ isPlaying }) => setPlaying(isPlaying));
+    const sub = player.addListener('playingChange', ({ isPlaying }) => {
+      setPlaying(isPlaying);
+      onPlayingChange?.(isPlaying);
+    });
     return () => sub.remove();
-  }, [player]);
+  }, [player, onPlayingChange]);
+
+  // La vidéo boucle (`p.loop = true`) mais la musique/voix off, chargées à
+  // part avec leur propre boucle, dérivaient au fil du temps — plus rien ne
+  // les resynchronisait au redémarrage de la vidéo. `playToEnd` se déclenche
+  // à chaque tour, boucle ou pas : on en profite pour tout remettre à zéro
+  // ensemble, façon Story/Reel : la musique "dure" alors le temps de la vidéo.
+  useEffect(() => {
+    const sub = player.addListener('playToEnd', () => {
+      voiceSoundRef.current?.setPositionAsync(0).catch(() => null);
+      onLoop?.();
+    });
+    return () => sub.remove();
+  }, [player, onLoop]);
+
+  // La voix off suit aussi la pause manuelle (tap) — même son chargé, juste
+  // suspendu, pas de rechargement contrairement à l'effet actif/inactif ci-dessous.
+  useEffect(() => {
+    if (playing) voiceSoundRef.current?.playAsync().catch(() => null);
+    else voiceSoundRef.current?.pauseAsync().catch(() => null);
+  }, [playing]);
 
   useEffect(() => {
     if (active) player.play();

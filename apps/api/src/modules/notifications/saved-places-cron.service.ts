@@ -42,7 +42,7 @@ export class SavedPlacesCronService {
     });
 
     const todayIdx = (now.getUTCDay() + 6) % 7; // lundi=0 … dimanche=6
-    const toSend: { token: string; placeName: string; closingTime: string }[] = [];
+    const toSend: { token: string; userId: string; placeId: string; placeName: string; closingTime: string }[] = [];
 
     for (const s of saved) {
       if (!s.user.expoPushToken?.startsWith('ExponentPushToken[')) continue;
@@ -72,7 +72,10 @@ export class SavedPlacesCronService {
         const h = Math.floor(closingMinutes / 60);
         const m = closingMinutes % 60;
         const closingTime = `${String(h).padStart(2, '0')}h${m === 0 ? '00' : String(m).padStart(2, '0')}`;
-        toSend.push({ token: s.user.expoPushToken, placeName: s.place.name, closingTime });
+        toSend.push({
+          token: s.user.expoPushToken, userId: s.user.id, placeId: s.place.id,
+          placeName: s.place.name, closingTime,
+        });
       }
     }
 
@@ -80,12 +83,13 @@ export class SavedPlacesCronService {
     if (toSend.length === 0) return;
 
     await this.notifications.sendBatch(
-      toSend.map(({ token, placeName, closingTime }) => ({
+      toSend.map(({ token, userId, placeId, placeName, closingTime }) => ({
         to: token,
+        userId,
         title: `⏰ ${placeName} ferme à ${closingTime}`,
         body: "C'est le bon moment pour y aller avant la fermeture !",
         sound: 'default' as const,
-        data: { type: 'closing_soon' },
+        data: { type: 'closing_soon', placeId },
       })),
     );
   }

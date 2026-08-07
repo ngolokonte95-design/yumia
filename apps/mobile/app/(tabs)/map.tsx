@@ -29,6 +29,7 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import { useSearchRadius, RADIUS_PRESETS_KM } from '../../lib/useSearchRadius';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
+import { RadiusIcon } from '../../components/icons/RadiusIcon';
 
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
@@ -37,6 +38,11 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_COLLAPSED = 56;
 const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
 const DRAWER_MAX_TRANSLATE = DRAWER_EXPANDED - DRAWER_COLLAPSED;
+
+/** Univers du panneau de filtre, triés alphabétiquement (« Tous » reste à part, en tête). */
+const SORTED_UNIVERSES = [...UNIVERSES].sort(
+  (a, b) => UNIVERSE_META[a].labelFr.localeCompare(UNIVERSE_META[b].labelFr, 'fr'),
+);
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
@@ -440,7 +446,8 @@ export default function MapScreen() {
             style={styles.radiusButton}
             onPress={() => { setRadiusPanelOpen((o) => !o); setFilterPanelOpen(false); }}
           >
-            <Text style={styles.radiusButtonText} numberOfLines={1}>📏 {radiusKm} km</Text>
+            <RadiusIcon size={22} />
+            <Text style={styles.radiusButtonText} numberOfLines={1}>{radiusKm} km</Text>
             <Text style={styles.filterButtonChevron}>{radiusPanelOpen ? '▲' : '▾'}</Text>
           </Pressable>
         </View>
@@ -454,7 +461,7 @@ export default function MapScreen() {
               keyboardShouldPersistTaps="handled"
             >
               <FilterTile label="Tous" emoji="🗂️" active={universe === null} onPress={() => selectUniverse(null)} />
-              {UNIVERSES.map((u) => (
+              {SORTED_UNIVERSES.map((u) => (
                 <FilterTile
                   key={u}
                   label={UNIVERSE_META[u].labelFr}

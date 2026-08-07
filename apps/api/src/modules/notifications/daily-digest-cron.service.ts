@@ -63,6 +63,7 @@ export class DailyDigestCronService {
       const batch = eligible.slice(i, i + BATCH);
       const messages = batch.map((u) => ({
         to: u.expoPushToken!,
+        userId: u.id,
         title,
         body,
         sound: 'default' as const,

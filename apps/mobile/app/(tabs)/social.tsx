@@ -141,7 +141,7 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
         renderItem={({ item: url, index }) => (
           <Pressable onPress={onPress}>
             {isVideoUrl(url) ? (
-              <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 4 / 5 }} active={active && index === idx} onExpand={onExpand} />
+              <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 1 }} active={active && index === idx} onExpand={onExpand} />
             ) : (
               <Image source={{ uri: url }} style={{ width: SCREEN_W, aspectRatio: 1 }} />
             )}
@@ -164,7 +164,10 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
 
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
-function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPress, currentUserId, onDelete, isActive }: {
+function PostCard({
+  item, onLike, onSave, onRepost, onComment, onShare, onUserPress, currentUserId, onDelete, isActive,
+  onVideoPlayingChange, onVideoLoop,
+}: {
   item: FeedPost;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
@@ -176,6 +179,13 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
   onDelete?: (id: string) => void;
   /** Le post est actuellement visible à l'écran (feed) — coupe le son sinon. */
   isActive?: boolean;
+  /**
+   * Tap pause/lecture sur la vidéo — pour mettre la musique du post en pause
+   * en même temps (elle est chargée par le fil, pas par la vidéo elle-même).
+   */
+  onVideoPlayingChange?: (postId: string, playing: boolean) => void;
+  /** La vidéo boucle — pour remettre la musique du post à zéro en même temps. */
+  onVideoLoop?: (postId: string) => void;
 }) {
   const isOwner = !!currentUserId && item.userId === currentUserId;
   const router = useRouter();
@@ -241,6 +251,8 @@ function PostCard({ item, onLike, onSave, onRepost, onComment, onShare, onUserPr
                   // deux ne doivent jamais jouer en même temps.
                   videoMuted={item.videoMuted || !!music}
                   voiceTrackUrl={item.voiceTrackUrl}
+                  onPlayingChange={music ? (playing) => onVideoPlayingChange?.(item.id, playing) : undefined}
+                  onLoop={music ? () => onVideoLoop?.(item.id) : undefined}
                 />
               )
               : (
@@ -372,16 +384,16 @@ export default function SocialTab() {
     setPlayingMusicId(null);
   }, []);
 
-  // Callback de statut partagé — gère aussi les erreurs async (URL non lisible)
-  const makeStatusCb = useCallback((snd: Audio.Sound) => (st: { isLoaded: boolean; isPlaying?: boolean; isBuffering?: boolean; error?: string }) => {
-    if (!st.isLoaded) {
-      if (st.error) {
-        snd.unloadAsync().catch(() => null);
-        if (musicSoundRef.current === snd) { musicSoundRef.current = null; setPlayingMusicId(null); }
-      }
-      return;
+  // Callback de statut partagé — gère les erreurs async (URL non lisible).
+  // Ne réagit plus à `isPlaying: false` : une mise en pause volontaire (tap
+  // sur la vidéo) déclenche exactement le même signal qu'un arrêt réel, et
+  // effacer `playingMusicId` à ce moment-là empêchait la reprise — au tap
+  // play suivant, plus rien ne rattachait le son chargé à ce post.
+  const makeStatusCb = useCallback((snd: Audio.Sound) => (st: { isLoaded: boolean; error?: string }) => {
+    if (!st.isLoaded && st.error) {
+      snd.unloadAsync().catch(() => null);
+      if (musicSoundRef.current === snd) { musicSoundRef.current = null; setPlayingMusicId(null); }
     }
-    if (!st.isPlaying && !st.isBuffering) setPlayingMusicId(null);
   }, []);
 
   const startTrack = useCallback(async (postId: string, previewUrl: string) => {
@@ -415,6 +427,24 @@ export default function SocialTab() {
     if (!isPlayableAudioUrl(previewUrl)) { await stopMusic(); return; }
     await startTrack(postId, previewUrl);
   }, [playingMusicId, stopMusic, startTrack]);
+
+  // Tap pause/lecture sur la vidéo d'un post → met sa musique en pause/reprise
+  // en même temps (sans recharger le son, juste play/pause dessus). Sans ça,
+  // mettre la vidéo en pause laissait la musique tourner toute seule.
+  const onVideoPlayingChange = useCallback((postId: string, playing: boolean) => {
+    if (playingMusicId !== postId) return;
+    if (playing) musicSoundRef.current?.playAsync().catch(() => null);
+    else musicSoundRef.current?.pauseAsync().catch(() => null);
+  }, [playingMusicId]);
+
+  // La vidéo boucle sur elle-même ; sans resynchronisation, la musique
+  // (chargée à part, avec sa propre boucle) finit par dériver et ne redémarre
+  // plus avec la vidéo. À chaque tour de la vidéo, on remet la musique à zéro
+  // — elle "dure" ainsi le temps de la vidéo, comme demandé.
+  const onVideoLoop = useCallback((postId: string) => {
+    if (playingMusicId !== postId) return;
+    musicSoundRef.current?.setPositionAsync(0).catch(() => null);
+  }, [playingMusicId]);
 
   // Refs stables pour le callback viewability (évite de recréer la fonction)
   const autoPlayPostRef = useRef(autoPlayPost);
@@ -603,6 +633,8 @@ export default function SocialTab() {
           currentUserId={me?.id}
           onDelete={handleDeletePost}
           isActive={visiblePostId === item.id && screenFocused}
+          onVideoPlayingChange={onVideoPlayingChange}
+          onVideoLoop={onVideoLoop}
         />
       )}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
@@ -916,7 +948,9 @@ const styles = StyleSheet.create({
   postPlace: { fontSize: 11, color: colors.textMuted },
   postAgo: { marginLeft: 'auto', fontSize: 12, color: colors.textMuted },
   postImage: { width: '100%', aspectRatio: 1 },
-  postVideo: { width: '100%', aspectRatio: 4 / 5 },
+  // Carrée comme les photos (avant : 4/5, portrait — trop haute, on ne voyait
+  // ni l'en-tête ni les actions/commentaires en dessous sans scroller).
+  postVideo: { width: '100%', aspectRatio: 1 },
   videoPlaceholder: { backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   videoBadge: { position: 'absolute', top: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   multiIndicator: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },

@@ -41,6 +41,7 @@ export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
   camping:              'camping bivouac camping sauvage tente campsite',
   botanical_garden:     'jardin botanique jardin fleuri parc floral roseraie arboretum',
   picnic_area:          'aire pique-nique parc espace vert pelouse détente nature',
+  waterspot:            'cascade lac rivière source crique baie lagon gorge glacier canal estuaire marais étang fjord île point d\'eau spot de plongée spot de pêche',
   // Transport
   car_rental:           'location voiture car rental Hertz Europcar Avis rent a car',
   campground:           'camping glamping hébergement insolite cabane lodge nature',
@@ -78,7 +79,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   chocolatier:      ['candy_store'],
   wine_cellar:      ['liquor_store'],
   tea_house:        ['tea_house', 'cafe'],
-  local_specialty:  ['restaurant'],
+  butcher:          ['butcher_shop'],
   // Bars & Soirées
   bar:              ['bar'],
   pub:              ['pub', 'bar'],
@@ -212,6 +213,7 @@ export const TEXT_FIRST_UNIVERSES = new Set<Universe>([
   'currency_exchange',
   'money_transfer',
   'car_inspection', // pas de type Google Table A fiable
+  'waterspot',      // 'lake'/'river'/'bay' quasi inexistants en Table A → aucun résultat
 ]);
 
 /**
@@ -284,6 +286,7 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['pastry_shop',           'dessert'],
   ['cake_shop',             'dessert'],
   ['bakery',                'bakery'],
+  ['butcher_shop',          'butcher'],
   ['fast_food_restaurant',  'restaurant'], // fast_food → restaurant (fusionné)
   ['bubble_tea_store',      'cafe'],  // bubble_tea → cafe (fusionné)
   ['coffee_shop',           'cafe'],

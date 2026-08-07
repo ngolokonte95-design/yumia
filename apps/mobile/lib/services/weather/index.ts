@@ -34,3 +34,4 @@ export {
 export {
   getRadarProvider, setRadarProvider, type RadarFrame, type RadarProvider,
 } from './radar';
+export { searchCities, type CitySuggestion } from './geocode';

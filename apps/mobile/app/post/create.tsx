@@ -340,6 +340,8 @@ export default function CreatePostScreen() {
         onClose={() => setMusicModalVisible(false)}
         onSelect={(track) => setSelectedMusic(track)}
         accessToken={accessToken}
+        mediaUri={images[0]}
+        mediaType="photo"
       />
 
       {videoUri && (

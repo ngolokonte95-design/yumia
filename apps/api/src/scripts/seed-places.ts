@@ -340,7 +340,7 @@ const PLACES: PlaceSeed[] = [
   // PARIS — local specialty
   {
     name: 'L\'Avant Comptoir de la Mer',
-    universe: 'local_specialty',
+    universe: 'restaurant',
     lat: 48.8523, lng: 2.3388,
     city: 'Paris', countryCode: 'FR',
     rating: 4.6, priceTier: 2,
@@ -349,7 +349,7 @@ const PLACES: PlaceSeed[] = [
   },
   {
     name: 'Chez Janou',
-    universe: 'local_specialty',
+    universe: 'restaurant',
     lat: 48.8561, lng: 2.3618,
     city: 'Paris', countryCode: 'FR',
     rating: 4.5, priceTier: 2,
@@ -706,7 +706,7 @@ const PLACES: PlaceSeed[] = [
   },
   {
     name: 'Gymkhana',
-    universe: 'local_specialty',
+    universe: 'restaurant',
     lat: 51.5091, lng: -0.1411,
     city: 'London', countryCode: 'GB',
     rating: 4.6, priceTier: 4,
@@ -742,7 +742,7 @@ const PLACES: PlaceSeed[] = [
   },
   {
     name: 'Fortnum & Mason',
-    universe: 'local_specialty',
+    universe: 'restaurant',
     lat: 51.5093, lng: -0.1389,
     city: 'London', countryCode: 'GB',
     rating: 4.6, priceTier: 3,
@@ -818,7 +818,7 @@ const PLACES: PlaceSeed[] = [
   },
   {
     name: 'Tickets Bar',
-    universe: 'local_specialty',
+    universe: 'restaurant',
     lat: 41.3762, lng: 2.1535,
     city: 'Barcelona', countryCode: 'ES',
     rating: 4.7, priceTier: 3,

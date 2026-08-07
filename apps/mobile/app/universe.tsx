@@ -22,8 +22,19 @@ import type { NearbyPlace } from '../lib/places-api';
 export default function UniverseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { u } = useLocalSearchParams<{ u: string }>();
-  const { coords, resolving } = useLocation();
+  const { u, lat: latParam, lng: lngParam, place: placeParam } = useLocalSearchParams<{
+    u: string; lat?: string; lng?: string; place?: string;
+  }>();
+  const { coords: gpsCoords, resolving } = useLocation();
+
+  // Un point précis (ville recherchée depuis la météo, par ex.) prime sur le
+  // GPS — sinon l'écran ignorait toujours la ville consultée et retombait sur
+  // « autour de moi », quel que soit l'endroit dont on venait.
+  const fixedLat = latParam !== undefined ? Number(latParam) : undefined;
+  const fixedLng = lngParam !== undefined ? Number(lngParam) : undefined;
+  const hasFixedPoint = fixedLat !== undefined && fixedLng !== undefined && !Number.isNaN(fixedLat) && !Number.isNaN(fixedLng);
+  const coords = hasFixedPoint ? { lat: fixedLat, lng: fixedLng } : gpsCoords;
+
   const { accessToken } = useAuth();
   const { t } = useI18n();
   const { savedIds, save, unsave } = useSaved(accessToken);
@@ -37,7 +48,7 @@ export default function UniverseScreen() {
     universe,
     radius: 10000,
     limit: 60,
-    enabled: !resolving,
+    enabled: hasFixedPoint || !resolving,
   });
 
   function handleTap(p: NearbyPlace) {
@@ -84,7 +95,10 @@ export default function UniverseScreen() {
         </Pressable>
         <View style={styles.headerTitle}>
           <Text style={styles.headerEmoji}>{meta.emoji}</Text>
-          <Text style={styles.headerLabel}>{meta.labelFr}</Text>
+          <View>
+            <Text style={styles.headerLabel}>{meta.labelFr}</Text>
+            {placeParam ? <Text style={styles.headerSubLabel} numberOfLines={1}>à {placeParam}</Text> : null}
+          </View>
         </View>
         <Text style={styles.count}>{places.length}</Text>
       </View>
@@ -92,7 +106,9 @@ export default function UniverseScreen() {
       {loading && places.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand} size="large" />
-          <Text style={styles.loadingText}>YUMIA cherche près de toi…</Text>
+          <Text style={styles.loadingText}>
+            {placeParam ? `YUMIA cherche près de ${placeParam}…` : 'YUMIA cherche près de toi…'}
+          </Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
@@ -214,6 +230,7 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerEmoji: { fontSize: 24 },
   headerLabel: { ...typography.title, color: colors.textPrimary },
+  headerSubLabel: { ...typography.caption, color: colors.textMuted, marginTop: -2 },
   count: {
     ...typography.caption,
     color: colors.textMuted,

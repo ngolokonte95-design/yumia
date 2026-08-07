@@ -10,7 +10,8 @@ import { colors } from '../theme/tokens';
 import { AuthProvider, useAuth } from '../lib/auth-context';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { usePushNotifications } from '../lib/usePushNotifications';
-import { startNotificationListener, startNotificationResponseListener } from '../lib/useNotificationHistory';
+import { startNotificationListener, startNotificationResponseListener } from '../lib/pushListeners';
+import { refreshUnreadCount } from '../lib/useNotifications';
 import { useDailyDigest } from '../lib/useDailyDigest';
 import { initPurchases } from '../lib/purchases';
 import { useDeepLinks } from '../lib/useDeepLinks';
@@ -46,7 +47,8 @@ function AuthGate() {
   useDeepLinks();
 
 
-  useEffect(() => startNotificationListener(), []);
+  useEffect(() => { void refreshUnreadCount(accessToken); }, [accessToken]);
+  useEffect(() => startNotificationListener(accessToken), [accessToken]);
   useEffect(() => startNotificationResponseListener((path) => router.push(path as never)), [router]);
 
   useEffect(() => {

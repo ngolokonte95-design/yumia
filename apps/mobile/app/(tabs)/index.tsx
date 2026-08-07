@@ -137,9 +137,11 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Modes IA — toggle humeur */}
+      {/* Modes IA — toggle humeur. Fixes (pas de ScrollView) : seulement 3
+          chips, elles tiennent toujours sur une ligne — un ScrollView pour ça
+          ne faisait que "rebondir" au toucher sans rien à faire défiler. */}
       <View style={styles.section}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modesRow}>
+        <View style={styles.modesRow}>
           {MODE_CHIPS.map((m) => (
             <Pressable
               key={m.key}
@@ -147,10 +149,10 @@ export default function HomeScreen() {
               onPress={() => router.push(`/itinerary?mood=${m.mood}` as never)}
             >
               <Text style={styles.modeEmoji}>{m.emoji}</Text>
-              <Text style={styles.modeLabel}>{m.label}</Text>
+              <Text style={styles.modeLabel} numberOfLines={1}>{m.label}</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       {/* Tous les univers — groupés par catégorie */}
@@ -200,14 +202,16 @@ const styles = StyleSheet.create({
   },
   shortcutEmoji: { fontSize: 20 },
   shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
-  modesRow: { gap: spacing.sm, paddingRight: spacing.md },
+  modesRow: { flexDirection: 'row', gap: spacing.sm },
   modeChip: {
+    flex: 1,
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     borderWidth: 1.5,
     borderColor: 'transparent',

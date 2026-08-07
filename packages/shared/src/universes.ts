@@ -22,7 +22,7 @@ export const UNIVERSES = [
   'tea_house',
   'juice_bar',
   'food_truck',
-  'local_specialty',
+  'butcher',
   // ── Bars & Soirées ────────────────────────────────────────────────────────
   'hookah',
   'live_music',
@@ -133,8 +133,9 @@ export const UNIVERSES = [
   // 'market'      → fusionné dans 'shopping'
   // 'nightlife'   → fusionné dans 'bar'/'nightclub'
   // 'art_gallery' → fusionné dans 'museum'
-  // 'cheese_shop' → fusionné dans 'local_specialty'
-  // 'bubble_tea'  → fusionné dans 'cafe'
+  // 'cheese_shop'     → fusionné dans 'local_specialty' (avant son retrait)
+  // 'local_specialty' → remplacé par 'butcher'
+  // 'bubble_tea'      → fusionné dans 'cafe'
 ] as const;
 
 export type Universe = (typeof UNIVERSES)[number];
@@ -160,7 +161,7 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   tea_house:       { key: 'tea_house',       emoji: '🫖',   i18nKey: 'universe.tea_house',       labelFr: 'Salons de thé' },
   juice_bar:       { key: 'juice_bar',       emoji: '🥤',   i18nKey: 'universe.juice_bar',       labelFr: 'Jus & Smoothies' },
   food_truck:      { key: 'food_truck',      emoji: '🚐',   i18nKey: 'universe.food_truck',      labelFr: 'Food Trucks & Street food' },
-  local_specialty: { key: 'local_specialty', emoji: '🥩',   i18nKey: 'universe.local_specialty', labelFr: 'Spécialités locales' },
+  butcher:         { key: 'butcher',         emoji: '🥩',   i18nKey: 'universe.butcher',         labelFr: 'Boucheries' },
   // Bars & Soirées
   bar:             { key: 'bar',             emoji: '🍹',   i18nKey: 'universe.bar',             labelFr: 'Bars' },
   pub:             { key: 'pub',             emoji: '🍺',   i18nKey: 'universe.pub',             labelFr: 'Pubs' },
@@ -283,7 +284,7 @@ export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
   {
     label: 'Manger & Boire',
     emoji: '🍽️',
-    universes: ['restaurant', 'cafe', 'bakery', 'brunch', 'juice_bar', 'food_truck', 'dessert', 'ice_cream', 'chocolatier', 'wine_cellar', 'tea_house', 'local_specialty'],
+    universes: ['restaurant', 'cafe', 'bakery', 'brunch', 'juice_bar', 'food_truck', 'dessert', 'ice_cream', 'chocolatier', 'wine_cellar', 'tea_house', 'butcher'],
   },
   {
     label: 'Bars & Soirées',

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Image, Modal, RefreshControl,
+  ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -338,31 +338,33 @@ function CreateCollectionModal({
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <PressableScale onPress={onClose} scaleTo={1} style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>Nouvelle collection</Text>
-          <Text style={styles.sheetHint}>
-            Une collection peut contenir aussi bien des lieux que des publications.
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex. Week-end, Road trip, À tester"
-            placeholderTextColor={colors.textMuted}
-            value={name}
-            onChangeText={onChangeName}
-            autoFocus
-            maxLength={40}
-          />
-          <PressableScale
-            haptic
-            onPress={onCreate}
-            disabled={!name.trim()}
-            style={[styles.primaryBtn, !name.trim() && styles.primaryBtnDisabled]}
-          >
-            <Text style={styles.primaryBtnTxt}>Créer</Text>
-          </PressableScale>
-        </View>
-      </PressableScale>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <PressableScale onPress={onClose} scaleTo={1} style={styles.backdrop}>
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>Nouvelle collection</Text>
+            <Text style={styles.sheetHint}>
+              Une collection peut contenir aussi bien des lieux que des publications.
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex. Week-end, Road trip, À tester"
+              placeholderTextColor={colors.textMuted}
+              value={name}
+              onChangeText={onChangeName}
+              autoFocus
+              maxLength={40}
+            />
+            <PressableScale
+              haptic
+              onPress={onCreate}
+              disabled={!name.trim()}
+              style={[styles.primaryBtn, !name.trim() && styles.primaryBtnDisabled]}
+            >
+              <Text style={styles.primaryBtnTxt}>Créer</Text>
+            </PressableScale>
+          </View>
+        </PressableScale>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -20,7 +20,7 @@ type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
 function ReelVideo({
-  uri, active, muted, progressAnim, startAtSec, overlays,
+  uri, active, muted, progressAnim, startAtSec, overlays, onLoop,
 }: {
   uri: string;
   active: boolean;
@@ -31,6 +31,8 @@ function ReelVideo({
   startAtSec?: number;
   /** Texte et dessins superposés à la publication d'origine. */
   overlays?: PostOverlay[] | null;
+  /** La vidéo boucle — pour resynchroniser la musique/voix off du reel. */
+  onLoop?: () => void;
 }) {
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -41,6 +43,13 @@ function ReelVideo({
   useEffect(() => {
     try { player.muted = muted; } catch {}
   }, [muted, player]);
+
+  // Sans ça, la musique/voix off (chargées à part, avec leur propre boucle)
+  // dérivent au fil du temps et ne redémarrent plus avec la vidéo.
+  useEffect(() => {
+    const sub = player.addListener('playToEnd', () => onLoop?.());
+    return () => sub.remove();
+  }, [player, onLoop]);
 
   useEffect(() => {
     if (active) {
@@ -251,6 +260,10 @@ function ReelCard({
             progressAnim={progressAnim}
             startAtSec={startAtSec}
             overlays={item.overlays}
+            onLoop={() => {
+              musicSoundRef.current?.setPositionAsync(0).catch(() => null);
+              voiceSoundRef.current?.setPositionAsync(0).catch(() => null);
+            }}
           />
         ) : (
           <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />

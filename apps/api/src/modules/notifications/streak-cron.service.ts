@@ -46,6 +46,7 @@ export class StreakCronService {
       })
       .map((s) => ({
         to: s.user.expoPushToken!,
+        userId: s.userId,
         title: `🔥 Ta série de ${s.current} jour${s.current > 1 ? 's' : ''} est en danger !`,
         body: 'Il te reste 1 heure pour visiter un lieu et garder ta flamme.',
         sound: 'default' as const,

@@ -2,16 +2,26 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GlassCard, PressableScale, Reveal } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
-import { activitiesFor, type CurrentWeather } from '../../lib/services/weather';
+import { activitiesFor, type Coordinates, type CurrentWeather } from '../../lib/services/weather';
 
 /**
  * Activités recommandées selon la météo du moment.
  *
  * C'est le pont entre la météo et le cœur de Yumia : chaque carte ouvre
- * l'univers correspondant, donc la liste réelle des lieux autour de soi. Sans
- * ce lien, la météo ne serait qu'un gadget de plus.
+ * l'univers correspondant, donc la liste réelle des lieux autour du point
+ * observé — sa vraie position, ou la ville recherchée si l'utilisateur en a
+ * choisi une. Sans `coords`, l'écran univers retombait toujours sur le GPS,
+ * même en consultant la météo d'une ville lointaine.
  */
-export function WeatherActivities({ current }: { current: CurrentWeather }) {
+export function WeatherActivities({
+  current, coords, cityLabel,
+}: {
+  current: CurrentWeather;
+  /** Point observé : la ville choisie, ou la position réelle par défaut. */
+  coords: Coordinates;
+  /** Nom de la ville choisie, à afficher dans l'écran univers. Absent = position réelle. */
+  cityLabel?: string;
+}) {
   const router = useRouter();
   const suggestions = activitiesFor(current);
 
@@ -31,7 +41,18 @@ export function WeatherActivities({ current }: { current: CurrentWeather }) {
           <Reveal key={s.universe} index={i} from="fade">
             <PressableScale
               haptic
-              onPress={() => router.push(`/universe?u=${s.universe}` as never)}
+              onPress={() => {
+                const params = new URLSearchParams({ u: s.universe });
+                // On ne force les coordonnées que pour une ville recherchée —
+                // avec la position réelle, l'écran univers suit le GPS en direct
+                // (utile si l'utilisateur se déplace), comme avant cette fonctionnalité.
+                if (cityLabel) {
+                  params.set('lat', String(coords.lat));
+                  params.set('lng', String(coords.lng));
+                  params.set('place', cityLabel);
+                }
+                router.push(`/universe?${params.toString()}` as never);
+              }}
             >
               <GlassCard rounded={radius.md} style={styles.card}>
                 {/* La suggestion la plus pertinente se distingue par un liseré

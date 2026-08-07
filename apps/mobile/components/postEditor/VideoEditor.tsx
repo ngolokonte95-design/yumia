@@ -174,10 +174,13 @@ export function VideoEditor({
   };
 
   const done = () => {
-    setOverlays((current) => {
-      onDone({ overlays: current, videoMuted, voiceTrackUri: voiceUri, music });
-      return current;
-    });
+    // `overlays` est déjà l'état à jour ici — pas besoin de passer par le
+    // "reducer" de setOverlays juste pour le lire. Appeler onDone() (qui
+    // déclenche un setState du PARENT) depuis l'intérieur d'un updater de
+    // setOverlays revient à modifier un composant pendant le rendu d'un
+    // autre : React refuse, avec « Cannot update a component while
+    // rendering a different component ».
+    onDone({ overlays, videoMuted, voiceTrackUri: voiceUri, music });
   };
 
   return (
@@ -311,6 +314,9 @@ export function VideoEditor({
         onClose={() => setMusicModalVisible(false)}
         onSelect={(track) => setMusic(track)}
         accessToken={accessToken}
+        // Pas de découpage manuel pour une vidéo : sa durée audible est fixée
+        // par la vidéo elle-même (la musique redémarre à chaque bouclage).
+        allowTrim={false}
       />
     </Modal>
   );

@@ -187,7 +187,10 @@ export class PassportService {
     try {
       // 1. Nouveau badge
       for (const badge of result.newBadges) {
-        await this.notifications.sendToUser(userId, '🏆 Nouveau badge !', `Tu as débloqué : ${badge}`);
+        await this.notifications.sendToUser(
+          userId, '🏆 Nouveau badge !', `Tu as débloqué : ${badge}`,
+          { type: 'badge_unlocked', badge },
+        );
       }
 
       // 2. Level up
@@ -197,6 +200,7 @@ export class PassportService {
           userId,
           `🚀 Niveau ${result.level} atteint !`,
           `Tu as passé le cap — continue sur ta lancée.`,
+          { type: 'level_up', level: result.level },
         );
       }
 
@@ -209,6 +213,7 @@ export class PassportService {
           userId,
           `🔥 ${result.streak.current} jours de suite !`,
           `Belle série — reviens demain pour la garder.`,
+          { type: 'streak_milestone', current: result.streak.current },
         );
       }
     } catch (err) {

@@ -9,7 +9,7 @@ import { useAuth } from '../../lib/auth-context';
 import { API_BASE_URL } from '../../lib/config';
 import { useI18n } from '../../lib/useI18n';
 import { usePassportStats } from '../../lib/usePassportStats';
-import { useNotificationHistory } from '../../lib/useNotificationHistory';
+import { useUnreadNotificationsCount } from '../../lib/useNotifications';
 import { LocalePicker } from '../../components/LocalePicker';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { StreakModal } from '../../components/StreakModal';
@@ -23,7 +23,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useI18n();
   const { stats, passport, loading } = usePassportStats(accessToken);
-  const { unreadCount } = useNotificationHistory();
+  const unreadCount = useUnreadNotificationsCount();
   const [showLocalePicker, setShowLocalePicker] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [showBadgesModal, setShowBadgesModal] = useState(false);

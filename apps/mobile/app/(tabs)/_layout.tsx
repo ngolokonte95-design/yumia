@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Text, View } from 'react-native';
 import { colors } from '../../theme/tokens';
-import { useNotificationHistory } from '../../lib/useNotificationHistory';
+import { useUnreadNotificationsCount } from '../../lib/useNotifications';
 
 /**
  * Navigation principale — barre inférieure à 5 onglets (section 5 du PRD).
@@ -9,8 +9,8 @@ import { useNotificationHistory } from '../../lib/useNotificationHistory';
  */
 function TabIcon({ emoji, focused, badge }: { emoji: string; focused: boolean; badge?: number }) {
   return (
-    <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
+    <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 26, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
       {badge && badge > 0 ? (
         <View style={{
           position: 'absolute',
@@ -34,7 +34,7 @@ function TabIcon({ emoji, focused, badge }: { emoji: string; focused: boolean; b
 }
 
 export default function TabsLayout() {
-  const { unreadCount } = useNotificationHistory();
+  const unreadCount = useUnreadNotificationsCount();
 
   return (
     <Tabs
@@ -45,6 +45,11 @@ export default function TabsLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           paddingTop: 6,
+          // Avec 7 onglets répartis à parts égales, Home et Profil se
+          // retrouvaient collés aux bords de l'écran (les onglets du milieu ont
+          // un voisin de chaque côté qui leur donne de l'air, pas les deux du
+          // bord). Cette marge leur redonne le même espace de respiration.
+          paddingHorizontal: 18,
         },
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.textMuted,
