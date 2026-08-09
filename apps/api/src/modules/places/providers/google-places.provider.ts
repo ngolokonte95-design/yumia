@@ -81,7 +81,7 @@ export class GooglePlacesProvider implements PlacesProvider {
     if (params.universe && TEXT_FIRST_UNIVERSES.has(params.universe)) {
       const textQuery = UNIVERSE_TEXT_QUERIES[params.universe];
       if (textQuery) {
-        return this.searchTextNearby(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit, true);
+        return this.searchTextNearbyMulti(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit);
       }
     }
     const includedTypes = universeToGoogleTypes(params.universe);
@@ -94,13 +94,35 @@ export class GooglePlacesProvider implements PlacesProvider {
         // Univers avec requête textuelle dédiée (types Google invalides ex: cannabis_store)
         const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
         if (textQuery) {
-          return this.searchTextNearby(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit, true);
+          return this.searchTextNearbyMulti(textQuery, params.lat, params.lng, params.radius, params.universe!, params.limit);
         }
         const all = await this.request(params, []);
         return params.universe ? all.filter((p) => p.universe === params.universe) : all;
       }
       throw err;
     }
+  }
+
+  /**
+   * Comme {@link searchTextNearby}, mais accepte un tableau de requêtes courtes
+   * (voir {@link UNIVERSE_TEXT_QUERIES}) — un appel Text Search par entrée, les
+   * résultats sont fusionnés et dédupliqués par `providerPlaceId`.
+   */
+  private async searchTextNearbyMulti(
+    textQuery: string | string[],
+    lat: number,
+    lng: number,
+    radius: number,
+    universe: Universe,
+    limit: number,
+  ): Promise<ProviderPlace[]> {
+    const queries = Array.isArray(textQuery) ? textQuery : [textQuery];
+    const results = await Promise.all(
+      queries.map((q) => this.searchTextNearby(q, lat, lng, radius, universe, limit, true)),
+    );
+    const byId = new Map<string, ProviderPlace>();
+    for (const place of results.flat()) byId.set(place.providerPlaceId, place);
+    return [...byId.values()].slice(0, limit);
   }
 
   private async request(

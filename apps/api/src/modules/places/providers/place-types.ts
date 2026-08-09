@@ -3,8 +3,17 @@ import { UNIVERSES, type Universe } from '@yumia/shared';
 /**
  * Pour les univers dont les types Google Places v1 sont invalides ou absents,
  * on utilise une recherche textuelle géolocalisée en fallback.
+ *
+ * Une valeur `string[]` déclenche plusieurs appels Text Search (un par entrée,
+ * fusionnés + dédupliqués) plutôt qu'un seul. Nécessaire quand la liste de
+ * synonymes est longue : Google Text Search traite tout le `textQuery` comme
+ * UNE seule phrase à faire correspondre (pas un OR de mots-clés) — au-delà
+ * d'une poignée de mots, la pertinence s'effondre et ne renvoie presque plus
+ * rien (constaté avec `waterspot` : 17 mots concaténés → 1 seul résultat brut
+ * quel que soit le rayon). Découper en 2-3 groupes courts et cohérents résout
+ * le problème, au prix de plusieurs appels Pro-tier au lieu d'un seul.
  */
-export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
+export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string | string[]>> = {
   cannabis:          'coffeeshop coffee shop cannabis social club dispensary',
   hookah:            'bar à chicha chicha shisha hookah narguilé lounge',
   atm:               'distributeur automatique billets ATM retrait espèces',
@@ -41,7 +50,7 @@ export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string>> = {
   camping:              'camping bivouac camping sauvage tente campsite',
   botanical_garden:     'jardin botanique jardin fleuri parc floral roseraie arboretum',
   picnic_area:          'aire pique-nique parc espace vert pelouse détente nature',
-  waterspot:            'cascade lac rivière source crique baie lagon gorge glacier canal estuaire marais étang fjord île point d\'eau spot de plongée spot de pêche',
+  waterspot:            ['cascade lac rivière source', 'crique baie lagon fjord île', 'gorge glacier canal estuaire marais étang', 'spot de plongée spot de pêche'],
   // Transport
   car_rental:           'location voiture car rental Hertz Europcar Avis rent a car',
   campground:           'camping glamping hébergement insolite cabane lodge nature',

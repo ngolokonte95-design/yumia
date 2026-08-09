@@ -598,12 +598,14 @@ export class PlacesService {
       // Sans ça, un coffeeshop d'Amsterdam typé `coffee_shop` par Google est reclassé
       // en `cafe` par googleTypesToUniverse et disparaît de l'univers cannabis.
       const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
-      const query = textQuery
-        ? `${textQuery} in ${params.city}`
-        : params.universe
-        ? `${params.universe} in ${params.city}`
-        : params.city;
-      let found = await this.provider.searchByText!(query, params.universe, 20);
+      const queries = textQuery
+        ? (Array.isArray(textQuery) ? textQuery : [textQuery]).map((q) => `${q} in ${params.city}`)
+        : [params.universe ? `${params.universe} in ${params.city}` : params.city];
+      const byProviderId = new Map<string, ProviderPlace>();
+      for (const results of await Promise.all(queries.map((q) => this.provider.searchByText!(q, params.universe, 20)))) {
+        for (const p of results) byProviderId.set(p.providerPlaceId, p);
+      }
+      let found = [...byProviderId.values()];
       if (textQuery && params.universe) {
         found = found.map((p) => ({ ...p, universe: params.universe! }));
       }
