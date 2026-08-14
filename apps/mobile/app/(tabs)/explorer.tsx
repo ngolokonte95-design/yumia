@@ -34,6 +34,7 @@ import { useTrending } from '../../lib/useTrending';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
 import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
+import { universeSearchRadius } from '../../lib/universeRadius';
 
 type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number };
 
@@ -390,7 +391,7 @@ function UniverseRow({
   onSeeAll: () => void;
   onCardPress: (p: NearbyPlace) => void;
 }) {
-  const { places, loading } = useNearbyUniverse({ lat, lng, universe, radius: 5000, limit: 8, enabled });
+  const { places, loading } = useNearbyUniverse({ lat, lng, universe, radius: universeSearchRadius(universe), limit: 8, enabled });
   const meta = UNIVERSE_META[universe];
   if (!loading && places.length === 0) return null;
   return (

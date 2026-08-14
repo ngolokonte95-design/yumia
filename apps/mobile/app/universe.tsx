@@ -18,6 +18,7 @@ import { placeEmoji } from '../lib/universeMeta';
 import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
 import type { NearbyPlace } from '../lib/places-api';
+import { universeSearchRadius } from '../lib/universeRadius';
 
 export default function UniverseScreen() {
   const insets = useSafeAreaInsets();
@@ -46,7 +47,7 @@ export default function UniverseScreen() {
     lat: coords.lat,
     lng: coords.lng,
     universe,
-    radius: 10000,
+    radius: universeSearchRadius(universe),
     limit: 60,
     enabled: hasFixedPoint || !resolving,
   });

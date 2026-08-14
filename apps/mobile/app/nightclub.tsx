@@ -11,6 +11,7 @@ import { useLocation } from '../lib/useLocation';
 import { fetchNearby, type NearbyPlace } from '../lib/places-api';
 import { placeStore } from '../lib/place-store';
 import { PlacePhoto } from '../components/PlacePhoto';
+import { universeSearchRadius } from '../lib/universeRadius';
 
 const AMBIANCES = [
   { key: 'all', label: 'Tous', emoji: '🎧' },
@@ -34,7 +35,7 @@ export default function NightclubScreen() {
   useEffect(() => {
     if (resolving) return;
     setLoading(true);
-    fetchNearby({ lat: coords.lat, lng: coords.lng, radius: 8000, universe: 'nightclub', limit: 30 })
+    fetchNearby({ lat: coords.lat, lng: coords.lng, radius: universeSearchRadius('nightclub'), universe: 'nightclub', limit: 30 })
       .then(setPlaces)
       .catch(() => setPlaces([]))
       .finally(() => setLoading(false));
