@@ -4,6 +4,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Cron } from '@nestjs/schedule';
+import { assertClean } from '../../common/moderation/moderation';
 
 /** Sticker posé sur une story (position en % du cadre). */
 export interface StorySticker {
@@ -42,6 +43,9 @@ export class StoriesService {
     stickers?: StorySticker[];
     musicTrack?: string;
   }) {
+    assertClean(dto.caption);
+    // Les stickers texte sont du contenu publié au même titre que la légende.
+    dto.stickers?.forEach((sticker) => assertClean(sticker.text));
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // +24h
     return this.prisma.story.create({
       data: {

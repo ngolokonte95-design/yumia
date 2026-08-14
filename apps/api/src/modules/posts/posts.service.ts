@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import type { Post, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { assertClean } from '../../common/moderation/moderation';
 
 /** Extrait les hashtags (#mot) d'une légende, en minuscules, sans doublon. */
 function extractHashtags(caption?: string | null): string[] {
@@ -43,6 +44,7 @@ export class PostsService {
     mediaUrls: string[],
     opts: CreatePostOptions = {},
   ) {
+    assertClean(caption);
     return this.prisma.post.create({
       data: {
         userId,
@@ -71,6 +73,7 @@ export class PostsService {
     postId: string,
     patch: { caption?: string; placeId?: string | null; taggedUserIds?: string[]; commentsDisabled?: boolean; hideLikeCount?: boolean; coverUrl?: string },
   ) {
+    assertClean(patch.caption);
     const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { userId: true } });
     if (!post) throw new NotFoundException('Post introuvable');
     if (post.userId !== userId) throw new ForbiddenException();
@@ -410,6 +413,7 @@ export class PostsService {
   }
 
   async addComment(userId: string, postId: string, content: string, parentId?: string) {
+    assertClean(content);
     const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, userId: true, commentsDisabled: true } });
     if (!post) throw new NotFoundException('Post introuvable');
     if (post.commentsDisabled) throw new ForbiddenException('Les commentaires sont désactivés sur ce post.');

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import type { MessageType } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { assertClean } from '../../common/moderation/moderation';
 
 export interface SendMessageOptions {
   content: string;
@@ -166,6 +167,7 @@ export class ChatService {
   }
 
   async sendMessage(conversationId: string, senderId: string, opts: SendMessageOptions) {
+    assertClean(opts.content);
     await this.assertParticipant(conversationId, senderId);
     if (opts.replyToId) {
       const target = await this.prisma.message.findUnique({ where: { id: opts.replyToId }, select: { conversationId: true } });

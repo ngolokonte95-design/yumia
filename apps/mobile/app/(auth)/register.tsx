@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import { useAuth } from '../../lib/auth-context';
 import { useGoogleAuth } from '../../lib/useGoogleAuth';
 import { useAppleAuth } from '../../lib/useAppleAuth';
 import { useI18n } from '../../lib/useI18n';
+import { PRIVACY_URL, TERMS_URL } from '../../lib/legal';
 
 /** Création de compte par email + mot de passe. */
 export default function RegisterScreen() {
@@ -141,6 +143,23 @@ export default function RegisterScreen() {
           ) : null}
         </View>
 
+        {/* Acceptation des conditions — exigée par Apple (règle 1.2, contenus
+            publiés par les utilisateurs) et Google Play. Placée sous TOUS les
+            boutons de création de compte, y compris Google et Apple, car tous
+            créent un compte. Les deux liens doivent rester joignables : les
+            testeurs des stores les ouvrent pendant la revue. */}
+        <Text style={styles.legal}>
+          En créant un compte, tu acceptes les{' '}
+          <Text style={styles.legalLink} onPress={() => void Linking.openURL(TERMS_URL)}>
+            Conditions d'utilisation
+          </Text>
+          {' '}et la{' '}
+          <Text style={styles.legalLink} onPress={() => void Linking.openURL(PRIVACY_URL)}>
+            Politique de confidentialité
+          </Text>
+          {' '}de YUMIA, et tu t'engages à ne publier aucun contenu offensant.
+        </Text>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>{t('already_account')} </Text>
           <Link href="/login" style={styles.footerLink}>
@@ -179,7 +198,15 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { ...typography.heading, color: '#fff' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl },
+  legal: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    lineHeight: 18,
+  },
+  legalLink: { color: colors.brandSoft, fontWeight: '600' },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg },
   footerText: { ...typography.body, color: colors.textSecondary },
   footerLink: { ...typography.body, color: colors.brandSoft, fontWeight: '700' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

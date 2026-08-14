@@ -62,7 +62,11 @@ const mockRefreshTokenRecord = {
   user: mockUser,
 };
 
-const prismaMock: any = {
+/**
+ * Modèles explicitement mockés : ceux sur lesquels les tests posent des
+ * assertions. Tous les autres sont créés à la volée par le Proxy ci-dessous.
+ */
+const explicitModels: any = {
   user: {
     findUnique: jest.fn(),
     create: jest.fn(),
@@ -84,8 +88,46 @@ const prismaMock: any = {
     updateMany: jest.fn(),
     deleteMany: jest.fn(),
   },
-  $transaction: jest.fn((fn: (p: any) => any) => fn(prismaMock)),
 };
+
+/**
+ * `deleteAccount` balaie une vingtaine de tables (posts, likes, stories,
+ * conversations…). Les lister une à une ici condamnait le test à casser à
+ * chaque nouveau modèle ajouté au nettoyage — c'est exactement ce qui était
+ * arrivé. Le Proxy fabrique donc un mock générique pour tout modèle non
+ * déclaré, et le mémorise pour que deux accès renvoient le même objet
+ * (indispensable pour `expect(...).toHaveBeenCalled()`).
+ */
+// Prisma accepte deux formes : `$transaction(callback)` et `$transaction([...])`.
+// `deleteAccount` utilise la seconde ; d'autres méthodes la première. Défini une
+// seule fois (et non recréé à chaque accès), sinon les assertions du type
+// `expect(prismaMock.$transaction).toHaveBeenCalled()` porteraient sur un mock
+// différent de celui réellement appelé.
+const transactionMock = jest.fn((arg: unknown) =>
+  typeof arg === 'function'
+    ? (arg as (p: any) => any)(prismaMock)
+    : Promise.all(arg as Promise<unknown>[]),
+);
+
+const prismaMock: any = new Proxy(explicitModels, {
+  get(target, prop: string | symbol) {
+    if (typeof prop === 'symbol' || prop === 'then') return undefined;
+    if (prop === '$transaction') return transactionMock;
+    if (!(prop in target)) {
+      target[prop] = {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+      };
+    }
+    return target[prop];
+  },
+});
 
 const jwtMock = {
   sign: jest.fn().mockReturnValue('access-token'),

@@ -25,9 +25,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi.",
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bitcode": false
     },
@@ -80,7 +78,7 @@
       [
         "@sentry/react-native/expo",
         {
-          "organization": "REPLACE_WITH_SENTRY_ORG",
+          "organization": "yumia",
           "project": "yumia-mobile"
         }
       ],

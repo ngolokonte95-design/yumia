@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { assertClean } from '../../common/moderation/moderation';
 
 export interface CreateReviewDto {
   rating: number;   // 1..5
@@ -41,6 +42,7 @@ export class ReviewsService {
   }
 
   async upsert(placeId: string, userId: string, dto: CreateReviewDto) {
+    assertClean(dto.body);
     const place = await this.prisma.place.findUnique({ where: { id: placeId }, select: { id: true } });
     if (!place) throw new NotFoundException(`Place ${placeId} introuvable`);
 

@@ -19,9 +19,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { resetPasswordRequest, deleteAccountRequest, exportDataRequest, updateProfileRequest } from '../lib/auth-api';
 import { API_BASE_URL } from '../lib/config';
-
-const PRIVACY_URL = 'https://yumia.app/privacy';
-const TERMS_URL = 'https://yumia.app/terms';
+import { PRIVACY_URL, TERMS_URL } from '../lib/legal';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();

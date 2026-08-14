@@ -17,6 +17,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import type { AppConfig } from '../../config/configuration';
 import type { AuthResult, AuthTokens, JwtPayload, PublicUser } from './types';
+import { assertClean } from '../../common/moderation/moderation';
 
 const BCRYPT_ROUNDS = 12;
 /** Nombre maximum de sessions actives simultanées par utilisateur. */
@@ -60,6 +61,7 @@ export class AuthService {
     displayName: string,
     locale?: string,
   ): Promise<AuthResult> {
+    assertClean(displayName);
     const normalizedEmail = email.trim().toLowerCase();
 
     const existing = await this.prisma.user.findUnique({
@@ -273,6 +275,10 @@ export class AuthService {
     userId: string,
     patch: { displayName?: string; bio?: string; locale?: string; photoUrl?: string; preferences?: UserPreferences; gender?: string; birthYear?: number; interestedIn?: string },
   ): Promise<PublicUser> {
+    // Le pseudo et la bio sont publics : ils relèvent du même filtrage que les
+    // publications (règle Apple 1.2).
+    assertClean(patch.displayName);
+    assertClean(patch.bio);
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('Utilisateur introuvable.');
