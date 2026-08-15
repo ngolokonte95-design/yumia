@@ -115,7 +115,8 @@ d'un changement de mot de passe.
 
 ## 9. Mineurs
 
-YUMIA n'est pas destinée aux personnes de moins de **[À COMPLÉTER : 15 ou 16] ans**. Nous ne
+YUMIA n'est pas destinée aux personnes de moins de **16 ans** — le seuil du RGPD (article 8),
+applicable dans toute l'Union européenne. Nous ne
 collectons pas sciemment de données de mineurs en dessous de cet âge. Si vous pensez qu'un
 mineur nous a fourni des données, contactez-nous pour leur suppression.
 

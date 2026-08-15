@@ -36,7 +36,7 @@ et de sessions de groupe.
 
 L'accès nécessite la création d'un compte (par email/mot de passe, ou via Google / Apple). Vous
 êtes responsable de l'exactitude des informations fournies et de la confidentialité de vos
-identifiants. Vous devez avoir au moins **[À COMPLÉTER : 15 ou 16] ans** pour utiliser le Service.
+identifiants. Vous devez avoir au moins **16 ans** pour utiliser le Service.
 
 ---
 
