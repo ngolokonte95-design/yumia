@@ -41,7 +41,11 @@ export class PostsController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', {
     storage: memoryStorage(),
-    limits: { fileSize: 300 * 1024 * 1024 },
+    // 300 Mo en mémoire par requête concurrente était un risque réel de
+    // saturation RAM sur le VPS (memoryStorage charge tout le fichier avant
+    // de le passer au storage service). 50 Mo couvre largement une story ou
+    // un reel ; nginx (client_max_body_size) est aligné en conséquence.
+    limits: { fileSize: 50 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       const ok = new Set([
         // images

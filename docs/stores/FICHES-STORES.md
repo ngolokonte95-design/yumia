@@ -48,8 +48,8 @@ L'IA analyse ton humeur, l'heure, la météo et tes goûts pour te proposer les 
 • Groupe — le consensus parfait quand vous n'êtes jamais d'accord
 • Voyage — explore comme un local, loin des pièges à touristes
 
-🗺️ 14 UNIVERS
-Restaurants, cafés, boulangeries, desserts, bars, bubble tea, spécialités locales, glaciers, chocolatiers, caves à vin, activités, rooftops, sorties culturelles, vie nocturne.
+🗺️ 125 UNIVERS, DE LA TABLE AU QUOTIDIEN
+Restos, bars et cafés bien sûr — mais aussi spa, salons de coiffure, garages, pharmacies, escape games, criques secrètes, boucheries, vétérinaires... YUMIA couvre tout ce qui compose une journée, pas seulement les sorties.
 
 🔥 GAGNE DES XP À CHAQUE SORTIE
 Gamification complète : niveaux, badges, séries (streaks). Sortir n'a jamais été aussi addictif.
@@ -102,8 +102,8 @@ L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les 3
 • Groupe — le consensus parfait à plusieurs
 • Voyage — explore comme un local
 
-🗺️ 14 UNIVERS
-Restaurants, cafés, boulangeries, desserts, bars, bubble tea, spécialités locales, glaciers, chocolatiers, caves à vin, activités, rooftops, sorties culturelles, vie nocturne.
+🗺️ 125 UNIVERS, DE LA TABLE AU QUOTIDIEN
+Restos, bars et cafés bien sûr — mais aussi spa, garages, pharmacies, escape games, criques secrètes, boucheries, vétérinaires... YUMIA couvre tout ce qui compose une journée, pas seulement les sorties.
 
 🔥 GAGNE DES XP
 Niveaux, badges et séries : sortir devient un jeu.
@@ -160,8 +160,8 @@ AI blends your mood, the time, the weather and your taste to surface the 3 best 
 • Group — the perfect consensus when no one agrees
 • Travel — explore like a local, away from tourist traps
 
-🗺️ 14 WORLDS
-Restaurants, cafés, bakeries, desserts, bars, bubble tea, local specialties, ice cream, chocolatiers, wine cellars, activities, rooftops, cultural outings, nightlife.
+🗺️ 125 WORLDS, FROM DINING TO DAILY LIFE
+Restaurants, bars and cafés, sure — but also spas, garages, pharmacies, escape rooms, hidden coves, butchers, vets... YUMIA covers everything that makes up a day, not just going out.
 
 🔥 EARN XP EVERY TIME YOU GO OUT
 Full gamification: levels, badges, streaks. Going out has never been this addictive.
@@ -185,7 +185,9 @@ Welcome to YUMIA! First release: AI contextual Top 3, 5 modes (Surprise, Date, F
 
 - **Captures d'écran** : ✅ 5 mockups générés dans `docs/stores/screenshots/` (1290×2796, compatibles App Store 6.7″ **et** Play Store) : `01-top3`, `02-modes`, `03-foryou`, `04-passport`, `05-map`. Régénérer : `node docs/stores/build-screenshots.mjs`. Ce sont des mockups stylisés aux couleurs YUMIA — à remplacer idéalement par de vraies captures device quand l'app tourne (mais conformes pour une 1re soumission). Les titres marketing sont en français ; dupliquer le script avec des titres EN pour la version anglaise.
 - **Icône** : déjà en place (`assets/icon.png`).
-- **URL politique de confidentialité** : https://yumia.app/privacy (cf. `docs/legal/`).
-- **Classification d'âge** : remplir le questionnaire (probablement 12+/PEGI 3-12 ; pas de contenu adulte ; mention « alcool/bars » → peut relever l'âge).
-- **Coordonnées de support** : email + URL de support.
+- **URL politique de confidentialité** : https://yumia.eu/privacy (cf. `docs/legal/`).
+- **URL conditions d'utilisation** : https://yumia.eu/terms.
+- **URL suppression de compte** (exigée par Google en plus du parcours in-app) : https://yumia.eu/delete-account.
+- **Classification d'âge** : remplir le questionnaire (probablement 12+/PEGI 12 vu la mention alcool/bars et la messagerie entre utilisateurs ; l'app est réservée aux 16 ans et plus dans les CGU, indépendamment de la classification de contenu du store).
+- **Coordonnées de support** : ngolokonte95@gmail.com + https://yumia.eu/support (déjà en ligne).
 ```
