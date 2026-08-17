@@ -57,7 +57,7 @@
       "package": "com.yumia.app",
       "config": {
         "googleMaps": {
-          "apiKey": ""
+          "apiKey": "AIzaSyD97vVwbZS-Tq9SV4hdP4TtJRa53gEumaQ"
         }
       },
       "permissions": [
@@ -127,7 +127,6 @@
         "projectId": "cb67721a-d8f2-476a-8cb7-8f4f1873d81d"
       },
       "apiBaseUrl": "https://api.yumia.eu/api",
-      "googleMapsApiKey": "",
       "googleClientIdWeb": "672961628501-f5kg3cucbk0mnpnkphr0mmfefap8417g.apps.googleusercontent.com",
       "googleClientIdIos": "",
       "googleClientIdAndroid": "",
