@@ -187,15 +187,10 @@ export default function MapScreen() {
           // entrées, ce qui finissait par faire planter la carte.
           // On garde une marge d'un écran autour de la vue, pour que revenir
           // en arrière reste instantané.
-          // Même marge (0.75×) que le filtre d'affichage de displayPlaces — cohérent
-          // avec la fenêtre visible, pas le double. L'ancien seuil (delta entier, la
-          // LARGEUR totale de l'écran, pas sa demi-largeur) gardait une zone deux fois
-          // trop grande dans chaque direction : des lieux à plusieurs écrans de distance
-          // restaient affichés comme si l'utilisateur était juste à côté.
           const kept = Array.from(merged.values()).filter(
             (p) =>
-              Math.abs(p.lat - r.latitude) <= r.latitudeDelta * 0.75 &&
-              Math.abs(p.lng - r.longitude) <= r.longitudeDelta * 0.75,
+              Math.abs(p.lat - r.latitude) <= r.latitudeDelta &&
+              Math.abs(p.lng - r.longitude) <= r.longitudeDelta,
           );
           return kept.length > MAX_VIEWPORT_PLACES ? kept.slice(kept.length - MAX_VIEWPORT_PLACES) : kept;
         });
@@ -215,10 +210,9 @@ export default function MapScreen() {
       setCityResults(results.map((p) => ({ ...p, distanceMeters: 0 })));
       setCitiesSearchedCount((n) => n + 1);
       await recordUsage('travelCities');
-      const first = results[0];
-      if (first && Number.isFinite(first.lat) && Number.isFinite(first.lng)) {
+      if (results[0]) {
         mapRef.current?.animateToRegion(
-          { latitude: first.lat, longitude: first.lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
+          { latitude: results[0].lat, longitude: results[0].lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
           500,
         );
       }
@@ -372,35 +366,12 @@ export default function MapScreen() {
       // s'être déplacé à l'autre bout de la carte. Volontairement limité à ce
       // cas : une recherche par ville ou un tap doit montrer ses résultats même
       // si la carte n'a pas fini de s'animer jusqu'à eux.
-      //
-      // Exception : tant que l'utilisateur n'a pas encore bougé la carte
-      // (viewportPlaces vide, visibleRegion == position GPS d'origine), on
-      // n'applique PAS ce filtre aux résultats GPS. Sinon, au premier affichage,
-      // le zoom de la carte (MAP_DELTA, ~2,5 km) est presque toujours plus étroit
-      // que le rayon de recherche choisi (jusqu'à 50 km) : les résultats
-      // légitimement « autour de toi » étaient filtrés hors champ avant même que
-      // l'utilisateur ait touché la carte. Dès le premier déplacement,
-      // onRegionChangeComplete peuple viewportPlaces et le filtre serré reprend
-      // la main normalement — sans quoi les lieux s'accumuleraient sans jamais
-      // être purgés.
-      if (viewportPlaces.length === 0) {
-        list = places;
-      } else {
-        list = list.filter(
-          (p) =>
-            Math.abs(p.lat - visibleRegion.latitude) <= visibleRegion.latitudeDelta * 0.75 &&
-            Math.abs(p.lng - visibleRegion.longitude) <= visibleRegion.longitudeDelta * 0.75,
-        );
-      }
+      list = list.filter(
+        (p) =>
+          Math.abs(p.lat - visibleRegion.latitude) <= visibleRegion.latitudeDelta * 0.75 &&
+          Math.abs(p.lng - visibleRegion.longitude) <= visibleRegion.longitudeDelta * 0.75,
+      );
     }
-    // Coordonnées invalides (lat/lng null, undefined ou NaN — donnée malformée
-    // API, géocodage raté…) : react-native-maps plante NATIVEMENT dessus côté
-    // iOS (exception MapKit non rattrapable en JS, fermeture immédiate de
-    // l'app sans passer par un error boundary). Un seul lieu invalide suffit,
-    // peu importe le nombre total de marqueurs.
-    list = list.filter(
-      (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng),
-    );
     // Cap dur : GPS (80) + viewport peuvent se cumuler s'ils ne se recouvrent pas
     // (carte déplacée loin de la position GPS) — ça faisait planter l'appli.
     // On trie du plus proche du centre de la vue au plus lointain : avec l'ancien
