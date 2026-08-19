@@ -372,20 +372,25 @@ export default function MapScreen() {
       // cas : une recherche par ville ou un tap doit montrer ses résultats même
       // si la carte n'a pas fini de s'animer jusqu'à eux.
       //
-      // La marge ne peut pas être plus petite que le rayon de recherche choisi :
-      // au premier affichage, le zoom de la carte (MAP_DELTA, ~2,5 km) est presque
-      // toujours plus étroit que le rayon (jusqu'à 50 km). Sans ce plancher, les
-      // résultats GPS légitimement « autour de toi » étaient filtrés hors champ
-      // avant même que l'utilisateur ait bougé la carte — plus aucun lieu ne
-      // s'affichait à l'ouverture.
-      const radiusMarginDeg = (radiusKm * 1000) / 111_000;
-      const latMargin = Math.max(visibleRegion.latitudeDelta * 0.75, radiusMarginDeg);
-      const lngMargin = Math.max(visibleRegion.longitudeDelta * 0.75, radiusMarginDeg);
-      list = list.filter(
-        (p) =>
-          Math.abs(p.lat - visibleRegion.latitude) <= latMargin &&
-          Math.abs(p.lng - visibleRegion.longitude) <= lngMargin,
-      );
+      // Exception : tant que l'utilisateur n'a pas encore bougé la carte
+      // (viewportPlaces vide, visibleRegion == position GPS d'origine), on
+      // n'applique PAS ce filtre aux résultats GPS. Sinon, au premier affichage,
+      // le zoom de la carte (MAP_DELTA, ~2,5 km) est presque toujours plus étroit
+      // que le rayon de recherche choisi (jusqu'à 50 km) : les résultats
+      // légitimement « autour de toi » étaient filtrés hors champ avant même que
+      // l'utilisateur ait touché la carte. Dès le premier déplacement,
+      // onRegionChangeComplete peuple viewportPlaces et le filtre serré reprend
+      // la main normalement — sans quoi les lieux s'accumuleraient sans jamais
+      // être purgés.
+      if (viewportPlaces.length === 0) {
+        list = places;
+      } else {
+        list = list.filter(
+          (p) =>
+            Math.abs(p.lat - visibleRegion.latitude) <= visibleRegion.latitudeDelta * 0.75 &&
+            Math.abs(p.lng - visibleRegion.longitude) <= visibleRegion.longitudeDelta * 0.75,
+        );
+      }
     }
     // Cap dur : GPS (80) + viewport peuvent se cumuler s'ils ne se recouvrent pas
     // (carte déplacée loin de la position GPS) — ça faisait planter l'appli.
@@ -399,7 +404,7 @@ export default function MapScreen() {
         return da - db;
       })
       .slice(0, MAX_DISPLAY_PLACES);
-  }, [cityResults, tapResults, places, viewportPlaces, visibleRegion, radiusKm]);
+  }, [cityResults, tapResults, places, viewportPlaces, visibleRegion]);
 
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
