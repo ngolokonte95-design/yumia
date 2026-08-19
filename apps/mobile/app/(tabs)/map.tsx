@@ -187,10 +187,15 @@ export default function MapScreen() {
           // entrées, ce qui finissait par faire planter la carte.
           // On garde une marge d'un écran autour de la vue, pour que revenir
           // en arrière reste instantané.
+          // Même marge (0.75×) que le filtre d'affichage de displayPlaces — cohérent
+          // avec la fenêtre visible, pas le double. L'ancien seuil (delta entier, la
+          // LARGEUR totale de l'écran, pas sa demi-largeur) gardait une zone deux fois
+          // trop grande dans chaque direction : des lieux à plusieurs écrans de distance
+          // restaient affichés comme si l'utilisateur était juste à côté.
           const kept = Array.from(merged.values()).filter(
             (p) =>
-              Math.abs(p.lat - r.latitude) <= r.latitudeDelta &&
-              Math.abs(p.lng - r.longitude) <= r.longitudeDelta,
+              Math.abs(p.lat - r.latitude) <= r.latitudeDelta * 0.75 &&
+              Math.abs(p.lng - r.longitude) <= r.longitudeDelta * 0.75,
           );
           return kept.length > MAX_VIEWPORT_PLACES ? kept.slice(kept.length - MAX_VIEWPORT_PLACES) : kept;
         });
@@ -366,10 +371,20 @@ export default function MapScreen() {
       // s'être déplacé à l'autre bout de la carte. Volontairement limité à ce
       // cas : une recherche par ville ou un tap doit montrer ses résultats même
       // si la carte n'a pas fini de s'animer jusqu'à eux.
+      //
+      // La marge ne peut pas être plus petite que le rayon de recherche choisi :
+      // au premier affichage, le zoom de la carte (MAP_DELTA, ~2,5 km) est presque
+      // toujours plus étroit que le rayon (jusqu'à 50 km). Sans ce plancher, les
+      // résultats GPS légitimement « autour de toi » étaient filtrés hors champ
+      // avant même que l'utilisateur ait bougé la carte — plus aucun lieu ne
+      // s'affichait à l'ouverture.
+      const radiusMarginDeg = (radiusKm * 1000) / 111_000;
+      const latMargin = Math.max(visibleRegion.latitudeDelta * 0.75, radiusMarginDeg);
+      const lngMargin = Math.max(visibleRegion.longitudeDelta * 0.75, radiusMarginDeg);
       list = list.filter(
         (p) =>
-          Math.abs(p.lat - visibleRegion.latitude) <= visibleRegion.latitudeDelta * 0.75 &&
-          Math.abs(p.lng - visibleRegion.longitude) <= visibleRegion.longitudeDelta * 0.75,
+          Math.abs(p.lat - visibleRegion.latitude) <= latMargin &&
+          Math.abs(p.lng - visibleRegion.longitude) <= lngMargin,
       );
     }
     // Cap dur : GPS (80) + viewport peuvent se cumuler s'ils ne se recouvrent pas
@@ -384,7 +399,7 @@ export default function MapScreen() {
         return da - db;
       })
       .slice(0, MAX_DISPLAY_PLACES);
-  }, [cityResults, tapResults, places, viewportPlaces, visibleRegion]);
+  }, [cityResults, tapResults, places, viewportPlaces, visibleRegion, radiusKm]);
 
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
