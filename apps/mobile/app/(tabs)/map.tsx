@@ -167,8 +167,18 @@ export default function MapScreen() {
         setViewportPlaces((prev) => {
           const merged = new Map(prev.map((p) => [p.id, p] as const));
           for (const p of results) merged.set(p.id, p);
-          const all = Array.from(merged.values());
-          return all.length > 300 ? all.slice(all.length - 300) : all;
+          // Élagage géographique : sans ça, chaque déplacement empilait les lieux
+          // des zones précédentes (jusqu'à 300 en mémoire), qui restaient affichés
+          // à l'autre bout de la carte. Fait ici, dans le callback déjà différé de
+          // 800ms (pas à chaque frame de geste) : contrairement à une tentative
+          // précédente qui recalculait tout à chaque fin de geste via un nouveau
+          // state, ça ne change pas le rythme des re-renders de la carte.
+          const kept = Array.from(merged.values()).filter(
+            (p) =>
+              Math.abs(p.lat - r.latitude) <= r.latitudeDelta * 0.75 &&
+              Math.abs(p.lng - r.longitude) <= r.longitudeDelta * 0.75,
+          );
+          return kept.length > 300 ? kept.slice(kept.length - 300) : kept;
         });
         lastViewportKey.current = key;
       } catch { /* silent */ }
