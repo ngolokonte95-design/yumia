@@ -32,7 +32,7 @@ import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
-const MAX_DISPLAY_PLACES = 80;
+const MAX_DISPLAY_PLACES = 75;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_COLLAPSED = 56;
 const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
