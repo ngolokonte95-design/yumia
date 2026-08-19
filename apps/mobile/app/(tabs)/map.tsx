@@ -29,22 +29,14 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import { useSearchRadius, RADIUS_PRESETS_KM } from '../../lib/useSearchRadius';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
-import { RadiusIcon } from '../../components/icons/RadiusIcon';
 
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
 const MAX_DISPLAY_PLACES = 80;
-/** Plafond du cache viewport, en plus de l'élagage géographique (ceinture et bretelles). */
-const MAX_VIEWPORT_PLACES = 120;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_COLLAPSED = 56;
 const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
 const DRAWER_MAX_TRANSLATE = DRAWER_EXPANDED - DRAWER_COLLAPSED;
-
-/** Univers du panneau de filtre, triés alphabétiquement (« Tous » reste à part, en tête). */
-const SORTED_UNIVERSES = [...UNIVERSES].sort(
-  (a, b) => UNIVERSE_META[a].labelFr.localeCompare(UNIVERSE_META[b].labelFr, 'fr'),
-);
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
@@ -151,11 +143,6 @@ export default function MapScreen() {
   // changer le niveau de zoom (évite le « zoom tout seul »).
   const regionRef = useRef<Region>(region);
 
-  // Même région, mais en state : `displayPlaces` doit se recalculer quand la vue
-  // bouge pour n'afficher que ce qui s'y trouve (une ref ne redéclenche pas le
-  // rendu). Mis à jour en fin de geste uniquement, pas à chaque frame.
-  const [visibleRegion, setVisibleRegion] = useState<Region>(region);
-
   // Lieux chargés automatiquement pour le viewport (quand l'utilisateur zoome dehors).
   const [viewportPlaces, setViewportPlaces] = useState<NearbyPlace[]>([]);
   const viewportFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,7 +151,6 @@ export default function MapScreen() {
 
   const onRegionChangeComplete = useCallback((r: Region) => {
     regionRef.current = r;
-    setVisibleRegion(r);
     // Rayon ≈ demi-diagonale visible (°→m), plafonné par le rayon choisi par l'utilisateur.
     const visibleRadiusM = Math.round((Math.max(r.latitudeDelta, r.longitudeDelta) * 111_000) / 2);
     const radiusM = Math.min(visibleRadiusM, radiusKm * 1000, 50_000);
@@ -181,18 +167,8 @@ export default function MapScreen() {
         setViewportPlaces((prev) => {
           const merged = new Map(prev.map((p) => [p.id, p] as const));
           for (const p of results) merged.set(p.id, p);
-          // Élagage de ce qui est sorti du champ. Sans ça, chaque déplacement
-          // empilait les lieux des zones précédentes : ils restaient affichés
-          // très loin de la vue courante, et la liste enflait jusqu'à ~300
-          // entrées, ce qui finissait par faire planter la carte.
-          // On garde une marge d'un écran autour de la vue, pour que revenir
-          // en arrière reste instantané.
-          const kept = Array.from(merged.values()).filter(
-            (p) =>
-              Math.abs(p.lat - r.latitude) <= r.latitudeDelta &&
-              Math.abs(p.lng - r.longitude) <= r.longitudeDelta,
-          );
-          return kept.length > MAX_VIEWPORT_PLACES ? kept.slice(kept.length - MAX_VIEWPORT_PLACES) : kept;
+          const all = Array.from(merged.values());
+          return all.length > 300 ? all.slice(all.length - 300) : all;
         });
         lastViewportKey.current = key;
       } catch { /* silent */ }
@@ -361,30 +337,14 @@ export default function MapScreen() {
       for (const p of [...places, ...viewportPlaces]) {
         if (!seen.has(p.id)) { seen.add(p.id); list.push(p); }
       }
-      // Ne garde que ce qui est réellement dans la vue (marge d'un demi-écran).
-      // Les lieux « autour de toi » (GPS) restaient sinon affichés même après
-      // s'être déplacé à l'autre bout de la carte. Volontairement limité à ce
-      // cas : une recherche par ville ou un tap doit montrer ses résultats même
-      // si la carte n'a pas fini de s'animer jusqu'à eux.
-      list = list.filter(
-        (p) =>
-          Math.abs(p.lat - visibleRegion.latitude) <= visibleRegion.latitudeDelta * 0.75 &&
-          Math.abs(p.lng - visibleRegion.longitude) <= visibleRegion.longitudeDelta * 0.75,
-      );
     }
-    // Cap dur : GPS (80) + viewport peuvent se cumuler s'ils ne se recouvrent pas
-    // (carte déplacée loin de la position GPS) — ça faisait planter l'appli.
-    // On trie du plus proche du centre de la vue au plus lointain : avec l'ancien
-    // tri « restaurants d'abord », passé 80 lieux la carte ne montrait plus QUE
-    // des restaurants, quel que soit l'univers demandé.
+    // Cap dur : GPS (80) + viewport (80) peuvent se cumuler jusqu'à 160 s'ils ne se
+    // recouvrent pas (carte déplacée loin de la position GPS) — ça faisait planter
+    // l'appli par moments. On garde toujours au plus MAX_DISPLAY_PLACES au final.
     return [...list]
-      .sort((a, b) => {
-        const da = (a.lat - visibleRegion.latitude) ** 2 + (a.lng - visibleRegion.longitude) ** 2;
-        const db = (b.lat - visibleRegion.latitude) ** 2 + (b.lng - visibleRegion.longitude) ** 2;
-        return da - db;
-      })
+      .sort((a, b) => (a.universe === 'restaurant' ? 0 : 1) - (b.universe === 'restaurant' ? 0 : 1))
       .slice(0, MAX_DISPLAY_PLACES);
-  }, [cityResults, tapResults, places, viewportPlaces, visibleRegion]);
+  }, [cityResults, tapResults, places, viewportPlaces]);
 
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
@@ -480,8 +440,7 @@ export default function MapScreen() {
             style={styles.radiusButton}
             onPress={() => { setRadiusPanelOpen((o) => !o); setFilterPanelOpen(false); }}
           >
-            <RadiusIcon size={22} />
-            <Text style={styles.radiusButtonText} numberOfLines={1}>{radiusKm} km</Text>
+            <Text style={styles.radiusButtonText} numberOfLines={1}>📏 {radiusKm} km</Text>
             <Text style={styles.filterButtonChevron}>{radiusPanelOpen ? '▲' : '▾'}</Text>
           </Pressable>
         </View>
@@ -495,7 +454,7 @@ export default function MapScreen() {
               keyboardShouldPersistTaps="handled"
             >
               <FilterTile label="Tous" emoji="🗂️" active={universe === null} onPress={() => selectUniverse(null)} />
-              {SORTED_UNIVERSES.map((u) => (
+              {UNIVERSES.map((u) => (
                 <FilterTile
                   key={u}
                   label={UNIVERSE_META[u].labelFr}
