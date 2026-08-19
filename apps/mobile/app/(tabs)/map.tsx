@@ -215,9 +215,10 @@ export default function MapScreen() {
       setCityResults(results.map((p) => ({ ...p, distanceMeters: 0 })));
       setCitiesSearchedCount((n) => n + 1);
       await recordUsage('travelCities');
-      if (results[0]) {
+      const first = results[0];
+      if (first && Number.isFinite(first.lat) && Number.isFinite(first.lng)) {
         mapRef.current?.animateToRegion(
-          { latitude: results[0].lat, longitude: results[0].lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
+          { latitude: first.lat, longitude: first.lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
           500,
         );
       }
@@ -392,6 +393,14 @@ export default function MapScreen() {
         );
       }
     }
+    // Coordonnées invalides (lat/lng null, undefined ou NaN — donnée malformée
+    // API, géocodage raté…) : react-native-maps plante NATIVEMENT dessus côté
+    // iOS (exception MapKit non rattrapable en JS, fermeture immédiate de
+    // l'app sans passer par un error boundary). Un seul lieu invalide suffit,
+    // peu importe le nombre total de marqueurs.
+    list = list.filter(
+      (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng),
+    );
     // Cap dur : GPS (80) + viewport peuvent se cumuler s'ils ne se recouvrent pas
     // (carte déplacée loin de la position GPS) — ça faisait planter l'appli.
     // On trie du plus proche du centre de la vue au plus lointain : avec l'ancien
