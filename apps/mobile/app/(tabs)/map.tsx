@@ -29,7 +29,6 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import { useSearchRadius, RADIUS_PRESETS_KM } from '../../lib/useSearchRadius';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
-import { RadiusIcon } from '../../components/icons/RadiusIcon';
 
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
@@ -456,7 +455,6 @@ export default function MapScreen() {
             style={styles.radiusButton}
             onPress={() => { setRadiusPanelOpen((o) => !o); setFilterPanelOpen(false); }}
           >
-            <RadiusIcon size={22} />
             <Text style={styles.radiusButtonText} numberOfLines={1}>{radiusKm} km</Text>
             <Text style={styles.filterButtonChevron}>{radiusPanelOpen ? '▲' : '▾'}</Text>
           </Pressable>
