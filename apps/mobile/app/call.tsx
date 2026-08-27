@@ -8,7 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing } from '../theme/tokens';
-import { API_BASE_URL } from '../lib/config';
+import { API_BASE_URL, TURN_SERVER } from '../lib/config';
 import { isE2EAvailable } from '../lib/e2e-crypto';
 
 // Import lazy — react-native-webrtc nécessite un build natif (pas Expo Go)
@@ -20,9 +20,14 @@ try {
 } catch { /* Expo Go — module natif absent */ }
 
 const API = API_BASE_URL;
+// STUN seul échoue souvent en 4G/5G (NAT opérateur symétrique) — le TURN relaie
+// le flux dans ce cas. Ajouté seulement s'il est configuré (build EAS).
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  ...(TURN_SERVER.url
+    ? [{ urls: TURN_SERVER.url, username: TURN_SERVER.username, credential: TURN_SERVER.credential }]
+    : []),
 ];
 
 type CallState = 'calling' | 'ringing' | 'connected' | 'ended';

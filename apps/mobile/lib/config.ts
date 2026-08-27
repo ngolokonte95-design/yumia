@@ -30,3 +30,14 @@ export const GOOGLE_CLIENT_IDS = {
 
 /** Position par défaut tant que la géolocalisation n'est pas branchée (centre de Paris). */
 export const DEFAULT_LOCATION = { lat: 48.8566, lng: 2.3522 } as const;
+
+/**
+ * Serveur TURN (relais WebRTC) — nécessaire en complément du STUN pour que les
+ * appels vocaux/vidéo fonctionnent derrière un NAT symétrique (fréquent en 4G/5G).
+ * Auto-hébergé (coturn) sur le VPS de production.
+ */
+export const TURN_SERVER = {
+  url: (process.env.EXPO_PUBLIC_TURN_URL as string | undefined) ?? '',
+  username: (process.env.EXPO_PUBLIC_TURN_USERNAME as string | undefined) ?? '',
+  credential: (process.env.EXPO_PUBLIC_TURN_CREDENTIAL as string | undefined) ?? '',
+} as const;

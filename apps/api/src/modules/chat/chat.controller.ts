@@ -24,6 +24,12 @@ export class ChatController {
     return this.chat.getOrCreateConversation(user.sub, userId);
   }
 
+  /** GET /api/chat/conversations/:id — infos du partenaire (1-à-1) ou des participants (groupe). */
+  @Get('conversations/:id')
+  getConversation(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {
+    return this.chat.getConversation(id, user.sub);
+  }
+
   /** GET /api/chat/conversations/:id/messages?before=<iso>&limit=50 */
   @Get('conversations/:id/messages')
   getMessages(

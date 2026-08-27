@@ -136,6 +136,35 @@ export class ChatService {
     });
   }
 
+  /** GET /api/chat/conversations/:id — infos du partenaire (ou des participants pour un groupe). */
+  async getConversation(conversationId: string, userId: string) {
+    const membership = await this.prisma.conversationParticipant.findUnique({
+      where: { conversationId_userId: { conversationId, userId } },
+    });
+    if (!membership) throw new NotFoundException('Conversation introuvable');
+
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { participants: { where: { userId: { not: userId } } } },
+    });
+    if (!conv) throw new NotFoundException('Conversation introuvable');
+
+    const otherIds = conv.participants.map((pp) => pp.userId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: otherIds } },
+      select: { id: true, displayName: true, photoUrl: true },
+    });
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+    return {
+      id: conv.id,
+      isGroup: conv.isGroup,
+      title: conv.title,
+      partner: !conv.isGroup && otherIds[0] ? (userMap[otherIds[0]] ?? null) : null,
+      participants: otherIds.map((id) => userMap[id] ?? { id, displayName: '?', photoUrl: null }),
+    };
+  }
+
   async getMessages(conversationId: string, userId: string, before?: string, limit = 50) {
     await this.assertParticipant(conversationId, userId);
 

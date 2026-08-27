@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["apps/mobile/assets/server.cjs"],
       "port": 5174
+    },
+    {
+      "name": "mobile-expo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:mobile", "--", "--tunnel"],
+      "port": 8081
     }
   ]
 }
