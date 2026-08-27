@@ -2,11 +2,15 @@ import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
+import { AffiliatesService } from '../affiliates/affiliates.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly affiliatesService: AffiliatesService,
+  ) {}
 
   /** Vérifie si l'utilisateur courant est admin (pas besoin d'AdminGuard ici). */
   @Get('is-admin')
@@ -48,5 +52,17 @@ export class AdminController {
   @UseGuards(AdminGuard)
   backfillCountries() {
     return this.adminService.backfillCountriesFromLocale();
+  }
+
+  @Get('affiliates/stats')
+  @UseGuards(AdminGuard)
+  affiliateStats() {
+    return this.affiliatesService.getStats();
+  }
+
+  @Get('affiliates/trend')
+  @UseGuards(AdminGuard)
+  affiliateTrend(@Query('days') days?: string) {
+    return this.affiliatesService.getClicksTrend(days ? +days : 30);
   }
 }

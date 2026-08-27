@@ -35,7 +35,7 @@ import { askAboutPlace } from '../lib/chat-api';
 import { XpToast } from '../components/XpToast';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { usePlaceStats } from '../lib/usePlaceStats';
-import { fetchPlaceById, fetchNearby, uploadPlacePhoto } from '../lib/places-api';
+import { fetchPlaceById, fetchNearby, uploadPlacePhoto, fetchAffiliateProviders, fetchBookingLink } from '../lib/places-api';
 import type { NearbyPlace } from '../lib/places-api';
 import type { VisitResult } from '../lib/passport-api';
 import type { Suggestion, Universe } from '@yumia/shared';
@@ -45,6 +45,11 @@ interface ChatMessage {
   role: 'user' | 'ai';
   text: string;
 }
+
+const AFFILIATE_LABEL: Record<string, string> = {
+  booking: '🏨 Réserver sur Booking.com', getyourguide: '🎡 Voir sur GetYourGuide', viator: '🎫 Voir sur Viator',
+  fever: '🎉 Voir sur Fever', shotgun: '🎧 Voir sur Shotgun', trainline: '🚆 Voir sur Trainline', treatwell: '💆 Réserver sur Treatwell',
+};
 
 export default function PlaceScreen() {
   const insets = useSafeAreaInsets();
@@ -76,6 +81,18 @@ export default function PlaceScreen() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewBody, setReviewBody] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [affiliateProvider, setAffiliateProvider] = useState<string | null>(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
+
+  // Partenaire de réservation dispo pour ce lieu (silencieux si aucun — la
+  // plupart des univers n'en ont pas, ce n'est pas une erreur).
+  useEffect(() => {
+    const placeId = suggestion?.place.id;
+    if (!accessToken || !placeId) return;
+    fetchAffiliateProviders(placeId, accessToken)
+      .then((providers) => setAffiliateProvider(providers.find((p) => p.configured)?.key ?? null))
+      .catch(() => setAffiliateProvider(null));
+  }, [accessToken, suggestion?.place.id]);
 
   // Deep link : charge le lieu depuis l'API quand ouvert via yumia://place?id=
   useEffect(() => {
@@ -133,6 +150,20 @@ export default function PlaceScreen() {
   const { place, compatibility, distanceMeters, reason } = suggestion;
   const meta = safeMeta(place.universe);
   const isSaved = savedIds.has(place.id);
+
+  async function handleBooking() {
+    if (!affiliateProvider || !accessToken || bookingLoading) return;
+    setBookingLoading(true);
+    try {
+      const url = await fetchBookingLink(place.id, affiliateProvider, accessToken);
+      void Linking.openURL(url);
+    } catch {
+      // Silencieux : pas grave si un lien échoue à se générer, l'utilisateur
+      // n'a juste pas de bouton qui répond, pas de crash.
+    } finally {
+      setBookingLoading(false);
+    }
+  }
 
   function handleVisit() {
     if (!accessToken || visitState !== 'idle') return;
@@ -475,6 +506,16 @@ export default function PlaceScreen() {
             </Pressable>
           </View>
 
+          {/* Bouton de réservation partenaire — visible seulement si un
+              provider d'affiliation est configuré pour l'univers de ce lieu. */}
+          {affiliateProvider && (
+            <Pressable style={bizStyles.bookingBtn} onPress={handleBooking} disabled={bookingLoading}>
+              {bookingLoading
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={bizStyles.bookingLabel}>{AFFILIATE_LABEL[affiliateProvider] ?? 'Réserver'}</Text>}
+            </Pressable>
+          )}
+
           {accessToken ? (
             visitState === 'feedback' || visitState === 'submitting' ? (
               <View style={styles.feedbackBox}>
@@ -748,6 +789,11 @@ const bizStyles = StyleSheet.create({
   },
   emoji: { fontSize: 16 },
   label: { ...typography.caption, color: colors.brandSoft, fontWeight: '600' },
+  bookingBtn: {
+    marginTop: spacing.sm, backgroundColor: colors.brand, borderRadius: radius.pill,
+    paddingVertical: spacing.sm, alignItems: 'center', justifyContent: 'center',
+  },
+  bookingLabel: { ...typography.caption, color: '#fff', fontWeight: '700' },
 });
 
 const similarStyles = StyleSheet.create({

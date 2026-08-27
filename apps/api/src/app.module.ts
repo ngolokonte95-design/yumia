@@ -19,6 +19,7 @@ import { SuggestionsModule } from './modules/suggestions/suggestions.module';
 import { GroupsModule } from './modules/groups/groups.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AffiliatesModule } from './modules/affiliates/affiliates.module';
 import { SavedModule } from './modules/saved/saved.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
@@ -79,6 +80,7 @@ import { CallsModule } from './modules/calls/calls.module';
     MailerModule,
     // Modules métier
     NotificationsModule,
+    AffiliatesModule,
     AuthModule,
     GroupsModule,
     HealthModule,

@@ -129,3 +129,20 @@ export async function uploadPlacePhoto(
   }
   return res.json() as Promise<{ photoUrl: string }>;
 }
+
+export interface AffiliateProviderAvailability {
+  key: string;
+  configured: boolean;
+}
+
+/** Partenaires d'affiliation pertinents pour ce lieu (peut être vide — la plupart des univers n'en ont pas). */
+export async function fetchAffiliateProviders(placeId: string, accessToken: string): Promise<AffiliateProviderAvailability[]> {
+  const data = await request<{ providers: AffiliateProviderAvailability[] }>(`/places/${placeId}/affiliate-providers`, { token: accessToken });
+  return data.providers;
+}
+
+/** Génère (et trace côté serveur) un lien de réservation pour un partenaire donné. */
+export async function fetchBookingLink(placeId: string, provider: string, accessToken: string): Promise<string> {
+  const data = await request<{ url: string }>(`/places/${placeId}/booking-link?provider=${encodeURIComponent(provider)}`, { token: accessToken });
+  return data.url;
+}

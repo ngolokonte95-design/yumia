@@ -20,6 +20,18 @@ interface CountryRow { countryCode: string; count: number; pct: number }
 interface GrowthRow { date: string; count: number }
 interface UniverseRow { universe: string; count: number }
 interface RecentUser { id: string; email: string; displayName: string; countryCode?: string; plan: string; isPremium: boolean; createdAt: string }
+interface AffiliateStats {
+  totalClicks: number; totalConversions: number; conversionRate: number; revenueCents: number;
+  clicksByProvider: { provider: string; count: number }[];
+  conversionsByProvider: { provider: string; count: number }[];
+  clicksByUniverse: { universe: string; count: number }[];
+}
+interface TrendRow { date: string; count: number }
+
+const PROVIDER_LABEL: Record<string, string> = {
+  booking: '🏨 Booking.com', getyourguide: '🎡 GetYourGuide', viator: '🎫 Viator',
+  fever: '🎉 Fever', shotgun: '🎧 Shotgun', trainline: '🚆 Trainline', treatwell: '💆 Treatwell',
+};
 
 const FLAG: Record<string, string> = {
   FR: '🇫🇷', US: '🇺🇸', GB: '🇬🇧', DE: '🇩🇪', ES: '🇪🇸', IT: '🇮🇹',
@@ -54,6 +66,8 @@ export default function AdminScreen() {
   const [growth, setGrowth] = useState<GrowthRow[]>([]);
   const [byUniverse, setByUniverse] = useState<UniverseRow[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [affiliateStats, setAffiliateStats] = useState<AffiliateStats | null>(null);
+  const [affiliateTrend, setAffiliateTrend] = useState<TrendRow[]>([]);
 
   async function backfillCountries() {
     if (!accessToken) return;
@@ -76,12 +90,14 @@ export default function AdminScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [ovRes, ctrRes, gwRes, univRes, recentRes] = await Promise.allSettled([
+      const [ovRes, ctrRes, gwRes, univRes, recentRes, affStatsRes, affTrendRes] = await Promise.allSettled([
         fetch(`${API}/admin/stats`, { headers: h }),
         fetch(`${API}/admin/users/by-country`, { headers: h }),
         fetch(`${API}/admin/users/growth?days=30`, { headers: h }),
         fetch(`${API}/admin/places/by-universe`, { headers: h }),
         fetch(`${API}/admin/users/recent?limit=15`, { headers: h }),
+        fetch(`${API}/admin/affiliates/stats`, { headers: h }),
+        fetch(`${API}/admin/affiliates/trend?days=30`, { headers: h }),
       ]);
       if (ovRes.status === 'fulfilled') {
         if (ovRes.value.ok) setOverview(await ovRes.value.json());
@@ -91,6 +107,8 @@ export default function AdminScreen() {
       if (gwRes.status === 'fulfilled' && gwRes.value.ok) setGrowth(await gwRes.value.json());
       if (univRes.status === 'fulfilled' && univRes.value.ok) setByUniverse(await univRes.value.json());
       if (recentRes.status === 'fulfilled' && recentRes.value.ok) setRecentUsers(await recentRes.value.json());
+      if (affStatsRes.status === 'fulfilled' && affStatsRes.value.ok) setAffiliateStats(await affStatsRes.value.json());
+      if (affTrendRes.status === 'fulfilled' && affTrendRes.value.ok) setAffiliateTrend(await affTrendRes.value.json());
     } catch (e) {
       setError(String(e));
     }
@@ -195,6 +213,55 @@ export default function AdminScreen() {
               </View>
             ))}
           </View>
+        </>
+      )}
+
+      {/* ── Affiliation ── */}
+      {affiliateStats && (
+        <>
+          <Text style={styles.sectionTitle}>💰 Affiliation</Text>
+          <View style={styles.statsGrid}>
+            <StatCard label="Clics" value={affiliateStats.totalClicks} accent />
+            <StatCard label="Conversions" value={affiliateStats.totalConversions} sub={`${affiliateStats.conversionRate}%`} />
+            <StatCard label="Revenu" value={`${(affiliateStats.revenueCents / 100).toFixed(2)} €`} />
+          </View>
+
+          {affiliateTrend.length > 0 && (
+            <View style={[styles.card, styles.growthChart]}>
+              {affiliateTrend.map((g) => {
+                const max = Math.max(...affiliateTrend.map((t) => t.count), 1);
+                return (
+                  <View key={g.date} style={styles.growthBar}>
+                    <View style={[styles.growthFill, { height: `${(g.count / max) * 100}%` }]} />
+                    <Text style={styles.growthLabel}>{g.date.slice(5)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {affiliateStats.clicksByProvider.length > 0 ? (
+            <View style={styles.card}>
+              {affiliateStats.clicksByProvider.map((row) => {
+                const max = Math.max(...affiliateStats.clicksByProvider.map((r) => r.count), 1);
+                const conv = affiliateStats.conversionsByProvider.find((c) => c.provider === row.provider)?.count ?? 0;
+                return (
+                  <View key={row.provider} style={styles.univRow}>
+                    <Text style={[styles.univName, { width: 140 }]}>{PROVIDER_LABEL[row.provider] ?? row.provider}</Text>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.barFillGreen, { width: `${(row.count / max) * 100}%` }]} />
+                    </View>
+                    <Text style={styles.univCount}>{row.count}</Text>
+                    <Text style={[styles.countryPct, { width: 50 }]}>{conv} conv.</Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.statLabel}>Aucun clic enregistré pour l'instant — les boutons de réservation apparaissent dès qu'un partenaire (Booking.com...) est configuré et qu'un lieu correspond à un univers couvert.</Text>
+            </View>
+          )}
         </>
       )}
 

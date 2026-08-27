@@ -74,6 +74,7 @@ model User {
   streak              Streak?
   groupSessions       GroupMember[]
   notifications       Notification[]
+  affiliateClicks     AffiliateClick[]
 
   @@index([countryCode])
   @@index([expoPushToken])
@@ -264,6 +265,7 @@ model Place {
 
   visits      Visit[]
   savedBy     SavedPlace[]
+  affiliateClicks AffiliateClick[]
 
   @@index([universe])
   @@index([city, universe])
@@ -1146,4 +1148,42 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, read])
+}
+
+/// Suivi des clics sur les liens d'affiliation (Booking.com, Fever,
+/// GetYourGuide...) générés depuis les fiches lieux. Chaque clic porte un
+/// identifiant de tracking repris dans le lien, permettant de rapprocher une
+/// conversion (webhook partenaire) de sa source une fois celle-ci rapportée.
+model AffiliateClick {
+  id          String    @id @default(uuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  placeId     String?
+  place       Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  universe    Universe?
+  /// booking | getyourguide | viator | fever | shotgun | trainline | treatwell
+  provider    String
+  createdAt   DateTime  @default(now())
+
+  conversions AffiliateConversion[]
+
+  @@index([provider, createdAt])
+  @@index([userId])
+}
+
+/// Conversion rapportée par un partenaire (webhook). `clickId` est optionnel :
+/// certains partenaires ne renvoient pas l'identifiant de tracking dans leur
+/// webhook, la conversion reste alors non rapprochée d'un clic précis.
+model AffiliateConversion {
+  id          String          @id @default(uuid())
+  provider    String
+  clickId     String?
+  click       AffiliateClick? @relation(fields: [clickId], references: [id], onDelete: SetNull)
+  amountCents Int?
+  currency    String?
+  /// Payload brut du webhook partenaire, conservé pour debug/audit.
+  raw         Json?
+  createdAt   DateTime        @default(now())
+
+  @@index([provider, createdAt])
 }
