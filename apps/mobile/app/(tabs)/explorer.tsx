@@ -44,6 +44,7 @@ const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; r
   { key: 'guides', emoji: '🧭', label: 'Guides locaux', sub: 'Experts certifiés', route: '/guides' },
   { key: 'sorties', emoji: '🎟️', label: 'Sorties & billets', sub: 'Événements près de toi', route: '/sorties' },
   { key: 'group', emoji: '👥', label: 'Sortie en groupe', sub: 'Décidez ensemble', route: '/group' },
+  { key: 'deals', emoji: '💰', label: 'Bons plans', sub: 'Réserve chez nos partenaires', route: '/deals' },
 ];
 
 const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];

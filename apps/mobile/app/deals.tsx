@@ -1,8 +1,9 @@
 /**
- * Onglet "Bons plans" — lieux proches réservables via un partenaire
- * d'affiliation (Booking.com, GetYourGuide, Viator...). Alimenté par
- * GET /affiliates/deals, qui ne renvoie que les univers ayant au moins un
- * partenaire réellement configuré (silencieux sinon, pas de faux espoir).
+ * BONS PLANS — lieux proches réservables via un partenaire d'affiliation
+ * (Booking.com, GetYourGuide, Viator...). Accessible depuis Explorer.
+ * Alimenté par GET /affiliates/deals, qui ne renvoie que les univers ayant
+ * au moins un partenaire réellement configuré (silencieux sinon, pas de
+ * faux espoir affiché à l'utilisateur).
  */
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -10,13 +11,13 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Suggestion } from '@yumia/shared';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
-import { useAuth } from '../../lib/auth-context';
-import { useLocation } from '../../lib/useLocation';
-import { fetchNearbyDeals, type DealPlace } from '../../lib/affiliates-api';
-import { affiliateProviderLabel } from '../../lib/affiliate-labels';
-import { safeMeta, placeEmoji } from '../../lib/universeMeta';
-import { placeStore } from '../../lib/place-store';
+import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useAuth } from '../lib/auth-context';
+import { useLocation } from '../lib/useLocation';
+import { fetchNearbyDeals, type DealPlace } from '../lib/affiliates-api';
+import { affiliateProviderLabel } from '../lib/affiliate-labels';
+import { safeMeta, placeEmoji } from '../lib/universeMeta';
+import { placeStore } from '../lib/place-store';
 
 function toSuggestion(place: DealPlace): Suggestion {
   return {
@@ -105,10 +106,15 @@ export default function DealsScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>💰 Bons plans</Text>
-        <Text style={styles.subtitle}>Réserve directement chez nos partenaires près de toi</Text>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backText}>←</Text>
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>💰 Bons plans</Text>
+          <Text style={styles.subtitle}>Réserve directement chez nos partenaires près de toi</Text>
+        </View>
       </View>
 
       {loading || resolving ? (
@@ -142,8 +148,10 @@ export default function DealsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  screen: { flex: 1, backgroundColor: colors.background },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  backBtn: { paddingTop: 2 },
+  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 24 },
   title: { ...typography.h2, color: colors.text },
   subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, gap: 10 },
