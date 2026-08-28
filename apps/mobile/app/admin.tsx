@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
+import { affiliateProviderLabel } from '../lib/affiliate-labels';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 
@@ -27,11 +28,6 @@ interface AffiliateStats {
   clicksByUniverse: { universe: string; count: number }[];
 }
 interface TrendRow { date: string; count: number }
-
-const PROVIDER_LABEL: Record<string, string> = {
-  booking: '🏨 Booking.com', getyourguide: '🎡 GetYourGuide', viator: '🎫 Viator',
-  fever: '🎉 Fever', shotgun: '🎧 Shotgun', trainline: '🚆 Trainline', treatwell: '💆 Treatwell',
-};
 
 const FLAG: Record<string, string> = {
   FR: '🇫🇷', US: '🇺🇸', GB: '🇬🇧', DE: '🇩🇪', ES: '🇪🇸', IT: '🇮🇹',
@@ -247,7 +243,7 @@ export default function AdminScreen() {
                 const conv = affiliateStats.conversionsByProvider.find((c) => c.provider === row.provider)?.count ?? 0;
                 return (
                   <View key={row.provider} style={styles.univRow}>
-                    <Text style={[styles.univName, { width: 140 }]}>{PROVIDER_LABEL[row.provider] ?? row.provider}</Text>
+                    <Text style={[styles.univName, { width: 140 }]}>{affiliateProviderLabel(row.provider)}</Text>
                     <View style={styles.barTrack}>
                       <View style={[styles.barFillGreen, { width: `${(row.count / max) * 100}%` }]} />
                     </View>

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, ParseFloatPipe, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
@@ -8,6 +8,17 @@ import type { AffiliateProviderKey } from './providers/affiliate-provider.interf
 @Controller()
 export class AffiliatesController {
   constructor(private readonly affiliates: AffiliatesService) {}
+
+  /** GET /api/affiliates/deals?lat=&lng=&radius= — alimente l'onglet "Bons plans". */
+  @Get('affiliates/deals')
+  @UseGuards(JwtAuthGuard)
+  deals(
+    @Query('lat', ParseFloatPipe) lat: number,
+    @Query('lng', ParseFloatPipe) lng: number,
+    @Query('radius') radius?: string,
+  ) {
+    return this.affiliates.getNearbyDeals({ lat, lng, radius: radius ? +radius : 10_000 });
+  }
 
   /** GET /api/places/:id/affiliate-providers — providers pertinents pour ce lieu (avec disponibilité réelle). */
   @Get('places/:id/affiliate-providers')

@@ -35,7 +35,9 @@ import { askAboutPlace } from '../lib/chat-api';
 import { XpToast } from '../components/XpToast';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { usePlaceStats } from '../lib/usePlaceStats';
-import { fetchPlaceById, fetchNearby, uploadPlacePhoto, fetchAffiliateProviders, fetchBookingLink } from '../lib/places-api';
+import { fetchPlaceById, fetchNearby, uploadPlacePhoto } from '../lib/places-api';
+import { fetchAffiliateProviders, fetchBookingLink } from '../lib/affiliates-api';
+import { affiliateProviderLabel } from '../lib/affiliate-labels';
 import type { NearbyPlace } from '../lib/places-api';
 import type { VisitResult } from '../lib/passport-api';
 import type { Suggestion, Universe } from '@yumia/shared';
@@ -45,11 +47,6 @@ interface ChatMessage {
   role: 'user' | 'ai';
   text: string;
 }
-
-const AFFILIATE_LABEL: Record<string, string> = {
-  booking: '🏨 Réserver sur Booking.com', getyourguide: '🎡 Voir sur GetYourGuide', viator: '🎫 Voir sur Viator',
-  fever: '🎉 Voir sur Fever', shotgun: '🎧 Voir sur Shotgun', trainline: '🚆 Voir sur Trainline', treatwell: '💆 Réserver sur Treatwell',
-};
 
 export default function PlaceScreen() {
   const insets = useSafeAreaInsets();
@@ -512,7 +509,7 @@ export default function PlaceScreen() {
             <Pressable style={bizStyles.bookingBtn} onPress={handleBooking} disabled={bookingLoading}>
               {bookingLoading
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={bizStyles.bookingLabel}>{AFFILIATE_LABEL[affiliateProvider] ?? 'Réserver'}</Text>}
+                : <Text style={bizStyles.bookingLabel}>Réserver sur {affiliateProviderLabel(affiliateProvider)}</Text>}
             </Pressable>
           )}
 

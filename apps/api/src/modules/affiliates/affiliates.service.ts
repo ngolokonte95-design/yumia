@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import type { Universe } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { PlacesService } from '../places/places.service';
 import type { AffiliateProvider, AffiliateProviderKey } from './providers/affiliate-provider.interface';
 import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { ViatorProvider } from './providers/viator.provider';
-import { providersForUniverse } from './universe-provider-map';
+import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-provider-map';
 
 @Injectable()
 export class AffiliatesService {
@@ -13,6 +15,7 @@ export class AffiliatesService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly places: PlacesService,
     booking: BookingProvider,
     getyourguide: GetYourGuideProvider,
     viator: ViatorProvider,
@@ -92,6 +95,34 @@ export class AffiliatesService {
         raw: payload as never,
       },
     });
+  }
+
+  /**
+   * Alimente l'onglet "Bons plans" — lieux proches dont l'univers a au moins
+   * un partenaire d'affiliation *configuré*. Interroge chaque univers
+   * éligible séparément (et non un `nearby` global) pour garantir une
+   * représentation de chaque catégorie (hôtels, activités, bien-être...)
+   * plutôt que d'être noyé par l'univers le plus dense localement.
+   */
+  async getNearbyDeals(params: { lat: number; lng: number; radius: number }) {
+    const configuredUniverses = Object.entries(UNIVERSE_AFFILIATE_PROVIDERS)
+      .filter(([, keys]) => keys.some((k) => this.providers.get(k)?.isConfigured()))
+      .map(([universe]) => universe as Universe);
+
+    const perUniverse = await Promise.all(
+      configuredUniverses.map(async (universe) => {
+        const places = await this.places.nearby({ ...params, universe, limit: 6 }).catch(() => []);
+        return places.map((p) => ({
+          ...p,
+          affiliateProviders: this.availableProviders(universe).filter((pr) => pr.configured).map((pr) => pr.key),
+        }));
+      }),
+    );
+
+    return perUniverse
+      .flat()
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, 40);
   }
 
   // ── Dashboard admin ─────────────────────────────────────────────────────
