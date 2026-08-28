@@ -4,6 +4,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import type { AffiliateProvider, AffiliateProviderKey } from './providers/affiliate-provider.interface';
 import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
+import { ViatorProvider } from './providers/viator.provider';
 import { providersForUniverse } from './universe-provider-map';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class AffiliatesService {
     private readonly prisma: PrismaService,
     booking: BookingProvider,
     getyourguide: GetYourGuideProvider,
+    viator: ViatorProvider,
   ) {
     // Chaque nouveau partenaire (Fever, Treatwell, Trainline...) s'ajoute
     // simplement ici une fois son provider implémenté — le mapping univers →
@@ -21,6 +23,7 @@ export class AffiliatesService {
     this.providers = new Map<AffiliateProviderKey, AffiliateProvider>([
       [booking.key, booking],
       [getyourguide.key, getyourguide],
+      [viator.key, viator],
     ]);
   }
 
