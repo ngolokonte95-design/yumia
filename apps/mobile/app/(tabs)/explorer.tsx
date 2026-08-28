@@ -495,12 +495,12 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   actionCard: {
-    width: '31.5%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, padding: spacing.md, gap: 2, minHeight: 96, justifyContent: 'center',
+    width: '23%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, padding: spacing.sm, gap: 2, minHeight: 90, justifyContent: 'center',
   },
-  actionEmoji: { fontSize: 26 },
-  actionLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', marginTop: 4 },
-  actionSub: { ...typography.label, color: colors.textMuted, fontSize: 10 },
+  actionEmoji: { fontSize: 20 },
+  actionLabel: { ...typography.label, color: colors.textPrimary, fontWeight: '700', marginTop: 4, fontSize: 11 },
+  actionSub: { ...typography.label, color: colors.textMuted, fontSize: 9 },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },
