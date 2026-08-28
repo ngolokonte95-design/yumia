@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type { AffiliateProvider, AffiliateProviderKey } from './providers/affiliate-provider.interface';
 import { BookingProvider } from './providers/booking.provider';
+import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { providersForUniverse } from './universe-provider-map';
 
 @Injectable()
@@ -12,11 +13,15 @@ export class AffiliatesService {
   constructor(
     private readonly prisma: PrismaService,
     booking: BookingProvider,
+    getyourguide: GetYourGuideProvider,
   ) {
-    // Chaque nouveau partenaire (Fever, GetYourGuide, Treatwell, Trainline...)
-    // s'ajoute simplement ici une fois son provider implémenté — le mapping
-    // univers → provider et le reste du flux (clic, stats) ne changent pas.
-    this.providers = new Map([[booking.key, booking]]);
+    // Chaque nouveau partenaire (Fever, Treatwell, Trainline...) s'ajoute
+    // simplement ici une fois son provider implémenté — le mapping univers →
+    // provider et le reste du flux (clic, stats) ne changent pas.
+    this.providers = new Map<AffiliateProviderKey, AffiliateProvider>([
+      [booking.key, booking],
+      [getyourguide.key, getyourguide],
+    ]);
   }
 
   async universeOf(placeId: string): Promise<string | null> {
