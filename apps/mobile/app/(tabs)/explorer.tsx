@@ -14,7 +14,6 @@ import { MODE_META, UNIVERSE_META } from '@yumia/shared';
 import type { Mode, Universe } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useLocation } from '../../lib/useLocation';
-import { fetchBoostedVenues, type Venue } from '../../lib/business-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { socialApi } from '../../lib/social-api';
 import { useAuth } from '../../lib/auth-context';
@@ -40,9 +39,11 @@ type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?:
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
 // (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
+// "Sorties & billets" retiré temporairement (paiement Stripe pas encore
+// branché, back-office venue absent) — voir sorties.tsx, code conservé pour
+// réactivation future, juste plus d'accès UI.
 const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; route: string }[] = [
   { key: 'guides', emoji: '🧭', label: 'Guides locaux', sub: 'Experts certifiés', route: '/guides' },
-  { key: 'sorties', emoji: '🎟️', label: 'Sorties & billets', sub: 'Événements près de toi', route: '/sorties' },
   { key: 'group', emoji: '👥', label: 'Sortie en groupe', sub: 'Décidez ensemble', route: '/group' },
   { key: 'deals', emoji: '💰', label: 'Bons plans', sub: 'Réserve chez nos partenaires', route: '/deals' },
 ];
@@ -56,7 +57,6 @@ export default function ExplorerScreen() {
   const { t } = useI18n();
   const { coords, resolving, isFallback, city } = useLocation();
   const weather = useWeather(coords.lat, coords.lng);
-  const [venues, setVenues] = useState<Venue[]>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   // Aucune sélection de mode dans Explorer (les boutons Date/Famille/Voyage
   // restent sur Home mais n'agissent plus sur cette section) : la section
@@ -131,13 +131,6 @@ export default function ExplorerScreen() {
     : t('top3_title');
 
   useEffect(() => {
-    if (resolving) return;
-    fetchBoostedVenues({ lat: coords.lat, lng: coords.lng, radius: 50000 })
-      .then((v) => setVenues(v.slice(0, 6)))
-      .catch(() => {});
-  }, [coords.lat, coords.lng, resolving]);
-
-  useEffect(() => {
     if (!accessToken) return;
     socialApi.searchUsers(accessToken, '', 10)
       .then((users) => setSuggestedUsers(users.filter((u) => u.id !== user?.id).slice(0, 8)))
@@ -191,29 +184,9 @@ export default function ExplorerScreen() {
         </View>
       </View>
 
-      {/* Sorties à la une */}
-      {venues.length > 0 ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>🎟️ Sorties à la une</Text>
-            <Pressable onPress={() => router.push('/sorties' as never)}>
-              <Text style={styles.seeAll}>Tout voir</Text>
-            </Pressable>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-            {venues.map((v) => (
-              <Pressable key={v.id} style={styles.eventCard} onPress={() => router.push('/sorties' as never)}>
-                <View style={styles.eventTop}>
-                  {v.boostLevel >= 3 ? <Text style={styles.hot}>🔥</Text> : null}
-                  <Text style={styles.eventVenue} numberOfLines={1}>{v.name}</Text>
-                </View>
-                <Text style={styles.eventName} numberOfLines={2}>{v.eventName}</Text>
-                <Text style={styles.eventMeta}>{v.city} · {v.ticketPrice != null ? `${v.ticketPrice}€` : 'Gratuit'}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
+      {/* "Sorties à la une" retiré temporairement avec le reste de la
+          fonctionnalité billetterie — voir sorties.tsx et le commentaire sur
+          QUICK_ACTIONS plus haut. */}
 
       {/* Personnes à suivre */}
       {suggestedUsers.length > 0 ? (
@@ -495,12 +468,12 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   actionCard: {
-    width: '23%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, padding: spacing.sm, gap: 2, minHeight: 90, justifyContent: 'center',
+    width: '31.5%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, padding: spacing.md, gap: 2, minHeight: 96, justifyContent: 'center',
   },
-  actionEmoji: { fontSize: 20 },
-  actionLabel: { ...typography.label, color: colors.textPrimary, fontWeight: '700', marginTop: 4, fontSize: 11 },
-  actionSub: { ...typography.label, color: colors.textMuted, fontSize: 9 },
+  actionEmoji: { fontSize: 26 },
+  actionLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', marginTop: 4 },
+  actionSub: { ...typography.label, color: colors.textMuted, fontSize: 10 },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },

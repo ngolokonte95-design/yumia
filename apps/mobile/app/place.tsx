@@ -488,7 +488,10 @@ export default function PlaceScreen() {
             </Pressable>
           </View>
 
-          {/* Réserver autour de ce lieu (guides / sorties) */}
+          {/* Réserver autour de ce lieu (guides) */}
+          {/* "Sorties & billets" retiré temporairement (paiement Stripe pas
+              encore branché, back-office venue absent) — voir sorties.tsx,
+              code conservé pour réactivation future, juste plus d'accès UI. */}
           <View style={bizStyles.row}>
             <Pressable
               style={bizStyles.btn}
@@ -496,10 +499,6 @@ export default function PlaceScreen() {
             >
               <Text style={bizStyles.emoji}>🧭</Text>
               <Text style={bizStyles.label}>Un guide ici</Text>
-            </Pressable>
-            <Pressable style={bizStyles.btn} onPress={() => router.push('/sorties' as never)}>
-              <Text style={bizStyles.emoji}>🎟️</Text>
-              <Text style={bizStyles.label}>Sorties & billets</Text>
             </Pressable>
           </View>
 
