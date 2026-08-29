@@ -75,6 +75,7 @@ model User {
   groupSessions       GroupMember[]
   notifications       Notification[]
   affiliateClicks     AffiliateClick[]
+  savedItineraries    SavedItinerary[]
 
   @@index([countryCode])
   @@index([expoPushToken])
@@ -1186,4 +1187,22 @@ model AffiliateConversion {
   createdAt   DateTime        @default(now())
 
   @@index([provider, createdAt])
+}
+
+/// Itinéraire IA sauvegardé par l'utilisateur pour le reconsulter plus tard
+/// (les étapes sont conservées telles quelles — pas de régénération).
+model SavedItinerary {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mood      String
+  duration  String
+  budget    String
+  city      String
+  summary   String
+  /// Tableau d'ItineraryStep (time, type, name, description, duration, emoji, tips?, placeId?...).
+  steps     Json
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import type { Universe } from '@yumia/shared';
 import type { AppConfig } from '../../config/configuration';
 import { PlacesService } from '../places/places.service';
+import { PrismaService } from '../../infra/prisma/prisma.service';
 
 export interface ItineraryRequest {
   mood: string;           // 'date' | 'amis' | 'famille' | 'solo' | 'touriste'
@@ -148,6 +149,7 @@ export class ItineraryService {
 
   constructor(
     private readonly places: PlacesService,
+    private readonly prisma: PrismaService,
     config: ConfigService,
   ) {
     const ai = config.get<AppConfig['ai']>('ai');
@@ -258,5 +260,35 @@ Génère 4-6 étapes bien enchaînées et réalistes.`;
     );
 
     return { itinerary: summary, steps };
+  }
+
+  /** Sauvegarde un itinéraire déjà généré tel quel (pas de régénération à la relecture). */
+  async save(userId: string, dto: {
+    mood: string; duration: string; budget: string; city: string; summary: string; steps: ItineraryStep[];
+  }) {
+    return this.prisma.savedItinerary.create({
+      data: {
+        userId,
+        mood: dto.mood,
+        duration: dto.duration,
+        budget: dto.budget,
+        city: dto.city,
+        summary: dto.summary,
+        steps: dto.steps as never,
+      },
+    });
+  }
+
+  async listSaved(userId: string) {
+    return this.prisma.savedItinerary.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async deleteSaved(userId: string, id: string) {
+    const item = await this.prisma.savedItinerary.findUnique({ where: { id } });
+    if (!item || item.userId !== userId) throw new NotFoundException('Itinéraire introuvable');
+    await this.prisma.savedItinerary.delete({ where: { id } });
   }
 }

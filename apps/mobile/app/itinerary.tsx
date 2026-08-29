@@ -14,10 +14,11 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { placeStore } from '../lib/place-store';
+import { saveItinerary } from '../lib/itinerary-api';
+import { MOOD_META, MOODS, type Mood } from '../lib/itinerary-meta';
 
 const API = API_BASE_URL;
 
-type Mood = 'date' | 'amis' | 'famille' | 'solo' | 'touriste';
 type Duration = 'soirée' | 'journée' | 'demi-journée' | 'weekend';
 type Budget = 'économique' | 'moyen' | 'premium';
 
@@ -35,31 +36,6 @@ interface Step {
   placeLat?: number;
   placeLng?: number;
 }
-
-const MOOD_META: Record<Mood, { emoji: string; label: string; color: string; sub: string }> = {
-  date: {
-    emoji: '❤️', label: 'Date romantique', color: '#E8385A',
-    sub: 'Une soirée inoubliable pour deux',
-  },
-  famille: {
-    emoji: '👨‍👩‍👧', label: 'Sortie famille', color: '#FF8C00',
-    sub: 'Des souvenirs pour toute la famille',
-  },
-  touriste: {
-    emoji: '✈️', label: 'Mode Voyage', color: '#0077CC',
-    sub: 'Découvre la ville comme un local',
-  },
-  amis: {
-    emoji: '👫', label: 'Sortie entre amis', color: '#6C3FE8',
-    sub: 'Une journée mémorable en groupe',
-  },
-  solo: {
-    emoji: '🧘', label: 'Exploration solo', color: '#2AA876',
-    sub: 'À ton rythme, à ta façon',
-  },
-};
-
-const MOODS: Mood[] = ['date', 'amis', 'famille', 'solo', 'touriste'];
 
 const DURATIONS: Array<{ key: Duration; label: string; emoji: string }> = [
   { key: 'demi-journée', label: 'Demi-journée', emoji: '🌤️' },
@@ -88,6 +64,8 @@ export default function ItineraryScreen() {
   const [constraints, setConstraints] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ itinerary: string; steps: Step[]; error?: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const meta = MOOD_META[mood];
 
@@ -95,6 +73,7 @@ export default function ItineraryScreen() {
     if (loading) return;
     setLoading(true);
     setResult(null);
+    setSaved(false);
     try {
       const res = await fetch(`${API}/itinerary/generate`, {
         method: 'POST',
@@ -131,6 +110,22 @@ export default function ItineraryScreen() {
       '— Généré par YUMIA ✨',
     ].join('\n');
     await Share.share({ message: text }).catch(() => undefined);
+  };
+
+  const handleSave = async () => {
+    if (!result || result.steps.length === 0 || saving || saved || !accessToken) return;
+    setSaving(true);
+    try {
+      await saveItinerary(accessToken, {
+        mood, duration, budget, city: city.trim() || 'Paris',
+        summary: result.itinerary, steps: result.steps,
+      });
+      setSaved(true);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer cet itinéraire. Réessaie.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const navigateToPlace = (step: Step) => {
@@ -170,8 +165,11 @@ export default function ItineraryScreen() {
             <Text style={styles.headerSub}>{meta.sub}</Text>
           </View>
         </View>
+        <Pressable onPress={() => router.push('/saved-itineraries' as never)} style={styles.shareBtn}>
+          <Text style={styles.shareIcon}>📚</Text>
+        </Pressable>
         {result && result.steps.length > 0 && (
-          <Pressable onPress={() => void shareItinerary()} style={styles.shareBtn}>
+          <Pressable onPress={() => void shareItinerary()} style={[styles.shareBtn, { marginLeft: 8 }]}>
             <Text style={styles.shareIcon}>↑</Text>
           </Pressable>
         )}
@@ -343,13 +341,24 @@ export default function ItineraryScreen() {
 
             {/* Actions en bas */}
             <View style={styles.bottomActions}>
+              <Pressable
+                style={[styles.actionBtn, { backgroundColor: saved ? colors.success : meta.color }, saving && { opacity: 0.7 }]}
+                onPress={() => void handleSave()}
+                disabled={saving || saved}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.actionBtnText}>{saved ? '✓ Enregistré' : '💾 Enregistrer'}</Text>
+                )}
+              </Pressable>
               <Pressable style={[styles.actionBtn, { backgroundColor: meta.color }]} onPress={() => void shareItinerary()}>
                 <Text style={styles.actionBtnText}>↑ Partager</Text>
               </Pressable>
-              <Pressable style={styles.actionBtnOutline} onPress={() => { setResult(null); void generate(); }}>
-                <Text style={[styles.actionBtnOutlineText, { color: meta.color }]}>↺ Nouveau</Text>
-              </Pressable>
             </View>
+            <Pressable style={[styles.actionBtnOutline, { marginTop: spacing.sm }]} onPress={() => { setResult(null); void generate(); }}>
+              <Text style={[styles.actionBtnOutlineText, { color: meta.color }]}>↺ Nouvel itinéraire</Text>
+            </Pressable>
           </View>
         ) : null}
       </ScrollView>

@@ -133,6 +133,8 @@ function AuthGate() {
       <Stack.Screen name="plus" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="guides" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="sorties" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="saved-itineraries" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="saved-itinerary-detail" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="nightclub" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="visits" />
       <Stack.Screen name="story-viewer" options={{ animation: 'fade', presentation: 'fullScreenModal' }} />
