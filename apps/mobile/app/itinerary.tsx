@@ -80,6 +80,7 @@ export default function ItineraryScreen() {
 
   const generate = async () => {
     if (loading) return;
+    setCitySuggestOpen(false);
     setLoading(true);
     setResult(null);
     setSaved(false);
@@ -197,6 +198,7 @@ export default function ItineraryScreen() {
                 style={[styles.moodChip, mood === m && { backgroundColor: MOOD_META[m].color, borderColor: MOOD_META[m].color }]}
                 onPress={() => {
                   setMood(m);
+                  setCitySuggestOpen(false);
                   // "Semaine" n'a de sens que pour le Voyage — on retombe sur
                   // "journée" si l'utilisateur change de mood en l'ayant choisie.
                   if (m !== 'touriste' && duration === 'semaine') setDuration('journée');
@@ -216,7 +218,7 @@ export default function ItineraryScreen() {
             <Pressable
               key={d.key}
               style={[styles.durationChip, duration === d.key && { backgroundColor: meta.color, borderColor: meta.color }]}
-              onPress={() => setDuration(d.key)}
+              onPress={() => { setDuration(d.key); setCitySuggestOpen(false); }}
             >
               <Text style={styles.durationEmoji}>{d.emoji}</Text>
               <Text style={[styles.durationLabel, duration === d.key && styles.chipLabelActive]}>{d.label}</Text>
@@ -231,7 +233,7 @@ export default function ItineraryScreen() {
             <Pressable
               key={b.key}
               style={[styles.budgetChip, budget === b.key && { backgroundColor: meta.color, borderColor: meta.color }]}
-              onPress={() => setBudget(b.key)}
+              onPress={() => { setBudget(b.key); setCitySuggestOpen(false); }}
             >
               <Text style={styles.budgetEmoji}>{b.emoji}</Text>
               <View style={styles.budgetTextCol}>
