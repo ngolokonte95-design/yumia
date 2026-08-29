@@ -16,6 +16,8 @@ import { API_BASE_URL } from '../lib/config';
 import { placeStore } from '../lib/place-store';
 import { saveItinerary } from '../lib/itinerary-api';
 import { MOOD_META, MOODS, type Mood } from '../lib/itinerary-meta';
+import { useCitySearch } from '../lib/useCitySearch';
+import type { CitySuggestion } from '../lib/services/weather';
 
 const API = API_BASE_URL;
 
@@ -66,6 +68,8 @@ export default function ItineraryScreen() {
   const [duration, setDuration] = useState<Duration>('soirée');
   const [budget, setBudget] = useState<Budget>('moyen');
   const [city, setCity] = useState('');
+  const [citySuggestOpen, setCitySuggestOpen] = useState(false);
+  const { results: citySuggestions, loading: citySearching } = useCitySearch(citySuggestOpen ? city : '');
   const [constraints, setConstraints] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ itinerary: string; steps: Step[]; error?: string } | null>(null);
@@ -180,7 +184,7 @@ export default function ItineraryScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
 
         {/* Sélection du mood */}
         <Text style={styles.label}>Pour qui ?</Text>
@@ -247,14 +251,41 @@ export default function ItineraryScreen() {
 
         {/* Ville */}
         <Text style={styles.label}>Ville</Text>
-        <TextInput
-          style={styles.input}
-          value={city}
-          onChangeText={setCity}
-          placeholder="Paris (par défaut)"
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="done"
-        />
+        <View>
+          <TextInput
+            style={styles.input}
+            value={city}
+            onChangeText={(t) => { setCity(t); setCitySuggestOpen(true); }}
+            onFocus={() => setCitySuggestOpen(true)}
+            placeholder="Paris (par défaut)"
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="done"
+            onSubmitEditing={() => setCitySuggestOpen(false)}
+            autoCorrect={false}
+          />
+          {citySuggestOpen && city.trim().length >= 2 ? (
+            <View style={styles.citySuggestBox}>
+              {citySearching ? (
+                <ActivityIndicator color={meta.color} size="small" style={{ padding: 12 }} />
+              ) : citySuggestions.length === 0 ? (
+                <Text style={styles.citySuggestEmpty}>Aucune ville trouvée.</Text>
+              ) : (
+                citySuggestions.map((c: CitySuggestion) => (
+                  <Pressable
+                    key={c.id}
+                    style={styles.citySuggestRow}
+                    onPress={() => { setCity(c.name); setCitySuggestOpen(false); }}
+                  >
+                    <Text style={styles.citySuggestName}>{c.name}</Text>
+                    <Text style={styles.citySuggestRegion} numberOfLines={1}>
+                      {[c.admin1, c.country].filter(Boolean).join(', ')}
+                    </Text>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+        </View>
 
         {/* Contraintes */}
         <Text style={styles.label}>Contraintes (optionnel)</Text>
@@ -262,6 +293,7 @@ export default function ItineraryScreen() {
           style={[styles.input, { height: 64 }]}
           value={constraints}
           onChangeText={setConstraints}
+          onFocus={() => setCitySuggestOpen(false)}
           placeholder="ex: végétarien, enfants de 5 et 8 ans, pas d'alcool…"
           placeholderTextColor={colors.textMuted}
           multiline
@@ -438,6 +470,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12,
     color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border,
   },
+
+  citySuggestBox: {
+    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 20,
+    backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
+    maxHeight: 220, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+  },
+  citySuggestEmpty: { padding: 12, fontSize: 13, color: colors.textMuted },
+  citySuggestRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  citySuggestName: { fontSize: 14, fontWeight: '600', color: colors.text },
+  citySuggestRegion: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
 
   generateBtn: {
     marginTop: spacing.lg, borderRadius: radius.lg,
