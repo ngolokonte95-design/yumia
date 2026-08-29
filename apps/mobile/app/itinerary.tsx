@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Pressable, ScrollView,
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView,
   Share, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -185,6 +185,11 @@ export default function ItineraryScreen() {
         )}
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top}
+      >
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
 
         {/* Sélection du mood */}
@@ -406,6 +411,7 @@ export default function ItineraryScreen() {
           </View>
         ) : null}
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -474,10 +480,9 @@ const styles = StyleSheet.create({
   },
 
   citySuggestBox: {
-    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 20,
+    marginTop: 4,
     backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
     maxHeight: 220, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
   },
   citySuggestEmpty: { padding: 12, fontSize: 13, color: colors.textMuted },
   citySuggestRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
