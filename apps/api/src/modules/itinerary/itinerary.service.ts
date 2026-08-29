@@ -8,7 +8,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 
 export interface ItineraryRequest {
   mood: string;           // 'date' | 'amis' | 'famille' | 'solo' | 'touriste'
-  duration: string;       // 'soirée' | 'journée' | 'demi-journée' | 'weekend'
+  duration: string;       // 'soirée' | 'journée' | 'demi-journée' | 'weekend' | 'semaine'
   budget: string;         // 'économique' | 'moyen' | 'premium'
   city: string;
   interests?: string[];
@@ -137,9 +137,25 @@ function stepCountForDuration(duration: string): number {
     case 'soirée': return 3;
     case 'journée': return 5;
     case 'weekend': return 5;
+    case 'semaine': return 7;
     default: return 4;
   }
 }
+
+/**
+ * Itinéraire "semaine" : une recommandation par jour (pas d'horaire précis à
+ * l'échelle d'un jour entier). Trame de repli générique pour le mode Voyage,
+ * utilisée si l'IA est indisponible.
+ */
+const WEEK_FALLBACK: ItineraryStep[] = [
+  { time: 'Jour 1', type: 'monument', name: 'Découverte des incontournables', description: 'Premier contact avec la ville : ses monuments et sites emblématiques.', duration: 'Journée', emoji: '🏛️' },
+  { time: 'Jour 2', type: 'musée', name: 'Immersion culturelle', description: 'Musées et galeries pour comprendre l\'histoire et l\'art local.', duration: 'Journée', emoji: '🖼️' },
+  { time: 'Jour 3', type: 'balade', name: 'Nature et grand air', description: 'Une journée au vert, parc ou site naturel autour de la ville.', duration: 'Journée', emoji: '🌳' },
+  { time: 'Jour 4', type: 'activité', name: 'Marché et gastronomie locale', description: 'Marché local, spécialités culinaires et adresses de quartier.', duration: 'Journée', emoji: '🍴' },
+  { time: 'Jour 5', type: 'activité', name: 'Journée détente', description: 'Rythme plus calme : spa, café, ou simple flânerie selon l\'envie.', duration: 'Journée', emoji: '🧘' },
+  { time: 'Jour 6', type: 'tourisme', name: 'Excursion hors du centre', description: 'Une sortie plus loin pour changer de décor le temps d\'une journée.', duration: 'Journée', emoji: '🚗' },
+  { time: 'Jour 7', type: 'shopping', name: 'Shopping et derniers souvenirs', description: 'Dernière journée pour ramener un souvenir avant le départ.', duration: 'Journée', emoji: '🛍️' },
+];
 
 @Injectable()
 export class ItineraryService {
@@ -169,6 +185,8 @@ export class ItineraryService {
     const moodCtx = MOOD_CONTEXT[req.mood] ?? '';
     const city = req.city.trim() || 'Paris';
 
+    const isWeek = req.duration === 'semaine';
+
     const prompt = `${moodCtx}
 
 Génère un itinéraire ${req.duration} à ${city} pour ${req.mood}${req.groupSize ? ` (${req.groupSize} personnes)` : ''}.
@@ -194,7 +212,9 @@ Réponds UNIQUEMENT avec un objet JSON valide (sans markdown, sans backticks, sa
 }
 
 Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub, monument, glace, boulangerie, balade, activité, photo, brunch, cocktail, dessert.
-Génère 4-6 étapes bien enchaînées et réalistes.`;
+${isWeek
+  ? 'Durée demandée : une semaine complète. Génère EXACTEMENT 7 étapes, une par jour (pas d\'horaire précis) : "time" doit valoir "Jour 1", "Jour 2", ... "Jour 7", et "duration" doit valoir "Journée". Chaque jour propose UNE thématique/activité principale différente (pas de répétition d\'un jour à l\'autre), pensée pour un séjour touristique complet et varié dans la ville.'
+  : 'Génère 4-6 étapes bien enchaînées et réalistes.'}`;
 
     let steps: ItineraryStep[] = [];
     let summary = '';
@@ -206,7 +226,7 @@ Génère 4-6 étapes bien enchaînées et réalistes.`;
       try {
         const response = await this.ai.messages.create({
           model: this.model,
-          max_tokens: 1500,
+          max_tokens: isWeek ? 2200 : 1500,
           messages: [{ role: 'user', content: prompt }],
         });
 
@@ -227,7 +247,7 @@ Génère 4-6 étapes bien enchaînées et réalistes.`;
     // Repli : aucune étape IA (pas de clé, plus de crédit, erreur…) → trame
     // pré-définie adaptée au mood, tronquée selon la durée demandée.
     if (steps.length === 0) {
-      const sequence = FALLBACK_SEQUENCES[req.mood] ?? FALLBACK_SEQUENCES.amis;
+      const sequence = isWeek ? WEEK_FALLBACK : (FALLBACK_SEQUENCES[req.mood] ?? FALLBACK_SEQUENCES.amis);
       steps = sequence.slice(0, stepCountForDuration(req.duration)).map((s) => ({ ...s }));
       if (!summary) {
         summary = `Un itinéraire ${req.duration} à ${city} pensé pour un moment ${req.mood}. Chaque étape est un vrai lieu près de toi.`;

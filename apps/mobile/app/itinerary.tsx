@@ -19,7 +19,7 @@ import { MOOD_META, MOODS, type Mood } from '../lib/itinerary-meta';
 
 const API = API_BASE_URL;
 
-type Duration = 'soirée' | 'journée' | 'demi-journée' | 'weekend';
+type Duration = 'soirée' | 'journée' | 'demi-journée' | 'weekend' | 'semaine';
 type Budget = 'économique' | 'moyen' | 'premium';
 
 interface Step {
@@ -43,6 +43,11 @@ const DURATIONS: Array<{ key: Duration; label: string; emoji: string }> = [
   { key: 'journée', label: 'Journée complète', emoji: '☀️' },
   { key: 'weekend', label: 'Weekend', emoji: '🗓️' },
 ];
+
+// "Semaine" n'a de sens que pour le mode Voyage — un itinéraire d'une
+// semaine pour un date ou une sortie entre amis n'est pas un cas d'usage
+// réaliste. Ajoutée à la liste uniquement quand mood === 'touriste'.
+const WEEK_DURATION: { key: Duration; label: string; emoji: string } = { key: 'semaine', label: 'Semaine', emoji: '🧳' };
 
 const BUDGETS: Array<{ key: Budget; emoji: string; label: string; desc: string }> = [
   { key: 'économique', emoji: '💸', label: 'Économique', desc: '< 30€/pers.' },
@@ -186,7 +191,12 @@ export default function ItineraryScreen() {
               <Pressable
                 key={m}
                 style={[styles.moodChip, mood === m && { backgroundColor: MOOD_META[m].color, borderColor: MOOD_META[m].color }]}
-                onPress={() => setMood(m)}
+                onPress={() => {
+                  setMood(m);
+                  // "Semaine" n'a de sens que pour le Voyage — on retombe sur
+                  // "journée" si l'utilisateur change de mood en l'ayant choisie.
+                  if (m !== 'touriste' && duration === 'semaine') setDuration('journée');
+                }}
               >
                 <Text style={styles.moodEmoji}>{mm.emoji}</Text>
                 <Text style={[styles.moodLabel, mood === m && styles.moodLabelActive]}>{mm.label.split(' ')[0]}</Text>
@@ -198,7 +208,7 @@ export default function ItineraryScreen() {
         {/* Durée */}
         <Text style={styles.label}>Durée</Text>
         <View style={styles.chipGrid}>
-          {DURATIONS.map((d) => (
+          {(mood === 'touriste' ? [...DURATIONS, WEEK_DURATION] : DURATIONS).map((d) => (
             <Pressable
               key={d.key}
               style={[styles.durationChip, duration === d.key && { backgroundColor: meta.color, borderColor: meta.color }]}
