@@ -3,7 +3,7 @@
  * Chaque mode a son identité visuelle et un prompt contextuel côté backend.
  * Les étapes sont liées aux vrais lieux YUMIA quand disponibles.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, Pressable, ScrollView,
   Share, StyleSheet, Text, TextInput, View,
@@ -70,6 +70,8 @@ export default function ItineraryScreen() {
   const [city, setCity] = useState('');
   const [citySuggestOpen, setCitySuggestOpen] = useState(false);
   const { results: citySuggestions, loading: citySearching } = useCitySearch(citySuggestOpen ? city : '');
+  const scrollRef = useRef<ScrollView>(null);
+  const cityFieldY = useRef(0);
   const [constraints, setConstraints] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ itinerary: string; steps: Step[]; error?: string } | null>(null);
@@ -77,6 +79,18 @@ export default function ItineraryScreen() {
   const [saved, setSaved] = useState(false);
 
   const meta = MOOD_META[mood];
+
+  // Fait remonter automatiquement le champ Ville (et ses suggestions) au-dessus
+  // du clavier dès qu'elles s'affichent — sans ça l'utilisateur doit scroller
+  // manuellement pour les voir.
+  useEffect(() => {
+    if (citySuggestOpen && city.trim().length >= 2) {
+      const t = setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: Math.max(0, cityFieldY.current - 12), animated: true });
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [citySuggestOpen, city, citySuggestions, citySearching]);
 
   const generate = async () => {
     if (loading) return;
@@ -185,7 +199,7 @@ export default function ItineraryScreen() {
         )}
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
+      <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
 
         {/* Sélection du mood */}
         <Text style={styles.label}>Pour qui ?</Text>
@@ -252,7 +266,12 @@ export default function ItineraryScreen() {
         </View>
 
         {/* Ville */}
-        <Text style={styles.label}>Ville</Text>
+        <Text
+          style={styles.label}
+          onLayout={(e) => { cityFieldY.current = e.nativeEvent.layout.y; }}
+        >
+          Ville
+        </Text>
         <View>
           <TextInput
             style={styles.input}
