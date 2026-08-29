@@ -172,7 +172,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi."
+          "locationWhenInUsePermission": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi.",
+          "locationAlwaysAndWhenInUsePermission": "YUMIA utilise ta position, même en arrière-plan, pour te faire découvrir les membres proches de toi quand tu actives le mode visible.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       "expo-video",

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { isBackgroundLocationActive, startBackgroundLocation, stopBackgroundLocation } from '../lib/background-location';
 
 const API = API_BASE_URL;
 
@@ -28,6 +29,7 @@ export default function WorldMapScreen() {
   const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastVis, setBroadcastVis] = useState<'map' | 'off'>('off');
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const loadUsers = useCallback(async () => {
     if (!accessToken) return;
@@ -52,10 +54,17 @@ export default function WorldMapScreen() {
   useEffect(() => {
     void getLocation();
     void loadUsers();
+    // Reflète l'état réel de la tâche de fond (ex : app relancée alors que la
+    // diffusion était déjà active).
+    void isBackgroundLocationActive().then((active) => {
+      setBroadcasting(active);
+      setBroadcastVis(active ? 'map' : 'off');
+    });
   }, [getLocation, loadUsers]);
 
   const toggleBroadcast = async () => {
     if (broadcasting) {
+      await stopBackgroundLocation();
       await fetch(`${API}/location/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -66,11 +75,18 @@ export default function WorldMapScreen() {
     } else {
       const coords = await getLocation();
       if (!coords) return;
+      // Premier envoi immédiat (l'arrière-plan ne mettra à jour que 30s plus tard).
       await fetch(`${API}/location/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ lat: coords.latitude, lng: coords.longitude, visibility: 'map' }),
       });
+      const started = await startBackgroundLocation();
+      if (!started) {
+        setPermissionDenied(true);
+        return;
+      }
+      setPermissionDenied(false);
       setBroadcasting(true);
       setBroadcastVis('map');
       void loadUsers();
@@ -123,7 +139,11 @@ export default function WorldMapScreen() {
             {broadcasting ? '🟢 Visible sur la carte' : '⚫ Invisible'}
           </Text>
           <Text style={styles.broadcastSub}>
-            {broadcasting ? 'Les autres utilisateurs te voient' : 'Active pour apparaître sur la carte mondiale'}
+            {permissionDenied
+              ? 'Autorise la localisation "Toujours" dans les réglages pour rester visible en arrière-plan.'
+              : broadcasting
+                ? 'Les autres utilisateurs te voient, même app fermée'
+                : 'Active pour apparaître sur la carte mondiale'}
           </Text>
         </View>
         <Pressable style={[styles.broadcastBtn, broadcasting && styles.broadcastBtnActive]} onPress={toggleBroadcast}>
