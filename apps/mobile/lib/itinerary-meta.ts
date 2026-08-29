@@ -8,7 +8,7 @@ export const MOOD_META: Record<Mood, { emoji: string; label: string; color: stri
     sub: 'Une soirée inoubliable pour deux',
   },
   famille: {
-    emoji: '👨‍👩‍👧', label: 'Sortie famille', color: '#FF8C00',
+    emoji: '👨‍👩‍👧', label: 'Famille', color: '#FF8C00',
     sub: 'Des souvenirs pour toute la famille',
   },
   touriste: {

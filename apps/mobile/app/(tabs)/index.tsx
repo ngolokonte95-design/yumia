@@ -64,7 +64,6 @@ const SHORTCUT_COLUMNS = FEATURE_SHORTCUTS.reduce<(typeof FEATURE_SHORTCUTS)[num
 const MODE_CHIPS: { key: Mode; emoji: string; label: string; mood: string }[] = [
   { key: 'date', emoji: '❤️', label: 'Date', mood: 'date' },
   { key: 'group', emoji: '👫', label: 'Amis', mood: 'amis' },
-  { key: 'family', emoji: '👨‍👩‍👧', label: 'Famille', mood: 'famille' },
   { key: 'travel', emoji: '✈️', label: 'Voyage', mood: 'touriste' },
 ];
 
@@ -138,10 +137,9 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Modes IA — toggle humeur. Fixes (pas de ScrollView) : 4 chips,
-          tailles réduites pour qu'elles tiennent toujours sur une ligne — un
-          ScrollView pour ça ne faisait que "rebondir" au toucher sans rien à
-          faire défiler. */}
+      {/* Modes IA — toggle humeur. Fixes (pas de ScrollView) : seulement 3
+          chips, elles tiennent toujours sur une ligne — un ScrollView pour ça
+          ne faisait que "rebondir" au toucher sans rien à faire défiler. */}
       <View style={styles.section}>
         <View style={styles.modesRow}>
           {MODE_CHIPS.map((m) => (
@@ -204,17 +202,17 @@ const styles = StyleSheet.create({
   },
   shortcutEmoji: { fontSize: 20 },
   shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
-  modesRow: { flexDirection: 'row', gap: spacing.xs },
+  modesRow: { flexDirection: 'row', gap: spacing.sm },
   modeChip: {
     flex: 1,
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: 4,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 6,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
@@ -222,8 +220,8 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.brand}18`,
     borderColor: colors.brand,
   },
-  modeEmoji: { fontSize: 13 },
-  modeLabel: { ...typography.label, color: colors.textPrimary, fontWeight: '600', fontSize: 11 },
+  modeEmoji: { fontSize: 16 },
+  modeLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
   modeLabelActive: { color: colors.brandSoft },
   universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   universeCard: {
