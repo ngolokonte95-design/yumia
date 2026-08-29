@@ -157,6 +157,10 @@ export default function SwipeScreen() {
   const { accessToken } = useAuth();
   const { coords, resolving } = useLocation();
   const [index, setIndex] = useState(0);
+  // Incrémenté à chaque "Recommencer" pour forcer le remontage des cartes :
+  // sans ça, React réutilise le même SwipeCard (même key={place.id}) dont la
+  // position animée est restée hors écran depuis le dernier swipe.
+  const [round, setRound] = useState(0);
 
   const { places, loading } = useNearbyUniverse({
     lat: coords.lat,
@@ -227,7 +231,7 @@ export default function SwipeScreen() {
             <Text style={styles.doneEmoji}>🎉</Text>
             <Text style={styles.doneTitle}>C'est tout !</Text>
             <Text style={styles.doneBody}>Tu as exploré tous les lieux autour de toi.</Text>
-            <Pressable style={styles.retryBtn} onPress={() => setIndex(0)}>
+            <Pressable style={styles.retryBtn} onPress={() => { setIndex(0); setRound((r) => r + 1); }}>
               <Text style={styles.retryText}>Recommencer</Text>
             </Pressable>
           </View>
@@ -237,7 +241,7 @@ export default function SwipeScreen() {
             const isTop = i === visible.length - 1;
             return (
               <SwipeCard
-                key={place.id}
+                key={`${round}-${place.id}`}
                 place={place}
                 isTop={isTop}
                 onLike={() => handleLike(place)}
