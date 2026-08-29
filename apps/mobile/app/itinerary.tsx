@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView,
+  ActivityIndicator, Alert, Image, Pressable, ScrollView,
   Share, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -185,11 +185,6 @@ export default function ItineraryScreen() {
         )}
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top}
-      >
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
 
         {/* Sélection du mood */}
@@ -411,7 +406,6 @@ export default function ItineraryScreen() {
           </View>
         ) : null}
       </ScrollView>
-      </KeyboardAvoidingView>
     </View>
   );
 }
