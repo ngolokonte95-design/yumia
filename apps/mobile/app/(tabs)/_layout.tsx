@@ -5,6 +5,9 @@ import { colors } from '../../theme/tokens';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
 
 const TAB_BAR_BASE_HEIGHT = 56;
+// Marge supplémentaire (Android) pour remonter un peu plus la barre au-dessus
+// de la zone de gestes système, en plus de l'inset de sécurité.
+const TAB_BAR_EXTRA_BOTTOM_ANDROID = 12;
 
 /**
  * Navigation principale — barre inférieure à 5 onglets (section 5 du PRD).
@@ -60,7 +63,10 @@ export default function TabsLayout() {
           // apparaissent alors à moitié masquées. iOS gère déjà correctement
           // le home indicator automatiquement, donc on ne touche à rien là-bas.
           ...(Platform.OS === 'android'
-            ? { height: TAB_BAR_BASE_HEIGHT + insets.bottom, paddingBottom: insets.bottom }
+            ? {
+                height: TAB_BAR_BASE_HEIGHT + insets.bottom + TAB_BAR_EXTRA_BOTTOM_ANDROID,
+                paddingBottom: insets.bottom + TAB_BAR_EXTRA_BOTTOM_ANDROID,
+              }
             : {}),
         },
         tabBarActiveTintColor: colors.brand,
