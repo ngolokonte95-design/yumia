@@ -557,7 +557,7 @@ export default function NearbyUsersScreen() {
             <View style={styles.backdrop} />
           </TouchableWithoutFeedback>
           <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={styles.sheetHandle} />
               <Text style={styles.sheetTitle}>Envoie un signal 📡</Text>
               <Text style={styles.sheetSub}>Indique aux autres ce que tu cherches maintenant</Text>
@@ -641,7 +641,7 @@ export default function NearbyUsersScreen() {
             <View style={styles.backdrop} />
           </TouchableWithoutFeedback>
           <View style={[styles.sheet, styles.sheetTall]}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={styles.sheetHandle} />
               <Text style={styles.sheetTitle}>Créer un événement 🎉</Text>
 

@@ -260,7 +260,7 @@ export default function StoryViewerScreen() {
   const stickers = (story.stickers ?? []) as StorySticker[];
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {story.type === 'video' ? (
         <StoryVideo key={story.id} uri={story.mediaUrl} />
       ) : (

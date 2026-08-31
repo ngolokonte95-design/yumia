@@ -338,7 +338,7 @@ function CreateCollectionModal({
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <PressableScale onPress={onClose} scaleTo={1} style={styles.backdrop}>
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>Nouvelle collection</Text>
