@@ -518,6 +518,12 @@ export default function MapScreen() {
           showsUserLocation
           showsMyLocationButton={false}
           mapType="standard"
+          // Android uniquement : sans ça, les icônes de commerces de Google
+          // Maps sont cliquables et interceptent le tap (onPoiClick au lieu
+          // de onPress) — le petit spinner de chargement ne se déclenchait
+          // jamais en tapant dessus. On les masque juste (pas de couleurs
+          // custom, contrairement à l'ancien style sombre retiré plus haut).
+          {...(Platform.OS === 'android' ? { customMapStyle: ANDROID_HIDE_POI_STYLE } : {})}
           onPress={handleMapTap}
           onRegionChangeComplete={onRegionChangeComplete}
         >
@@ -732,6 +738,11 @@ function to24h(time: string): string {
   }
   return time;
 }
+
+const ANDROID_HIDE_POI_STYLE = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+];
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
