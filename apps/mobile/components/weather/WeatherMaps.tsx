@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import MapView, { Circle, Marker, UrlTile } from 'react-native-maps';
 import { GlassCard, PressableScale } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -11,6 +11,17 @@ type Layer = 'rain' | 'air';
 
 /** Durée d'affichage d'une frame radar pendant l'animation. */
 const FRAME_MS = 650;
+
+// Android uniquement : `userInterfaceStyle="dark"` (plus bas) n'a d'effet que
+// sur Apple Maps. Sans équivalent, Google Maps affiche son style par défaut —
+// icônes de commerces et noms de rues qui polluent la lecture du radar
+// pluie/qualité de l'air. On masque juste les POI/transit, sans changer les
+// couleurs (contrairement à l'onglet Carte, ce widget reste discret dans la
+// page météo).
+const ANDROID_CLEAN_MAP_STYLE = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+];
 
 /** Emprise de la grille de qualité de l'air, en degrés autour du centre. */
 const AIR_SPAN = 0.6;
@@ -122,9 +133,9 @@ export function WeatherMaps({
           showsUserLocation
           toolbarEnabled={false}
           // Sans ça, Apple Maps s'affiche en thème clair : le vert vif jure
-          // avec toute l'interface sombre. iOS uniquement — sur Android,
-          // Google Maps demanderait un `customMapStyle`.
+          // avec toute l'interface sombre. iOS uniquement.
           userInterfaceStyle="dark"
+          {...(Platform.OS === 'android' ? { customMapStyle: ANDROID_CLEAN_MAP_STYLE } : {})}
         >
           {layer === 'rain' && frame && (
             <UrlTile

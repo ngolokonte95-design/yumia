@@ -518,7 +518,6 @@ export default function MapScreen() {
           showsUserLocation
           showsMyLocationButton={false}
           mapType="standard"
-          customMapStyle={DARK_MAP_STYLE}
           onPress={handleMapTap}
           onRegionChangeComplete={onRegionChangeComplete}
         >
@@ -733,17 +732,6 @@ function to24h(time: string): string {
   }
   return time;
 }
-
-const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#17171F' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#A6A6B8' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0E0E12' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2A2A38' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1F1F2A' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1F1F2A' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-];
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
