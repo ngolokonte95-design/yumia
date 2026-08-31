@@ -535,6 +535,12 @@ export default function MapScreen() {
               description={`${safeMeta(place.universe).labelFr || place.universe} · ⭐ ${place.rating.toFixed(1)}`}
               tracksViewChanges={trackingIds.has(place.id)}
               onPress={() => openDetail(place)}
+              // Android uniquement : notre bulle est ronde (pas une épingle
+              // pointue), donc son ancre doit être son centre — pas le
+              // bas-centre par défaut de react-native-maps. Sans ça, la bulle
+              // s'affiche décalée de son vrai point GPS et un tap "à côté"
+              // du lieu déclenche quand même sa sélection.
+              {...(Platform.OS === 'android' ? { anchor: { x: 0.5, y: 0.5 } } : {})}
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
                 {place.universe === 'cannabis' ? (
