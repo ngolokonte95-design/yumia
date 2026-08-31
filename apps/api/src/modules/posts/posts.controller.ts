@@ -1,19 +1,26 @@
 import {
-  BadRequestException, Body, Controller, Delete, Get, Param, Patch,
+  BadRequestException, Body, Controller, Delete, Get, Logger, Param, Patch,
   Post, Query, Req, UploadedFile, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { extname } from 'node:path';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsService, type PostOverlay } from './posts.service';
 import { StorageService } from '../../infra/storage/storage.service';
+import { VideoTranscodeService } from '../../infra/media/video-transcode.service';
+
+const VIDEO_MIMETYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
 
 @Controller('posts')
 @UseGuards(JwtAuthGuard)
 export class PostsController {
+  private readonly logger = new Logger(PostsController.name);
+
   constructor(
     private readonly postsService: PostsService,
     private readonly storage: StorageService,
+    private readonly videoTranscode: VideoTranscodeService,
   ) {}
 
   /** POST /posts/audio-proxy — télécharge un preview audio depuis un CDN tiers (Deezer, iTunes)
@@ -60,7 +67,22 @@ export class PostsController {
   }))
   async uploadMedia(@UploadedFile() file: Express.Multer.File): Promise<{ url: string }> {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
-    const url = await this.storage.save(file.buffer, file.originalname, 'posts');
+
+    let buffer = file.buffer;
+    let originalname = file.originalname;
+
+    if (VIDEO_MIMETYPES.has(file.mimetype)) {
+      try {
+        buffer = await this.videoTranscode.transcode(buffer, extname(file.originalname));
+        originalname = originalname.replace(/\.[^.]+$/, '') + '.mp4';
+      } catch (err) {
+        // Best-effort : une vidéo non transcodée reste meilleure qu'un post
+        // qui échoue (ffmpeg absent en dev local, timeout, fichier atypique…).
+        this.logger.warn(`Transcodage vidéo échoué, envoi du fichier original : ${(err as Error).message}`);
+      }
+    }
+
+    const url = await this.storage.save(buffer, originalname, 'posts');
     return { url };
   }
 

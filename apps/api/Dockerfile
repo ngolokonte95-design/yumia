@@ -31,8 +31,9 @@ RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build --workspace=apps/api
 # ── Stage 2 : runner ─────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
-# OpenSSL requis par les binaires du moteur Prisma.
-RUN apk add --no-cache openssl
+# OpenSSL requis par les binaires du moteur Prisma. ffmpeg pour le
+# transcodage vidéo à l'upload (voir video-transcode.service.ts).
+RUN apk add --no-cache openssl ffmpeg
 
 RUN addgroup -S yumia && adduser -S yumia -G yumia
 
