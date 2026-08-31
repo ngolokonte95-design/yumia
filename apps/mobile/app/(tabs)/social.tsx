@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Platform, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
 } from 'react-native';
 import { Audio } from 'expo-av';
@@ -15,6 +15,17 @@ import { PostVideo } from '../../components/PostVideo';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 
 const API = API_BASE_URL;
+
+// Android uniquement : sans réglage explicite, FlatList garde par défaut
+// jusqu'à ~21 "écrans" de contenu montés autour de la zone visible
+// (windowSize). Chaque post vidéo instancie un lecteur natif — sur Android,
+// moins de décodeurs matériels concurrents que sur iOS, donc trop de vidéos
+// montées en même temps saccadent la lecture. On réduit la fenêtre montée
+// (le `active` de PostVideo coupe déjà la lecture hors-écran, mais ne
+// démonte pas le player tant que la fenêtre FlatList le garde en mémoire).
+const ANDROID_FEED_PERF_PROPS = Platform.OS === 'android'
+  ? { windowSize: 5, maxToRenderPerBatch: 4, initialNumToRender: 4, removeClippedSubviews: true }
+  : {};
 
 /** Détecte une URL vidéo par son extension (les vidéos sont stockées dans mediaUrls). */
 function isVideoUrl(url?: string | null): boolean {
@@ -611,6 +622,7 @@ export default function SocialTab() {
       keyExtractor={(p) => p.id}
       onViewableItemsChanged={onViewablePostsChanged}
       viewabilityConfig={viewabilityConfig}
+      {...ANDROID_FEED_PERF_PROPS}
       ListHeaderComponent={withStories ? (
         <StoriesBar
           groups={stories}
