@@ -1,8 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Platform, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
+
+const SOCIAL_TAB_ICON = require('../../assets/social-tab-icon.png');
 
 const TAB_BAR_BASE_HEIGHT = 56;
 // Marge supplémentaire (Android) pour remonter un peu plus la barre au-dessus
@@ -35,6 +38,20 @@ function TabIcon({ emoji, focused, badge }: { emoji: string; focused: boolean; b
           </Text>
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/** Icône du tab "Social" : le pictogramme YUMIA (sans le mot-symbole), pour
+ * distinguer ce tab des emoji utilisés partout ailleurs. */
+function SocialTabIcon({ focused }: { focused: boolean }) {
+  return (
+    <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+      <Image
+        source={SOCIAL_TAB_ICON}
+        style={{ width: 24, height: 24 * (431 / 361), opacity: focused ? 1 : 0.5 }}
+        contentFit="contain"
+      />
     </View>
   );
 }
@@ -92,7 +109,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="social"
-        options={{ title: 'Social', tabBarIcon: ({ focused }) => <TabIcon emoji="👥" focused={focused} /> }}
+        options={{ title: 'Social', tabBarIcon: ({ focused }) => <SocialTabIcon focused={focused} /> }}
       />
       <Tabs.Screen
         name="passport"
