@@ -1,7 +1,10 @@
 import { Tabs } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
+
+const TAB_BAR_BASE_HEIGHT = 56;
 
 /**
  * Navigation principale — barre inférieure à 5 onglets (section 5 du PRD).
@@ -35,6 +38,7 @@ function TabIcon({ emoji, focused, badge }: { emoji: string; focused: boolean; b
 
 export default function TabsLayout() {
   const unreadCount = useUnreadNotificationsCount();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -50,6 +54,14 @@ export default function TabsLayout() {
           // un voisin de chaque côté qui leur donne de l'air, pas les deux du
           // bord). Cette marge leur redonne le même espace de respiration.
           paddingHorizontal: 18,
+          // Android uniquement : en mode edge-to-edge (par défaut depuis
+          // SDK 54), la zone de gestes/barre système du bas peut chevaucher
+          // la tab bar si l'inset n'est pas ajouté explicitement — les icônes
+          // apparaissent alors à moitié masquées. iOS gère déjà correctement
+          // le home indicator automatiquement, donc on ne touche à rien là-bas.
+          ...(Platform.OS === 'android'
+            ? { height: TAB_BAR_BASE_HEIGHT + insets.bottom, paddingBottom: insets.bottom }
+            : {}),
         },
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.textMuted,

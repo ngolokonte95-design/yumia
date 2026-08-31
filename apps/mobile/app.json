@@ -107,7 +107,7 @@
         ],
         "NSPrivacyAccessedAPITypes": []
       },
-      "buildNumber": "2"
+      "buildNumber": "3"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -150,7 +150,7 @@
           ]
         }
       ],
-      "versionCode": 7
+      "versionCode": 8
     },
     "plugins": [
       "expo-router",

@@ -51,16 +51,6 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   { key: 'notebook', emoji: '📝', label: 'Notes', route: '/notebook' },
 ];
 
-/** Découpe les raccourcis en colonnes de 2, pour un défilement horizontal sur 2 lignes. */
-const SHORTCUT_COLUMNS = FEATURE_SHORTCUTS.reduce<(typeof FEATURE_SHORTCUTS)[number][][]>(
-  (columns, item, i) => {
-    if (i % 2 === 0) columns.push([item]);
-    else columns[columns.length - 1].push(item);
-    return columns;
-  },
-  [],
-);
-
 const MODE_CHIPS: { key: Mode; emoji: string; label: string; mood: string }[] = [
   { key: 'date', emoji: '❤️', label: 'Date', mood: 'date' },
   { key: 'group', emoji: '👫', label: 'Amis', mood: 'amis' },
@@ -120,21 +110,18 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Fonctionnalités — raccourcis compacts, sur 2 lignes superposées
-          plutôt qu'une seule rangée trop chargée. */}
+      {/* Fonctionnalités — raccourcis compacts, sur 2 lignes. Grille en
+          pourcentage (pas de largeur fixe) pour que les 5 colonnes tiennent
+          toujours sur l'écran, quelle que soit sa largeur (Android inclus). */}
       <View style={styles.section}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
-          {SHORTCUT_COLUMNS.map((column, i) => (
-            <View key={i} style={styles.shortcutColumn}>
-              {column.map((s) => (
-                <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
-                  <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
-                  <Text style={styles.shortcutLabel} numberOfLines={1}>{s.label}</Text>
-                </Pressable>
-              ))}
-            </View>
+        <View style={styles.shortcutsGrid}>
+          {FEATURE_SHORTCUTS.map((s) => (
+            <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
+              <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
+              <Text style={styles.shortcutLabel} numberOfLines={1}>{s.label}</Text>
+            </Pressable>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       {/* Modes IA — toggle humeur. Fixes (pas de ScrollView) : seulement 3
@@ -188,10 +175,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   searchText: { ...typography.body, color: colors.textMuted },
-  shortcutsRow: { gap: spacing.sm, paddingRight: spacing.md },
-  shortcutColumn: { gap: spacing.sm },
+  shortcutsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   shortcut: {
-    width: 65,
+    width: '18%',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
