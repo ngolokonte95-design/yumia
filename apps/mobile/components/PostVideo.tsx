@@ -153,9 +153,6 @@ export function PostVideo({
 
   return (
     <View style={style}>
-      {posterUri && !ready && (
-        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-      )}
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
@@ -169,6 +166,12 @@ export function PostVideo({
         // actif à la fois). Pas d'effet sur iOS (prop ignorée).
         {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : {})}
       />
+      {/* Affichée PAR-DESSUS le lecteur (pas derrière) tant qu'il n'a pas de
+          première image — sinon le rendu noir du lecteur la recouvre et elle
+          ne sert à rien. */}
+      {posterUri && !ready && (
+        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      )}
       <PostOverlays overlays={overlays} />
       <Pressable style={StyleSheet.absoluteFill} onPress={toggle} />
       {onExpand && (

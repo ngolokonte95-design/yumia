@@ -94,9 +94,6 @@ function ReelVideo({
 
   return (
     <>
-      {posterUri && !ready && (
-        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-      )}
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
@@ -106,6 +103,11 @@ function ReelVideo({
         // d'une vidéo sur une autre pendant un défilement rapide sur Android.
         {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : {})}
       />
+      {/* Par-dessus le lecteur (pas derrière), sinon son rendu noir la
+          recouvre tant que la première image n'est pas prête. */}
+      {posterUri && !ready && (
+        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      )}
       <PostOverlays overlays={overlays} />
     </>
   );
