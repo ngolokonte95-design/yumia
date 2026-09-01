@@ -110,11 +110,18 @@ function ReelVideo({
 
 // ── Carte d'un reel ──────────────────────────────────────────────────────────
 function ReelCard({
-  item, active, onLike, onComment, onShare, onUserPress, onFollow,
+  item, active, shouldMount, onLike, onComment, onShare, onUserPress, onFollow,
   screenHeight, startAtSec,
 }: {
   item: FeedPost;
   active: boolean;
+  /**
+   * Android : monte un vrai lecteur (en pause, muet) avant que ce reel ne
+   * devienne actif — laisse le décodeur matériel s'initialiser et charger sa
+   * première image à l'avance, pour ne plus avoir de flash noir au moment du
+   * swipe. Toujours `true` sur iOS (peu importe, pas de démontage là-bas).
+   */
+  shouldMount: boolean;
   onLike: (id: string) => void;
   onComment: (id: string) => void;
   onShare: (item: FeedPost) => void;
@@ -270,7 +277,7 @@ function ReelCard({
       {mediaUrl ? (
         !isVideo ? (
           <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        ) : (Platform.OS === 'android' && !effectiveActive) ? (
+        ) : (Platform.OS === 'android' && !effectiveActive && !shouldMount) ? (
           // Android : un lecteur vidéo natif par carte, même en pause, garde
           // un décodeur matériel alloué — pool très limité et partagé par
           // tout le système. FlatList monte plusieurs cartes autour de la
@@ -573,6 +580,10 @@ export default function ReelsScreen() {
             <ReelCard
               item={item}
               active={index === activeIndex && screenFocused}
+              // Précharge le reel suivant (et le précédent, pour un retour en
+              // arrière tout aussi fluide) — au plus 3 lecteurs montés à la
+              // fois, largement dans la marge du décodeur Android.
+              shouldMount={Math.abs(index - activeIndex) <= 1}
               onLike={toggleLike}
               onComment={(id) => router.push(`/post/${id}` as never)}
               onShare={(it) => void Share.share({ message: `Regarde ce reel sur Yumia 🎬` })}

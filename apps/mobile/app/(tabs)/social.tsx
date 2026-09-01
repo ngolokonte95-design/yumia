@@ -185,7 +185,7 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
 function PostCard({
-  item, onLike, onSave, onRepost, onComment, onShare, onUserPress, currentUserId, onDelete, isActive,
+  item, onLike, onSave, onRepost, onComment, onShare, onUserPress, currentUserId, onDelete, isActive, shouldMount,
   onVideoPlayingChange, onVideoLoop,
 }: {
   item: FeedPost;
@@ -199,6 +199,9 @@ function PostCard({
   onDelete?: (id: string) => void;
   /** Le post est actuellement visible à l'écran (feed) — coupe le son sinon. */
   isActive?: boolean;
+  /** Android : monte un vrai lecteur (en pause) avant que ce post ne devienne
+   * actif, pour éliminer le flash noir au swipe. Cf. viewabilityConfigCallbackPairs. */
+  shouldMount?: boolean;
   /**
    * Tap pause/lecture sur la vidéo — pour mettre la musique du post en pause
    * en même temps (elle est chargée par le fil, pas par la vidéo elle-même).
@@ -272,7 +275,7 @@ function PostCard({
               // reste monté) épuisait ce pool en scrollant, provoquant un
               // mélange d'images entre vidéos puis un crash. iOS gère mieux
               // plusieurs décodeurs concurrents, donc inchangé.
-              : (Platform.OS === 'android' && !isActive)
+              : (Platform.OS === 'android' && !isActive && !shouldMount)
               ? (
                 <View style={styles.postVideo}>
                   {item.coverUrl ? (
@@ -397,6 +400,12 @@ export default function SocialTab() {
   // Music playback in feed
   const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
   const [visiblePostId, setVisiblePostId] = useState<string | null>(null);
+  // Android : posts à monter en avance (lecteur vidéo réel mais en pause) —
+  // dès qu'ils commencent à apparaître à l'écran, pas seulement une fois
+  // pleinement visibles. Élimine le flash noir au swipe en laissant le
+  // décodeur matériel s'initialiser pendant qu'on regarde encore le post
+  // précédent. Cf. viewabilityConfigCallbackPairs plus bas.
+  const [mountablePostIds, setMountablePostIds] = useState<Set<string>>(new Set());
   // Coupe les vidéos du feed quand on quitte l'écran (ex: bascule plein écran
   // vers /reels) pour éviter que les deux sons se chevauchent.
   const [screenFocused, setScreenFocused] = useState(true);
@@ -499,6 +508,18 @@ export default function SocialTab() {
     if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void autoPlayPostRef.current(top.id, music.previewUrl);
     else void stopMusicRef.current();
   }).current;
+
+  // Seuil très bas (1%) : capte un post dès qu'il commence à apparaître à
+  // l'écran, bien avant qu'il ne devienne le post "actif" (60%) — c'est ce
+  // qui laisse le temps au décodeur vidéo Android de s'initialiser à l'avance.
+  const preloadViewabilityConfig = useRef({ itemVisiblePercentThreshold: 1 }).current;
+  const onPreloadPostsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    setMountablePostIds(new Set(viewableItems.map((v) => (v.item as { id: string }).id)));
+  }).current;
+  const viewabilityConfigCallbackPairs = useRef([
+    { viewabilityConfig, onViewableItemsChanged: onViewablePostsChanged },
+    { viewabilityConfig: preloadViewabilityConfig, onViewableItemsChanged: onPreloadPostsChanged },
+  ]).current;
 
   // Stop la musique quand l'utilisateur quitte l'écran
   useFocusEffect(useCallback(() => {
@@ -647,8 +668,7 @@ export default function SocialTab() {
     <FlatList
       data={data}
       keyExtractor={(p) => p.id}
-      onViewableItemsChanged={onViewablePostsChanged}
-      viewabilityConfig={viewabilityConfig}
+      viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
       {...ANDROID_FEED_PERF_PROPS}
       ListHeaderComponent={withStories ? (
         <StoriesBar
@@ -672,6 +692,7 @@ export default function SocialTab() {
           currentUserId={me?.id}
           onDelete={handleDeletePost}
           isActive={visiblePostId === item.id && screenFocused}
+          shouldMount={mountablePostIds.has(item.id)}
           onVideoPlayingChange={onVideoPlayingChange}
           onVideoLoop={onVideoLoop}
         />
