@@ -72,38 +72,53 @@ export class VideoTranscodeService {
     try {
       await writeFile(input, buffer);
 
-      await execFileAsync('ffmpeg', [
-        '-y',
-        '-i', input,
-        // Ne réduit que si plus large que 1280px — ne remonte jamais en
-        // qualité une vidéo déjà petite. -2 garde une hauteur paire (requis
-        // par libx264). 1280 (pas 1920) : marge RAM serveur, largement
-        // suffisant pour un écran de téléphone.
-        '-vf', "scale='min(1280,iw)':-2",
-        '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-crf', '26',
-        // Un seul thread d'encodage : borne le pic RAM/CPU par job sur un
-        // serveur à ressources très limitées, plutôt que de laisser x264
-        // paralléliser sur tous les cœurs disponibles.
-        '-threads', '1',
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        // Déplace l'index moov en tête de fichier : lecture progressive dès
-        // les premiers octets reçus, au lieu d'attendre tout le téléchargement.
-        '-movflags', '+faststart',
-        output,
-      ], { timeout: TRANSCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
+      // Beaucoup de vidéos sont déjà à une résolution/format raisonnables
+      // (filmées ou déjà compressées ailleurs) — les ré-encoder quand même
+      // fait attendre l'utilisateur pour rien sur ce serveur peu puissant.
+      // On ne transcode que ce qui en a vraiment besoin (source large et/ou
+      // pas déjà en H.264) ; sinon on ne fait que l'extraction de couverture.
+      const needsTranscode = await this.probeNeedsTranscode(input);
 
-      const video = await readFile(output);
-      this.logger.log(`Transcodage vidéo : ${buffer.length} → ${video.length} octets`);
+      let video = buffer;
+      let thumbSource = input;
 
-      // Best-effort, ne doit jamais faire échouer le transcodage principal —
-      // extraction d'une seule frame, très légère (pas de ré-encodage complet).
+      if (needsTranscode) {
+        await execFileAsync('ffmpeg', [
+          '-y',
+          '-i', input,
+          // Ne réduit que si plus large que 1280px — ne remonte jamais en
+          // qualité une vidéo déjà petite. -2 garde une hauteur paire (requis
+          // par libx264). 1280 (pas 1920) : marge RAM serveur, largement
+          // suffisant pour un écran de téléphone.
+          '-vf', "scale='min(1280,iw)':-2",
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-crf', '26',
+          // Un seul thread d'encodage : borne le pic RAM/CPU par job sur un
+          // serveur à ressources très limitées, plutôt que de laisser x264
+          // paralléliser sur tous les cœurs disponibles.
+          '-threads', '1',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          // Déplace l'index moov en tête de fichier : lecture progressive dès
+          // les premiers octets reçus, au lieu d'attendre tout le téléchargement.
+          '-movflags', '+faststart',
+          output,
+        ], { timeout: TRANSCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
+
+        video = await readFile(output);
+        thumbSource = output;
+        this.logger.log(`Transcodage vidéo : ${buffer.length} → ${video.length} octets`);
+      } else {
+        this.logger.log(`Transcodage évité (déjà à une résolution/format adaptés) : ${buffer.length} octets`);
+      }
+
+      // Best-effort, ne doit jamais faire échouer le job — extraction d'une
+      // seule frame, très légère (pas de ré-encodage complet).
       let thumbnail: Buffer | null = null;
       try {
         await execFileAsync('ffmpeg', [
-          '-y', '-i', output, '-ss', '00:00:00.1', '-vframes', '1', '-q:v', '4', thumbOutput,
+          '-y', '-i', thumbSource, '-ss', '00:00:00.1', '-vframes', '1', '-q:v', '4', thumbOutput,
         ], { timeout: THUMBNAIL_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 5 });
         thumbnail = await readFile(thumbOutput);
       } catch (err) {
@@ -113,6 +128,27 @@ export class VideoTranscodeService {
       return { video, thumbnail };
     } finally {
       await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+
+  /** true si la vidéo source dépasse 1280px de large ou n'est pas déjà en H.264. */
+  private async probeNeedsTranscode(input: string): Promise<boolean> {
+    try {
+      const { stdout } = await execFileAsync('ffprobe', [
+        '-v', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,codec_name',
+        '-of', 'csv=p=0',
+        input,
+      ], { timeout: 10_000 });
+      const [widthStr, codec] = stdout.trim().split(',');
+      const width = parseInt(widthStr, 10);
+      if (Number.isFinite(width) && width > 1280) return true;
+      if (codec && codec.trim() !== 'h264') return true;
+      if (!Number.isFinite(width) || !codec) return true; // sondage ambigu → prudence, on transcode
+      return false;
+    } catch {
+      return true; // ffprobe indisponible/échoue → comportement précédent (toujours transcoder)
     }
   }
 }
