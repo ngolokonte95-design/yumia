@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 // Coupe l'appel ffmpeg s'il traîne — un fichier pathologique ne doit jamais
 // bloquer indéfiniment la requête d'upload.
 const TRANSCODE_TIMEOUT_MS = 90_000;
+const THUMBNAIL_TIMEOUT_MS = 15_000;
 // Le VPS de prod n'a qu'~1 Go de RAM, partagé avec Postgres/Redis/l'API elle-
 // même. Deux transcodages 4K simultanés suffisent à tout faire swaper et
 // rendre le serveur entier injoignable (vécu en prod : plusieurs tentatives
@@ -18,13 +19,24 @@ const TRANSCODE_TIMEOUT_MS = 90_000;
 // jobs — le buffer original est alors utilisé tel quel.
 const MAX_QUEUE_DEPTH = 2;
 
+export interface TranscodeResult {
+  video: Buffer;
+  /** Frame extraite en JPEG — null si l'extraction échoue (best-effort). */
+  thumbnail: Buffer | null;
+}
+
 /**
  * Ré-encode une vidéo uploadée vers un format léger et homogène (H.264 max
  * 1280px de large, faststart pour le streaming progressif) — les fichiers
  * importés depuis la galerie (souvent 4K bruts) saturaient le décodeur
- * matériel de nombreux téléphones Android en lecture inline.
+ * matériel de nombreux téléphones Android en lecture inline. Extrait aussi
+ * une image de couverture (première frame) : sans elle, l'app mobile ne peut
+ * pas afficher d'image fixe le temps que le lecteur vidéo s'initialise
+ * (Android démonte/remonte son lecteur en scrollant, faute de quoi les
+ * décodeurs matériels — très limités — s'épuisent), ce qui donnait un flash
+ * noir visible à chaque vidéo sans couverture.
  *
- * **Un seul transcodage à la fois, process-wide** (file d'attente en mémoire
+ * **Un seul job à la fois, process-wide** (file d'attente en mémoire
  * ci-dessous) : c'est la vraie contrainte sur ce serveur, pas juste une
  * optimisation. `-threads 1` borne aussi le CPU/RAM pris par ffmpeg lui-même.
  *
@@ -38,7 +50,7 @@ export class VideoTranscodeService {
   private queue: Promise<unknown> = Promise.resolve();
   private queueDepth = 0;
 
-  async transcode(buffer: Buffer, originalExt: string): Promise<Buffer> {
+  async transcode(buffer: Buffer, originalExt: string): Promise<TranscodeResult> {
     if (this.queueDepth >= MAX_QUEUE_DEPTH) {
       throw new Error(`File de transcodage pleine (${this.queueDepth} en attente) — fichier original conservé.`);
     }
@@ -51,10 +63,11 @@ export class VideoTranscodeService {
     return run;
   }
 
-  private async runFfmpeg(buffer: Buffer, originalExt: string): Promise<Buffer> {
+  private async runFfmpeg(buffer: Buffer, originalExt: string): Promise<TranscodeResult> {
     const dir = await mkdtemp(join(tmpdir(), 'yumia-video-'));
     const input = join(dir, `in${originalExt || '.mp4'}`);
     const output = join(dir, 'out.mp4');
+    const thumbOutput = join(dir, 'thumb.jpg');
 
     try {
       await writeFile(input, buffer);
@@ -82,9 +95,22 @@ export class VideoTranscodeService {
         output,
       ], { timeout: TRANSCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
 
-      const result = await readFile(output);
-      this.logger.log(`Transcodage vidéo : ${buffer.length} → ${result.length} octets`);
-      return result;
+      const video = await readFile(output);
+      this.logger.log(`Transcodage vidéo : ${buffer.length} → ${video.length} octets`);
+
+      // Best-effort, ne doit jamais faire échouer le transcodage principal —
+      // extraction d'une seule frame, très légère (pas de ré-encodage complet).
+      let thumbnail: Buffer | null = null;
+      try {
+        await execFileAsync('ffmpeg', [
+          '-y', '-i', output, '-ss', '00:00:00.1', '-vframes', '1', '-q:v', '4', thumbOutput,
+        ], { timeout: THUMBNAIL_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 5 });
+        thumbnail = await readFile(thumbOutput);
+      } catch (err) {
+        this.logger.warn(`Extraction de la couverture échouée : ${(err as Error).message}`);
+      }
+
+      return { video, thumbnail };
     } finally {
       await rm(dir, { recursive: true, force: true }).catch(() => undefined);
     }

@@ -76,7 +76,7 @@ export default function CreatePostScreen() {
   // Remonte une erreur détaillée (statut + message serveur) au lieu de renvoyer
   // silencieusement null : sans ça, un échec d'upload ou de config storage était
   // indiscernable et masquait la vraie cause côté serveur.
-  const uploadMedia = useCallback(async (uri: string): Promise<string> => {
+  const uploadMedia = useCallback(async (uri: string): Promise<{ url: string; thumbnailUrl?: string }> => {
     const form = new FormData();
     const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
     const mime = ext === 'png' ? 'image/png'
@@ -98,8 +98,7 @@ export default function CreatePostScreen() {
       const txt = await res.text().catch(() => '');
       throw new Error(`Upload média échoué (HTTP ${res.status}). ${txt.slice(0, 160)}`);
     }
-    const data = await res.json() as { url: string };
-    return data.url;
+    return await res.json() as { url: string; thumbnailUrl?: string };
   }, [accessToken]);
 
   const hasMedia = mode === 'photo' ? images.length > 0 : !!videoUri;
@@ -114,18 +113,25 @@ export default function CreatePostScreen() {
       let mediaUrls: string[] = [];
       let videoUrl: string | undefined;
       let voiceTrackUrl: string | undefined;
+      // Image extraite automatiquement de la vidéo côté serveur (transcodage)
+      // — affichée dans le fil le temps que le lecteur vidéo s'initialise,
+      // sans elle un flash noir apparaît à chaque changement de vidéo sur
+      // Android (décodeurs matériels limités, cf. lecteur PostVideo/ReelVideo).
+      let coverUrl: string | undefined;
 
       if (mode === 'photo') {
-        mediaUrls = await Promise.all(images.map((uri) => uploadMedia(uri)));
+        const uploads = await Promise.all(images.map((uri) => uploadMedia(uri)));
+        mediaUrls = uploads.map((u) => u.url);
       } else if (videoUri) {
         // Uploads indépendants : un échec de la voix off ne doit pas
         // empêcher la vidéo elle-même d'être publiée.
-        const uploads = await Promise.all([
+        const [videoUpload, voiceUpload] = await Promise.all([
           uploadMedia(videoUri),
           voiceUri ? uploadMedia(voiceUri) : Promise.resolve(undefined),
         ]);
-        videoUrl = uploads[0];
-        voiceTrackUrl = uploads[1];
+        videoUrl = videoUpload.url;
+        coverUrl = videoUpload.thumbnailUrl;
+        voiceTrackUrl = voiceUpload?.url;
         mediaUrls = [videoUrl];
       }
 
@@ -133,6 +139,7 @@ export default function CreatePostScreen() {
         mediaUrls,
         caption: caption.trim() || undefined,
         videoUrl,
+        coverUrl,
         commentsDisabled: commentsDisabled || undefined,
         hideLikeCount: hideLikeCount || undefined,
         isDraft: asDraft || undefined,

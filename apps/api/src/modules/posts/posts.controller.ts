@@ -65,16 +65,21 @@ export class PostsController {
       cb(null, ok.has(file.mimetype));
     },
   }))
-  async uploadMedia(@UploadedFile() file: Express.Multer.File): Promise<{ url: string }> {
+  async uploadMedia(@UploadedFile() file: Express.Multer.File): Promise<{ url: string; thumbnailUrl?: string }> {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
 
     let buffer = file.buffer;
     let originalname = file.originalname;
+    let thumbnailUrl: string | undefined;
 
     if (VIDEO_MIMETYPES.has(file.mimetype)) {
       try {
-        buffer = await this.videoTranscode.transcode(buffer, extname(file.originalname));
+        const result = await this.videoTranscode.transcode(buffer, extname(file.originalname));
+        buffer = result.video;
         originalname = originalname.replace(/\.[^.]+$/, '') + '.mp4';
+        if (result.thumbnail) {
+          thumbnailUrl = await this.storage.save(result.thumbnail, 'cover.jpg', 'posts');
+        }
       } catch (err) {
         // Best-effort : une vidéo non transcodée reste meilleure qu'un post
         // qui échoue (ffmpeg absent en dev local, timeout, fichier atypique…).
@@ -83,7 +88,7 @@ export class PostsController {
     }
 
     const url = await this.storage.save(buffer, originalname, 'posts');
-    return { url };
+    return { url, thumbnailUrl };
   }
 
   @Post()

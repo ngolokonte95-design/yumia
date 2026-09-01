@@ -190,6 +190,11 @@ export const feedApi = {
   // l'avaler silencieusement (sans ça, un 413/400/500 se résumait à un vague
   // "L'upload a échoué" sans indice sur la vraie cause).
   uploadMedia: async (token: string, uri: string): Promise<string> => {
+    return (await feedApi.uploadMediaWithThumbnail(token, uri)).url;
+  },
+
+  /** Variante renvoyant aussi la miniature auto-générée (vidéos uniquement, best-effort). */
+  uploadMediaWithThumbnail: async (token: string, uri: string): Promise<{ url: string; thumbnailUrl?: string }> => {
     const form = new FormData();
     const name = uri.split('/').pop() ?? 'photo.jpg';
     const ext = name.split('.').pop()?.toLowerCase();
@@ -207,7 +212,6 @@ export const feedApi = {
       const txt = await r.text().catch(() => '');
       throw new Error(`Upload média échoué (HTTP ${r.status}). ${txt.slice(0, 160)}`);
     }
-    const d = await r.json() as { url: string };
-    return d.url;
+    return await r.json() as { url: string; thumbnailUrl?: string };
   },
 };
