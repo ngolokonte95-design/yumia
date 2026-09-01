@@ -17,13 +17,6 @@ import { PostOverlays } from '../components/PostOverlays';
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
 
-// Android uniquement : fenêtre FlatList réduite au strict nécessaire pour un
-// flux 100% vidéo plein écran — moins de décodeurs matériels concurrents
-// disponibles que sur iOS (cf. social.tsx pour le détail).
-const ANDROID_REELS_PERF_PROPS = Platform.OS === 'android'
-  ? { windowSize: 3, maxToRenderPerBatch: 2, removeClippedSubviews: true }
-  : {};
-
 type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
@@ -547,7 +540,6 @@ export default function ReelsScreen() {
           }}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-          {...ANDROID_REELS_PERF_PROPS}
           renderItem={({ item, index }) => (
             <ReelCard
               item={item}
