@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Image } from 'expo-image';
-import { Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Audio } from 'expo-av';
 import { PostOverlays } from './PostOverlays';
 import type { PostOverlay } from '../lib/feed-api';
@@ -156,7 +156,19 @@ export function PostVideo({
       {posterUri && !ready && (
         <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
       )}
-      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
+      <VideoView
+        player={player}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+        // Android : la SurfaceView par défaut ne se découpe pas toujours
+        // proprement pendant un défilement rapide de liste, laissant une
+        // vidéo "baver" par-dessus le contenu voisin le temps que le scroll
+        // se stabilise. TextureView s'intègre correctement au rendu normal
+        // des vues (léger coût de perf, sans impact ici : un seul lecteur
+        // actif à la fois). Pas d'effet sur iOS (prop ignorée).
+        {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : {})}
+      />
       <PostOverlays overlays={overlays} />
       <Pressable style={StyleSheet.absoluteFill} onPress={toggle} />
       {onExpand && (

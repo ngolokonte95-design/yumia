@@ -102,6 +102,9 @@ function ReelVideo({
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         nativeControls={false}
+        // Cf. le commentaire équivalent dans PostVideo.tsx : évite le "bleed"
+        // d'une vidéo sur une autre pendant un défilement rapide sur Android.
+        {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : {})}
       />
       <PostOverlays overlays={overlays} />
     </>
