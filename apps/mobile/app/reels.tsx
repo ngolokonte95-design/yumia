@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, Dimensions, FlatList, Image, Platform, Pressable,
+  ActivityIndicator, Animated, Dimensions, FlatList, Platform, Pressable,
   Share, StyleSheet, Text, View, ViewToken,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Audio } from 'expo-av';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,11 +20,8 @@ const API = API_BASE_URL;
 // Android uniquement : fenêtre FlatList réduite au strict nécessaire pour un
 // flux 100% vidéo plein écran — moins de décodeurs matériels concurrents
 // disponibles que sur iOS (cf. social.tsx pour le détail).
-// `removeClippedSubviews` est volontairement omis : connu pour causer des
-// chevauchements visuels entre cartes sur Android avec ce genre de contenu
-// (cf. social.tsx pour le détail).
 const ANDROID_REELS_PERF_PROPS = Platform.OS === 'android'
-  ? { windowSize: 3, maxToRenderPerBatch: 2 }
+  ? { windowSize: 3, maxToRenderPerBatch: 2, removeClippedSubviews: true }
   : {};
 
 type ReelTab = 'foryou' | 'following';
@@ -276,7 +274,7 @@ function ReelCard({
             }}
           />
         ) : (
-          <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
         )
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />

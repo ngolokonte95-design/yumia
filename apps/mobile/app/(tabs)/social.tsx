@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Platform, Pressable, RefreshControl,
+  ActivityIndicator, Alert, Dimensions, FlatList, Modal, Platform, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Audio } from 'expo-av';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,11 +24,8 @@ const API = API_BASE_URL;
 // montées en même temps saccadent la lecture. On réduit la fenêtre montée
 // (le `active` de PostVideo coupe déjà la lecture hors-écran, mais ne
 // démonte pas le player tant que la fenêtre FlatList le garde en mémoire).
-// `removeClippedSubviews` est volontairement omis : connu pour causer des
-// chevauchements visuels entre cartes sur Android avec ce genre de contenu
-// (images/vidéos), au démontage/remontage des vues hors-écran.
 const ANDROID_FEED_PERF_PROPS = Platform.OS === 'android'
-  ? { windowSize: 5, maxToRenderPerBatch: 4, initialNumToRender: 4 }
+  ? { windowSize: 5, maxToRenderPerBatch: 4, initialNumToRender: 4, removeClippedSubviews: true }
   : {};
 
 /** Détecte une URL vidéo par son extension (les vidéos sont stockées dans mediaUrls). */
