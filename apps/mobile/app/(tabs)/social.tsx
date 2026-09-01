@@ -150,15 +150,23 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
         showsHorizontalScrollIndicator={false}
         keyExtractor={(u, i) => `${i}-${u}`}
         onMomentumScrollEnd={(e) => setIdx(Math.round(e.nativeEvent.contentOffset.x / SCREEN_W))}
-        renderItem={({ item: url, index }) => (
-          <Pressable onPress={onPress}>
-            {isVideoUrl(url) ? (
-              <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 1 }} active={active && index === idx} onExpand={onExpand} />
-            ) : (
-              <Image source={{ uri: url }} style={{ width: SCREEN_W, aspectRatio: 1 }} />
-            )}
-          </Pressable>
-        )}
+        renderItem={({ item: url, index }) => {
+          const itemActive = !!active && index === idx;
+          return (
+            <Pressable onPress={onPress}>
+              {!isVideoUrl(url) ? (
+                <Image source={{ uri: url }} style={{ width: SCREEN_W, aspectRatio: 1 }} />
+              ) : (Platform.OS === 'android' && !itemActive) ? (
+                // Cf. le commentaire équivalent plus bas dans PostCard : un
+                // lecteur vidéo natif par slide inactif épuiserait vite le
+                // pool de décodeurs matériels Android sur un carrousel.
+                <View style={{ width: SCREEN_W, aspectRatio: 1, backgroundColor: colors.surfaceAlt }} />
+              ) : (
+                <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 1 }} active={itemActive} onExpand={onExpand} />
+              )}
+            </Pressable>
+          );
+        }}
       />
       {/* Compteur en haut à droite */}
       <View style={styles.multiIndicator}>
@@ -251,8 +259,30 @@ function PostCard({
           const media = item.mediaUrls[0];
           const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
           if (videoSrc) {
-            mediaEl = videoSrc.startsWith('http')
+            mediaEl = !videoSrc.startsWith('http')
               ? (
+                <View style={[styles.postImage, styles.videoPlaceholder]}>
+                  <Text style={{ fontSize: 48 }}>🎬</Text>
+                </View>
+              )
+              // Android : ne monte un lecteur vidéo natif QUE pour le post
+              // actif — les décodeurs matériels sont un pool très limité et
+              // partagé par tout le système. En garder plusieurs alloués en
+              // même temps (même en pause, un post juste scrollé hors-écran
+              // reste monté) épuisait ce pool en scrollant, provoquant un
+              // mélange d'images entre vidéos puis un crash. iOS gère mieux
+              // plusieurs décodeurs concurrents, donc inchangé.
+              : (Platform.OS === 'android' && !isActive)
+              ? (
+                <View style={styles.postVideo}>
+                  {item.coverUrl ? (
+                    <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFill, styles.videoPlaceholder]} />
+                  )}
+                </View>
+              )
+              : (
                 <PostVideo
                   uri={videoSrc}
                   style={styles.postVideo}
@@ -266,11 +296,6 @@ function PostCard({
                   onPlayingChange={music ? (playing) => onVideoPlayingChange?.(item.id, playing) : undefined}
                   onLoop={music ? () => onVideoLoop?.(item.id) : undefined}
                 />
-              )
-              : (
-                <View style={[styles.postImage, styles.videoPlaceholder]}>
-                  <Text style={{ fontSize: 48 }}>🎬</Text>
-                </View>
               );
           } else if (media) {
             mediaEl = (

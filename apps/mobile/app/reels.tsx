@@ -253,7 +253,22 @@ function ReelCard({
     <View style={[styles.reelCard, { height: screenHeight }]}>
       {/* Fond / vidéo */}
       {mediaUrl ? (
-        isVideo ? (
+        !isVideo ? (
+          <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : (Platform.OS === 'android' && !effectiveActive) ? (
+          // Android : un lecteur vidéo natif par carte, même en pause, garde
+          // un décodeur matériel alloué — pool très limité et partagé par
+          // tout le système. FlatList monte plusieurs cartes autour de la
+          // visible (fenêtre par défaut), donc sans ce garde-fou plusieurs
+          // décodeurs restaient vivants en scrollant les reels, jusqu'à
+          // épuisement (images d'une vidéo affichées sur une autre, puis
+          // crash). iOS gère mieux plusieurs décodeurs concurrents.
+          item.coverUrl ? (
+            <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
+          )
+        ) : (
           <ReelVideo
             uri={mediaUrl}
             active={effectiveActive}
@@ -266,8 +281,6 @@ function ReelCard({
               voiceSoundRef.current?.setPositionAsync(0).catch(() => null);
             }}
           />
-        ) : (
-          <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
         )
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
