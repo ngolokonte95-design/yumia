@@ -295,6 +295,7 @@ function PostCard({
                   voiceTrackUrl={item.voiceTrackUrl}
                   onPlayingChange={music ? (playing) => onVideoPlayingChange?.(item.id, playing) : undefined}
                   onLoop={music ? () => onVideoLoop?.(item.id) : undefined}
+                  posterUri={item.coverUrl}
                 />
               );
           } else if (media) {

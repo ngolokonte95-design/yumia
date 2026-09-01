@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { Image } from 'expo-image';
 import { Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Audio } from 'expo-av';
 import { PostOverlays } from './PostOverlays';
@@ -12,12 +13,19 @@ import type { PostOverlay } from '../lib/feed-api';
  * `uri` doit être une URL http(s) accessible.
  */
 export function PostVideo({
-  uri, style, active = true, onExpand, overlays, videoMuted = false, voiceTrackUrl, onPlayingChange, onLoop,
+  uri, style, active = true, onExpand, overlays, videoMuted = false, voiceTrackUrl, onPlayingChange, onLoop, posterUri,
 }: {
   uri: string;
   style?: ViewStyle;
   active?: boolean;
   onExpand?: (currentTime: number) => void;
+  /**
+   * Image affichée derrière le lecteur tant que la première image de la
+   * vidéo n'est pas prête — masque le flash noir au (re)montage (Android :
+   * le lecteur est démonté/remonté à chaque changement de post actif, cf.
+   * social.tsx/reels.tsx).
+   */
+  posterUri?: string | null;
   /** Texte et dessins superposés, choisis par l'auteur à la publication. */
   overlays?: PostOverlay[] | null;
   /**
@@ -43,6 +51,7 @@ export function PostVideo({
 }) {
   const [playing, setPlaying] = useState(true);
   const [showIcon, setShowIcon] = useState(false);
+  const [ready, setReady] = useState(false);
   const iconOpacity = useRef(new Animated.Value(0)).current;
   const voiceSoundRef = useRef<Audio.Sound | null>(null);
 
@@ -52,6 +61,14 @@ export function PostVideo({
     p.audioMixingMode = 'doNotMix';
     if (active) p.play();
   });
+
+  useEffect(() => {
+    if (!posterUri) return;
+    const sub = player.addListener('statusChange', ({ status }) => {
+      if (status === 'readyToPlay') setReady(true);
+    });
+    return () => sub.remove();
+  }, [player, posterUri]);
 
   useEffect(() => {
     const sub = player.addListener('playingChange', ({ isPlaying }) => {
@@ -136,6 +153,9 @@ export function PostVideo({
 
   return (
     <View style={style}>
+      {posterUri && !ready && (
+        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      )}
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
       <PostOverlays overlays={overlays} />
       <Pressable style={StyleSheet.absoluteFill} onPress={toggle} />

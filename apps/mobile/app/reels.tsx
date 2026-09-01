@@ -21,7 +21,7 @@ type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
 function ReelVideo({
-  uri, active, muted, progressAnim, startAtSec, overlays, onLoop,
+  uri, active, muted, progressAnim, startAtSec, overlays, onLoop, posterUri,
 }: {
   uri: string;
   active: boolean;
@@ -34,12 +34,24 @@ function ReelVideo({
   overlays?: PostOverlay[] | null;
   /** La vidéo boucle — pour resynchroniser la musique/voix off du reel. */
   onLoop?: () => void;
+  /** Cf. PostVideo — masque le flash noir au montage (Android : ce composant
+   * n'est monté que pour le reel actif). */
+  posterUri?: string | null;
 }) {
+  const [ready, setReady] = useState(false);
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = muted;
     if (startAtSec) p.currentTime = startAtSec;
   });
+
+  useEffect(() => {
+    if (!posterUri) return;
+    const sub = player.addListener('statusChange', ({ status }) => {
+      if (status === 'readyToPlay') setReady(true);
+    });
+    return () => sub.remove();
+  }, [player, posterUri]);
 
   useEffect(() => {
     try { player.muted = muted; } catch {}
@@ -82,6 +94,9 @@ function ReelVideo({
 
   return (
     <>
+      {posterUri && !ready && (
+        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      )}
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
@@ -280,6 +295,7 @@ function ReelCard({
               musicSoundRef.current?.setPositionAsync(0).catch(() => null);
               voiceSoundRef.current?.setPositionAsync(0).catch(() => null);
             }}
+            posterUri={item.coverUrl}
           />
         )
       ) : (
