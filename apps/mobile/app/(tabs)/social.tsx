@@ -23,8 +23,11 @@ const API = API_BASE_URL;
 // montées en même temps saccadent la lecture. On réduit la fenêtre montée
 // (le `active` de PostVideo coupe déjà la lecture hors-écran, mais ne
 // démonte pas le player tant que la fenêtre FlatList le garde en mémoire).
+// `removeClippedSubviews` est volontairement omis : connu pour causer des
+// chevauchements visuels entre cartes sur Android avec ce genre de contenu
+// (images/vidéos), au démontage/remontage des vues hors-écran.
 const ANDROID_FEED_PERF_PROPS = Platform.OS === 'android'
-  ? { windowSize: 5, maxToRenderPerBatch: 4, initialNumToRender: 4, removeClippedSubviews: true }
+  ? { windowSize: 5, maxToRenderPerBatch: 4, initialNumToRender: 4 }
   : {};
 
 /** Détecte une URL vidéo par son extension (les vidéos sont stockées dans mediaUrls). */

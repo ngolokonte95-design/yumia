@@ -19,8 +19,11 @@ const API = API_BASE_URL;
 // Android uniquement : fenêtre FlatList réduite au strict nécessaire pour un
 // flux 100% vidéo plein écran — moins de décodeurs matériels concurrents
 // disponibles que sur iOS (cf. social.tsx pour le détail).
+// `removeClippedSubviews` est volontairement omis : connu pour causer des
+// chevauchements visuels entre cartes sur Android avec ce genre de contenu
+// (cf. social.tsx pour le détail).
 const ANDROID_REELS_PERF_PROPS = Platform.OS === 'android'
-  ? { windowSize: 3, maxToRenderPerBatch: 2, removeClippedSubviews: true }
+  ? { windowSize: 3, maxToRenderPerBatch: 2 }
   : {};
 
 type ReelTab = 'foryou' | 'following';
