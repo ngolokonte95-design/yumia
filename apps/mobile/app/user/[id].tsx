@@ -8,8 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
-import { feedApi, type FeedPost, type StoryHighlight } from '../../lib/feed-api';
+import { feedApi, type FeedPost, type StoryHighlight, type Plan } from '../../lib/feed-api';
 import { VideoThumb } from '../../components/VideoThumb';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
@@ -24,7 +25,7 @@ interface UserProfile {
   id: string; displayName: string; photoUrl?: string; bio?: string;
   totalXp: number; level: number; followersCount: number;
   followingCount: number; postsCount?: number; isFollowedByMe: boolean;
-  isPrivate?: boolean; hasStories?: boolean;
+  isPrivate?: boolean; hasStories?: boolean; plan?: Plan | null;
 }
 
 type ProfileTab = 'posts' | 'reels' | 'reposts' | 'tags';
@@ -169,13 +170,15 @@ export default function UserProfileScreen() {
         {/* Avatar */}
         <Pressable style={styles.avatarWrap} onPress={() => profile.hasStories && router.push(`/story-viewer?userId=${id}` as never)}>
           <View style={[styles.avatarRing, profile.hasStories ? styles.avatarRingActive : styles.avatarRingInactive]}>
-            {profile.photoUrl ? (
-              <Image source={{ uri: profile.photoUrl }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarInitial}>{profile.displayName[0]?.toUpperCase()}</Text>
-              </View>
-            )}
+            <Avatar
+              uri={profile.photoUrl}
+              size={88}
+              plan={profile.plan}
+              borderWidth={2}
+              borderColor={colors.background}
+              placeholderColor={colors.brand}
+              fallback={<Text style={styles.avatarInitial}>{profile.displayName[0]?.toUpperCase()}</Text>}
+            />
           </View>
         </Pressable>
 
@@ -198,7 +201,10 @@ export default function UserProfileScreen() {
 
       {/* ── Nom + bio ──────────────────────────────────────────────────────── */}
       <View style={styles.nameSection}>
-        <Text style={styles.displayName}>{profile.displayName}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.displayName}>{profile.displayName}</Text>
+          <PlanBadgeIcon plan={profile.plan} size={18} />
+        </View>
         {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
         <Text style={styles.levelBadge}>✨ Niv. {profile.level} · {profile.totalXp} XP</Text>
       </View>

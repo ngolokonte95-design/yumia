@@ -3,8 +3,18 @@
  * (like / save / repost / commentaire), et stories (feed global + à la une).
  */
 import { API_BASE_URL } from './config';
+import type { Plan } from './auth-api';
+export type { Plan };
 
 const API = API_BASE_URL;
+
+/** Identité légère d'un auteur — inclut `plan` pour le badge de statut (cf. components/Avatar.tsx). */
+export interface AuthorRef {
+  id: string;
+  displayName: string;
+  photoUrl?: string;
+  plan?: Plan | null;
+}
 
 /**
  * Élément superposé à une vidéo (texte ou tracé), façon CapCut.
@@ -43,7 +53,7 @@ export interface FeedPost {
   videoMuted?: boolean;
   voiceTrackUrl?: string | null;
   createdAt: string;
-  user: { id: string; displayName: string; photoUrl?: string } | null;
+  user: AuthorRef | null;
   place?: { id?: string; name: string; city?: string; universe?: string } | null;
 }
 
@@ -79,7 +89,7 @@ export interface StoryItem {
 }
 
 export interface StoryGroup {
-  user: { id: string; displayName: string; photoUrl?: string };
+  user: AuthorRef;
   stories: StoryItem[];
   hasUnseen: boolean;
 }

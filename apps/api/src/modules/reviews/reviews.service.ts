@@ -30,7 +30,7 @@ export class ReviewsService {
     const userIds = [...new Set(reviews.map((r) => r.userId))];
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 

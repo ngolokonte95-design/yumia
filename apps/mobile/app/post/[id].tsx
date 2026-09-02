@@ -10,7 +10,8 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { PostVideo } from '../../components/PostVideo';
-import type { PostOverlay } from '../../lib/feed-api';
+import { Avatar } from '../../components/Avatar';
+import type { PostOverlay, AuthorRef } from '../../lib/feed-api';
 
 const API = API_BASE_URL;
 
@@ -45,7 +46,7 @@ function isPlayableAudioUrl(url?: string | null): boolean {
 interface Comment {
   id: string; content: string; createdAt: string;
   likesCount: number; likedByMe?: boolean; pinned?: boolean;
-  user: { id: string; displayName: string; photoUrl?: string } | null;
+  user: AuthorRef | null;
   replies?: Comment[];
 }
 
@@ -65,7 +66,7 @@ interface Post {
   commentsDisabled?: boolean;
   editedAt?: string | null;
   createdAt: string;
-  user: { id: string; displayName: string; photoUrl?: string } | null;
+  user: AuthorRef | null;
   place?: { name: string; universe: string; city?: string } | null;
   comments: Comment[];
 }
@@ -252,13 +253,13 @@ export default function PostDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
         {/* Author */}
         <Pressable style={styles.author} onPress={() => router.push(`/user/${post.user?.id}`)}>
-          {post.user?.photoUrl ? (
-            <Image source={{ uri: post.user.photoUrl }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
-              <Text style={{ color: '#fff', fontWeight: '700' }}>{post.user?.displayName[0]}</Text>
-            </View>
-          )}
+          <Avatar
+            uri={post.user?.photoUrl}
+            size={38}
+            plan={post.user?.plan}
+            placeholderColor={colors.brand}
+            fallback={<Text style={{ color: '#fff', fontWeight: '700' }}>{post.user?.displayName[0]}</Text>}
+          />
           <View>
             <Text style={styles.authorName}>{post.user?.displayName}</Text>
             {post.place && <Text style={styles.placeName}>📍 {post.place.name}</Text>}
@@ -411,13 +412,13 @@ export default function PostDetailScreen() {
 function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike: () => void; onReply: () => void }) {
   return (
     <View style={styles.commentRow}>
-      <View style={[styles.commentAvatar, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
-        {c.user?.photoUrl ? (
-          <Image source={{ uri: c.user.photoUrl }} style={styles.commentAvatar} />
-        ) : (
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{c.user?.displayName[0]}</Text>
-        )}
-      </View>
+      <Avatar
+        uri={c.user?.photoUrl}
+        size={30}
+        plan={c.user?.plan}
+        placeholderColor={colors.brand}
+        fallback={<Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{c.user?.displayName[0]}</Text>}
+      />
       <View style={[styles.commentBubble, { flex: 1 }]}>
         <Text style={styles.commentUser}>
           {c.user?.displayName}{c.pinned ? '  📌' : ''}

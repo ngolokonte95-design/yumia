@@ -112,7 +112,7 @@ export class ChatService {
     const uniqueIds = [...new Set(otherUserIds)];
     const users = await this.prisma.user.findMany({
       where: { id: { in: uniqueIds } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
@@ -152,7 +152,7 @@ export class ChatService {
     const otherIds = conv.participants.map((pp) => pp.userId);
     const users = await this.prisma.user.findMany({
       where: { id: { in: otherIds } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 

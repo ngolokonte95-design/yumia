@@ -186,7 +186,7 @@ export class SocialController {
   ) {
     const me = await this.prisma.user.findUnique({
       where: { id: user.sub },
-      select: { displayName: true, photoUrl: true, level: true },
+      select: { displayName: true, photoUrl: true, plan: true, level: true },
     });
     return this.social.setIntent(user.sub, {
       displayName:   me?.displayName ?? 'Utilisateur',
@@ -231,7 +231,7 @@ export class SocialController {
   ) {
     const me = await this.prisma.user.findUnique({
       where: { id: user.sub },
-      select: { displayName: true, photoUrl: true },
+      select: { displayName: true, photoUrl: true, plan: true },
     });
     return this.social.createEvent(user.sub, {
       displayName: me?.displayName ?? 'Utilisateur',
@@ -275,7 +275,7 @@ export class SocialController {
     const userIds = nearby.map((n) => n.userId);
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, level: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
     return nearby.map((n) => ({ ...n, user: userMap[n.userId] ?? null }));

@@ -55,7 +55,7 @@ export class LocationController {
     const userIds = nearby.map((n) => n.userId);
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, level: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 

@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { socialApi } from '../../lib/social-api';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import type { Plan } from '../../lib/feed-api';
+import { Avatar } from '../../components/Avatar';
 
 type FollowUser = {
   id: string;
@@ -15,6 +17,7 @@ type FollowUser = {
   photoUrl?: string | null;
   bio?: string | null;
   level: number;
+  plan?: Plan | null;
 };
 
 export default function FollowListScreen() {
@@ -110,13 +113,14 @@ export default function FollowListScreen() {
                 style={styles.row}
                 onPress={() => router.push(`/user/${item.id}` as never)}
               >
-                {item.photoUrl ? (
-                  <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Text style={styles.avatarLetter}>{item.displayName[0]?.toUpperCase()}</Text>
-                  </View>
-                )}
+                <Avatar
+                  uri={item.photoUrl}
+                  size={48}
+                  plan={item.plan}
+                  style={styles.avatar}
+                  placeholderColor={colors.brand}
+                  fallback={<Text style={styles.avatarLetter}>{item.displayName[0]?.toUpperCase()}</Text>}
+                />
                 <View style={styles.info}>
                   <Text style={styles.name}>{item.displayName}</Text>
                   {item.bio ? (

@@ -108,7 +108,7 @@ export class SocialService {
     if (!requests.length) return [];
     const requesters = await this.prisma.user.findMany({
       where: { id: { in: requests.map((r) => r.requesterId) } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true },
     });
     const byId = Object.fromEntries(requesters.map((u) => [u.id, u]));
     return requests
@@ -172,7 +172,7 @@ export class SocialService {
     if (!blocks.length) return [];
     const users = await this.prisma.user.findMany({
       where: { id: { in: blocks.map((b) => b.blockedId) } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
     return users;
   }
@@ -241,7 +241,7 @@ export class SocialService {
     if (!rows.length) return [];
     return this.prisma.user.findMany({
       where: { id: { in: rows.map((r) => r.friendId) } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
   }
 
@@ -264,7 +264,7 @@ export class SocialService {
     if (!rows.length) return [];
     return this.prisma.user.findMany({
       where: { id: { in: rows.map((r) => r.favoriteId) } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
   }
 
@@ -311,7 +311,7 @@ export class SocialService {
     if (!notes.length) return [];
     const users = await this.prisma.user.findMany({
       where: { id: { in: notes.map((n) => n.userId) } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
     // Ma note en premier.
@@ -347,7 +347,7 @@ export class SocialService {
         ],
         ...(excluded.length ? { id: { notIn: excluded } } : {}),
       },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, totalXp: true, level: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, totalXp: true, level: true },
       take: limit,
     });
   }
@@ -355,7 +355,7 @@ export class SocialService {
   async getPublicProfile(userId: string, viewerId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, totalXp: true, level: true, createdAt: true, isPrivate: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, totalXp: true, level: true, createdAt: true, isPrivate: true },
     });
     if (!user) throw new NotFoundException('Utilisateur introuvable');
     const [followersCount, followingCount, visitCount, isFollowed, requested] = await Promise.all([
@@ -381,7 +381,7 @@ export class SocialService {
     const ids = follows.map((f) => f.followerId);
     return this.prisma.user.findMany({
       where: { id: { in: ids } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, level: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true },
     });
   }
 
@@ -394,7 +394,7 @@ export class SocialService {
     const ids = follows.map((f) => f.followingId);
     return this.prisma.user.findMany({
       where: { id: { in: ids } },
-      select: { id: true, displayName: true, photoUrl: true, bio: true, level: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true },
     });
   }
 
@@ -410,7 +410,7 @@ export class SocialService {
     const userIds = [...new Set(visits.map((v) => v.userId))];
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
     return visits.map((v) => ({ ...v, user: userMap[v.userId] ?? null }));

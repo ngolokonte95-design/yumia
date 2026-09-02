@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
+import type { Plan } from '../../lib/feed-api';
+import { Avatar } from '../../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -17,7 +19,7 @@ interface Conversation {
   title?: string | null;
   photoUrl?: string | null;
   participantsCount?: number;
-  otherUser: { id: string; displayName: string; photoUrl?: string } | null;
+  otherUser: { id: string; displayName: string; photoUrl?: string; plan?: Plan | null } | null;
   lastMessage: { content: string; senderId: string; createdAt: string } | null;
   updatedAt: string;
 }
@@ -26,7 +28,7 @@ interface UserNote {
   id: string;
   userId: string;
   text: string;
-  user: { id: string; displayName: string; photoUrl?: string } | null;
+  user: { id: string; displayName: string; photoUrl?: string; plan?: Plan | null } | null;
 }
 
 function formatAgo(iso: string): string {
@@ -146,15 +148,17 @@ export default function ChatListScreen() {
             const photo = isGroup ? item.photoUrl : item.otherUser?.photoUrl;
             return (
               <Pressable style={styles.convRow} onPress={() => router.push(`/chat/${item.id}`)}>
-                {photo ? (
-                  <Image source={{ uri: photo }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
+                <Avatar
+                  uri={photo}
+                  size={52}
+                  plan={isGroup ? null : item.otherUser?.plan}
+                  placeholderColor={colors.brand}
+                  fallback={
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>
                       {isGroup ? '👥' : name[0]}
                     </Text>
-                  </View>
-                )}
+                  }
+                />
                 <View style={styles.convBody}>
                   <View style={styles.convTop}>
                     <Text style={styles.convName}>

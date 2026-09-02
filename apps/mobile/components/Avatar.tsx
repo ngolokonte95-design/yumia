@@ -95,6 +95,17 @@ export function Avatar({
   );
 }
 
+/**
+ * Le badge seul (sans avatar), pour l'accoler à côté d'un nom d'utilisateur
+ * (en-tête de profil, nom dans un commentaire, résultat de recherche…).
+ * Ne rend rien pour `plan: 'free'` ou `plan` absent.
+ */
+export function PlanBadgeIcon({ plan, size = 16 }: { plan?: Plan | null; size?: number }) {
+  const badge = plan ? PLAN_BADGE_META[plan] : undefined;
+  if (!badge) return null;
+  return <Image source={BADGE_ASSETS[badge.asset]} style={{ width: size, height: size }} contentFit="contain" />;
+}
+
 const styles = StyleSheet.create({
   image: { backgroundColor: colors.surface },
   placeholder: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },

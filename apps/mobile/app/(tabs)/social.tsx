@@ -10,9 +10,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
-import { feedApi, type FeedPost, type StoryGroup } from '../../lib/feed-api';
+import { feedApi, type FeedPost, type StoryGroup, type Plan } from '../../lib/feed-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PostVideo } from '../../components/PostVideo';
+import { Avatar } from '../../components/Avatar';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 
 const API = API_BASE_URL;
@@ -61,7 +62,7 @@ interface FeedItem {
 
 interface Encounter {
   id: string; seenAt: string;
-  otherUser: { id: string; displayName: string; photoUrl?: string; bio?: string; level: number } | null;
+  otherUser: { id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null } | null;
   place: { id: string; name: string; universe: string; city?: string } | null;
 }
 
@@ -120,13 +121,13 @@ function StoriesBar({
       {others.map((group) => (
         <Pressable key={group.user.id} style={styles.storyItem} onPress={() => onOpen(group.user.id)}>
           <View style={[styles.storyRing, group.hasUnseen && styles.storyRingActive]}>
-            {group.user.photoUrl ? (
-              <Image source={{ uri: group.user.photoUrl }} style={styles.storyAvatar} />
-            ) : (
-              <View style={[styles.storyAvatar, styles.storyAvatarFallback]}>
-                <Text style={styles.storyAvatarLetter}>{group.user.displayName[0]?.toUpperCase()}</Text>
-              </View>
-            )}
+            <Avatar
+              uri={group.user.photoUrl}
+              size={54}
+              plan={group.user.plan}
+              placeholderColor={colors.brand}
+              fallback={<Text style={styles.storyAvatarLetter}>{group.user.displayName[0]?.toUpperCase()}</Text>}
+            />
           </View>
           <Text style={styles.storyName} numberOfLines={1}>{group.user.displayName.split(' ')[0]}</Text>
         </Pressable>
@@ -232,13 +233,13 @@ function PostCard({
     <View style={styles.postCard}>
       {/* Auteur */}
       <Pressable style={styles.postAuthor} onPress={() => item.user && onUserPress(item.user.id)}>
-        {item.user?.photoUrl ? (
-          <Image source={{ uri: item.user.photoUrl }} style={styles.postAvatar} />
-        ) : (
-          <View style={[styles.postAvatar, styles.storyAvatarFallback]}>
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{item.user?.displayName[0]}</Text>
-          </View>
-        )}
+        <Avatar
+          uri={item.user?.photoUrl}
+          size={36}
+          plan={item.user?.plan}
+          placeholderColor={colors.brand}
+          fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{item.user?.displayName[0]}</Text>}
+        />
         <View>
           <Text style={styles.postAuthorName}>{item.user?.displayName ?? 'Utilisateur'}</Text>
           {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
@@ -393,9 +394,9 @@ export default function SocialTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{ id: string; displayName: string; photoUrl?: string; bio?: string }>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; displayName: string; photoUrl?: string; bio?: string; plan?: Plan | null }>>([]);
   const [following, setFollowing] = useState<Set<string>>(new Set());
-  const [suggestions, setSuggestions] = useState<Array<{ id: string; displayName: string; photoUrl?: string; bio?: string }>>([]);
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; displayName: string; photoUrl?: string; bio?: string; plan?: Plan | null }>>([]);
 
   // Music playback in feed
   const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
@@ -780,13 +781,13 @@ export default function SocialTab() {
             const isFollowed = following.has(item.id);
             return (
               <Pressable style={styles.userRow} onPress={() => router.push(`/user/${item.id}`)}>
-                {item.photoUrl ? (
-                  <Image source={{ uri: item.photoUrl }} style={styles.userAvatar} />
-                ) : (
-                  <View style={[styles.userAvatar, styles.storyAvatarFallback]}>
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>{item.displayName[0]}</Text>
-                  </View>
-                )}
+                <Avatar
+                  uri={item.photoUrl}
+                  size={44}
+                  plan={item.plan}
+                  placeholderColor={colors.brand}
+                  fallback={<Text style={{ color: '#fff', fontWeight: '700' }}>{item.displayName[0]}</Text>}
+                />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.userName}>{item.displayName}</Text>
                   {item.bio ? <Text style={styles.userBio} numberOfLines={1}>{item.bio}</Text> : null}
@@ -857,13 +858,13 @@ export default function SocialTab() {
               contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 80 }}
               renderItem={({ item }) => (
                 <Pressable style={styles.encounterCard} onPress={() => item.otherUser && router.push(`/user/${item.otherUser.id}`)}>
-                  <View style={[styles.encounterAvatar, styles.storyAvatarFallback]}>
-                    {item.otherUser?.photoUrl ? (
-                      <Image source={{ uri: item.otherUser.photoUrl }} style={styles.encounterAvatar} />
-                    ) : (
-                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.otherUser?.displayName[0]}</Text>
-                    )}
-                  </View>
+                  <Avatar
+                    uri={item.otherUser?.photoUrl}
+                    size={52}
+                    plan={item.otherUser?.plan}
+                    placeholderColor={colors.brand}
+                    fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.otherUser?.displayName[0]}</Text>}
+                  />
                   <View style={styles.encounterInfo}>
                     <Text style={styles.encounterName}>{item.otherUser?.displayName}</Text>
                     <Text style={styles.encounterPlace}>📍 {item.place?.name ?? '?'}</Text>
@@ -899,13 +900,13 @@ export default function SocialTab() {
                 const isFollowed = following.has(item.id);
                 return (
                   <Pressable style={styles.userRow} onPress={() => router.push(`/user/${item.id}`)}>
-                    {item.photoUrl ? (
-                      <Image source={{ uri: item.photoUrl }} style={styles.userAvatar} />
-                    ) : (
-                      <View style={[styles.userAvatar, styles.storyAvatarFallback]}>
-                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.displayName[0]}</Text>
-                      </View>
-                    )}
+                    <Avatar
+                      uri={item.photoUrl}
+                      size={44}
+                      plan={item.plan}
+                      placeholderColor={colors.brand}
+                      fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.displayName[0]}</Text>}
+                    />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.userName}>{item.displayName}</Text>
                       {item.bio ? <Text style={styles.userBio} numberOfLines={1}>{item.bio}</Text> : null}

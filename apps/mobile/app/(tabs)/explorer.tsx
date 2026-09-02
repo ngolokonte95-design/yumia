@@ -11,8 +11,9 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODE_META, UNIVERSE_META } from '@yumia/shared';
-import type { Mode, Universe } from '@yumia/shared';
+import type { Mode, Universe, Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { Avatar } from '../../components/Avatar';
 import { useLocation } from '../../lib/useLocation';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { socialApi } from '../../lib/social-api';
@@ -35,7 +36,7 @@ import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
 import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 import { universeSearchRadius } from '../../lib/universeRadius';
 
-type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number };
+type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null };
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
 // (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
@@ -200,13 +201,14 @@ export default function ExplorerScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
             {suggestedUsers.map((u) => (
               <Pressable key={u.id} style={styles.peopleCard} onPress={() => router.push(`/user/${u.id}` as never)}>
-                {u.photoUrl ? (
-                  <RNImage source={{ uri: u.photoUrl }} style={styles.peopleAvatar} />
-                ) : (
-                  <View style={[styles.peopleAvatar, styles.peopleAvatarFallback]}>
-                    <Text style={styles.peopleAvatarTxt}>{u.displayName[0]}</Text>
-                  </View>
-                )}
+                <Avatar
+                  uri={u.photoUrl}
+                  size={52}
+                  plan={u.plan}
+                  style={styles.peopleAvatar}
+                  placeholderColor={colors.brand}
+                  fallback={<Text style={styles.peopleAvatarTxt}>{u.displayName[0]}</Text>}
+                />
                 <Text style={styles.peopleName} numberOfLines={1}>{u.displayName}</Text>
                 {u.bio ? <Text style={styles.peopleBio} numberOfLines={2}>{u.bio}</Text> : null}
                 <Text style={styles.peopleLevel}>Niv. {u.level}</Text>

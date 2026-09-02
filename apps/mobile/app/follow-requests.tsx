@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import type { Plan } from '../lib/feed-api';
+import { Avatar } from '../components/Avatar';
 
 const API = API_BASE_URL;
 
 interface FollowRequest {
   id: string;
-  requester: { id: string; displayName: string; photoUrl?: string; bio?: string };
+  requester: { id: string; displayName: string; photoUrl?: string; bio?: string; plan?: Plan | null };
   createdAt: string;
 }
 
@@ -72,13 +74,13 @@ export default function FollowRequestsScreen() {
             return (
               <View style={styles.requestRow}>
                 <Pressable onPress={() => router.push(`/user/${item.requester.id}` as never)}>
-                  {item.requester.photoUrl ? (
-                    <Image source={{ uri: item.requester.photoUrl }} style={styles.avatar} />
-                  ) : (
-                    <View style={[styles.avatar, styles.avatarFallback]}>
-                      <Text style={styles.avatarLetter}>{item.requester.displayName[0]}</Text>
-                    </View>
-                  )}
+                  <Avatar
+                    uri={item.requester.photoUrl}
+                    size={52}
+                    plan={item.requester.plan}
+                    placeholderColor={colors.brand}
+                    fallback={<Text style={styles.avatarLetter}>{item.requester.displayName[0]}</Text>}
+                  />
                 </Pressable>
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.requester.id}` as never)}>
                   <Text style={styles.name}>{item.requester.displayName}</Text>

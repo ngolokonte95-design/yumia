@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import type { Plan } from './feed-api';
 
 const API = API_BASE_URL;
 
@@ -41,7 +42,7 @@ export interface DiscoveredUser {
   lng:         number;
   distanceKm:  number;
   intent:      SocialIntent | null;
-  user: { id: string; displayName: string; photoUrl?: string | null; bio?: string | null; level: number } | null;
+  user: { id: string; displayName: string; photoUrl?: string | null; bio?: string | null; level: number; plan?: Plan | null } | null;
 }
 
 function authHeaders(token: string) {
@@ -142,18 +143,19 @@ export const socialApi = {
         id: string; displayName: string; photoUrl?: string; bio?: string;
         totalXp: number; level: number; followersCount: number;
         followingCount: number; visitCount: number; isFollowedByMe: boolean;
+        plan?: Plan | null;
       }>(r),
     ),
 
   getFollowers: (token: string, userId: string) =>
     fetch(`${API}/social/users/${userId}/followers`, { headers: authHeaders(token) }).then(async (r) => {
-      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; level: number }[]>(r);
+      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null }[]>(r);
       return d ?? [];
     }),
 
   getFollowing: (token: string, userId: string) =>
     fetch(`${API}/social/users/${userId}/following`, { headers: authHeaders(token) }).then(async (r) => {
-      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; level: number }[]>(r);
+      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null }[]>(r);
       return d ?? [];
     }),
 
@@ -161,7 +163,7 @@ export const socialApi = {
     fetch(`${API}/social/users/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
       headers: authHeaders(token),
     }).then(async (r) => {
-      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; totalXp: number; level: number }[]>(r);
+      const d = await safeJson<{ id: string; displayName: string; photoUrl?: string; bio?: string; totalXp: number; level: number; plan?: Plan | null }[]>(r);
       return d ?? [];
     }),
 

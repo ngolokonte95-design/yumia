@@ -486,7 +486,7 @@ export class PostsService {
     const [users, myLikes] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, displayName: true, photoUrl: true },
+        select: { id: true, displayName: true, photoUrl: true, plan: true },
       }),
       viewerId
         ? this.prisma.commentLike.findMany({
@@ -530,7 +530,7 @@ export class PostsService {
     const [users, likes, saves, reposts, places, commentGroups, repostGroups] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, displayName: true, photoUrl: true },
+        select: { id: true, displayName: true, photoUrl: true, plan: true },
       }),
       this.prisma.postLike.findMany({
         where: { postId: { in: postIds }, userId: viewerId },

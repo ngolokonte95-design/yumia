@@ -117,7 +117,7 @@ export class StoriesService {
     const [users, myViews] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, displayName: true, photoUrl: true },
+        select: { id: true, displayName: true, photoUrl: true, plan: true },
       }),
       this.prisma.storyView.findMany({
         where: { userId, storyId: { in: stories.map((s) => s.id) } },
@@ -159,7 +159,7 @@ export class StoriesService {
     const [users, myViews] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, displayName: true, photoUrl: true },
+        select: { id: true, displayName: true, photoUrl: true, plan: true },
       }),
       this.prisma.storyView.findMany({
         where: { userId, storyId: { in: stories.map((s) => s.id) } },
@@ -262,7 +262,7 @@ export class StoriesService {
     if (!views.length) return [];
     const users = await this.prisma.user.findMany({
       where: { id: { in: views.map((v) => v.userId) } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
     return views

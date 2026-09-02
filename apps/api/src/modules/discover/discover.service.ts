@@ -23,7 +23,7 @@ type UserSelect = {
 };
 
 const USER_SOCIAL_SELECT = {
-  id: true, displayName: true, photoUrl: true, bio: true,
+  id: true, displayName: true, photoUrl: true, plan: true, bio: true,
   gender: true, level: true, totalXp: true,
 };
 
@@ -65,7 +65,7 @@ export class DiscoverService {
 
     const users = await this.prisma.user.findMany({
       where,
-      select: { id: true, displayName: true, photoUrl: true, bio: true, gender: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, gender: true },
     });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
@@ -210,7 +210,7 @@ export class DiscoverService {
     const [users, places] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: otherIds } },
-        select: { id: true, displayName: true, photoUrl: true, bio: true, level: true, gender: true },
+        select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true, gender: true },
       }),
       this.prisma.place.findMany({
         where: { id: { in: placeIds } },

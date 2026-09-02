@@ -40,7 +40,7 @@ export class MeetupService {
 
     const [rsvps, hosts, myRsvps] = await Promise.all([
       this.prisma.meetupRsvp.groupBy({ by: ['meetupId'], _count: { userId: true }, where: { meetupId: { in: ids } } }),
-      this.prisma.user.findMany({ where: { id: { in: hostIds } }, select: { id: true, displayName: true, photoUrl: true } }),
+      this.prisma.user.findMany({ where: { id: { in: hostIds } }, select: { id: true, displayName: true, photoUrl: true, plan: true } }),
       userId ? this.prisma.meetupRsvp.findMany({ where: { meetupId: { in: ids }, userId }, select: { meetupId: true, status: true } }) : Promise.resolve([]),
     ]);
 
@@ -62,14 +62,14 @@ export class MeetupService {
 
     const [rsvps, host, myRsvp] = await Promise.all([
       this.prisma.meetupRsvp.findMany({ where: { meetupId, status: 'going' }, take: 50 }),
-      this.prisma.user.findUnique({ where: { id: meetup.hostId }, select: { id: true, displayName: true, photoUrl: true } }),
+      this.prisma.user.findUnique({ where: { id: meetup.hostId }, select: { id: true, displayName: true, photoUrl: true, plan: true } }),
       userId ? this.prisma.meetupRsvp.findUnique({ where: { meetupId_userId: { meetupId, userId } } }) : null,
     ]);
 
     const attendeeIds = rsvps.map((r) => r.userId);
     const attendees = await this.prisma.user.findMany({
       where: { id: { in: attendeeIds } },
-      select: { id: true, displayName: true, photoUrl: true },
+      select: { id: true, displayName: true, photoUrl: true, plan: true },
     });
 
     return { ...meetup, host, attendees, attendeesCount: rsvps.length, myStatus: myRsvp?.status ?? null };

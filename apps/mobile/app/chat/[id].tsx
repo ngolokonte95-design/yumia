@@ -10,6 +10,8 @@ import { useAuth } from '../../lib/auth-context';
 import { encryptMessage, decryptMessage, getLocalPublicKey, isE2EAvailable } from '../../lib/e2e-crypto';
 import { colors, radius, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
+import type { Plan } from '../../lib/feed-api';
+import { Avatar } from '../../components/Avatar';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -34,7 +36,7 @@ interface Message {
 const REACTION_EMOJIS = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 
 interface Partner {
-  id: string; displayName: string; photoUrl?: string; e2ePublicKey?: string;
+  id: string; displayName: string; photoUrl?: string; e2ePublicKey?: string; plan?: Plan | null;
 }
 
 function formatTime(iso: string) {
@@ -415,15 +417,17 @@ export default function ChatRoomScreen() {
         </Pressable>
 
         <Pressable style={styles.partnerInfo} onPress={() => partner && router.push(`/user/${partner.id}` as never)}>
-          {partner?.photoUrl ? (
-            <Image source={{ uri: partner.photoUrl }} style={styles.headerAvatar} />
-          ) : (
-            <View style={[styles.headerAvatar, styles.headerAvatarFallback]}>
+          <Avatar
+            uri={partner?.photoUrl}
+            size={38}
+            plan={partner?.plan}
+            placeholderColor={colors.brand}
+            fallback={
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
                 {(partner?.displayName ?? '?')[0].toUpperCase()}
               </Text>
-            </View>
-          )}
+            }
+          />
           <View>
             <Text style={styles.partnerName}>{partner?.displayName ?? '...'}</Text>
             {e2eActive && <Text style={styles.encLabel}>🔐 Chiffré</Text>}
