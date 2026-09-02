@@ -68,7 +68,7 @@ export default function PassportScreen() {
       {passportFull ? (
         <Pressable
           style={styles.passportFullBanner}
-          onPress={() => router.push('/(premium)' as never)}
+          onPress={() => router.push('/plus' as never)}
         >
           <Text style={styles.passportFullEmoji}>👑</Text>
           <View style={{ flex: 1 }}>
@@ -144,7 +144,7 @@ export default function PassportScreen() {
       </View>
 
       {/* Freeze de streak (YUMIA Plus) */}
-      {user?.plan === 'plus' && (stats?.streak.freezesLeft ?? 0) > 0 && (stats?.streak.current ?? 0) > 0 ? (
+      {user?.plan && user.plan !== 'free' && (stats?.streak.freezesLeft ?? 0) > 0 && (stats?.streak.current ?? 0) > 0 ? (
         <View style={[styles.section, { marginTop: 0 }]}>
           <Pressable
             style={[styles.freezeBtn, freezing && styles.freezeBtnDisabled]}
