@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { Plan } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -20,6 +21,7 @@ type UserSelect = {
   gender?: string | null;
   level: number;
   totalXp: number;
+  plan?: Plan | null;
 };
 
 const USER_SOCIAL_SELECT = {

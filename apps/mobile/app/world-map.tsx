@@ -8,6 +8,8 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { isBackgroundLocationActive, startBackgroundLocation, stopBackgroundLocation } from '../lib/background-location';
+import type { Plan } from '../lib/feed-api';
+import { Avatar } from '../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -18,6 +20,7 @@ interface WorldUser {
   displayName: string;
   photoUrl?: string | null;
   bio?: string | null;
+  plan?: Plan | null;
 }
 
 export default function WorldMapScreen() {
@@ -113,13 +116,13 @@ export default function WorldMapScreen() {
         {users.map((u) => (
           <Marker key={u.userId} coordinate={{ latitude: u.lat, longitude: u.lng }}>
             <View style={styles.markerContainer}>
-              {u.photoUrl ? (
-                <Image source={{ uri: u.photoUrl }} style={styles.markerAvatar} />
-              ) : (
-                <View style={[styles.markerAvatar, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{u.displayName[0]}</Text>
-                </View>
-              )}
+              <Avatar
+                uri={u.photoUrl}
+                size={38}
+                plan={u.plan}
+                placeholderColor={colors.brand}
+                fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{u.displayName[0]}</Text>}
+              />
             </View>
             <Callout onPress={() => router.push(`/user/${u.userId}`)}>
               <View style={styles.callout}>

@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import type { Plan } from '../lib/feed-api';
+import { PlanBadgeIcon } from '../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -22,6 +24,7 @@ interface Profile {
   distanceKm?: number;
   gender?: string | null;
   birthYear?: number | null;
+  plan?: Plan | null;
 }
 
 const SWIPE_THRESHOLD = 100;
@@ -189,6 +192,7 @@ function ProfileCard({ profile }: { profile: Profile }) {
       <View style={cardStyles.info}>
         <View style={cardStyles.nameRow}>
           <Text style={cardStyles.name}>{profile.displayName}</Text>
+          <PlanBadgeIcon plan={profile.plan} size={18} />
           <Text style={cardStyles.level}>Niv. {profile.level}</Text>
         </View>
         {(profile.gender || profile.birthYear) && (

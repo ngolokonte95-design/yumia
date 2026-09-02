@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import type { Plan } from '../lib/feed-api';
+import { Avatar } from '../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -19,6 +21,7 @@ interface SimpleUser {
   displayName: string;
   photoUrl?: string | null;
   bio?: string | null;
+  plan?: Plan | null;
 }
 
 export default function CloseFriendsScreen() {
@@ -115,13 +118,13 @@ export default function CloseFriendsScreen() {
             return (
               <View style={styles.row}>
                 <Pressable onPress={() => router.push(`/user/${item.id}` as never)}>
-                  {item.photoUrl ? (
-                    <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
-                  ) : (
-                    <View style={[styles.avatar, styles.avatarFallback]}>
-                      <Text style={styles.avatarLetter}>{item.displayName[0]}</Text>
-                    </View>
-                  )}
+                  <Avatar
+                    uri={item.photoUrl}
+                    size={48}
+                    plan={item.plan}
+                    placeholderColor={colors.brand}
+                    fallback={<Text style={styles.avatarLetter}>{item.displayName[0]}</Text>}
+                  />
                 </Pressable>
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.id}` as never)}>
                   <Text style={styles.name}>{item.displayName}</Text>
