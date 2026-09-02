@@ -62,23 +62,31 @@ export function PostVideo({
     if (active) p.play();
   });
 
+  // Masque le lecteur (poster ou fond neutre, cf. plus bas) tant que la vidéo
+  // n'est pas à la fois PRÊTE et ACTIVE. Piège initial : `readyToPlay` peut se
+  // déclencher pendant le préchargement, alors que la vidéo est encore en
+  // pause (le montage anticipé côté Android, cf. shouldMount dans social.tsx/
+  // reels.tsx) — masquer le poster à ce moment-là ne servait à rien de mal en
+  // soi, MAIS le redémarrage réel (`play()`) au moment où le post devient
+  // actif peut lui-même provoquer une frame noire côté Android (le rendu
+  // reprend), et à cet instant le poster était déjà caché depuis longtemps :
+  // plus rien ne la masquait. On attend maintenant explicitement l'activation
+  // avant de lancer le petit délai qui cache le poster.
   useEffect(() => {
-    // Suivi même sans posterUri : sans miniature, on affiche un fond neutre
-    // (au lieu du noir brut du lecteur) tant que la vidéo n'est pas prête —
-    // beaucoup de vidéos publiées avant l'ajout des miniatures auto n'en ont
-    // pas, et flashaient en noir pendant le scroll faute de repli.
-    // `readyToPlay` signale que le décodeur est prêt, pas que la première
-    // image est déjà affichée à l'écran (surtout Android/TextureView) — un
-    // très léger flash restait visible dans cet écart d'une frame ou deux.
-    // On attend un tout petit peu plus longtemps pour le couvrir.
+    if (!active) { setReady(false); return; }
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleHide = () => {
+      if (timer) return;
+      timer = setTimeout(() => setReady(true), 120);
+    };
+    // Déjà prêt (préchargé pendant qu'il était encore inactif) : pas besoin
+    // d'attendre un nouveau statusChange, qui ne se redéclenchera pas.
+    if (player.status === 'readyToPlay') scheduleHide();
     const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay' && !timer) {
-        timer = setTimeout(() => setReady(true), 120);
-      }
+      if (status === 'readyToPlay') scheduleHide();
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
-  }, [player]);
+  }, [player, active]);
 
   useEffect(() => {
     const sub = player.addListener('playingChange', ({ isPlaying }) => {

@@ -45,19 +45,24 @@ function ReelVideo({
     if (startAtSec) p.currentTime = startAtSec;
   });
 
+  // Cf. PostVideo.tsx : le poster/fond neutre reste tant que le lecteur n'est
+  // pas à la fois prêt ET actif — `readyToPlay` peut se déclencher pendant le
+  // préchargement (montage anticipé en pause), avant l'activation, et
+  // `play()` au moment de l'activation peut lui-même provoquer une frame
+  // noire côté Android qu'un poster déjà caché ne masque plus.
   useEffect(() => {
-    // Suivi même sans posterUri (cf. PostVideo.tsx) : sans miniature, on
-    // affiche un fond neutre au lieu du noir brut du lecteur.
-    // `readyToPlay` précède de peu l'affichage réel de la première image
-    // (surtout Android) — petit délai pour couvrir ce reste de flash noir.
+    if (!active) { setReady(false); return; }
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleHide = () => {
+      if (timer) return;
+      timer = setTimeout(() => setReady(true), 120);
+    };
+    if (player.status === 'readyToPlay') scheduleHide();
     const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay' && !timer) {
-        timer = setTimeout(() => setReady(true), 120);
-      }
+      if (status === 'readyToPlay') scheduleHide();
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
-  }, [player]);
+  }, [player, active]);
 
   useEffect(() => {
     try { player.muted = muted; } catch {}
