@@ -183,7 +183,7 @@ export default function PassportScreen() {
           <Text style={styles.sectionTitle}>Univers explorés</Text>
           <View style={styles.universeList}>
             {universeBreakdown.slice(0, 5).map((item) => (
-              <UniverseBar key={item.universe} item={item} max={universeBreakdown[0].count} />
+              <UniverseBar key={item.universe} item={item} />
             ))}
           </View>
         </View>
@@ -214,9 +214,16 @@ export default function PassportScreen() {
   );
 }
 
-function UniverseBar({ item, max }: { item: UniverseCount; max: number }) {
+// Échelle FIXE (pas relative à ton propre univers le plus visité) — avec une
+// échelle relative, un seul univers visité remplissait toujours la barre à
+// 100% (1 visite / 1 max = plein), ce qui donnait l'impression d'un bug dès
+// la première visite. Avec une échelle fixe, la barre reflète une vraie
+// progression et se remplit au fil des visites.
+const UNIVERSE_BAR_SCALE = 15;
+
+function UniverseBar({ item }: { item: UniverseCount }) {
   const meta = isUniverse(item.universe) ? UNIVERSE_META[item.universe] : null;
-  const ratio = max > 0 ? item.count / max : 0;
+  const ratio = Math.min(1, item.count / UNIVERSE_BAR_SCALE);
   return (
     <View style={univStyles.row}>
       <Text style={univStyles.emoji}>{meta?.emoji ?? '📍'}</Text>
