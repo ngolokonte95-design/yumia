@@ -88,14 +88,38 @@ export async function logoutPurchases(): Promise<void> {
 
 /**
  * Restaure les achats précédents de l'utilisateur (réinstallation, changement d'appareil).
- * Retourne true si l'entitlement "plus" est actif après restauration.
+ * Retourne true si un entitlement payant (plus/gold/diamond) est actif après restauration
+ * — le webhook côté serveur mettra à jour `plan` séparément, ceci ne sert qu'au message
+ * affiché immédiatement dans l'app.
  */
 export async function restorePurchases(): Promise<boolean> {
   if (!initialized) return false;
   try {
     const customerInfo = await Purchases.restorePurchases();
-    return !!customerInfo.entitlements.active['plus'];
+    const active = customerInfo.entitlements.active;
+    return !!(active['diamond'] || active['gold'] || active['plus']);
   } catch {
     return false;
   }
+}
+
+/**
+ * Retrouve le package RevenueCat correspondant à un palier (Plus/Gold/Diamond),
+ * par l'identifiant du package OU du produit sous-jacent contenant le nom du
+ * palier (ex. "yumia_gold_monthly") — même convention que côté serveur
+ * (webhooks.service.ts, resolvePlan). Un seul package par palier pour
+ * l'instant (mensuel uniquement, pas d'annuel).
+ */
+export function packageForTier(
+  offerings: PurchasesOfferings | null,
+  tier: 'plus' | 'gold' | 'diamond',
+): PurchasesPackage | null {
+  const pkgs = offerings?.current?.availablePackages ?? [];
+  return (
+    pkgs.find(
+      (p) =>
+        p.identifier.toLowerCase().includes(tier) ||
+        p.product.identifier.toLowerCase().includes(tier),
+    ) ?? null
+  );
 }

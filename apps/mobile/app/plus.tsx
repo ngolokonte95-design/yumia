@@ -1,7 +1,12 @@
 /**
- * YUMIA PLUS — écran d'abonnement.
- * UI complète avec grille de fonctionnalités, tarifs mensuel/annuel et CTA.
- * Achats via RevenueCat (react-native-purchases).
+ * YUMIA PLUS/GOLD/DIAMOND — écran d'abonnement.
+ * Trois paliers payants (Plus/Gold/Diamond), un seul prix mensuel chacun pour
+ * l'instant (pas d'annuel — à ajouter plus tard si besoin). Achats via
+ * RevenueCat (react-native-purchases).
+ *
+ * Prix et avantages listés ci-dessous sont PROVISOIRES — restrictions
+ * définitives par palier pas encore arrêtées (cf. gamification.ts,
+ * PLAN_LIMITS, seul endroit à ajuster ensuite).
  */
 import { useEffect, useState } from 'react';
 import {
@@ -15,12 +20,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import type { PurchasesPackage } from 'react-native-purchases';
+import type { PurchasesOfferings } from 'react-native-purchases';
+import { PLAN_PRICE_EUR, type Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
-import { buyPackage, fetchOfferings, restorePurchases } from '../lib/purchases';
+import { buyPackage, fetchOfferings, packageForTier, restorePurchases } from '../lib/purchases';
+import { PlanBadgeIcon } from '../components/Avatar';
 
-type Plan = 'monthly' | 'yearly';
+type PaidTier = 'plus' | 'gold' | 'diamond';
 
 const FEATURES = [
   { emoji: '🧊', title: 'Freeze de streak', desc: 'Conserve ton streak même si tu rates un jour.' },
@@ -33,45 +40,40 @@ const FEATURES = [
   { emoji: '📍', title: 'Listes illimitées', desc: 'Crée autant de listes de lieux sauvegardés que tu veux.' },
 ];
 
-const PRICING: Record<Plan, { label: string; price: string; per: string; save?: string }> = {
-  monthly: { label: 'Mensuel', price: '4,99 €', per: 'par mois' },
-  yearly: { label: 'Annuel', price: '2,99 €', per: 'par mois', save: 'Économise 40 %' },
+const TIER_META: Record<PaidTier, { label: string; tagline: string; badge: PaidTier; popular?: boolean }> = {
+  plus: { label: 'YUMIA Plus', tagline: 'Débloque toutes les fonctionnalités, limites modérées.', badge: 'plus' },
+  gold: { label: 'YUMIA Gold', tagline: 'Limites bien plus hautes, pour les explorateurs assidus.', badge: 'gold', popular: true },
+  diamond: { label: 'YUMIA Diamond', tagline: 'Aucune limite, l\'expérience YUMIA sans compromis.', badge: 'diamond' },
 };
+
+const TIERS: PaidTier[] = ['plus', 'gold', 'diamond'];
 
 export default function PlusScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, reloadUser } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>('yearly');
+  const [selectedTier, setSelectedTier] = useState<PaidTier>('gold');
   const [loading, setLoading] = useState(false);
-  const [rcPackages, setRcPackages] = useState<Record<Plan, PurchasesPackage | null>>({
-    monthly: null,
-    yearly: null,
-  });
+  const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
 
-  const isAlreadyPlus = user?.plan === 'plus';
+  const currentPlan = (user?.plan ?? 'free') as Plan;
+  const isPaid = currentPlan !== 'free';
 
   useEffect(() => {
-    fetchOfferings().then((offerings) => {
-      if (!offerings?.current) return;
-      const pkgs = offerings.current.availablePackages;
-      const monthly = pkgs.find((p) => p.packageType === 'MONTHLY') ?? null;
-      const yearly = pkgs.find((p) => p.packageType === 'ANNUAL') ?? null;
-      setRcPackages({ monthly, yearly });
-    });
+    fetchOfferings().then(setOfferings);
   }, []);
 
   async function handleRestore() {
     setLoading(true);
     try {
-      const hasPlus = await restorePurchases();
-      if (hasPlus) {
+      const hasPaid = await restorePurchases();
+      if (hasPaid) {
         await reloadUser();
-        Alert.alert('Abonnement restauré !', 'YUMIA Plus est maintenant actif sur ton compte.', [
+        Alert.alert('Abonnement restauré !', 'Ton abonnement YUMIA est maintenant actif sur ce compte.', [
           { text: 'Super !', onPress: () => router.back() },
         ]);
       } else {
-        Alert.alert('Aucun achat trouvé', 'Aucun abonnement YUMIA Plus actif n\'a été trouvé pour ce compte.');
+        Alert.alert('Aucun achat trouvé', 'Aucun abonnement YUMIA actif n\'a été trouvé pour ce compte.');
       }
     } catch {
       Alert.alert('Erreur', 'Impossible de restaurer les achats. Réessaie plus tard.');
@@ -81,11 +83,11 @@ export default function PlusScreen() {
   }
 
   async function handleSubscribe() {
-    const pkg = rcPackages[selectedPlan];
+    const pkg = packageForTier(offerings, selectedTier);
     if (!pkg) {
       Alert.alert(
         '🚀 Bientôt disponible !',
-        'YUMIA Plus arrive très bientôt. Tu seras notifié dès le lancement.',
+        `YUMIA ${TIER_META[selectedTier].label} arrive très bientôt. Tu seras notifié dès le lancement.`,
         [{ text: 'Super !' }],
       );
       return;
@@ -94,7 +96,7 @@ export default function PlusScreen() {
     try {
       await buyPackage(pkg);
       await reloadUser();
-      Alert.alert('Bienvenue dans YUMIA Plus !', 'Ton abonnement est maintenant actif.', [
+      Alert.alert(`Bienvenue dans ${TIER_META[selectedTier].label} !`, 'Ton abonnement est maintenant actif.', [
         { text: "C'est parti !", onPress: () => router.back() },
       ]);
     } catch (err: unknown) {
@@ -118,14 +120,14 @@ export default function PlusScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.badge}>✨ PLUS</Text>
+        <Text style={styles.badge}>✨ YUMIA+</Text>
         <Text style={styles.heroTitle}>Passe à l'expérience{'\n'}complète</Text>
         <Text style={styles.heroSub}>
           Débloque tout le potentiel de YUMIA pour explorer sans limites.
         </Text>
       </View>
 
-      {/* Fonctionnalités */}
+      {/* Fonctionnalités communes aux 3 paliers */}
       <View style={styles.featuresGrid}>
         {FEATURES.map((f) => (
           <View key={f.title} style={styles.featureCard}>
@@ -136,39 +138,41 @@ export default function PlusScreen() {
         ))}
       </View>
 
-      {/* Sélection du plan */}
-      {!isAlreadyPlus ? (
+      {/* Sélection du palier */}
+      {!isPaid ? (
         <View style={styles.pricingSection}>
-          <Text style={styles.pricingTitle}>Choisis ton plan</Text>
+          <Text style={styles.pricingTitle}>Choisis ta formule</Text>
 
           <View style={styles.plans}>
-            {(['yearly', 'monthly'] as Plan[]).map((plan) => {
-              const p = PRICING[plan];
-              const isSelected = selectedPlan === plan;
-              const rcPkg = rcPackages[plan];
-              const priceStr = rcPkg?.product.priceString ?? p.price;
+            {TIERS.map((tier) => {
+              const meta = TIER_META[tier];
+              const isSelected = selectedTier === tier;
+              const pkg = packageForTier(offerings, tier);
+              const priceStr = pkg?.product.priceString ?? `${PLAN_PRICE_EUR[tier].toFixed(2).replace('.', ',')} €`;
               return (
                 <Pressable
-                  key={plan}
+                  key={tier}
                   style={[styles.planCard, isSelected && styles.planCardSelected]}
-                  onPress={() => setSelectedPlan(plan)}
+                  onPress={() => setSelectedTier(tier)}
                 >
-                  {p.save ? (
+                  {meta.popular ? (
                     <View style={styles.saveBadge}>
-                      <Text style={styles.saveBadgeText}>{p.save}</Text>
+                      <Text style={styles.saveBadgeText}>PLUS POPULAIRE</Text>
                     </View>
                   ) : null}
                   <View style={[styles.planRadio, isSelected && styles.planRadioSelected]}>
                     {isSelected ? <View style={styles.planRadioDot} /> : null}
                   </View>
+                  <PlanBadgeIcon plan={meta.badge} size={28} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.planLabel, isSelected && styles.planLabelSelected]}>
-                      {p.label}
+                      {meta.label}
                     </Text>
-                    <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
-                      {priceStr} <Text style={styles.planPer}>{p.per}</Text>
-                    </Text>
+                    <Text style={styles.planTagline} numberOfLines={2}>{meta.tagline}</Text>
                   </View>
+                  <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
+                    {priceStr}{'\n'}<Text style={styles.planPer}>/mois</Text>
+                  </Text>
                 </Pressable>
               );
             })}
@@ -182,7 +186,7 @@ export default function PlusScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.ctaText}>✨ Commencer YUMIA Plus</Text>
+              <Text style={styles.ctaText}>✨ Commencer {TIER_META[selectedTier].label}</Text>
             )}
           </Pressable>
 
@@ -197,9 +201,11 @@ export default function PlusScreen() {
         </View>
       ) : (
         <View style={styles.alreadyPlusBox}>
-          <Text style={styles.alreadyPlusEmoji}>🎉</Text>
-          <Text style={styles.alreadyPlusTitle}>Tu es déjà YUMIA Plus !</Text>
-          <Text style={styles.alreadyPlusSub}>Toutes les fonctionnalités premium sont actives.</Text>
+          <PlanBadgeIcon plan={currentPlan as PaidTier} size={40} />
+          <Text style={styles.alreadyPlusTitle}>
+            Tu es déjà {TIER_META[currentPlan as PaidTier]?.label ?? 'abonné'} !
+          </Text>
+          <Text style={styles.alreadyPlusSub}>Toutes les fonctionnalités premium de ton palier sont actives.</Text>
         </View>
       )}
     </ScrollView>
@@ -270,7 +276,7 @@ const styles = StyleSheet.create({
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -303,9 +309,10 @@ const styles = StyleSheet.create({
   },
   planRadioSelected: { borderColor: colors.brand },
   planRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.brand },
-  planLabel: { ...typography.caption, color: colors.textSecondary },
+  planLabel: { ...typography.caption, color: colors.textSecondary, fontWeight: '700' },
   planLabelSelected: { color: colors.brand },
-  planPrice: { ...typography.heading, color: colors.textPrimary },
+  planTagline: { ...typography.label, color: colors.textMuted, marginTop: 2 },
+  planPrice: { ...typography.heading, color: colors.textPrimary, textAlign: 'right', fontSize: 15 },
   planPriceSelected: { color: colors.brandSoft },
   planPer: { ...typography.caption, color: colors.textMuted },
 
@@ -347,7 +354,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  alreadyPlusEmoji: { fontSize: 48 },
   alreadyPlusTitle: { ...typography.title, color: colors.textPrimary },
   alreadyPlusSub: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
 });
