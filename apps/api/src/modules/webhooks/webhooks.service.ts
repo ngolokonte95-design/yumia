@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { Plan } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
-/** Événements RevenueCat qui donnent accès au plan Plus. */
+/** Événements RevenueCat qui donnent/renouvellent l'accès à un plan payant. */
 const UPGRADE_EVENTS = new Set([
   'INITIAL_PURCHASE',
   'RENEWAL',
@@ -10,13 +11,25 @@ const UPGRADE_EVENTS = new Set([
   'NON_RENEWING_PURCHASE',
 ]);
 
-/** Événements RevenueCat qui révoquent le plan Plus. */
+/** Événements RevenueCat qui révoquent le plan payant (retour à free). */
 const DOWNGRADE_EVENTS = new Set([
   'EXPIRATION',
   'CANCELLATION',
   'REFUND',
   'SUBSCRIBER_ALIAS',
 ]);
+
+/**
+ * Identifiants d'entitlement RevenueCat, du plus élevé au plus bas — à créer
+ * dans le dashboard RevenueCat (Entitlements) avec exactement ces noms.
+ * Un utilisateur ne peut avoir qu'un abonnement actif à la fois : on prend
+ * le premier entitlement trouvé dans cet ordre de priorité.
+ */
+const ENTITLEMENT_TO_PLAN: Array<[string, Plan]> = [
+  ['diamond', 'diamond'],
+  ['gold', 'gold'],
+  ['plus', 'plus'],
+];
 
 @Injectable()
 export class WebhooksService {
@@ -33,7 +46,8 @@ export class WebhooksService {
    *     type: string,                    // ex: "INITIAL_PURCHASE"
    *     app_user_id: string,             // UUID de l'utilisateur YUMIA
    *     original_app_user_id?: string,   // fallback si alias
-   *     product_id?: string,             // ex: "yumia_plus_monthly"
+   *     entitlement_ids?: string[],      // ex: ["gold"] — quel plan est actif
+   *     product_id?: string,             // ex: "yumia_gold_monthly" (repli si entitlement_ids absent)
    *   }
    * }
    */
@@ -53,8 +67,8 @@ export class WebhooksService {
       return;
     }
 
-    const newPlan = UPGRADE_EVENTS.has(type)
-      ? 'plus'
+    const newPlan: Plan | null = UPGRADE_EVENTS.has(type)
+      ? this.resolvePlan(event)
       : DOWNGRADE_EVENTS.has(type)
         ? 'free'
         : null;
@@ -67,7 +81,9 @@ export class WebhooksService {
     try {
       await this.prisma.user.update({
         where: { id: userId },
-        data: { plan: newPlan },
+        // `isPremium` reste synchro avec `plan` (tout sauf free = premium) —
+        // gardé pour compatibilité avec le code existant qui teste ce booléen.
+        data: { plan: newPlan, isPremium: newPlan !== 'free' },
       });
       this.logger.log(`Utilisateur ${userId} → plan "${newPlan}" (événement ${type})`);
     } catch (err) {
@@ -76,5 +92,28 @@ export class WebhooksService {
         `Impossible de mettre à jour le plan de ${userId} (${type}): ${(err as Error).message}`,
       );
     }
+  }
+
+  /**
+   * Détermine le plan à partir des entitlements actifs de l'événement
+   * (le plus élevé si plusieurs), avec repli sur `product_id` si
+   * `entitlement_ids` est absent (anciens événements / config RevenueCat
+   * minimale). Retourne 'plus' par défaut si rien n'est reconnu — préserve
+   * le comportement d'avant l'ajout de Gold/Diamond.
+   */
+  private resolvePlan(event: Record<string, unknown>): Plan {
+    const entitlementIds = Array.isArray(event['entitlement_ids'])
+      ? (event['entitlement_ids'] as unknown[]).map((v) => String(v).toLowerCase())
+      : [];
+    for (const [entitlement, plan] of ENTITLEMENT_TO_PLAN) {
+      if (entitlementIds.includes(entitlement)) return plan;
+    }
+
+    const productId = String(event['product_id'] ?? '').toLowerCase();
+    for (const [key, plan] of ENTITLEMENT_TO_PLAN) {
+      if (productId.includes(key)) return plan;
+    }
+
+    return 'plus';
   }
 }

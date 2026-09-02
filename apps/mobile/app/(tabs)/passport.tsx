@@ -10,7 +10,6 @@ import { freezeStreak } from '../../lib/passport-api';
 import { ActivityHeatmap } from '../../components/ActivityHeatmap';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { usePlanLimits } from '../../lib/usePlanLimits';
-import { FREE_LIMITS } from '../../lib/constants/plan-limits';
 import type { UniverseCount } from '../../lib/passport-api';
 
 /**
@@ -22,9 +21,9 @@ export default function PassportScreen() {
   const router = useRouter();
   const { accessToken, user } = useAuth();
   const { stats, passport, heatmap, universeBreakdown, loading, error, reload } = usePassport();
-  const { isPremium } = usePlanLimits();
+  const { getLimit } = usePlanLimits();
   const [freezing, setFreezing] = useState(false);
-  const passportFull = !isPremium && (passport?.totalVisits ?? 0) >= FREE_LIMITS.passportMaxEntries;
+  const passportFull = (passport?.totalVisits ?? 0) >= getLimit('passportMaxEntries');
 
   const level = stats?.level.current;
   const earned = new Set<string>(stats?.badges.earned ?? []);
@@ -73,7 +72,7 @@ export default function PassportScreen() {
         >
           <Text style={styles.passportFullEmoji}>👑</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.passportFullTitle}>Passeport plein ({FREE_LIMITS.passportMaxEntries} visites)</Text>
+            <Text style={styles.passportFullTitle}>Passeport plein ({getLimit('passportMaxEntries')} visites)</Text>
             <Text style={styles.passportFullSub}>Passe en Premium pour une mémoire illimitée → 2.99€/mois</Text>
           </View>
           <Text style={styles.passportFullArrow}>›</Text>

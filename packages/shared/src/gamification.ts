@@ -107,13 +107,39 @@ export const BADGE_META: Record<Badge, BadgeMeta> = {
 
 // ---- Abonnement --------------------------------------------------------
 
-export const PLANS = ['free', 'plus'] as const;
+export const PLANS = ['free', 'plus', 'gold', 'diamond'] as const;
 export type Plan = (typeof PLANS)[number];
 
-/** Limites Freemium (section 12 du PRD). Free = 85-90% des fonctionnalités. */
+/**
+ * Limites Freemium (section 12 du PRD). Free = 85-90% des fonctionnalités.
+ * Gold/Diamond : valeurs provisoires (restrictions définitives pas encore
+ * arrêtées) — Gold nettement au-dessus de Plus, Diamond sans limite. Cette
+ * table est le SEUL endroit à modifier pour ajuster les paliers plus tard.
+ */
 export const PLAN_LIMITS = {
   free: { savedPlacesMax: 50, simultaneousFilters: 3, streakFreezePerMonth: 0, travelItineraryDays: 3 },
   plus: { savedPlacesMax: Infinity, simultaneousFilters: Infinity, streakFreezePerMonth: 2, travelItineraryDays: 7 },
+  gold: { savedPlacesMax: Infinity, simultaneousFilters: Infinity, streakFreezePerMonth: 4, travelItineraryDays: 14 },
+  diamond: { savedPlacesMax: Infinity, simultaneousFilters: Infinity, streakFreezePerMonth: Infinity, travelItineraryDays: Infinity },
 } as const;
 
-export const PLUS_PRICE_EUR = 2.99;
+export const PLAN_PRICE_EUR: Record<Exclude<Plan, 'free'>, number> = {
+  plus: 2.99,
+  gold: 5.99,
+  diamond: 9.99,
+};
+/** @deprecated Utiliser PLAN_PRICE_EUR.plus — gardé pour compatibilité. */
+export const PLUS_PRICE_EUR = PLAN_PRICE_EUR.plus;
+
+/**
+ * Badge de statut affiché sur l'avatar/le nom d'un utilisateur payant — à ne
+ * pas confondre avec les BADGES d'exploration (Aventurier, On Fire…) plus
+ * haut dans ce fichier, qui récompensent l'activité, pas l'abonnement.
+ * `asset` référence apps/mobile/assets/badges/<asset>.png (fond transparent).
+ */
+export const PLAN_BADGE_META: Partial<Record<Plan, { asset: 'silver' | 'gold' | 'diamond'; labelFr: string }>> = {
+  plus: { asset: 'silver', labelFr: 'YUMIA Plus' },
+  gold: { asset: 'gold', labelFr: 'YUMIA Gold' },
+  diamond: { asset: 'diamond', labelFr: 'YUMIA Diamond' },
+  // 'free' volontairement absent : aucun badge.
+};

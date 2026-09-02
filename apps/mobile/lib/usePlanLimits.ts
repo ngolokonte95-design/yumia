@@ -10,9 +10,10 @@
  */
 import { useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Plan } from '@yumia/shared';
 import { useAuth } from './auth-context';
 import {
-  FREE_LIMITS,
+  LIMITS_BY_PLAN,
   LIMIT_MESSAGES,
   LIMIT_PERIOD,
   type LimitedFeature,
@@ -55,32 +56,43 @@ async function readCount(feature: LimitedFeature, period: 'day' | 'week' | 'none
 
 export function usePlanLimits() {
   const { user } = useAuth();
-  const isPremium = user?.isPremium === true || user?.plan === 'plus';
+  // `isPremium` legacy conservé en repli tant que tous les comptes n'ont pas
+  // encore de `plan` explicite (anciens utilisateurs Plus déjà marqués
+  // isPremium avant l'ajout des paliers) — mappé sur 'plus' dans ce cas.
+  const planTier: Plan = (user?.plan as Plan | undefined)
+    ?? (user?.isPremium ? 'plus' : 'free');
+  const isPremium = planTier !== 'free';
   const isAdmin = user?.isAdmin === true;
+
+  /** Limite du palier ACTUEL pour une fonctionnalité (Diamond = Infinity). */
+  const getLimit = useCallback(
+    (feature: LimitedFeature): number => LIMITS_BY_PLAN[planTier][feature],
+    [planTier],
+  );
 
   const checkLimit = useCallback(
     async (feature: LimitedFeature, currentCount?: number): Promise<LimitCheck> => {
-      if (isPremium || isAdmin) return { allowed: true, message: '' };
-      const limit = FREE_LIMITS[feature];
+      if (isAdmin) return { allowed: true, message: '' };
+      const limit = getLimit(feature);
       const period = LIMIT_PERIOD[feature];
       const used = period === 'none' ? currentCount ?? 0 : await readCount(feature, period);
       const allowed = used < limit;
       return { allowed, message: allowed ? '' : LIMIT_MESSAGES[feature] };
     },
-    [isPremium, isAdmin],
+    [isAdmin, getLimit],
   );
 
   const recordUsage = useCallback(
     async (feature: LimitedFeature): Promise<void> => {
-      if (isPremium || isAdmin) return;
+      if (isAdmin) return;
       const period = LIMIT_PERIOD[feature];
       if (period === 'none') return; // compté via currentCount, pas de compteur local
       const pk = periodKey(period);
       const used = await readCount(feature, period);
       await AsyncStorage.setItem(`usage:${feature}`, JSON.stringify({ pk, count: used + 1 }));
     },
-    [isPremium, isAdmin],
+    [isAdmin],
   );
 
-  return { isPremium, isAdmin, checkLimit, recordUsage };
+  return { planTier, isPremium, isAdmin, getLimit, checkLimit, recordUsage };
 }

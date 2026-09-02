@@ -10,6 +10,7 @@ import { API_BASE_URL } from '../../lib/config';
 import { useI18n } from '../../lib/useI18n';
 import { usePassportStats } from '../../lib/usePassportStats';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
+import { Avatar } from '../../components/Avatar';
 import { LocalePicker } from '../../components/LocalePicker';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { StreakModal } from '../../components/StreakModal';
@@ -74,13 +75,15 @@ export default function ProfileScreen() {
       {/* En-tête profil */}
       <View style={[styles.section, styles.header]}>
         <Pressable onPress={() => router.push('/edit-profile')}>
-          {photoUrl ? (
-            <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initial}</Text>
-            </View>
-          )}
+          <Avatar
+            uri={photoUrl}
+            size={64}
+            plan={user?.plan}
+            borderWidth={photoUrl ? 2 : undefined}
+            borderColor={colors.brand}
+            placeholderColor={colors.brand}
+            fallback={<Text style={styles.avatarText}>{initial}</Text>}
+          />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{displayName}</Text>

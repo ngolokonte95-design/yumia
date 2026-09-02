@@ -53,7 +53,7 @@ describe('WebhooksService', () => {
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { plan: 'plus' },
+        data: { plan: 'plus', isPremium: true },
       });
     });
   });
@@ -73,7 +73,55 @@ describe('WebhooksService', () => {
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { plan: 'free' },
+        data: { plan: 'free', isPremium: false },
+      });
+    });
+  });
+
+  // ── Résolution du palier (Plus/Gold/Diamond) ─────────────────────────────
+
+  describe('résolution du palier', () => {
+    it('utilise entitlement_ids en priorité (diamond > gold > plus)', async () => {
+      await service.handleRevenueCat({
+        event: { type: 'INITIAL_PURCHASE', app_user_id: 'user-1', entitlement_ids: ['gold'] },
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { plan: 'gold', isPremium: true },
+      });
+    });
+
+    it('retient le plus élevé si plusieurs entitlements actifs', async () => {
+      await service.handleRevenueCat({
+        event: { type: 'INITIAL_PURCHASE', app_user_id: 'user-1', entitlement_ids: ['plus', 'diamond'] },
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { plan: 'diamond', isPremium: true },
+      });
+    });
+
+    it('se rabat sur product_id si entitlement_ids est absent', async () => {
+      await service.handleRevenueCat({
+        event: { type: 'INITIAL_PURCHASE', app_user_id: 'user-1', product_id: 'yumia_gold_annual' },
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { plan: 'gold', isPremium: true },
+      });
+    });
+
+    it('retombe sur "plus" si rien n\'est reconnu (comportement historique préservé)', async () => {
+      await service.handleRevenueCat({
+        event: { type: 'INITIAL_PURCHASE', app_user_id: 'user-1' },
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { plan: 'plus', isPremium: true },
       });
     });
   });
@@ -105,7 +153,7 @@ describe('WebhooksService', () => {
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-fallback' },
-      data: { plan: 'plus' },
+      data: { plan: 'plus', isPremium: true },
     });
   });
 

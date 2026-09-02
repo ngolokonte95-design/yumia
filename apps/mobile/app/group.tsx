@@ -30,7 +30,6 @@ import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
-import { FREE_LIMITS } from '../lib/constants/plan-limits';
 import { SuggestionCard } from '../components/SuggestionCard';
 import type { Top3Response } from '../lib/api';
 
@@ -53,7 +52,7 @@ export default function GroupScreen() {
   const { coords } = useLocation();
   const { accessToken } = useAuth();
   const { savedIds, save, unsave } = useSaved(accessToken);
-  const { isPremium } = usePlanLimits();
+  const { getLimit } = usePlanLimits();
   const [upsell, setUpsell] = useState<string | null>(null);
 
   const { code: deepLinkCode } = useLocalSearchParams<{ code?: string }>();
@@ -254,14 +253,15 @@ export default function GroupScreen() {
               <Text style={styles.label}>Nombre de personnes</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {SIZES.map((n) => {
-                  const locked = !isPremium && n > FREE_LIMITS.circleMaxMembers;
+                  const circleLimit = getLimit('circleMaxMembers');
+                  const locked = n > circleLimit;
                   return (
                     <Pressable
                       key={n}
                       style={[styles.sizeChip, size === n && !locked && styles.chipActive, locked && styles.sizeChipLocked]}
                       onPress={() => {
                         if (locked) {
-                          setUpsell(`Ton cercle est limité à ${FREE_LIMITS.circleMaxMembers} personnes. Invite jusqu'à 20 proches pour seulement 2.99€/mois avec le forfait Premium. 👑`);
+                          setUpsell(`Ton cercle est limité à ${circleLimit} personnes à ce palier. Passe à un forfait supérieur pour inviter plus de proches. 👑`);
                           return;
                         }
                         setSize(n);

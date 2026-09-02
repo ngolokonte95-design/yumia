@@ -4,8 +4,8 @@
  */
 import { request } from './api';
 import { API_BASE_URL } from './config';
-import type { Universe } from '@yumia/shared';
-export type { Universe };
+import type { Universe, Plan } from '@yumia/shared';
+export type { Universe, Plan };
 
 export interface UserPreferences {
   favoriteUniverses?: Universe[];
@@ -25,7 +25,7 @@ export interface PublicUser {
   locale: string;
   currency: string;
   countryCode: string | null;
-  plan: 'free' | 'plus';
+  plan: Plan;
   isPremium: boolean;
   premiumPlan: string | null;
   totalXp: number;

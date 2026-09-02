@@ -19,6 +19,8 @@ datasource db {
 enum Plan {
   free
   plus
+  gold
+  diamond
 }
 
 enum AuthProvider {
