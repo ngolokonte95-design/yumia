@@ -32,7 +32,7 @@ import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
 const MAP_DELTA = 0.025;
 const MAX_MARKERS = 45;
-const MAX_DISPLAY_PLACES = 80;
+const MAX_DISPLAY_PLACES = 50;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_COLLAPSED = 56;
 const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
@@ -165,7 +165,7 @@ export default function MapScreen() {
     if (viewportFetchTimer.current) clearTimeout(viewportFetchTimer.current);
     viewportFetchTimer.current = setTimeout(async () => {
       try {
-        const results = await fetchNearby({ lat: r.latitude, lng: r.longitude, radius: radiusM, universe: universe ?? undefined, limit: 80 });
+        const results = await fetchNearby({ lat: r.latitude, lng: r.longitude, radius: radiusM, universe: universe ?? undefined, limit: 50 });
         // On FUSIONNE avec ce qui était déjà chargé plutôt que de remplacer : sinon un
         // lieu absent d'un fetch (limite/rayon légèrement différents d'un appel à
         // l'autre) disparaissait puis réapparaissait sans arrêt en se déplaçant.
@@ -236,7 +236,7 @@ export default function MapScreen() {
       setTapPoint(null); // plus de position d'écran précise : le spinner se recentre
       setTapCoord({ lat: region.latitude, lng: region.longitude });
       setTapLoading(true);
-      fetchNearby({ lat: region.latitude, lng: region.longitude, radius: nextRadiusM, universe: nextUniverse ?? undefined, limit: 80 })
+      fetchNearby({ lat: region.latitude, lng: region.longitude, radius: nextRadiusM, universe: nextUniverse ?? undefined, limit: 50 })
         .then(setTapResults)
         .catch(() => { /* silent */ })
         .finally(() => setTapLoading(false));
@@ -253,7 +253,7 @@ export default function MapScreen() {
       const radiusM = Math.min(visibleRadiusM, nextRadiusM, 50_000);
       setViewportPlaces([]);
       if (radiusM >= 1_000) {
-        fetchNearby({ lat: region.latitude, lng: region.longitude, radius: radiusM, universe: nextUniverse ?? undefined, limit: 80 })
+        fetchNearby({ lat: region.latitude, lng: region.longitude, radius: radiusM, universe: nextUniverse ?? undefined, limit: 50 })
           .then((results) => {
             setViewportPlaces(results);
             lastViewportKey.current = `${region.latitude.toFixed(2)}:${region.longitude.toFixed(2)}:${Math.round(radiusM / 1_000)}:${nextUniverse ?? 'all'}`;
@@ -284,7 +284,7 @@ export default function MapScreen() {
     setCityResults(null);
     setCityQuery('');
     try {
-      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: radiusKm * 1000, universe: universe ?? undefined, limit: 80 });
+      const results = await fetchNearby({ lat: latitude, lng: longitude, radius: radiusKm * 1000, universe: universe ?? undefined, limit: 50 });
       setTapResults(results);
       // Recentre sur le point tapé en conservant le zoom actuel (pas de re-zoom).
       const { latitudeDelta, longitudeDelta } = regionRef.current;
