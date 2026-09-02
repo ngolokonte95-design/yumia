@@ -231,6 +231,10 @@ enum Universe {
   driving_school // LEGACY — remplacé par car_inspection avant tout usage (enum PG non supprimable)
   // Événements
   event_venue
+  // Voyage & Alimentation
+  travel_agency
+  supermarket
+  grocery_store
   // Valeurs héritées (non affichées dans l'UI — migration impossible en PG)
   nightlife
   art_gallery

@@ -181,6 +181,9 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   // Culte & Services
   place_of_worship: ['church', 'mosque', 'synagogue', 'hindu_temple'],
   library:          ['library'],
+  travel_agency:    ['travel_agency'],
+  supermarket:      ['supermarket'],
+  grocery_store:    ['grocery_store', 'food_store'],
   coworking:        ['coworking_space'],
   // Transport & Mobilité
   taxi_vtc:         ['taxi_stand'],
@@ -242,6 +245,12 @@ const BLOCK_EXEMPT_UNIVERSES = new Set<Universe>([
   'tobacco',        // la plupart des tabacs sont taggés 'convenience_store'
   'bank',           // 'bank' est bloqué globalement (pollution des autres univers)
   'auto_parts',     // 'auto_parts_store' est bloqué globalement
+  // 'supermarket' et 'grocery_or_supermarket' sont bloqués globalement (ils
+  // polluaient les univers restauration/shopping). Ils restent bloqués
+  // partout ailleurs, mais sont légitimes quand l'utilisateur demande
+  // explicitement ces deux univers-là.
+  'supermarket',
+  'grocery_store',
 ]);
 
 /** Types Google à exclure de l'hydratation (épiceries, banques…). */
@@ -377,6 +386,12 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['jewelry_store',         'jewelry'],
   ['market',                'shopping'],
   ['farmer_market',         'shopping'],
+  ['supermarket',           'supermarket'],
+  ['grocery_store',         'grocery_store'],
+  ['food_store',            'grocery_store'],
+  // NB : 'convenience_store' n'est volontairement PAS mappé ici — il sert déjà
+  // à l'univers 'tobacco' (la plupart des tabacs portent ce type).
+  ['travel_agency',         'travel_agency'],
   ['liquor_store',          'wine_cellar'],
   ['tobacco_shop',          'tobacco'],
   ['juice_bar',             'juice_bar'],
