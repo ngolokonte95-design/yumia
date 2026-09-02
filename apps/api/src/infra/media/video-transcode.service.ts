@@ -7,42 +7,45 @@ import { join } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
-// Coupe l'appel ffmpeg s'il traîne — un fichier pathologique ne doit jamais
-// bloquer indéfiniment la requête d'upload.
-const TRANSCODE_TIMEOUT_MS = 90_000;
+// Le remux ne fait que réempaqueter les flux (aucun ré-encodage) : quelques
+// secondes même sur un gros fichier.
+const REMUX_TIMEOUT_MS = 30_000;
 const THUMBNAIL_TIMEOUT_MS = 15_000;
+// Le ré-encodage tourne hors requête : il peut être plus généreux.
+const REENCODE_TIMEOUT_MS = 240_000;
 // Le VPS de prod n'a qu'~1 Go de RAM, partagé avec Postgres/Redis/l'API elle-
-// même. Deux transcodages 4K simultanés suffisent à tout faire swaper et
-// rendre le serveur entier injoignable (vécu en prod : plusieurs tentatives
-// utilisateur empilées → load average 80, API à l'arrêt). Au-delà de cette
-// file d'attente, on abandonne le transcodage plutôt que d'accumuler des
-// jobs — le buffer original est alors utilisé tel quel.
+// même. Plusieurs ré-encodages 4K simultanés suffisent à tout faire swaper et
+// rendre le serveur injoignable (vécu en prod : load average 80, API à
+// l'arrêt). Au-delà de cette file, on abandonne le ré-encodage — la vidéo
+// remuxée reste parfaitement lisible.
 const MAX_QUEUE_DEPTH = 2;
 
-export interface TranscodeResult {
+export interface PreparedVideo {
+  /** MP4 remuxé avec faststart, prêt à servir (ou l'original si le remux échoue). */
   video: Buffer;
   /** Frame extraite en JPEG — null si l'extraction échoue (best-effort). */
   thumbnail: Buffer | null;
+  /** true si un ré-encodage complet (downscale / changement de codec) reste utile. */
+  needsReencode: boolean;
 }
 
 /**
- * Ré-encode une vidéo uploadée vers un format léger et homogène (H.264 max
- * 1280px de large, faststart pour le streaming progressif) — les fichiers
- * importés depuis la galerie (souvent 4K bruts) saturaient le décodeur
- * matériel de nombreux téléphones Android en lecture inline. Extrait aussi
- * une image de couverture (première frame) : sans elle, l'app mobile ne peut
- * pas afficher d'image fixe le temps que le lecteur vidéo s'initialise
- * (Android démonte/remonte son lecteur en scrollant, faute de quoi les
- * décodeurs matériels — très limités — s'épuisent), ce qui donnait un flash
- * noir visible à chaque vidéo sans couverture.
+ * Préparation des vidéos uploadées, en deux temps pour ne pas faire attendre
+ * l'utilisateur pendant la publication :
  *
- * **Un seul job à la fois, process-wide** (file d'attente en mémoire
- * ci-dessous) : c'est la vraie contrainte sur ce serveur, pas juste une
- * optimisation. `-threads 1` borne aussi le CPU/RAM pris par ffmpeg lui-même.
+ * 1. {@link prepare} — **synchrone, quelques secondes** : remux en MP4 avec
+ *    `+faststart` (l'index passe en tête du fichier → lecture progressive dès
+ *    les premiers octets, au lieu d'attendre tout le téléchargement) et
+ *    extraction de la miniature de couverture. Aucun ré-encodage : on ne fait
+ *    que réempaqueter les flux existants.
+ * 2. {@link reencodeInBackground} — **asynchrone, hors requête** : downscale
+ *    en H.264 1280px max pour les sources lourdes (4K brut de galerie), qui
+ *    saturaient le décodeur matériel des téléphones Android en lecture inline.
+ *    Le fichier servi est remplacé une fois le job terminé.
  *
- * Best-effort : toute erreur (ffmpeg absent, timeout, fichier corrompu, file
- * d'attente pleine) est avalée par l'appelant, qui doit alors utiliser le
- * buffer original tel quel plutôt que d'échouer l'upload entier.
+ * Best-effort de bout en bout : toute erreur (ffmpeg absent, timeout, fichier
+ * atypique) laisse la vidéo précédente en place plutôt que d'échouer la
+ * publication.
  */
 @Injectable()
 export class VideoTranscodeService {
@@ -50,89 +53,108 @@ export class VideoTranscodeService {
   private queue: Promise<unknown> = Promise.resolve();
   private queueDepth = 0;
 
-  async transcode(buffer: Buffer, originalExt: string): Promise<TranscodeResult> {
-    if (this.queueDepth >= MAX_QUEUE_DEPTH) {
-      throw new Error(`File de transcodage pleine (${this.queueDepth} en attente) — fichier original conservé.`);
-    }
-
-    this.queueDepth += 1;
-    const run = this.queue.then(() => this.runFfmpeg(buffer, originalExt));
-    // La file continue même si ce job échoue — sinon un seul échec la bloque
-    // définitivement pour tous les uploads suivants.
-    this.queue = run.catch(() => undefined).finally(() => { this.queueDepth -= 1; });
-    return run;
-  }
-
-  private async runFfmpeg(buffer: Buffer, originalExt: string): Promise<TranscodeResult> {
+  async prepare(buffer: Buffer, originalExt: string): Promise<PreparedVideo> {
     const dir = await mkdtemp(join(tmpdir(), 'yumia-video-'));
     const input = join(dir, `in${originalExt || '.mp4'}`);
-    const output = join(dir, 'out.mp4');
+    const remuxed = join(dir, 'remux.mp4');
     const thumbOutput = join(dir, 'thumb.jpg');
 
     try {
       await writeFile(input, buffer);
 
-      // Beaucoup de vidéos sont déjà à une résolution/format raisonnables
-      // (filmées ou déjà compressées ailleurs) — les ré-encoder quand même
-      // fait attendre l'utilisateur pour rien sur ce serveur peu puissant.
-      // On ne transcode que ce qui en a vraiment besoin (source large et/ou
-      // pas déjà en H.264) ; sinon on ne fait que l'extraction de couverture.
-      const needsTranscode = await this.probeNeedsTranscode(input);
-
       let video = buffer;
-      let thumbSource = input;
-
-      if (needsTranscode) {
+      try {
+        // `-c copy` : aucun ré-encodage, on ne fait que déplacer les flux dans
+        // un conteneur MP4 avec l'index en tête. Indispensable pour la lecture
+        // progressive côté mobile — sans ça le lecteur doit d'abord télécharger
+        // le fichier entier (saccades marquées sur Android).
         await execFileAsync('ffmpeg', [
-          '-y',
-          '-i', input,
-          // Ne réduit que si plus large que 1280px — ne remonte jamais en
-          // qualité une vidéo déjà petite. -2 garde une hauteur paire (requis
-          // par libx264). 1280 (pas 1920) : marge RAM serveur, largement
-          // suffisant pour un écran de téléphone.
-          '-vf', "scale='min(1280,iw)':-2",
-          '-c:v', 'libx264',
-          '-preset', 'ultrafast',
-          '-crf', '26',
-          // Un seul thread d'encodage : borne le pic RAM/CPU par job sur un
-          // serveur à ressources très limitées, plutôt que de laisser x264
-          // paralléliser sur tous les cœurs disponibles.
-          '-threads', '1',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          // Déplace l'index moov en tête de fichier : lecture progressive dès
-          // les premiers octets reçus, au lieu d'attendre tout le téléchargement.
-          '-movflags', '+faststart',
-          output,
-        ], { timeout: TRANSCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
-
-        video = await readFile(output);
-        thumbSource = output;
-        this.logger.log(`Transcodage vidéo : ${buffer.length} → ${video.length} octets`);
-      } else {
-        this.logger.log(`Transcodage évité (déjà à une résolution/format adaptés) : ${buffer.length} octets`);
+          '-y', '-i', input, '-c', 'copy', '-movflags', '+faststart', remuxed,
+        ], { timeout: REMUX_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
+        video = await readFile(remuxed);
+        this.logger.log(`Remux vidéo (faststart) : ${buffer.length} → ${video.length} octets`);
+      } catch (err) {
+        this.logger.warn(`Remux échoué, fichier original conservé : ${(err as Error).message}`);
       }
 
-      // Best-effort, ne doit jamais faire échouer le job — extraction d'une
-      // seule frame, très légère (pas de ré-encodage complet).
       let thumbnail: Buffer | null = null;
       try {
         await execFileAsync('ffmpeg', [
-          '-y', '-i', thumbSource, '-ss', '00:00:00.1', '-vframes', '1', '-q:v', '4', thumbOutput,
+          '-y', '-i', input, '-ss', '00:00:00.1', '-vframes', '1', '-q:v', '4', thumbOutput,
         ], { timeout: THUMBNAIL_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 5 });
         thumbnail = await readFile(thumbOutput);
       } catch (err) {
         this.logger.warn(`Extraction de la couverture échouée : ${(err as Error).message}`);
       }
 
-      return { video, thumbnail };
+      return { video, thumbnail, needsReencode: await this.probeNeedsReencode(input) };
     } finally {
       await rm(dir, { recursive: true, force: true }).catch(() => undefined);
     }
   }
 
-  /** true si la vidéo source dépasse 1280px de large ou n'est pas déjà en H.264. */
-  private async probeNeedsTranscode(input: string): Promise<boolean> {
+  /**
+   * Lance le ré-encodage hors requête et publie le résultat via `publish`.
+   * Ne rejette jamais : un échec laisse simplement la version remuxée en place.
+   */
+  reencodeInBackground(
+    buffer: Buffer,
+    originalExt: string,
+    publish: (video: Buffer) => Promise<unknown>,
+  ): void {
+    if (this.queueDepth >= MAX_QUEUE_DEPTH) {
+      this.logger.warn(`File de ré-encodage pleine (${this.queueDepth}) — version remuxée conservée.`);
+      return;
+    }
+
+    this.queueDepth += 1;
+    const run = this.queue
+      .then(() => this.runReencode(buffer, originalExt))
+      .then((video) => publish(video))
+      .then(() => { this.logger.log('Ré-encodage terminé, fichier remplacé.'); })
+      .catch((err: Error) => { this.logger.warn(`Ré-encodage abandonné : ${err.message}`); });
+
+    // La file continue même après un échec — sinon un seul raté la bloquerait
+    // définitivement pour tous les uploads suivants.
+    this.queue = run.finally(() => { this.queueDepth -= 1; });
+  }
+
+  private async runReencode(buffer: Buffer, originalExt: string): Promise<Buffer> {
+    const dir = await mkdtemp(join(tmpdir(), 'yumia-reencode-'));
+    const input = join(dir, `in${originalExt || '.mp4'}`);
+    const output = join(dir, 'out.mp4');
+
+    try {
+      await writeFile(input, buffer);
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-i', input,
+        // Ne réduit que si plus large que 1280px — ne remonte jamais en
+        // qualité une vidéo déjà petite. -2 garde une hauteur paire (requis
+        // par libx264).
+        '-vf', "scale='min(1280,iw)':-2",
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-crf', '26',
+        // Un seul thread : borne le pic RAM/CPU par job, plutôt que de laisser
+        // x264 paralléliser sur tous les cœurs d'un serveur déjà à l'étroit.
+        '-threads', '1',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-movflags', '+faststart',
+        output,
+      ], { timeout: REENCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
+
+      const video = await readFile(output);
+      this.logger.log(`Ré-encodage : ${buffer.length} → ${video.length} octets`);
+      return video;
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+
+  /** true si la source dépasse 1280px de large ou n'est pas déjà en H.264. */
+  private async probeNeedsReencode(input: string): Promise<boolean> {
     try {
       const { stdout } = await execFileAsync('ffprobe', [
         '-v', 'error',
@@ -143,12 +165,11 @@ export class VideoTranscodeService {
       ], { timeout: 10_000 });
       const [widthStr, codec] = stdout.trim().split(',');
       const width = parseInt(widthStr, 10);
-      if (Number.isFinite(width) && width > 1280) return true;
-      if (codec && codec.trim() !== 'h264') return true;
-      if (!Number.isFinite(width) || !codec) return true; // sondage ambigu → prudence, on transcode
-      return false;
+      if (!Number.isFinite(width) || !codec) return true; // sondage ambigu → prudence
+      if (width > 1280) return true;
+      return codec.trim() !== 'h264';
     } catch {
-      return true; // ffprobe indisponible/échoue → comportement précédent (toujours transcoder)
+      return true; // ffprobe indisponible → on ré-encode par sécurité
     }
   }
 }

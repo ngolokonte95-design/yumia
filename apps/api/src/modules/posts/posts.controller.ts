@@ -5,10 +5,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsService, type PostOverlay } from './posts.service';
 import { StorageService } from '../../infra/storage/storage.service';
-import { VideoTranscodeService } from '../../infra/media/video-transcode.service';
+import { VideoTranscodeService, type PreparedVideo } from '../../infra/media/video-transcode.service';
 
 const VIDEO_MIMETYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
 
@@ -68,26 +69,44 @@ export class PostsController {
   async uploadMedia(@UploadedFile() file: Express.Multer.File): Promise<{ url: string; thumbnailUrl?: string }> {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
 
-    let buffer = file.buffer;
-    let originalname = file.originalname;
-    let thumbnailUrl: string | undefined;
-
-    if (VIDEO_MIMETYPES.has(file.mimetype)) {
-      try {
-        const result = await this.videoTranscode.transcode(buffer, extname(file.originalname));
-        buffer = result.video;
-        originalname = originalname.replace(/\.[^.]+$/, '') + '.mp4';
-        if (result.thumbnail) {
-          thumbnailUrl = await this.storage.save(result.thumbnail, 'cover.jpg', 'posts');
-        }
-      } catch (err) {
-        // Best-effort : une vidéo non transcodée reste meilleure qu'un post
-        // qui échoue (ffmpeg absent en dev local, timeout, fichier atypique…).
-        this.logger.warn(`Transcodage vidéo échoué, envoi du fichier original : ${(err as Error).message}`);
-      }
+    if (!VIDEO_MIMETYPES.has(file.mimetype)) {
+      const url = await this.storage.save(file.buffer, file.originalname, 'posts');
+      return { url };
     }
 
-    const url = await this.storage.save(buffer, originalname, 'posts');
+    const originalExt = extname(file.originalname);
+    let prepared: PreparedVideo | null = null;
+    try {
+      prepared = await this.videoTranscode.prepare(file.buffer, originalExt);
+    } catch (err) {
+      // Best-effort : une vidéo non préparée reste meilleure qu'une publication
+      // qui échoue (ffmpeg absent en dev local, timeout, fichier atypique…).
+      this.logger.warn(`Préparation vidéo échouée, envoi du fichier original : ${(err as Error).message}`);
+    }
+
+    // Nom fixe : le ré-encodage en tâche de fond écrasera ce même fichier, donc
+    // l'URL renvoyée maintenant reste valable une fois le job terminé.
+    const videoFilename = `${randomUUID()}.mp4`;
+    const url = await this.storage.save(
+      prepared?.video ?? file.buffer,
+      'video.mp4',
+      'posts',
+      videoFilename,
+    );
+
+    let thumbnailUrl: string | undefined;
+    if (prepared?.thumbnail) {
+      thumbnailUrl = await this.storage.save(prepared.thumbnail, 'cover.jpg', 'posts');
+    }
+
+    // Le downscale (lourd) ne bloque plus la publication : il tourne après la
+    // réponse et remplace le fichier à la même URL une fois prêt.
+    if (prepared?.needsReencode) {
+      this.videoTranscode.reencodeInBackground(file.buffer, originalExt, (video) =>
+        this.storage.save(video, 'video.mp4', 'posts', videoFilename),
+      );
+    }
+
     return { url, thumbnailUrl };
   }
 

@@ -53,10 +53,15 @@ export class StorageService {
   /**
    * Sauvegarde un buffer en fichier. `subPath` est le dossier de destination
    * (ex. `'places'`). Retourne l'URL publique.
+   *
+   * `fixedFilename` force le nom du fichier au lieu d'en générer un aléatoire :
+   * c'est ce qui permet de **remplacer** un fichier déjà publié à la même URL
+   * (utilisé par le ré-encodage vidéo en tâche de fond, qui écrase la version
+   * remuxée servie immédiatement — cf. VideoTranscodeService).
    */
-  async save(buffer: Buffer, originalName: string, subPath: string): Promise<string> {
+  async save(buffer: Buffer, originalName: string, subPath: string, fixedFilename?: string): Promise<string> {
     const ext = extname(originalName).toLowerCase() || '.bin';
-    const filename = `${randomUUID()}${ext}`;
+    const filename = fixedFilename ?? `${randomUUID()}${ext}`;
 
     // Router sur le client réellement initialisé : provider=s3 sans credentials
     // doit retomber sur disk (sinon chaque upload jette « S3 non initialisé »).
