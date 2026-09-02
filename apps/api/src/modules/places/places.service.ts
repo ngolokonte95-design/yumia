@@ -31,8 +31,13 @@ const HYDRATE_LOCK_TTL_SECONDS = 60;
 // délai au lieu de la bloquer une semaine entière (couverture mondiale).
 const HYDRATE_EMPTY_RETRY_TTL_SECONDS = 6 * 60 * 60; // 6 h
 // URL photo (googleusercontent) résolue, mise en cache pour éviter un appel
-// Google à chaque chargement d'image. 6 h.
-const PHOTO_URL_CACHE_TTL_SECONDS = 6 * 60 * 60;
+// Google à chaque chargement d'image. ATTENTION : ces URLs signées par Google
+// (New Places API, skipHttpRedirect) expirent bien avant les 6h qu'on utilisait
+// ici — au-delà, on continuait à rediriger vers un lien déjà expiré côté
+// Google (403 googleusercontent), d'où de nombreuses photos qui ne chargeaient
+// plus après un moment. On reste maintenant largement sous leur fenêtre de
+// validité réelle.
+const PHOTO_URL_CACHE_TTL_SECONDS = 15 * 60;
 const PHOTO_DEFAULT_WIDTH = 800;
 // Nombre max de lieux sans photo enrichis par Text Search lors d'une hydratation
 // de tuile — borne le surcoût API (1 appel/lieu) tout en comblant les manques.

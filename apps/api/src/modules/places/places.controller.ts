@@ -139,10 +139,14 @@ export class PlacesController {
   /**
    * GET /api/places/photo?ref=...&w=800 — proxy photo Google.
    * Redirige vers l'URL d'image directe (googleusercontent) résolue côté
-   * serveur : la clé Google n'est jamais exposée au client. 120/60s.
+   * serveur : la clé Google n'est jamais exposée au client. 400/60s — une
+   * carte pleine de marqueurs peut charger 40-50 photos d'un coup, et les IP
+   * mobiles sont souvent partagées entre plusieurs utilisateurs (CGNAT) :
+   * 120/60s pouvait être atteint rien qu'en affichant la carte, faisant
+   * échouer le chargement de photos par ailleurs valides (429).
    * Déclaré AVANT `:id` pour ne pas être capté par la route paramétrée.
    */
-  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  @Throttle({ default: { limit: 400, ttl: 60_000 } })
   @Get('photo')
   async photo(
     @Query('ref') ref: string,
