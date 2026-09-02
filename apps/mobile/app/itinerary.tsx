@@ -548,13 +548,18 @@ const styles = StyleSheet.create({
   stepTime: { fontSize: 12, fontWeight: '700' },
   stepDuration: { fontSize: 11, color: colors.textMuted, backgroundColor: colors.background, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   stepName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  stepDesc: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
+  // Texte généré par l'IA (description de l'étape) : en blanc pour rester
+  // bien lisible sur le fond sombre — le gris atténué (textMuted) passait
+  // moins bien pour un vrai contenu à lire que pour un simple libellé.
+  stepDesc: { fontSize: 13, color: colors.text, lineHeight: 18 },
   stepRating: { fontSize: 12, color: colors.textMuted },
   tipBox: {
     borderLeftWidth: 3, paddingLeft: 10, marginTop: 4,
     backgroundColor: colors.background, paddingVertical: 4, borderRadius: 4,
   },
-  tipText: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic', lineHeight: 16 },
+  // Idem : le conseil (💡) est aussi une réponse générée par l'IA, pas un
+  // simple libellé d'interface.
+  tipText: { fontSize: 12, color: colors.text, fontStyle: 'italic', lineHeight: 16 },
 
   placeBtn: {
     marginTop: 8, borderWidth: 1.5, borderRadius: radius.md,
