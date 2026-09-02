@@ -184,6 +184,11 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   travel_agency:    ['travel_agency'],
   supermarket:      ['supermarket'],
   grocery_store:    ['grocery_store', 'food_store'],
+  pet_store:        ['pet_store'],
+  sporting_goods:   ['sporting_goods_store'],
+  city_hall:        ['city_hall', 'local_government_office'],
+  fire_station:     ['fire_station'],
+  theater:          ['performing_arts_theater'],
   coworking:        ['coworking_space'],
   // Transport & Mobilité
   taxi_vtc:         ['taxi_stand'],
@@ -251,6 +256,9 @@ const BLOCK_EXEMPT_UNIVERSES = new Set<Universe>([
   // explicitement ces deux univers-là.
   'supermarket',
   'grocery_store',
+  // 'sporting_goods_store' est bloqué globalement (grande surface non-
+  // expérience) mais légitime pour l'univers 'sporting_goods' dédié.
+  'sporting_goods',
 ]);
 
 /** Types Google à exclure de l'hydratation (épiceries, banques…). */
@@ -392,6 +400,12 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   // NB : 'convenience_store' n'est volontairement PAS mappé ici — il sert déjà
   // à l'univers 'tobacco' (la plupart des tabacs portent ce type).
   ['travel_agency',         'travel_agency'],
+  ['pet_store',             'pet_store'],
+  ['sporting_goods_store',  'sporting_goods'],
+  ['city_hall',             'city_hall'],
+  ['local_government_office', 'city_hall'],
+  ['fire_station',          'fire_station'],
+  ['performing_arts_theater', 'theater'],
   ['liquor_store',          'wine_cellar'],
   ['tobacco_shop',          'tobacco'],
   ['juice_bar',             'juice_bar'],

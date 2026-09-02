@@ -235,6 +235,14 @@ enum Universe {
   travel_agency
   supermarket
   grocery_store
+  // Shopping spécialisé
+  pet_store
+  sporting_goods
+  // Services publics
+  city_hall
+  fire_station
+  // Spectacle
+  theater
   // Valeurs héritées (non affichées dans l'UI — migration impossible en PG)
   nightlife
   art_gallery

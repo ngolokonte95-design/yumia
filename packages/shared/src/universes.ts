@@ -131,6 +131,11 @@ export const UNIVERSES = [
   'travel_agency',
   'supermarket',
   'grocery_store',
+  'pet_store',
+  'sporting_goods',
+  'city_hall',
+  'fire_station',
+  'theater',
   // Valeurs héritées supprimées de l'UI (enum PG non supprimable) :
   // 'fast_food'   → fusionné dans 'restaurant'
   // 'padel'       → fusionné dans 'fitness'
@@ -244,6 +249,11 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   travel_agency:   { key: 'travel_agency',   emoji: '🧳',   i18nKey: 'universe.travel_agency',   labelFr: 'Agences de voyage & Vacances' },
   supermarket:     { key: 'supermarket',     emoji: '🛒',   i18nKey: 'universe.supermarket',     labelFr: 'Supermarchés' },
   grocery_store:   { key: 'grocery_store',   emoji: '🥫',   i18nKey: 'universe.grocery_store',   labelFr: 'Épiceries & Alimentation' },
+  pet_store:       { key: 'pet_store',       emoji: '🐾',   i18nKey: 'universe.pet_store',       labelFr: 'Animaleries' },
+  sporting_goods:  { key: 'sporting_goods',  emoji: '🏸',   i18nKey: 'universe.sporting_goods',  labelFr: 'Sport & Équipement' },
+  city_hall:       { key: 'city_hall',       emoji: '🏛️',  i18nKey: 'universe.city_hall',       labelFr: 'Mairies & Services publics' },
+  fire_station:    { key: 'fire_station',    emoji: '🚒',   i18nKey: 'universe.fire_station',    labelFr: 'Casernes de pompiers' },
+  theater:         { key: 'theater',         emoji: '🎟️',  i18nKey: 'universe.theater',         labelFr: 'Théâtres' },
   coworking:       { key: 'coworking',       emoji: '💻',   i18nKey: 'universe.coworking',       labelFr: 'Coworking & Bureaux' },
   tobacco:         { key: 'tobacco',         emoji: '🚬',   i18nKey: 'universe.tobacco',         labelFr: 'Tabac & Presse' },
   post_office:     { key: 'post_office',     emoji: '📬',   i18nKey: 'universe.post_office',     labelFr: 'La Poste & Envoi colis' },
@@ -301,7 +311,7 @@ export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
   {
     label: 'Culture & Tourisme',
     emoji: '🎭',
-    universes: ['cinema', 'museum', 'monument', 'tourist_activity', 'cultural_outing', 'amusement_park', 'zoo', 'photo_spot', 'place_of_worship', 'library', 'travel_agency'],
+    universes: ['cinema', 'museum', 'monument', 'tourist_activity', 'cultural_outing', 'amusement_park', 'zoo', 'photo_spot', 'place_of_worship', 'library', 'travel_agency', 'theater'],
   },
   {
     label: 'Sport & Loisirs',
@@ -321,7 +331,7 @@ export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
   {
     label: 'Shopping & Commerce',
     emoji: '🛍️',
-    universes: ['shopping', 'mall', 'supermarket', 'grocery_store', 'luxury_store', 'lingerie', 'vintage_store', 'bookstore', 'jewelry', 'perfume_cosmetics'],
+    universes: ['shopping', 'mall', 'supermarket', 'grocery_store', 'luxury_store', 'lingerie', 'vintage_store', 'bookstore', 'jewelry', 'perfume_cosmetics', 'pet_store', 'sporting_goods'],
   },
   {
     label: 'Santé',
@@ -348,6 +358,6 @@ export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
     // ce groupe ne porte plus que le reste, d'où le libellé et l'emoji neutres.
     label: 'Autres',
     emoji: '📍',
-    universes: ['police', 'event_venue'],
+    universes: ['police', 'event_venue', 'city_hall', 'fire_station'],
   },
 ];
