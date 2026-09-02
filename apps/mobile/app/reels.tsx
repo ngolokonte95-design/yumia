@@ -47,10 +47,16 @@ function ReelVideo({
 
   useEffect(() => {
     if (!posterUri) return;
+    // Cf. PostVideo.tsx : `readyToPlay` précède de peu l'affichage réel de la
+    // première image (surtout Android) — petit délai pour couvrir ce reste
+    // de flash noir.
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay') setReady(true);
+      if (status === 'readyToPlay' && !timer) {
+        timer = setTimeout(() => setReady(true), 120);
+      }
     });
-    return () => sub.remove();
+    return () => { sub.remove(); if (timer) clearTimeout(timer); };
   }, [player, posterUri]);
 
   useEffect(() => {

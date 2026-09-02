@@ -64,10 +64,17 @@ export function PostVideo({
 
   useEffect(() => {
     if (!posterUri) return;
+    // `readyToPlay` signale que le décodeur est prêt, pas que la première
+    // image est déjà affichée à l'écran (surtout Android/TextureView) — un
+    // très léger flash noir restait visible dans cet écart d'une frame ou
+    // deux. On garde le poster un tout petit peu plus longtemps pour le couvrir.
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay') setReady(true);
+      if (status === 'readyToPlay' && !timer) {
+        timer = setTimeout(() => setReady(true), 120);
+      }
     });
-    return () => sub.remove();
+    return () => { sub.remove(); if (timer) clearTimeout(timer); };
   }, [player, posterUri]);
 
   useEffect(() => {
