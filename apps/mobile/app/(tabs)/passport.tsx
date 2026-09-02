@@ -246,8 +246,18 @@ const univStyles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.pill,
     overflow: 'hidden',
+    // `position: 'relative'` explicite : nécessaire pour que le remplissage
+    // ci-dessous, en position absolue, se cale bien sur CE conteneur.
+    position: 'relative',
   },
-  fill: { height: 8, backgroundColor: colors.brand, borderRadius: radius.pill },
+  // Position absolue calée sur le haut ET le bas de la barre (plutôt qu'une
+  // hauteur fixe qui doit rester identique à celle de `track`) — garantit un
+  // remplissage vertical complet, sans dépendre de deux valeurs à maintenir
+  // synchronisées.
+  fill: {
+    position: 'absolute', top: 0, bottom: 0, left: 0,
+    backgroundColor: colors.brand, borderRadius: radius.pill,
+  },
   count: { ...typography.label, color: colors.textMuted, width: 28, textAlign: 'right' },
 });
 
