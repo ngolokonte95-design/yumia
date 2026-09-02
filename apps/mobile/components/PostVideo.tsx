@@ -53,6 +53,9 @@ export function PostVideo({
   const [showIcon, setShowIcon] = useState(false);
   const [ready, setReady] = useState(false);
   const iconOpacity = useRef(new Animated.Value(0)).current;
+  // Opacité du poster : fondu doux vers la vidéo au lieu d'un changement
+  // brutal (qui se voyait comme un "saut" une fois le flash noir supprimé).
+  const posterOpacity = useRef(new Animated.Value(1)).current;
   const voiceSoundRef = useRef<Audio.Sound | null>(null);
 
   const player = useVideoPlayer(uri, (p) => {
@@ -87,6 +90,17 @@ export function PostVideo({
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
   }, [player, active]);
+
+  // Fondu du poster synchronisé sur `ready` — remplace le changement instantané
+  // (poster affiché/retiré d'un coup) par une transition douce vers la vidéo.
+  useEffect(() => {
+    if (ready) {
+      Animated.timing(posterOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    } else {
+      posterOpacity.stopAnimation();
+      posterOpacity.setValue(1);
+    }
+  }, [ready, posterOpacity]);
 
   useEffect(() => {
     const sub = player.addListener('playingChange', ({ isPlaying }) => {
@@ -188,12 +202,15 @@ export function PostVideo({
           première image — sinon le rendu noir du lecteur la recouvre et elle
           ne sert à rien. Fond neutre en repli quand il n'y a pas de miniature
           (vidéos publiées avant l'ajout des miniatures auto) : sans lui, le
-          lecteur affichait son noir brut pendant le chargement, en scroll. */}
-      {!ready && (
-        posterUri
+          lecteur affichait son noir brut pendant le chargement, en scroll.
+          Toujours montée (pas de montage/démontage conditionnel) et animée en
+          opacité : un fondu doux plutôt qu'un changement brutal, qui se
+          voyait comme un "saut" une fois le flash noir déjà supprimé. */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: posterOpacity }]} pointerEvents="none">
+        {posterUri
           ? <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          : <View style={[StyleSheet.absoluteFill, styles.fallbackBg]} />
-      )}
+          : <View style={[StyleSheet.absoluteFill, styles.fallbackBg]} />}
+      </Animated.View>
       <PostOverlays overlays={overlays} />
       <Pressable style={StyleSheet.absoluteFill} onPress={toggle} />
       {onExpand && (

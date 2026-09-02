@@ -39,6 +39,10 @@ function ReelVideo({
   posterUri?: string | null;
 }) {
   const [ready, setReady] = useState(false);
+  // Cf. PostVideo.tsx : fondu doux du poster vers la vidéo, au lieu d'un
+  // changement brutal (qui se voyait comme un "saut" une fois le flash noir
+  // supprimé).
+  const posterOpacity = useRef(new Animated.Value(1)).current;
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = muted;
@@ -63,6 +67,15 @@ function ReelVideo({
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
   }, [player, active]);
+
+  useEffect(() => {
+    if (ready) {
+      Animated.timing(posterOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    } else {
+      posterOpacity.stopAnimation();
+      posterOpacity.setValue(1);
+    }
+  }, [ready, posterOpacity]);
 
   useEffect(() => {
     try { player.muted = muted; } catch {}
@@ -117,12 +130,12 @@ function ReelVideo({
       {/* Par-dessus le lecteur (pas derrière), sinon son rendu noir la
           recouvre tant que la première image n'est pas prête. Fond neutre en
           repli si pas de miniature (reels publiés avant l'ajout des
-          miniatures auto). */}
-      {!ready && (
-        posterUri
+          miniatures auto). Toujours monté, fondu en opacité (cf. PostVideo.tsx). */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: posterOpacity }]} pointerEvents="none">
+        {posterUri
           ? <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          : <View style={[StyleSheet.absoluteFill, styles.videoFallbackBg]} />
-      )}
+          : <View style={[StyleSheet.absoluteFill, styles.videoFallbackBg]} />}
+      </Animated.View>
       <PostOverlays overlays={overlays} />
     </>
   );
