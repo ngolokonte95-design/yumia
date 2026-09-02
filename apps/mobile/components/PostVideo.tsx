@@ -63,11 +63,14 @@ export function PostVideo({
   });
 
   useEffect(() => {
-    if (!posterUri) return;
+    // Suivi même sans posterUri : sans miniature, on affiche un fond neutre
+    // (au lieu du noir brut du lecteur) tant que la vidéo n'est pas prête —
+    // beaucoup de vidéos publiées avant l'ajout des miniatures auto n'en ont
+    // pas, et flashaient en noir pendant le scroll faute de repli.
     // `readyToPlay` signale que le décodeur est prêt, pas que la première
     // image est déjà affichée à l'écran (surtout Android/TextureView) — un
-    // très léger flash noir restait visible dans cet écart d'une frame ou
-    // deux. On garde le poster un tout petit peu plus longtemps pour le couvrir.
+    // très léger flash restait visible dans cet écart d'une frame ou deux.
+    // On attend un tout petit peu plus longtemps pour le couvrir.
     let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay' && !timer) {
@@ -75,7 +78,7 @@ export function PostVideo({
       }
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
-  }, [player, posterUri]);
+  }, [player]);
 
   useEffect(() => {
     const sub = player.addListener('playingChange', ({ isPlaying }) => {
@@ -175,9 +178,13 @@ export function PostVideo({
       />
       {/* Affichée PAR-DESSUS le lecteur (pas derrière) tant qu'il n'a pas de
           première image — sinon le rendu noir du lecteur la recouvre et elle
-          ne sert à rien. */}
-      {posterUri && !ready && (
-        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ne sert à rien. Fond neutre en repli quand il n'y a pas de miniature
+          (vidéos publiées avant l'ajout des miniatures auto) : sans lui, le
+          lecteur affichait son noir brut pendant le chargement, en scroll. */}
+      {!ready && (
+        posterUri
+          ? <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          : <View style={[StyleSheet.absoluteFill, styles.fallbackBg]} />
       )}
       <PostOverlays overlays={overlays} />
       <Pressable style={StyleSheet.absoluteFill} onPress={toggle} />
@@ -198,6 +205,9 @@ export function PostVideo({
 }
 
 const styles = StyleSheet.create({
+  // Repli quand il n'y a pas de miniature — un gris neutre est bien moins
+  // brutal visuellement qu'un flash de noir pur pendant le scroll.
+  fallbackBg: { backgroundColor: '#1c1c1e' },
   iconWrap: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center', justifyContent: 'center',

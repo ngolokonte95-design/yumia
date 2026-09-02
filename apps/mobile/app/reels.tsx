@@ -46,10 +46,10 @@ function ReelVideo({
   });
 
   useEffect(() => {
-    if (!posterUri) return;
-    // Cf. PostVideo.tsx : `readyToPlay` précède de peu l'affichage réel de la
-    // première image (surtout Android) — petit délai pour couvrir ce reste
-    // de flash noir.
+    // Suivi même sans posterUri (cf. PostVideo.tsx) : sans miniature, on
+    // affiche un fond neutre au lieu du noir brut du lecteur.
+    // `readyToPlay` précède de peu l'affichage réel de la première image
+    // (surtout Android) — petit délai pour couvrir ce reste de flash noir.
     let timer: ReturnType<typeof setTimeout> | null = null;
     const sub = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay' && !timer) {
@@ -57,7 +57,7 @@ function ReelVideo({
       }
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
-  }, [player, posterUri]);
+  }, [player]);
 
   useEffect(() => {
     try { player.muted = muted; } catch {}
@@ -110,9 +110,13 @@ function ReelVideo({
         {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : {})}
       />
       {/* Par-dessus le lecteur (pas derrière), sinon son rendu noir la
-          recouvre tant que la première image n'est pas prête. */}
-      {posterUri && !ready && (
-        <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          recouvre tant que la première image n'est pas prête. Fond neutre en
+          repli si pas de miniature (reels publiés avant l'ajout des
+          miniatures auto). */}
+      {!ready && (
+        posterUri
+          ? <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          : <View style={[StyleSheet.absoluteFill, styles.videoFallbackBg]} />
       )}
       <PostOverlays overlays={overlays} />
     </>
@@ -613,6 +617,9 @@ export default function ReelsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // Repli quand un reel n'a pas de miniature — gris neutre plutôt qu'un
+  // flash de noir pur pendant le swipe.
+  videoFallbackBg: { backgroundColor: '#1c1c1e' },
 
   // Header
   header: {
