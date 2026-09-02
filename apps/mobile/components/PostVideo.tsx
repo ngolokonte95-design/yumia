@@ -95,7 +95,7 @@ export function PostVideo({
   // (poster affiché/retiré d'un coup) par une transition douce vers la vidéo.
   useEffect(() => {
     if (ready) {
-      Animated.timing(posterOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+      Animated.timing(posterOpacity, { toValue: 0, duration: 80, useNativeDriver: true }).start();
     } else {
       posterOpacity.stopAnimation();
       posterOpacity.setValue(1);
