@@ -31,7 +31,14 @@ import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
 const MAP_DELTA = 0.025;
-const MAX_MARKERS = 45;
+// Android uniquement : react-native-maps doit convertir chaque marqueur
+// personnalisé (bulle + emoji) en bitmap natif avant de l'afficher — une
+// conversion coûteuse, faite marqueur par marqueur, alors qu'iOS dessine ses
+// annotations nativement sans cette étape. Avec beaucoup de marqueurs
+// simultanés, cette conversion séquentielle devient visible (les lieux
+// apparaissent "petit à petit" au lieu de tous d'un coup). Moins de
+// marqueurs = moins de travail de conversion = apparition plus rapide.
+const MAX_MARKERS = Platform.OS === 'android' ? 25 : 45;
 const MAX_DISPLAY_PLACES = 50;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_COLLAPSED = 56;
