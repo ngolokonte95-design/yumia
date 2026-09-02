@@ -78,17 +78,21 @@ export function PostVideo({
   useEffect(() => {
     if (!active) { setReady(false); return; }
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleHide = () => {
-      if (timer) return;
-      timer = setTimeout(() => setReady(true), 120);
-    };
-    // Déjà prêt (préchargé pendant qu'il était encore inactif) : pas besoin
-    // d'attendre un nouveau statusChange, qui ne se redéclenchera pas.
-    if (player.status === 'readyToPlay') scheduleHide();
-    const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay') scheduleHide();
-    });
-    return () => { sub.remove(); if (timer) clearTimeout(timer); };
+    // Déjà prêt = le lecteur a été monté en avance (voisin du post actif, cf.
+    // `shouldMount`) et a donc déjà rendu sa première image : on découvre tout
+    // de suite, sans délai — sinon on masquerait une image parfaitement valide.
+    if (player.status === 'readyToPlay') {
+      setReady(true);
+    } else {
+      // Pas encore prêt (scroll très rapide qui saute plusieurs posts) : on
+      // laisse un court délai après `readyToPlay`, le temps que la première
+      // image soit réellement peinte à l'écran (Android/TextureView).
+      const sub = player.addListener('statusChange', ({ status }) => {
+        if (status === 'readyToPlay' && !timer) timer = setTimeout(() => setReady(true), 120);
+      });
+      return () => { sub.remove(); if (timer) clearTimeout(timer); };
+    }
+    return undefined;
   }, [player, active]);
 
   // Fondu du poster synchronisé sur `ready` — remplace le changement instantané

@@ -400,12 +400,15 @@ export default function SocialTab() {
   // Music playback in feed
   const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
   const [visiblePostId, setVisiblePostId] = useState<string | null>(null);
-  // Android : posts à monter en avance (lecteur vidéo réel mais en pause) —
-  // dès qu'ils commencent à apparaître à l'écran, pas seulement une fois
-  // pleinement visibles. Élimine le flash noir au swipe en laissant le
-  // décodeur matériel s'initialiser pendant qu'on regarde encore le post
-  // précédent. Cf. viewabilityConfigCallbackPairs plus bas.
-  const [mountablePostIds, setMountablePostIds] = useState<Set<string>>(new Set());
+  // Index du post actif — pilote le préchargement vidéo (cf. `shouldMount`
+  // dans renderItem). Un préchargement basé sur la VISIBILITÉ (l'ancienne
+  // approche : monter le lecteur dès que le post apparaît à 1% à l'écran)
+  // arrivait beaucoup trop tard : entre "1% visible" et "actif", il ne
+  // s'écoule que quelques centaines de ms en plein scroll — pas de quoi
+  // laisser Android télécharger, préparer et afficher la première image,
+  // d'où le flash noir. Un préchargement par INDEX garde le lecteur du post
+  // suivant vivant pendant tout le temps où on regarde le post courant.
+  const [activeIndex, setActiveIndex] = useState(0);
   // Coupe les vidéos du feed quand on quitte l'écran (ex: bascule plein écran
   // vers /reels) pour éviter que les deux sons se chevauchent.
   const [screenFocused, setScreenFocused] = useState(true);
@@ -501,24 +504,20 @@ export default function SocialTab() {
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
   const onViewablePostsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    const top = viewableItems[0]?.item as { musicTrack?: string | null; id: string } | undefined;
-    setVisiblePostId(top?.id ?? null);
-    if (!top?.musicTrack) { void stopMusicRef.current(); return; }
-    const music = parseMusicTrack(top.musicTrack);
-    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void autoPlayPostRef.current(top.id, music.previewUrl);
+    const top = viewableItems[0];
+    const topItem = top?.item as { musicTrack?: string | null; id: string } | undefined;
+    setVisiblePostId(topItem?.id ?? null);
+    // L'index (et pas seulement l'id) pilote le préchargement vidéo, cf.
+    // `shouldMount` dans renderItem.
+    if (typeof top?.index === 'number') setActiveIndex(top.index);
+    if (!topItem?.musicTrack) { void stopMusicRef.current(); return; }
+    const music = parseMusicTrack(topItem.musicTrack);
+    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void autoPlayPostRef.current(topItem.id, music.previewUrl);
     else void stopMusicRef.current();
   }).current;
 
-  // Seuil très bas (1%) : capte un post dès qu'il commence à apparaître à
-  // l'écran, bien avant qu'il ne devienne le post "actif" (60%) — c'est ce
-  // qui laisse le temps au décodeur vidéo Android de s'initialiser à l'avance.
-  const preloadViewabilityConfig = useRef({ itemVisiblePercentThreshold: 1 }).current;
-  const onPreloadPostsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    setMountablePostIds(new Set(viewableItems.map((v) => (v.item as { id: string }).id)));
-  }).current;
   const viewabilityConfigCallbackPairs = useRef([
     { viewabilityConfig, onViewableItemsChanged: onViewablePostsChanged },
-    { viewabilityConfig: preloadViewabilityConfig, onViewableItemsChanged: onPreloadPostsChanged },
   ]).current;
 
   // Stop la musique quand l'utilisateur quitte l'écran
@@ -680,7 +679,7 @@ export default function SocialTab() {
           onOpen={(userId) => router.push(`/story-viewer?userId=${userId}` as never)}
         />
       ) : null}
-      renderItem={({ item }) => (
+      renderItem={({ item, index }) => (
         <PostCard
           item={item}
           onLike={toggleLike}
@@ -692,7 +691,12 @@ export default function SocialTab() {
           currentUserId={me?.id}
           onDelete={handleDeletePost}
           isActive={visiblePostId === item.id && screenFocused}
-          shouldMount={mountablePostIds.has(item.id)}
+          // Voisins immédiats montés en permanence (précédent + actif +
+          // suivant) : leur lecteur a donc déjà rendu sa première image quand
+          // on arrive dessus. 3 décodeurs simultanés au maximum, très loin de
+          // la limite Android — le crash d'origine venait des ~20 que gardait
+          // FlatList par défaut, pas de 3.
+          shouldMount={Math.abs(index - activeIndex) <= 1}
           onVideoPlayingChange={onVideoPlayingChange}
           onVideoLoop={onVideoLoop}
         />
