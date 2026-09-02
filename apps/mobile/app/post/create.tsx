@@ -273,9 +273,11 @@ export default function CreatePostScreen() {
           )
         )}
 
-        {/* Music picker — en mode vidéo, la musique se choisit depuis
-            l'éditeur (✏️ Modifier), pour éviter deux entrées redondantes. */}
-        {mode === 'photo' && (selectedMusic ? (
+        {/* Music picker — disponible directement ici pour les deux modes
+            (avant, en vidéo, il fallait ouvrir l'éditeur ✏️ Modifier pour y
+            accéder ; l'éditeur reste aussi accessible et reste synchronisé
+            avec ce choix). */}
+        {selectedMusic ? (
           <View style={styles.musicSelected}>
             <Image source={{ uri: selectedMusic.artworkUrl }} style={styles.musicArtwork} />
             <View style={{ flex: 1 }}>
@@ -297,13 +299,14 @@ export default function CreatePostScreen() {
             <Text style={styles.musicPlaceholder}>Ajouter une musique</Text>
             <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
           </Pressable>
-        ))}
+        )}
 
-        {/* Aperçu discret des ajouts de l'éditeur, en mode vidéo */}
-        {mode === 'video' && videoUri && (overlays.length > 0 || selectedMusic || voiceUri || videoMuted) && (
+        {/* Aperçu discret des ajouts de l'éditeur, en mode vidéo. La musique
+            n'y figure plus : elle a maintenant sa propre ligne juste
+            au-dessus (comme en mode photo), la répéter ici ferait doublon. */}
+        {mode === 'video' && videoUri && (overlays.length > 0 || voiceUri || videoMuted) && (
           <View style={styles.editorSummary}>
             {overlays.length > 0 && <Text style={styles.editorSummaryTxt}>✏️ {overlays.length} ajout{overlays.length > 1 ? 's' : ''}</Text>}
-            {selectedMusic && <Text style={styles.editorSummaryTxt} numberOfLines={1}>🎵 {selectedMusic.title}</Text>}
             {voiceUri && <Text style={styles.editorSummaryTxt}>🎙️ Voix off</Text>}
             {videoMuted && <Text style={styles.editorSummaryTxt}>🔇 Son coupé</Text>}
           </View>
@@ -347,8 +350,8 @@ export default function CreatePostScreen() {
         onClose={() => setMusicModalVisible(false)}
         onSelect={(track) => setSelectedMusic(track)}
         accessToken={accessToken}
-        mediaUri={images[0]}
-        mediaType="photo"
+        mediaUri={mode === 'photo' ? images[0] : (videoUri ?? undefined)}
+        mediaType={mode}
       />
 
       {videoUri && (
