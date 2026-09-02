@@ -37,6 +37,13 @@ const PHOTO_DEFAULT_WIDTH = 800;
 // Nombre max de lieux sans photo enrichis par Text Search lors d'une hydratation
 // de tuile — borne le surcoût API (1 appel/lieu) tout en comblant les manques.
 const PHOTO_ENRICH_BUDGET = 10;
+// Nombre de lieux persistés EN PARALLÈLE lors d'une hydratation. Avant, ils
+// étaient traités un par un (for...await) : avec le filtre "Tous les univers"
+// (jusqu'à ~340 lieux importés d'un coup), ça pouvait bloquer un tap sur la
+// carte plusieurs secondes, sur iPhone ET Android (le goulot est ici, côté
+// serveur, pas dans le rendu mobile). Une valeur modérée garde un pic de
+// charge DB/réseau raisonnable sur le VPS (~1 Go de RAM).
+const PERSIST_CONCURRENCY = 10;
 
 /** Lieu enrichi de sa distance (mètres) par rapport au point de recherche. */
 export type PlaceWithDistance = Place & { distanceMeters: number };
@@ -375,11 +382,15 @@ export class PlacesService {
   /** Upsert (dédup par providerPlaceId) des lieux importés + réindexation ES. Retourne les lieux sauvegardés. */
   private async persistProviderPlaces(places: ProviderPlace[]): Promise<Place[]> {
     const saved: Place[] = [];
+    // Budget partagé, décrémenté avant l'await (donc pas de dépassement même
+    // avec plusieurs workers concurrents — Node ne préempte jamais entre deux
+    // instructions synchrones).
     let enrichBudget = PHOTO_ENRICH_BUDGET;
-    for (const p of places) {
+
+    const persistOne = async (p: ProviderPlace): Promise<void> => {
       // Ignore épiceries, banques, stations… (sauf univers de service) et lieux mal notés.
-      if (isBlockedPlace(p.tags, p.universe)) continue;
-      if (p.rating > 0 && p.rating < 2.5) continue;
+      if (isBlockedPlace(p.tags, p.universe)) return;
+      if (p.rating > 0 && p.rating < 2.5) return;
       try {
         // Lieu sans photo (ex. night-club renvoyé nu par searchNearby) : on tente
         // un enrichissement Text Search par nom+position, dans un budget borné
@@ -433,7 +444,24 @@ export class PlacesService {
       } catch {
         // best-effort par lieu — un échec ne bloque pas les autres
       }
-    }
+    };
+
+    // Pool de workers à concurrence bornée : avant, ces lieux étaient persistés
+    // un par un (for...await), ce qui pouvait bloquer un tap sur la carte
+    // plusieurs secondes avec le filtre "Tous" (jusqu'à ~340 lieux importés
+    // d'un coup). On les traite maintenant par lots concurrents.
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < places.length) {
+        const p = places[cursor];
+        cursor += 1;
+        await persistOne(p);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(PERSIST_CONCURRENCY, places.length) }, () => worker()),
+    );
+
     return saved;
   }
 
