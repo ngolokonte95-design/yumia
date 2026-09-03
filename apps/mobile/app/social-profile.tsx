@@ -11,6 +11,7 @@ import { API_BASE_URL } from '../lib/config';
 import { feedApi, type StoryHighlight } from '../lib/feed-api';
 import { VideoThumb } from '../components/VideoThumb';
 import { PlanBadgeIcon } from '../components/Avatar';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -57,6 +58,7 @@ export default function SocialProfileScreen() {
   const { user, accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [socialStats, setSocialStats] = useState<SocialStats | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -75,7 +77,7 @@ export default function SocialProfileScreen() {
   const photoUrl = user?.photoUrl
     ? (user.photoUrl.startsWith('http') ? user.photoUrl : `${API}${user.photoUrl}`)
     : null;
-  const displayName = user?.displayName ?? 'Moi';
+  const displayName = user?.displayName ?? t('sp_me_fallback');
   const bio = user?.bio ?? '';
 
   const load = useCallback(async () => {
@@ -118,7 +120,7 @@ export default function SocialProfileScreen() {
 
   const shareProfile = () => {
     void Share.share({
-      message: `Découvre mon profil Yumia : ${displayName} 🌍`,
+      message: t('sp_share_message').replace('{name}', displayName),
     });
   };
 
@@ -130,16 +132,16 @@ export default function SocialProfileScreen() {
     const h = { Authorization: `Bearer ${accessToken}` };
     if (action === 'pin') {
       const res = await fetch(`${API}/posts/${p.id}/pin`, { method: 'POST', headers: h });
-      if (!res.ok) { Alert.alert('Impossible', 'Maximum 3 posts épinglés.'); return; }
+      if (!res.ok) { Alert.alert(t('sp_impossible'), t('sp_pin_limit')); return; }
       void load();
     } else if (action === 'archive') {
       await fetch(`${API}/posts/${p.id}/archive`, { method: 'POST', headers: h });
       void load();
     } else if (action === 'delete') {
-      Alert.alert('Supprimer ?', 'Cette publication sera définitivement supprimée.', [
-        { text: 'Annuler', style: 'cancel' },
+      Alert.alert(t('sp_delete_confirm_title'), t('sp_delete_confirm_body'), [
+        { text: t('sp_cancel'), style: 'cancel' },
         {
-          text: 'Supprimer', style: 'destructive',
+          text: t('sp_delete'), style: 'destructive',
           onPress: async () => { await fetch(`${API}/posts/${p.id}`, { method: 'DELETE', headers: h }); void load(); },
         },
       ]);
@@ -148,8 +150,13 @@ export default function SocialProfileScreen() {
       if (res.ok) {
         const s = await res.json() as { views: number; likes: number; comments: number; saves: number; reposts: number };
         Alert.alert(
-          '📊 Statistiques',
-          `👁 Vues : ${s.views}\n❤️ J'aime : ${s.likes}\n💬 Commentaires : ${s.comments}\n🔖 Enregistrements : ${s.saves}\n🔁 Republications : ${s.reposts}`,
+          t('sp_stats_title'),
+          t('sp_stats_body')
+            .replace('{views}', String(s.views))
+            .replace('{likes}', String(s.likes))
+            .replace('{comments}', String(s.comments))
+            .replace('{saves}', String(s.saves))
+            .replace('{reposts}', String(s.reposts)),
         );
       }
     }
@@ -199,15 +206,15 @@ export default function SocialProfileScreen() {
         <View style={styles.statsBlock}>
           <Pressable style={styles.statItem} onPress={() => router.push('/camera' as never)}>
             <Text style={styles.statNum}>{posts.length}</Text>
-            <Text style={styles.statLbl}>Publications</Text>
+            <Text style={styles.statLbl}>{t('sp_publications')}</Text>
           </Pressable>
           <Pressable style={styles.statItem} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: user?.id, type: 'followers' } } as never)}>
             <Text style={styles.statNum}>{socialStats?.followersCount ?? 0}</Text>
-            <Text style={styles.statLbl}>Followers</Text>
+            <Text style={styles.statLbl}>{t('sp_followers')}</Text>
           </Pressable>
           <Pressable style={styles.statItem} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: user?.id, type: 'following' } } as never)}>
             <Text style={styles.statNum}>{socialStats?.followingCount ?? 0}</Text>
-            <Text style={styles.statLbl}>Suivi(e)s</Text>
+            <Text style={styles.statLbl}>{t('sp_following')}</Text>
           </Pressable>
         </View>
       </View>
@@ -224,10 +231,10 @@ export default function SocialProfileScreen() {
       {/* Boutons action */}
       <View style={styles.actionRow}>
         <Pressable style={styles.actionBtn} onPress={() => router.push('/edit-social-profile' as never)}>
-          <Text style={styles.actionBtnText}>Modifier le profil</Text>
+          <Text style={styles.actionBtnText}>{t('sp_edit_profile')}</Text>
         </Pressable>
         <Pressable style={styles.actionBtn} onPress={shareProfile}>
-          <Text style={styles.actionBtnText}>Partager le profil</Text>
+          <Text style={styles.actionBtnText}>{t('sp_share_profile')}</Text>
         </Pressable>
         <Pressable style={styles.actionBtnIcon} onPress={() => router.push('/discover-people' as never)}>
           <Text style={{ fontSize: 16 }}>👤</Text>
@@ -241,7 +248,7 @@ export default function SocialProfileScreen() {
           <View style={[styles.hlBubble, styles.hlAddBubble]}>
             <Text style={{ fontSize: 24, color: colors.textMuted }}>＋</Text>
           </View>
-          <Text style={styles.hlLabel} numberOfLines={1}>Nouveau</Text>
+          <Text style={styles.hlLabel} numberOfLines={1}>{t('sp_new_highlight')}</Text>
         </Pressable>
         {highlights.map((hl) => (
           <Pressable key={hl.id} style={styles.hlItem} onPress={() => setActiveHighlight(hl)}>
@@ -261,7 +268,7 @@ export default function SocialProfileScreen() {
       {showSuggestions && suggestions.length > 0 && (
         <View style={styles.suggestBox}>
           <View style={styles.suggestHeader}>
-            <Text style={styles.suggestTitle}>Contacts à découvrir</Text>
+            <Text style={styles.suggestTitle}>{t('sp_discover_contacts')}</Text>
             <Pressable onPress={() => setShowSuggestions(false)} hitSlop={12}>
               <Text style={styles.suggestClose}>✕</Text>
             </Pressable>
@@ -288,7 +295,7 @@ export default function SocialProfileScreen() {
                   onPress={() => void followSuggestion(s.id)}
                 >
                   <Text style={[styles.followBtnText, followed.has(s.id) && styles.followBtnTextActive]}>
-                    {followed.has(s.id) ? 'Abonné ✓' : 'Suivre'}
+                    {followed.has(s.id) ? t('sp_followed_check') : t('sp_follow')}
                   </Text>
                 </Pressable>
               </View>
@@ -387,14 +394,14 @@ export default function SocialProfileScreen() {
               {profileTab === 'grid' ? '📷' : profileTab === 'reels' ? '🎬' : profileTab === 'reposts' ? '🔁' : '🏷️'}
             </Text>
             <Text style={styles.emptyGridText}>
-              {profileTab === 'grid' ? 'Aucune publication' :
-               profileTab === 'reels' ? 'Aucun reel' :
-               profileTab === 'reposts' ? 'Aucun repost' :
-               'Aucun tag'}
+              {profileTab === 'grid' ? t('sp_empty_posts') :
+               profileTab === 'reels' ? t('sp_empty_reels') :
+               profileTab === 'reposts' ? t('sp_empty_reposts') :
+               t('sp_empty_tags')}
             </Text>
             {profileTab === 'grid' && (
               <Pressable style={styles.emptyGridBtn} onPress={() => router.push('/camera' as never)}>
-                <Text style={styles.emptyGridBtnTxt}>Publier une photo</Text>
+                <Text style={styles.emptyGridBtnTxt}>{t('sp_publish_photo')}</Text>
               </Pressable>
             )}
           </View>
@@ -406,16 +413,16 @@ export default function SocialProfileScreen() {
         <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)} />
         <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 20 }]}>
           {[
-            { icon: '⚙️', label: 'Paramètres & confidentialité', onPress: () => { setShowMenu(false); router.push('/settings' as never); } },
-            { icon: '👥', label: 'Demandes d\'abonnement', onPress: () => { setShowMenu(false); router.push('/follow-requests' as never); } },
-            { icon: '📁', label: 'Archivés & brouillons', onPress: () => { setShowMenu(false); router.push('/archive' as never); } },
-            { icon: '❤️', label: 'Favoris & collections', onPress: () => { setShowMenu(false); router.push('/favorites' as never); } },
-            { icon: '🟢', label: 'Amis proches', onPress: () => { setShowMenu(false); router.push('/close-friends?type=close-friends' as never); } },
-            { icon: '⭐', label: 'Favoris', onPress: () => { setShowMenu(false); router.push('/close-friends?type=favorites' as never); } },
-            { icon: '🚫', label: 'Comptes bloqués', onPress: () => { setShowMenu(false); router.push('/blocked' as never); } },
-            { icon: '🔒', label: socialStats?.isPrivate ? 'Passer en public' : 'Passer en privé', onPress: () => { setShowMenu(false); router.push('/edit-social-profile' as never); } },
-            { icon: '🔔', label: 'Notifications', onPress: () => { setShowMenu(false); router.push('/notifications' as never); } },
-            { icon: '📤', label: 'Partager mon profil', onPress: () => { setShowMenu(false); shareProfile(); } },
+            { icon: '⚙️', label: t('sp_menu_settings'), onPress: () => { setShowMenu(false); router.push('/settings' as never); } },
+            { icon: '👥', label: t('sp_menu_follow_requests'), onPress: () => { setShowMenu(false); router.push('/follow-requests' as never); } },
+            { icon: '📁', label: t('sp_menu_archive'), onPress: () => { setShowMenu(false); router.push('/archive' as never); } },
+            { icon: '❤️', label: t('sp_menu_favorites_collections'), onPress: () => { setShowMenu(false); router.push('/favorites' as never); } },
+            { icon: '🟢', label: t('sp_menu_close_friends'), onPress: () => { setShowMenu(false); router.push('/close-friends?type=close-friends' as never); } },
+            { icon: '⭐', label: t('sp_menu_favorites'), onPress: () => { setShowMenu(false); router.push('/close-friends?type=favorites' as never); } },
+            { icon: '🚫', label: t('sp_menu_blocked'), onPress: () => { setShowMenu(false); router.push('/blocked' as never); } },
+            { icon: '🔒', label: socialStats?.isPrivate ? t('sp_menu_go_public') : t('sp_menu_go_private'), onPress: () => { setShowMenu(false); router.push('/edit-social-profile' as never); } },
+            { icon: '🔔', label: t('sp_menu_notifications'), onPress: () => { setShowMenu(false); router.push('/notifications' as never); } },
+            { icon: '📤', label: t('sp_menu_share_profile'), onPress: () => { setShowMenu(false); shareProfile(); } },
           ].map(({ icon, label, onPress }) => (
             <Pressable key={label} style={styles.menuItem} onPress={onPress}>
               <Text style={styles.menuIcon}>{icon}</Text>
@@ -430,10 +437,10 @@ export default function SocialProfileScreen() {
         <Pressable style={styles.menuOverlay} onPress={() => setShowPlusMenu(false)} />
         <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 20 }]}>
           {[
-            { icon: '📸', label: 'Nouvelle publication', onPress: () => { setShowPlusMenu(false); router.push('/camera' as never); } },
-            { icon: '🎬', label: 'Nouveau reel', onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=reel' as never); } },
-            { icon: '⭕', label: 'Nouvelle story', onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=story' as never); } },
-            { icon: '✨', label: 'Story à la une', onPress: () => { setShowPlusMenu(false); router.push('/story/create' as never); } },
+            { icon: '📸', label: t('sp_menu_new_post'), onPress: () => { setShowPlusMenu(false); router.push('/camera' as never); } },
+            { icon: '🎬', label: t('sp_menu_new_reel'), onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=reel' as never); } },
+            { icon: '⭕', label: t('sp_menu_new_story'), onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=story' as never); } },
+            { icon: '✨', label: t('sp_menu_highlight_story'), onPress: () => { setShowPlusMenu(false); router.push('/story/create' as never); } },
           ].map(({ icon, label, onPress }) => (
             <Pressable key={label} style={styles.menuItem} onPress={onPress}>
               <Text style={styles.menuIcon}>{icon}</Text>
@@ -448,11 +455,11 @@ export default function SocialProfileScreen() {
         <Pressable style={styles.menuOverlay} onPress={() => setPostMenu(null)} />
         <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 20 }]}>
           {[
-            { icon: '📌', label: postMenu?.pinned ? 'Désépingler du profil' : 'Épingler au profil', onPress: () => void postAction('pin') },
-            { icon: '📊', label: 'Voir les statistiques', onPress: () => void postAction('stats') },
-            { icon: '✏️', label: 'Modifier', onPress: () => { const id = postMenu?.id; setPostMenu(null); if (id) router.push(`/post/${id}?edit=1` as never); } },
-            { icon: '📁', label: 'Archiver', onPress: () => void postAction('archive') },
-            { icon: '🗑️', label: 'Supprimer', onPress: () => void postAction('delete') },
+            { icon: '📌', label: postMenu?.pinned ? t('sp_menu_unpin') : t('sp_menu_pin'), onPress: () => void postAction('pin') },
+            { icon: '📊', label: t('sp_menu_view_stats'), onPress: () => void postAction('stats') },
+            { icon: '✏️', label: t('sp_menu_edit'), onPress: () => { const id = postMenu?.id; setPostMenu(null); if (id) router.push(`/post/${id}?edit=1` as never); } },
+            { icon: '📁', label: t('sp_menu_archive_post'), onPress: () => void postAction('archive') },
+            { icon: '🗑️', label: t('sp_menu_delete'), onPress: () => void postAction('delete') },
           ].map(({ icon, label, onPress }) => (
             <Pressable key={label} style={styles.menuItem} onPress={onPress}>
               <Text style={styles.menuIcon}>{icon}</Text>
