@@ -29,6 +29,7 @@ import {
   type GroupSession,
   type GroupSuggestion,
 } from '../lib/groups-api';
+import { useI18n } from '../lib/useI18n';
 
 const POLL_INTERVAL = 3000;
 
@@ -38,6 +39,7 @@ export default function GroupSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { accessToken, user } = useAuth();
   const { coords } = useLocation();
+  const { t } = useI18n();
 
   const [session, setSession] = useState<GroupSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function GroupSessionScreen() {
       setError(null);
       if (data.status === 'done') stopPolling();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement.');
+      setError(err instanceof Error ? err.message : t('gs_load_error'));
     } finally {
       setLoading(false);
     }
@@ -77,8 +79,8 @@ export default function GroupSessionScreen() {
   async function handleShare() {
     if (!session) return;
     await Share.share({
-      message: `Rejoins ma session YUMIA ! Code : ${session.inviteCode}\nyumia://join?code=${session.inviteCode}`,
-      title: 'YUMIA — Rejoins ma session',
+      message: t('gs_share_message').replace(/\{code\}/g, session.inviteCode),
+      title: t('gs_share_title'),
     });
   }
 
@@ -89,7 +91,7 @@ export default function GroupSessionScreen() {
       const data = await suggestGroupPlaces(accessToken, session.id, coords.lat, coords.lng, 'fr');
       setSession(data);
     } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : 'Impossible de lancer la recherche.');
+      Alert.alert(t('gs_error'), err instanceof Error ? err.message : t('gs_search_failed'));
     } finally {
       setSuggesting(false);
     }
@@ -102,7 +104,7 @@ export default function GroupSessionScreen() {
       const data = await voteGroupPlace(accessToken, session.id, placeId, vote);
       setSession(data);
     } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : 'Vote impossible.');
+      Alert.alert(t('gs_error'), err instanceof Error ? err.message : t('gs_vote_failed'));
     } finally {
       setVotingId(null);
     }
@@ -114,7 +116,7 @@ export default function GroupSessionScreen() {
       const data = await decideGroupPlace(accessToken, session.id, placeId);
       setSession(data);
     } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : 'Impossible de désigner ce lieu.');
+      Alert.alert(t('gs_error'), err instanceof Error ? err.message : t('gs_decide_failed'));
     }
   }
 
@@ -151,9 +153,9 @@ export default function GroupSessionScreen() {
   if (error || !session) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
-        <Text style={styles.errorText}>{error ?? 'Session introuvable.'}</Text>
+        <Text style={styles.errorText}>{error ?? t('gs_session_not_found')}</Text>
         <Pressable onPress={() => router.back()} style={styles.backBtnSmall}>
-          <Text style={styles.backBtnSmallText}>Retour</Text>
+          <Text style={styles.backBtnSmallText}>{t('gs_back')}</Text>
         </Pressable>
       </View>
     );
@@ -176,10 +178,10 @@ export default function GroupSessionScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>👥 Session groupe</Text>
+          <Text style={styles.title}>{t('gs_title')}</Text>
           <Text style={styles.statusBadge}>
-            {session.status === 'waiting' ? '⏳ En attente...' :
-             session.status === 'voting' ? '🗳 Vote en cours' : '✅ Lieu choisi !'}
+            {session.status === 'waiting' ? t('gs_status_waiting') :
+             session.status === 'voting' ? t('gs_status_voting') : t('gs_status_done')}
           </Text>
         </View>
       </View>
@@ -187,15 +189,15 @@ export default function GroupSessionScreen() {
       {/* Code d'invitation */}
       <Pressable style={styles.codeCard} onPress={handleShare}>
         <View>
-          <Text style={styles.codeLabel}>Code d'invitation</Text>
+          <Text style={styles.codeLabel}>{t('gs_invite_code')}</Text>
           <Text style={styles.codeValue}>{session.inviteCode}</Text>
         </View>
-        <Text style={styles.shareBtn}>Partager →</Text>
+        <Text style={styles.shareBtn}>{t('gs_share')}</Text>
       </Pressable>
 
       {/* Membres */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Membres ({session.members.length})</Text>
+        <Text style={styles.sectionTitle}>{t('gs_members_count').replace('{n}', String(session.members.length))}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.membersRow}>
           {session.members.map((m) => (
             <View key={m.id} style={styles.memberItem}>
@@ -209,7 +211,7 @@ export default function GroupSessionScreen() {
                   </View>
                 )}
               <Text style={styles.memberName} numberOfLines={1}>
-                {m.displayName ?? 'Invité'}
+                {m.displayName ?? t('gs_guest')}
               </Text>
               {session.status === 'voting' && (
                 <Text style={styles.memberVotedCount}>
@@ -227,7 +229,7 @@ export default function GroupSessionScreen() {
           {isHost ? (
             <>
               <Text style={styles.infoText}>
-                Tous les membres sont prêts ? Lance la recherche pour obtenir 3 suggestions.
+                {t('gs_host_ready_prompt')}
               </Text>
               <Pressable
                 style={[styles.launchBtn, suggesting && styles.btnDisabled]}
@@ -236,13 +238,13 @@ export default function GroupSessionScreen() {
               >
                 {suggesting
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.launchBtnText}>🤖 Lancer la recherche</Text>
+                  : <Text style={styles.launchBtnText}>{t('gs_launch_search')}</Text>
                 }
               </Pressable>
             </>
           ) : (
             <View style={styles.waitBox}>
-              <Text style={styles.infoText}>En attente que l'hôte lance la recherche...</Text>
+              <Text style={styles.infoText}>{t('gs_waiting_for_host')}</Text>
               <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.md }} />
             </View>
           )}
@@ -252,7 +254,7 @@ export default function GroupSessionScreen() {
       {/* État VOTING : cartes de vote */}
       {session.status === 'voting' && session.suggestions.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Votez pour chaque lieu</Text>
+          <Text style={styles.sectionTitle}>{t('gs_vote_each')}</Text>
           {session.suggestions.map((s) => (
             <SuggestionVoteCard
               key={s.placeId}
@@ -269,7 +271,7 @@ export default function GroupSessionScreen() {
       {/* État DONE : gagnant */}
       {session.status === 'done' && winner && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎉 Le groupe a choisi !</Text>
+          <Text style={styles.sectionTitle}>{t('gs_group_chose')}</Text>
           <View style={styles.winnerCard}>
             {winner.photoUrl && (
               <Image source={{ uri: winner.photoUrl }} style={styles.winnerPhoto} />
@@ -283,7 +285,7 @@ export default function GroupSessionScreen() {
               </View>
             </View>
             <Pressable style={styles.goBtn} onPress={() => handleGoToPlace(winner)}>
-              <Text style={styles.goBtnText}>Y aller →</Text>
+              <Text style={styles.goBtnText}>{t('gs_go_there')}</Text>
             </Pressable>
           </View>
         </View>
@@ -305,6 +307,7 @@ function SuggestionVoteCard({
   onVote: (id: string, v: 'like' | 'dislike') => void;
   onDecide: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const likeLoading = votingId === s.placeId + 'like';
   const dislikeLoading = votingId === s.placeId + 'dislike';
 
@@ -341,7 +344,7 @@ function SuggestionVoteCard({
           </Pressable>
           {isHost && (
             <Pressable style={styles.decideBtn} onPress={() => onDecide(s.placeId)}>
-              <Text style={styles.decideBtnText}>Choisir →</Text>
+              <Text style={styles.decideBtnText}>{t('gs_choose')}</Text>
             </Pressable>
           )}
         </View>
