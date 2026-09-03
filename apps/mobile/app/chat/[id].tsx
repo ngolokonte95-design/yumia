@@ -12,9 +12,13 @@ import { colors, radius, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
+import { useI18n } from '../../lib/useI18n';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
+
+// Mappe la locale interne YUMIA vers un tag Intl pour le formatage date/heure.
+const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
 
 interface MessageReaction { messageId: string; userId: string; emoji: string }
 
@@ -39,8 +43,8 @@ interface Partner {
   id: string; displayName: string; photoUrl?: string; e2ePublicKey?: string; plan?: Plan | null;
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+function formatTime(iso: string, locale: string) {
+  return new Date(iso).toLocaleTimeString(INTL_LOCALE[locale] ?? 'fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 function fmtSec(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -91,11 +95,13 @@ function VoiceBubble({ audioUrl, duration, isMe, onLongPress }: { audioUrl: stri
 
 // ── Bulle d'événement d'appel ─────────────────────────────────────────────────
 function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => void }) {
+  const { t, locale } = useI18n();
   const isMissed = msg.callStatus === 'missed';
   const icon = msg.callType === 'video' ? '📹' : '📞';
+  const typeLabel = msg.callType === 'video' ? t('chat_call_video') : t('chat_call_voice');
   const label = isMissed
-    ? `Appel ${msg.callType === 'video' ? 'vidéo' : 'vocal'} manqué`
-    : `Appel ${msg.callType === 'video' ? 'vidéo' : 'vocal'} · ${fmtDuration(msg.callDuration ?? 0)}`;
+    ? t('chat_call_missed').replace('{type}', typeLabel)
+    : t('chat_call_with_duration').replace('{type}', typeLabel).replace('{duration}', fmtDuration(msg.callDuration ?? 0));
 
   return (
     <View style={styles.callEvent}>
@@ -106,12 +112,12 @@ function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => 
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.callEventLabel, isMissed && styles.callEventLabelMissed]}>{label}</Text>
-          <Text style={styles.callEventTime}>{formatTime(msg.createdAt)}</Text>
+          <Text style={styles.callEventTime}>{formatTime(msg.createdAt, locale)}</Text>
         </View>
       </View>
       {isMissed && (
         <Pressable style={styles.callbackBtn} onPress={onCallback}>
-          <Text style={styles.callbackBtnTxt}>Rappeler</Text>
+          <Text style={styles.callbackBtnTxt}>{t('chat_callback')}</Text>
         </Pressable>
       )}
     </View>
@@ -124,6 +130,7 @@ export default function ChatRoomScreen() {
   const { accessToken, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t, locale } = useI18n();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [decrypted, setDecrypted] = useState<Map<string, string>>(new Map());
@@ -171,11 +178,11 @@ export default function ChatRoomScreen() {
         try {
           const plain = await decryptMessage(m.content, m.senderPublicKey);
           updates.set(m.id, plain);
-        } catch { updates.set(m.id, '🔒 [message chiffré]'); }
+        } catch { updates.set(m.id, t('chat_encrypted_fallback')); }
       }
     }
     if (updates.size > 0) setDecrypted((prev) => new Map([...prev, ...updates]));
-  }, []);
+  }, [t]);
 
   // ─── Chargement de l'historique ──────────────────────────────────────────
   const loadHistory = useCallback(async () => {
@@ -345,7 +352,7 @@ export default function ChatRoomScreen() {
       const res = await fetch(`${API}/chat/conversations/${convId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ content: '🎤 Message vocal', type: 'audio', audioUrl: url, duration: dur }),
+        body: JSON.stringify({ content: t('chat_voice_message'), type: 'audio', audioUrl: url, duration: dur }),
       });
       if (res.ok) {
         const msg: Message = await res.json();
@@ -397,7 +404,7 @@ export default function ChatRoomScreen() {
     if (res.ok) {
       setMessages((prev) => prev.filter((m) => m.id !== msg.id));
     } else {
-      Alert.alert('Erreur', 'Impossible de supprimer ce message.');
+      Alert.alert(t('chat_delete_error_title'), t('chat_delete_error_body'));
     }
   };
 
@@ -432,7 +439,7 @@ export default function ChatRoomScreen() {
               <Text style={styles.partnerName}>{partner?.displayName ?? '...'}</Text>
               <PlanBadgeIcon plan={partner?.plan} size={28} />
             </View>
-            {e2eActive && <Text style={styles.encLabel}>🔐 Chiffré</Text>}
+            {e2eActive && <Text style={styles.encLabel}>{t('chat_encrypted_badge')}</Text>}
           </View>
         </Pressable>
 
@@ -468,7 +475,7 @@ export default function ChatRoomScreen() {
               <>
                 {showDate && (
                   <Text style={styles.dateSep}>
-                    {new Date(item.createdAt).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
+                    {new Date(item.createdAt).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
                   </Text>
                 )}
                 {isCall ? (
@@ -503,7 +510,7 @@ export default function ChatRoomScreen() {
                         {item.type === 'story_reply' && item.mediaUrl ? (
                           <View style={{ marginBottom: 6 }}>
                             <Text style={[styles.storyReplyLabel, isMe && { color: 'rgba(255,255,255,0.75)' }]}>
-                              {isMe ? 'Tu as répondu à sa story' : 'A répondu à ta story'}
+                              {isMe ? t('chat_story_reply_mine') : t('chat_story_reply_theirs')}
                             </Text>
                             <Image source={{ uri: item.mediaUrl }} style={styles.storyReplyThumb} />
                           </View>
@@ -529,7 +536,7 @@ export default function ChatRoomScreen() {
                         </Text>
                         <View style={styles.bubbleFooter}>
                           {(isEnc) && <Text style={[styles.encIcon, isMe && { color: 'rgba(255,255,255,0.5)' }]}>🔐</Text>}
-                          <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>{formatTime(item.createdAt)}</Text>
+                          <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>{formatTime(item.createdAt, locale)}</Text>
                         </View>
 
                         {/* Réactions */}
@@ -559,7 +566,7 @@ export default function ChatRoomScreen() {
             <View style={styles.voiceIndicator}>
               <View style={styles.voiceRecDot} />
               <Text style={styles.voiceRecTime}>{fmtSec(recordingSeconds)}</Text>
-              <Text style={styles.voiceRecLabel}>En cours...</Text>
+              <Text style={styles.voiceRecLabel}>{t('chat_recording_label')}</Text>
             </View>
             {/* Arrête l'enregistrement et passe en écoute avant envoi (pas d'envoi direct). */}
             <Pressable style={styles.voiceSendBtn} onPress={() => void stopVoiceToPreview()}>
@@ -575,7 +582,7 @@ export default function ChatRoomScreen() {
             <Pressable style={styles.voiceIndicator} onPress={() => void togglePreviewPlayback()}>
               <Text style={{ fontSize: 18 }}>{previewPlaying ? '⏸' : '▶️'}</Text>
               <Text style={styles.voiceRecTime}>{fmtSec(voicePreview.duration)}</Text>
-              <Text style={styles.voiceRecLabel}>{previewPlaying ? 'Lecture...' : 'Écouter'}</Text>
+              <Text style={styles.voiceRecLabel}>{previewPlaying ? t('chat_playing_label') : t('chat_listen_label')}</Text>
             </Pressable>
             <Pressable style={styles.voiceSendBtn} onPress={() => void confirmSendVoice()} disabled={sending}>
               {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: 22, color: '#fff' }}>↑</Text>}
@@ -587,7 +594,7 @@ export default function ChatRoomScreen() {
             {replyTo ? (
               <View style={styles.replyBanner}>
                 <Text style={styles.replyBannerTxt} numberOfLines={1}>
-                  ↩︎ Réponse à : {replyTo.type === 'audio' ? '🎤 Message vocal' : getDisplayContent(replyTo)}
+                  {t('chat_reply_to_prefix')} {replyTo.type === 'audio' ? t('chat_voice_message') : getDisplayContent(replyTo)}
                 </Text>
                 <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
                   <Text style={{ color: colors.textMuted, fontSize: 15 }}>✕</Text>
@@ -602,7 +609,7 @@ export default function ChatRoomScreen() {
               style={styles.input}
               value={input}
               onChangeText={setInput}
-              placeholder={e2eActive ? '🔐 Message chiffré...' : 'Écris un message...'}
+              placeholder={e2eActive ? t('chat_encrypted_placeholder') : t('chat_placeholder')}
               placeholderTextColor={colors.textMuted}
               multiline
               maxLength={1000}
@@ -636,7 +643,7 @@ export default function ChatRoomScreen() {
               style={styles.actionRow}
               onPress={() => { setReplyTo(actionMsg); setActionMsg(null); }}
             >
-              <Text style={styles.actionRowTxt}>↩︎  Répondre</Text>
+              <Text style={styles.actionRowTxt}>{t('chat_action_reply')}</Text>
             </Pressable>
             {actionMsg?.senderId === myId ? (
               <Pressable
@@ -644,13 +651,13 @@ export default function ChatRoomScreen() {
                 onPress={() => {
                   const msg = actionMsg;
                   setActionMsg(null);
-                  Alert.alert('Supprimer ce message ?', 'Cette action est irréversible.', [
-                    { text: 'Annuler', style: 'cancel' },
-                    { text: 'Supprimer', style: 'destructive', onPress: () => msg && void deleteMessage(msg) },
+                  Alert.alert(t('chat_delete_confirm_title'), t('chat_delete_confirm_body'), [
+                    { text: t('chat_cancel'), style: 'cancel' },
+                    { text: t('chat_delete'), style: 'destructive', onPress: () => msg && void deleteMessage(msg) },
                   ]);
                 }}
               >
-                <Text style={[styles.actionRowTxt, { color: colors.danger }]}>🗑️  Supprimer</Text>
+                <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('chat_action_delete')}</Text>
               </Pressable>
             ) : null}
           </View>
