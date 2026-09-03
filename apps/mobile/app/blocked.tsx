@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -22,6 +23,7 @@ export default function BlockedScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [users, setUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export default function BlockedScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Comptes bloqués</Text>
+        <Text style={styles.title}>{t('bl_title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -74,8 +76,8 @@ export default function BlockedScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🚫</Text>
-              <Text style={styles.emptyTitle}>Aucun compte bloqué</Text>
-              <Text style={styles.emptyText}>Les comptes que vous bloquez apparaîtront ici.</Text>
+              <Text style={styles.emptyTitle}>{t('bl_empty_title')}</Text>
+              <Text style={styles.emptyText}>{t('bl_empty_text')}</Text>
             </View>
           }
           renderItem={({ item }) => (
@@ -92,7 +94,7 @@ export default function BlockedScreen() {
                 <ActivityIndicator color={colors.brand} />
               ) : (
                 <Pressable style={styles.unblockBtn} onPress={() => void unblock(item.id)}>
-                  <Text style={styles.unblockTxt}>Débloquer</Text>
+                  <Text style={styles.unblockTxt}>{t('bl_unblock')}</Text>
                 </Pressable>
               )}
             </View>

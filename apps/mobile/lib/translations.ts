@@ -1311,6 +1311,10 @@ const FR = {
   join_invalid_code: 'Code invalide ou expiré.',
   join_oops: 'Oops !',
   join_joining: 'Jonction à la session…',
+  bl_title: 'Comptes bloqués',
+  bl_empty_title: 'Aucun compte bloqué',
+  bl_empty_text: 'Les comptes que vous bloquez apparaîtront ici.',
+  bl_unblock: 'Débloquer',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2609,6 +2613,10 @@ const EN: Record<TranslationKey, string> = {
   join_invalid_code: 'Invalid or expired code.',
   join_oops: 'Oops!',
   join_joining: 'Joining the session…',
+  bl_title: 'Blocked accounts',
+  bl_empty_title: 'No blocked accounts',
+  bl_empty_text: 'Accounts you block will appear here.',
+  bl_unblock: 'Unblock',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3907,6 +3915,10 @@ const ES: Record<TranslationKey, string> = {
   join_invalid_code: 'Código inválido o caducado.',
   join_oops: '¡Ups!',
   join_joining: 'Uniéndose a la sesión…',
+  bl_title: 'Cuentas bloqueadas',
+  bl_empty_title: 'Sin cuentas bloqueadas',
+  bl_empty_text: 'Las cuentas que bloquees aparecerán aquí.',
+  bl_unblock: 'Desbloquear',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5205,6 +5217,10 @@ const PT: Record<TranslationKey, string> = {
   join_invalid_code: 'Código inválido ou expirado.',
   join_oops: 'Ops!',
   join_joining: 'Entrando na sessão…',
+  bl_title: 'Contas bloqueadas',
+  bl_empty_title: 'Nenhuma conta bloqueada',
+  bl_empty_text: 'As contas que você bloquear aparecerão aqui.',
+  bl_unblock: 'Desbloquear',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6503,6 +6519,10 @@ const AR: Record<TranslationKey, string> = {
   join_invalid_code: 'رمز غير صالح أو منتهي الصلاحية.',
   join_oops: 'عذرًا!',
   join_joining: 'جارٍ الانضمام إلى الجلسة…',
+  bl_title: 'الحسابات المحظورة',
+  bl_empty_title: 'لا حسابات محظورة',
+  bl_empty_text: 'ستظهر هنا الحسابات التي تحظرها.',
+  bl_unblock: 'إلغاء الحظر',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
