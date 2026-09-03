@@ -14,6 +14,7 @@ import { feedApi } from '../lib/feed-api';
 import {
   notebookApi, type ChecklistItem, type Note, type NoteDraft, type NoteKind,
 } from '../lib/notebook-api';
+import { useI18n } from '../lib/useI18n';
 
 /** Couleurs proposées — accents Yumia, jamais de couleur en dur ailleurs. */
 const COLORS = [null, '#E8621A', '#5C4ECC', '#2BB673', '#F2B705', '#E5484D'];
@@ -31,6 +32,7 @@ export default function NotebookScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const params = useLocalSearchParams<{
     placeId?: string; placeName?: string; date?: string; calendarEventId?: string;
   }>();
@@ -76,8 +78,8 @@ export default function NotebookScreen() {
       });
       if (res?.staleWrite) {
         Alert.alert(
-          'Note modifiée ailleurs',
-          'Cette note avait été modifiée sur un autre appareil. Ta version a été conservée.',
+          t('nb_stale_write_title'),
+          t('nb_stale_write_body'),
         );
       }
     } else {
@@ -108,10 +110,10 @@ export default function NotebookScreen() {
   };
 
   const remove = (note: Note) => {
-    Alert.alert('Supprimer la note ?', note.title ?? 'Cette note', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('nb_delete_confirm_title'), note.title ?? t('nb_this_note'), [
+      { text: t('nb_cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('nb_delete'),
         style: 'destructive',
         onPress: async () => {
           if (!accessToken) return;
@@ -132,14 +134,14 @@ export default function NotebookScreen() {
         <PressableScale onPress={() => router.back()} hitSlop={12} style={styles.headerBtn}>
           <Text style={styles.headerIcon}>←</Text>
         </PressableScale>
-        <Text style={styles.headerTitle}>Bloc-notes</Text>
+        <Text style={styles.headerTitle}>{t('nb_title')}</Text>
         <PressableScale onPress={openNew} hitSlop={12} style={styles.headerBtn}>
           <Text style={styles.headerIcon}>＋</Text>
         </PressableScale>
       </View>
 
       {params.placeName ? (
-        <Text style={styles.contextHint}>📍 Notes liées à {params.placeName}</Text>
+        <Text style={styles.contextHint}>{t('nb_context_hint').replace('{place}', params.placeName)}</Text>
       ) : null}
 
       <GlassCard variant="pill" rounded={radius.pill} style={styles.searchCard} sheen={false}>
@@ -147,7 +149,7 @@ export default function NotebookScreen() {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher une note"
+            placeholder={t('nb_search_placeholder')}
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -161,15 +163,15 @@ export default function NotebookScreen() {
       </GlassCard>
 
       <View style={styles.tabs}>
-        {(['all', 'favorite', 'archived'] as Tab[]).map((t) => (
+        {(['all', 'favorite', 'archived'] as Tab[]).map((tabKey) => (
           <PressableScale
-            key={t}
+            key={tabKey}
             scaleTo={0.94}
-            onPress={() => setTab(t)}
-            style={[styles.tab, tab === t && styles.tabActive]}
+            onPress={() => setTab(tabKey)}
+            style={[styles.tab, tab === tabKey && styles.tabActive]}
           >
-            <Text style={[styles.tabTxt, tab === t && styles.tabTxtActive]}>
-              {t === 'all' ? 'Toutes' : t === 'favorite' ? '⭐ Favorites' : '🗄️ Archivées'}
+            <Text style={[styles.tabTxt, tab === tabKey && styles.tabTxtActive]}>
+              {tabKey === 'all' ? t('nb_tab_all') : tabKey === 'favorite' ? t('nb_tab_favorite') : t('nb_tab_archived')}
             </Text>
           </PressableScale>
         ))}
@@ -190,10 +192,10 @@ export default function NotebookScreen() {
               <Text style={styles.emptyEmoji}>📝</Text>
               <Text style={styles.emptyTxt}>
                 {search
-                  ? 'Aucune note ne correspond.'
+                  ? t('nb_empty_search')
                   : tab === 'archived'
-                    ? 'Aucune note archivée.'
-                    : 'Appuie sur ＋ pour créer ta première note.'}
+                    ? t('nb_empty_archived')
+                    : t('nb_empty_default')}
               </Text>
             </View>
           }
@@ -231,6 +233,7 @@ function NoteCard({
   onToggleFavorite: () => void;
   onArchive: () => void;
 }) {
+  const { t } = useI18n();
   const done = note.items.filter((i) => i.done).length;
 
   return (
@@ -241,7 +244,7 @@ function NoteCard({
 
           <View style={styles.cardHead}>
             <Text style={styles.cardTitle} numberOfLines={1}>
-              {note.title || (note.kind === 'checklist' ? 'Liste' : 'Note')}
+              {note.title || (note.kind === 'checklist' ? t('nb_card_list_default') : t('nb_card_note_default'))}
             </Text>
             <PressableScale onPress={onToggleFavorite} hitSlop={10}>
               <Text style={styles.star}>{note.favorite ? '⭐' : '☆'}</Text>
@@ -256,7 +259,7 @@ function NoteCard({
                 </Text>
               ))}
               {note.items.length > 4 && (
-                <Text style={styles.more}>+{note.items.length - 4} autres</Text>
+                <Text style={styles.more}>{t('nb_others_count').replace('{n}', String(note.items.length - 4))}</Text>
               )}
             </View>
           ) : (
@@ -294,6 +297,7 @@ function NoteEditor({
   onDelete?: () => void;
 }) {
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [kind, setKind] = useState<NoteKind>('note');
@@ -345,7 +349,7 @@ function NoteEditor({
       const url = await feedApi.uploadMedia(accessToken, res.assets[0].uri);
       setPhotoUrls((prev) => [...prev, url]);
     } catch {
-      Alert.alert('Erreur', 'L\'image n\'a pas pu être envoyée.');
+      Alert.alert(t('nb_error'), t('nb_photo_upload_error'));
     }
     setUploading(false);
   };
@@ -367,14 +371,14 @@ function NoteEditor({
 
           <View style={styles.sheetHeader}>
             <PressableScale onPress={onClose} hitSlop={10}>
-              <Text style={styles.cancel}>Fermer</Text>
+              <Text style={styles.cancel}>{t('nb_close')}</Text>
             </PressableScale>
             <View style={styles.kindToggle}>
               {(['note', 'checklist'] as NoteKind[]).map((k) => (
                 <PressableScale key={k} scaleTo={0.94} onPress={() => setKind(k)}>
                   <View style={[styles.kindBtn, kind === k && styles.kindBtnActive]}>
                     <Text style={[styles.kindTxt, kind === k && styles.kindTxtActive]}>
-                      {k === 'note' ? '📝 Note' : '☑ Liste'}
+                      {k === 'note' ? t('nb_kind_note') : t('nb_kind_checklist')}
                     </Text>
                   </View>
                 </PressableScale>
@@ -388,7 +392,7 @@ function NoteEditor({
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <TextInput
               style={styles.titleInput}
-              placeholder="Titre"
+              placeholder={t('nb_title_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={title}
               onChangeText={setTitle}
@@ -397,7 +401,7 @@ function NoteEditor({
             {kind === 'note' ? (
               <TextInput
                 style={styles.contentInput}
-                placeholder="Écris ici…"
+                placeholder={t('nb_write_here_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={content}
                 onChangeText={setContent}
@@ -421,7 +425,7 @@ function NoteEditor({
                   <Text style={styles.checkbox}>＋</Text>
                   <TextInput
                     style={styles.itemInput}
-                    placeholder="Ajouter un élément"
+                    placeholder={t('nb_add_item_placeholder')}
                     placeholderTextColor={colors.textMuted}
                     value={newItem}
                     onChangeText={setNewItem}
@@ -448,10 +452,10 @@ function NoteEditor({
 
             <View style={styles.toolbar}>
               <PressableScale onPress={() => void addPhoto()} style={styles.tool} disabled={uploading}>
-                <Text style={styles.toolTxt}>{uploading ? '⏳' : '🖼️'} Photo</Text>
+                <Text style={styles.toolTxt}>{uploading ? '⏳' : '🖼️'} {t('nb_photo')}</Text>
               </PressableScale>
               <PressableScale onPress={() => setPinned((p) => !p)} style={[styles.tool, pinned && styles.toolActive]}>
-                <Text style={styles.toolTxt}>📌 Épingler</Text>
+                <Text style={styles.toolTxt}>{t('nb_pin')}</Text>
               </PressableScale>
             </View>
 
@@ -469,7 +473,7 @@ function NoteEditor({
 
             {onDelete && (
               <PressableScale onPress={onDelete} style={styles.deleteBtn}>
-                <Text style={styles.deleteTxt}>Supprimer la note</Text>
+                <Text style={styles.deleteTxt}>{t('nb_delete_note')}</Text>
               </PressableScale>
             )}
 
