@@ -14,6 +14,7 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { FeedPost } from '../lib/feed-api';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -28,6 +29,7 @@ export default function CollectionsScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [collections, setCollections] = useState<Collection[]>([]);
   const [selected, setSelected] = useState<Collection | null>(null); // null = tout
@@ -92,12 +94,12 @@ export default function CollectionsScreen() {
 
   const remove = (c: Collection) => {
     Alert.alert(
-      'Supprimer la collection',
-      `« ${c.name} » sera supprimée. Les posts resteront enregistrés.`,
+      t('col_delete_collection_title'),
+      t('col_delete_collection_body').replace('{name}', c.name),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('col_cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('col_delete'),
           style: 'destructive',
           onPress: async () => {
             if (!accessToken) return;
@@ -114,7 +116,7 @@ export default function CollectionsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Enregistrements</Text>
+        <Text style={styles.title}>{t('col_title')}</Text>
         <Pressable onPress={() => setShowCreate(true)}><Text style={styles.plus}>＋</Text></Pressable>
       </View>
 
@@ -125,7 +127,7 @@ export default function CollectionsScreen() {
             style={[styles.chip, selected === null && styles.chipActive]}
             onPress={() => selectCollection(null)}
           >
-            <Text style={[styles.chipTxt, selected === null && styles.chipTxtActive]}>🔖 Tout</Text>
+            <Text style={[styles.chipTxt, selected === null && styles.chipTxtActive]}>{t('col_all')}</Text>
           </Pressable>
           {collections.map((c) => (
             <Pressable
@@ -153,9 +155,9 @@ export default function CollectionsScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🔖</Text>
-              <Text style={styles.emptyTitle}>Aucun post enregistré</Text>
+              <Text style={styles.emptyTitle}>{t('col_empty_title')}</Text>
               <Text style={styles.emptyText}>
-                Appuyez sur 🔖 sous une publication pour la retrouver ici.
+                {t('col_empty_text')}
               </Text>
             </View>
           }
@@ -181,10 +183,10 @@ export default function CollectionsScreen() {
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <Pressable style={styles.backdrop} onPress={() => setShowCreate(false)}>
           <Pressable style={styles.sheet} onPress={() => undefined}>
-            <Text style={styles.sheetTitle}>Nouvelle collection</Text>
+            <Text style={styles.sheetTitle}>{t('col_new_collection')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Nom (ex. Restos à tester)"
+              placeholder={t('col_name_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={newName}
               onChangeText={setNewName}
@@ -196,7 +198,7 @@ export default function CollectionsScreen() {
               disabled={!newName.trim() || creating}
               onPress={() => void create()}
             >
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.createTxt}>Créer</Text>}
+              {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.createTxt}>{t('col_create')}</Text>}
             </Pressable>
           </Pressable>
         </Pressable>

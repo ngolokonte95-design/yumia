@@ -1354,6 +1354,17 @@ const FR = {
   cf_empty_title: 'Personne pour l\'instant',
   cf_remove: 'Retirer',
   cf_add: 'Ajouter',
+  col_delete_collection_title: 'Supprimer la collection',
+  col_delete_collection_body: '« {name} » sera supprimée. Les posts resteront enregistrés.',
+  col_cancel: 'Annuler',
+  col_delete: 'Supprimer',
+  col_title: 'Enregistrements',
+  col_all: '🔖 Tout',
+  col_empty_title: 'Aucun post enregistré',
+  col_empty_text: 'Appuyez sur 🔖 sous une publication pour la retrouver ici.',
+  col_new_collection: 'Nouvelle collection',
+  col_name_placeholder: 'Nom (ex. Restos à tester)',
+  col_create: 'Créer',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2695,6 +2706,17 @@ const EN: Record<TranslationKey, string> = {
   cf_empty_title: 'No one yet',
   cf_remove: 'Remove',
   cf_add: 'Add',
+  col_delete_collection_title: 'Delete collection',
+  col_delete_collection_body: '"{name}" will be deleted. The posts will remain saved.',
+  col_cancel: 'Cancel',
+  col_delete: 'Delete',
+  col_title: 'Saved',
+  col_all: '🔖 All',
+  col_empty_title: 'No saved posts',
+  col_empty_text: 'Tap 🔖 under a post to find it here.',
+  col_new_collection: 'New collection',
+  col_name_placeholder: 'Name (e.g. Restaurants to try)',
+  col_create: 'Create',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4036,6 +4058,17 @@ const ES: Record<TranslationKey, string> = {
   cf_empty_title: 'Nadie por ahora',
   cf_remove: 'Quitar',
   cf_add: 'Añadir',
+  col_delete_collection_title: 'Eliminar colección',
+  col_delete_collection_body: '«{name}» será eliminada. Las publicaciones seguirán guardadas.',
+  col_cancel: 'Cancelar',
+  col_delete: 'Eliminar',
+  col_title: 'Guardados',
+  col_all: '🔖 Todo',
+  col_empty_title: 'Sin publicaciones guardadas',
+  col_empty_text: 'Toca 🔖 debajo de una publicación para encontrarla aquí.',
+  col_new_collection: 'Nueva colección',
+  col_name_placeholder: 'Nombre (ej. Restaurantes por probar)',
+  col_create: 'Crear',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5377,6 +5410,17 @@ const PT: Record<TranslationKey, string> = {
   cf_empty_title: 'Ninguém por enquanto',
   cf_remove: 'Remover',
   cf_add: 'Adicionar',
+  col_delete_collection_title: 'Excluir coleção',
+  col_delete_collection_body: '"{name}" será excluída. As publicações permanecerão salvas.',
+  col_cancel: 'Cancelar',
+  col_delete: 'Excluir',
+  col_title: 'Salvos',
+  col_all: '🔖 Tudo',
+  col_empty_title: 'Nenhuma publicação salva',
+  col_empty_text: 'Toque em 🔖 abaixo de uma publicação para encontrá-la aqui.',
+  col_new_collection: 'Nova coleção',
+  col_name_placeholder: 'Nome (ex. Restaurantes para testar)',
+  col_create: 'Criar',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6718,6 +6762,17 @@ const AR: Record<TranslationKey, string> = {
   cf_empty_title: 'لا أحد حتى الآن',
   cf_remove: 'إزالة',
   cf_add: 'إضافة',
+  col_delete_collection_title: 'حذف المجموعة',
+  col_delete_collection_body: 'سيتم حذف "{name}". ستبقى المنشورات محفوظة.',
+  col_cancel: 'إلغاء',
+  col_delete: 'حذف',
+  col_title: 'المحفوظات',
+  col_all: '🔖 الكل',
+  col_empty_title: 'لا توجد منشورات محفوظة',
+  col_empty_text: 'اضغط على 🔖 أسفل منشور لتجده هنا.',
+  col_new_collection: 'مجموعة جديدة',
+  col_name_placeholder: 'الاسم (مثال: مطاعم للتجربة)',
+  col_create: 'إنشاء',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
