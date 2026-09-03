@@ -1491,6 +1491,17 @@ const FR = {
   ec_visited: '✓ Visité',
   ec_going: '📍 J\'y vais',
   lp_title: 'Langue & région',
+  mp_cancel: 'Annuler',
+  mp_done: 'Terminé',
+  mp_unavailable_title: 'Musique indisponible',
+  mp_unavailable_body: 'Impossible d\'enregistrer cet extrait pour l\'instant. Réessaie dans un moment.',
+  mp_saving: 'Enregistrement de la musique…',
+  mp_title: '🎵 Choisir une musique',
+  mp_search_placeholder: 'Rechercher un titre, un artiste...',
+  mp_no_results: 'Aucun résultat pour « {query} »',
+  mp_empty_hint: 'Tape le nom d\'une chanson ou d\'un artiste',
+  mp_source_deezer: 'Deezer · ~90 millions de titres',
+  mp_source_itunes: 'Apple Music · ~100 millions de titres',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2969,6 +2980,17 @@ const EN: Record<TranslationKey, string> = {
   ec_visited: '✓ Visited',
   ec_going: '📍 I\'m going',
   lp_title: 'Language & region',
+  mp_cancel: 'Cancel',
+  mp_done: 'Done',
+  mp_unavailable_title: 'Music unavailable',
+  mp_unavailable_body: 'Unable to save this clip right now. Try again in a moment.',
+  mp_saving: 'Saving music…',
+  mp_title: '🎵 Choose a song',
+  mp_search_placeholder: 'Search for a song, an artist...',
+  mp_no_results: 'No results for "{query}"',
+  mp_empty_hint: 'Type a song or artist name',
+  mp_source_deezer: 'Deezer · ~90 million songs',
+  mp_source_itunes: 'Apple Music · ~100 million songs',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4447,6 +4469,17 @@ const ES: Record<TranslationKey, string> = {
   ec_visited: '✓ Visitado',
   ec_going: '📍 Voy',
   lp_title: 'Idioma y región',
+  mp_cancel: 'Cancelar',
+  mp_done: 'Listo',
+  mp_unavailable_title: 'Música no disponible',
+  mp_unavailable_body: 'No se pudo guardar este fragmento por ahora. Inténtalo de nuevo en un momento.',
+  mp_saving: 'Guardando música…',
+  mp_title: '🎵 Elegir una canción',
+  mp_search_placeholder: 'Buscar una canción, un artista...',
+  mp_no_results: 'Sin resultados para «{query}»',
+  mp_empty_hint: 'Escribe el nombre de una canción o artista',
+  mp_source_deezer: 'Deezer · ~90 millones de canciones',
+  mp_source_itunes: 'Apple Music · ~100 millones de canciones',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5925,6 +5958,17 @@ const PT: Record<TranslationKey, string> = {
   ec_visited: '✓ Visitado',
   ec_going: '📍 Vou',
   lp_title: 'Idioma e região',
+  mp_cancel: 'Cancelar',
+  mp_done: 'Concluído',
+  mp_unavailable_title: 'Música indisponível',
+  mp_unavailable_body: 'Não foi possível salvar este trecho agora. Tente novamente em instantes.',
+  mp_saving: 'Salvando música…',
+  mp_title: '🎵 Escolher uma música',
+  mp_search_placeholder: 'Buscar uma música, um artista...',
+  mp_no_results: 'Nenhum resultado para "{query}"',
+  mp_empty_hint: 'Digite o nome de uma música ou artista',
+  mp_source_deezer: 'Deezer · ~90 milhões de músicas',
+  mp_source_itunes: 'Apple Music · ~100 milhões de músicas',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7403,6 +7447,17 @@ const AR: Record<TranslationKey, string> = {
   ec_visited: '✓ تمت الزيارة',
   ec_going: '📍 أنا ذاهب',
   lp_title: 'اللغة والمنطقة',
+  mp_cancel: 'إلغاء',
+  mp_done: 'تم',
+  mp_unavailable_title: 'الموسيقى غير متاحة',
+  mp_unavailable_body: 'تعذر حفظ هذا المقطع الآن. حاول مرة أخرى بعد قليل.',
+  mp_saving: 'جارٍ حفظ الموسيقى…',
+  mp_title: '🎵 اختر أغنية',
+  mp_search_placeholder: 'ابحث عن أغنية أو فنان...',
+  mp_no_results: 'لا توجد نتائج لـ «{query}»',
+  mp_empty_hint: 'اكتب اسم أغنية أو فنان',
+  mp_source_deezer: 'Deezer · حوالي 90 مليون أغنية',
+  mp_source_itunes: 'Apple Music · حوالي 100 مليون أغنية',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

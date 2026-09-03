@@ -13,6 +13,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const PREVIEW_S = 30;
 const WAVEFORM_W = 288;
@@ -121,6 +122,7 @@ function ClipSelector({
   mediaUri?: string;
   mediaType?: 'photo' | 'video';
 }) {
+  const { t } = useI18n();
   // Bords gauche/droit de la fenêtre de sélection, en pixels le long du
   // waveform — chacun déplaçable indépendamment (au lieu de 3 durées figées),
   // pour choisir librement le début ET la longueur de l'extrait.
@@ -290,11 +292,11 @@ function ClipSelector({
 
       <View style={cs.header}>
         <Pressable onPress={() => { void stopSound(); onBack(); }} hitSlop={10}>
-          <Text style={cs.cancelTxt}>Annuler</Text>
+          <Text style={cs.cancelTxt}>{t('mp_cancel')}</Text>
         </Pressable>
         <Image source={{ uri: track.artworkUrl }} style={cs.headerArt} />
         <Pressable onPress={() => void handleConfirm()} hitSlop={10}>
-          <Text style={cs.doneTxt}>Terminé</Text>
+          <Text style={cs.doneTxt}>{t('mp_done')}</Text>
         </Pressable>
       </View>
 
@@ -380,6 +382,7 @@ export function MusicPickerModal({
   mediaUri?: string;
   mediaType?: 'photo' | 'video';
 }) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<'search' | 'clip'>('search');
   const [source, setSource] = useState<SourceTab>('deezer');
   const [query, setQuery] = useState('');
@@ -477,8 +480,8 @@ export function MusicPickerModal({
       // on prévient plutôt que de stocker une piste injouable en silence.
       if (!proxyOk) {
         Alert.alert(
-          'Musique indisponible',
-          "Impossible d'enregistrer cet extrait pour l'instant. Réessaie dans un moment.",
+          t('mp_unavailable_title'),
+          t('mp_unavailable_body'),
         );
         return;
       }
@@ -504,7 +507,7 @@ export function MusicPickerModal({
       {uploading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 }}>
           <ActivityIndicator color={colors.brand} size="large" />
-          <Text style={{ color: colors.textMuted, fontSize: 14 }}>Enregistrement de la musique…</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 14 }}>{t('mp_saving')}</Text>
         </View>
       ) : phase === 'clip' && pending ? (
         <ClipSelector
@@ -517,7 +520,7 @@ export function MusicPickerModal({
       ) : (
         <View style={ms.container}>
           <View style={ms.header}>
-            <Text style={ms.title}>🎵 Choisir une musique</Text>
+            <Text style={ms.title}>{t('mp_title')}</Text>
             <Pressable onPress={onClose}><Text style={ms.close}>✕</Text></Pressable>
           </View>
 
@@ -539,7 +542,7 @@ export function MusicPickerModal({
           <View style={ms.searchRow}>
             <TextInput
               style={ms.searchInput}
-              placeholder="Rechercher un titre, un artiste..."
+              placeholder={t('mp_search_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
@@ -555,13 +558,13 @@ export function MusicPickerModal({
             contentContainerStyle={{ paddingBottom: 40 }}
             ListEmptyComponent={
               query.trim() && !searching ? (
-                <View style={ms.empty}><Text style={ms.emptyText}>Aucun résultat pour « {query} »</Text></View>
+                <View style={ms.empty}><Text style={ms.emptyText}>{t('mp_no_results').replace('{query}', query)}</Text></View>
               ) : !query.trim() ? (
                 <View style={ms.empty}>
                   <Text style={ms.emptyEmoji}>🎧</Text>
-                  <Text style={ms.emptyText}>Tape le nom d'une chanson ou d'un artiste</Text>
+                  <Text style={ms.emptyText}>{t('mp_empty_hint')}</Text>
                   <Text style={ms.emptyHint}>
-                    {source === 'deezer' ? 'Deezer · ~90 millions de titres' : 'Apple Music · ~100 millions de titres'}
+                    {source === 'deezer' ? t('mp_source_deezer') : t('mp_source_itunes')}
                   </Text>
                 </View>
               ) : null
