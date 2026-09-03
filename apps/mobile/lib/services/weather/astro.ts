@@ -27,15 +27,24 @@ export function moonAt(date: Date): { phase: number; illumination: number } {
 }
 
 /** Nom français de la phase lunaire. */
-export function moonPhaseLabel(phase: number): string {
-  if (phase < 0.03 || phase > 0.97) return 'Nouvelle lune';
-  if (phase < 0.22) return 'Premier croissant';
-  if (phase < 0.28) return 'Premier quartier';
-  if (phase < 0.47) return 'Gibbeuse croissante';
-  if (phase < 0.53) return 'Pleine lune';
-  if (phase < 0.72) return 'Gibbeuse décroissante';
-  if (phase < 0.78) return 'Dernier quartier';
-  return 'Dernier croissant';
+const MOON_PHASES: Record<string, string[]> = {
+  fr: ['Nouvelle lune', 'Premier croissant', 'Premier quartier', 'Gibbeuse croissante', 'Pleine lune', 'Gibbeuse décroissante', 'Dernier quartier', 'Dernier croissant'],
+  en: ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'],
+  es: ['Luna nueva', 'Creciente iluminante', 'Cuarto creciente', 'Gibosa creciente', 'Luna llena', 'Gibosa menguante', 'Cuarto menguante', 'Creciente menguante'],
+  pt: ['Lua nova', 'Crescente iluminante', 'Quarto crescente', 'Gibosa crescente', 'Lua cheia', 'Gibosa minguante', 'Quarto minguante', 'Minguante'],
+  ar: ['محاق', 'هلال متزايد', 'تربيع أول', 'أحدب متزايد', 'بدر', 'أحدب متناقص', 'تربيع أخير', 'هلال متناقص'],
+};
+
+export function moonPhaseLabel(phase: number, locale = 'fr'): string {
+  const labels = MOON_PHASES[locale] ?? MOON_PHASES.fr;
+  if (phase < 0.03 || phase > 0.97) return labels[0];
+  if (phase < 0.22) return labels[1];
+  if (phase < 0.28) return labels[2];
+  if (phase < 0.47) return labels[3];
+  if (phase < 0.53) return labels[4];
+  if (phase < 0.72) return labels[5];
+  if (phase < 0.78) return labels[6];
+  return labels[7];
 }
 
 /** Emoji correspondant à la phase — orienté hémisphère nord. */

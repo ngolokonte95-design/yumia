@@ -8,6 +8,9 @@ import {
   activitiesFor, dayMomentAt, KIND_LABEL, kindEmoji,
   type DayMoment, type WeatherKind,
 } from '../../lib/services/weather';
+import { useI18n } from '../../lib/useI18n';
+import { universeLabel } from '../../lib/universeMeta';
+import { weatherKindLabel } from '../../lib/labelHelpers';
 
 /** Même logique d'ambiance que l'écran météo, pour une continuité visuelle. */
 function skyColors(kind: WeatherKind, moment: DayMoment): readonly string[] {
@@ -38,6 +41,7 @@ function skyColors(kind: WeatherKind, moment: DayMoment): readonly string[] {
  */
 export function WeatherCard({ lat, lng }: { lat: number; lng: number }) {
   const router = useRouter();
+  const { t } = useI18n();
   const { report } = useWeatherReport(lat, lng);
 
   // Pas de squelette : tant que la météo n'est pas là, mieux vaut ne rien
@@ -66,7 +70,7 @@ export function WeatherCard({ lat, lng }: { lat: number; lng: number }) {
 
         <View style={styles.meta}>
           <Text style={styles.temp} numberOfLines={1}>
-            {current.tempC}° · {KIND_LABEL[current.kind]}
+            {current.tempC}° · {weatherKindLabel(t, current.kind, KIND_LABEL[current.kind])}
           </Text>
           {today && (
             <Text style={styles.minmax}>↑{today.maxC}° ↓{today.minC}°</Text>
@@ -75,7 +79,7 @@ export function WeatherCard({ lat, lng }: { lat: number; lng: number }) {
 
         {suggestion && (
           <Text style={styles.suggestion} numberOfLines={1}>
-            {suggestion.emoji} {suggestion.label}
+            {suggestion.emoji} {universeLabel(t, suggestion.universe)}
           </Text>
         )}
 

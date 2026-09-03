@@ -3,6 +3,8 @@ import { useRouter } from 'expo-router';
 import { GlassCard, PressableScale, Reveal } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { activitiesFor, type Coordinates, type CurrentWeather } from '../../lib/services/weather';
+import { useI18n } from '../../lib/useI18n';
+import { universeLabel } from '../../lib/universeMeta';
 
 /**
  * Activités recommandées selon la météo du moment.
@@ -23,14 +25,15 @@ export function WeatherActivities({
   cityLabel?: string;
 }) {
   const router = useRouter();
+  const { t } = useI18n();
   const suggestions = activitiesFor(current);
 
   if (suggestions.length === 0) return null;
 
   return (
     <View style={styles.section}>
-      <Text style={styles.title}>À faire maintenant</Text>
-      <Text style={styles.subtitle}>Sélectionné selon la météo actuelle</Text>
+      <Text style={styles.title}>{t('wxa_title')}</Text>
+      <Text style={styles.subtitle}>{t('wxa_subtitle')}</Text>
 
       <ScrollView
         horizontal
@@ -60,8 +63,8 @@ export function WeatherActivities({
                     halo se diffuse en tache floue autour de la carte. */}
                 <View style={[styles.cardInner, i === 0 && styles.cardTop]}>
                   <Text style={styles.emoji}>{s.emoji}</Text>
-                  <Text style={styles.label} numberOfLines={1}>{s.label}</Text>
-                  <Text style={styles.reason} numberOfLines={1}>{s.reason}</Text>
+                  <Text style={styles.label} numberOfLines={1}>{universeLabel(t, s.universe)}</Text>
+                  <Text style={styles.reason} numberOfLines={1}>{t(s.reasonKey)}</Text>
                 </View>
               </GlassCard>
             </PressableScale>

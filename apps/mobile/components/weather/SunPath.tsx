@@ -5,6 +5,7 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import {
   formatLocalTime, moonPhaseEmoji, moonPhaseLabel, type Astro,
 } from '../../lib/services/weather';
+import { useI18n } from '../../lib/useI18n';
 
 const ARC_W = 260;
 const ARC_H = 96;
@@ -36,6 +37,7 @@ export function SunPath({
   utcOffsetSeconds: number;
   now?: Date;
 }) {
+  const { t, locale } = useI18n();
   const sunrise = new Date(astro.sunrise).getTime();
   const sunset = new Date(astro.sunset).getTime();
   const dayLength = Math.max(sunset - sunrise, 1);
@@ -50,7 +52,7 @@ export function SunPath({
   return (
     <GlassCard style={styles.card} rounded={radius.lg}>
       <View style={styles.inner}>
-        <Text style={styles.title}>Soleil & lune</Text>
+        <Text style={styles.title}>{t('sp_title')}</Text>
 
         <View style={styles.arcWrap}>
           <Svg width={ARC_W} height={ARC_H}>
@@ -89,28 +91,28 @@ export function SunPath({
 
         <View style={styles.times}>
           <View style={styles.timeCol}>
-            <Text style={styles.timeLabel}>Lever</Text>
+            <Text style={styles.timeLabel}>{t('sp_sunrise')}</Text>
             <Text style={styles.timeValue}>{formatLocalTime(astro.sunrise, utcOffsetSeconds)}</Text>
           </View>
           <View style={styles.timeColCenter}>
-            <Text style={styles.timeLabel}>Durée du jour</Text>
-            <Text style={styles.timeValue}>{hours} h {minutes} min</Text>
+            <Text style={styles.timeLabel}>{t('sp_daylength')}</Text>
+            <Text style={styles.timeValue}>{t('sp_daylength_value').replace('{h}', String(hours)).replace('{m}', String(minutes))}</Text>
           </View>
           <View style={styles.timeColRight}>
-            <Text style={styles.timeLabel}>Coucher</Text>
+            <Text style={styles.timeLabel}>{t('sp_sunset')}</Text>
             <Text style={styles.timeValue}>{formatLocalTime(astro.sunset, utcOffsetSeconds)}</Text>
           </View>
         </View>
 
         <View style={styles.golden}>
-          <Text style={styles.goldenTitle}>✨ Heure dorée</Text>
+          <Text style={styles.goldenTitle}>{t('sp_golden_hour')}</Text>
           <View style={styles.goldenRow}>
             <Text style={styles.goldenSlot}>
-              Matin {formatLocalTime(astro.goldenHourMorning.start, utcOffsetSeconds)}
+              {t('sp_morning')} {formatLocalTime(astro.goldenHourMorning.start, utcOffsetSeconds)}
               {' – '}{formatLocalTime(astro.goldenHourMorning.end, utcOffsetSeconds)}
             </Text>
             <Text style={styles.goldenSlot}>
-              Soir {formatLocalTime(astro.goldenHourEvening.start, utcOffsetSeconds)}
+              {t('sp_evening')} {formatLocalTime(astro.goldenHourEvening.start, utcOffsetSeconds)}
               {' – '}{formatLocalTime(astro.goldenHourEvening.end, utcOffsetSeconds)}
             </Text>
           </View>
@@ -119,9 +121,9 @@ export function SunPath({
         <View style={styles.moon}>
           <Text style={styles.moonEmoji}>{moonPhaseEmoji(astro.moonPhase)}</Text>
           <View style={styles.moonText}>
-            <Text style={styles.moonPhase}>{moonPhaseLabel(astro.moonPhase)}</Text>
+            <Text style={styles.moonPhase}>{moonPhaseLabel(astro.moonPhase, locale)}</Text>
             <Text style={styles.moonIllum}>
-              {Math.round(astro.moonIllumination * 100)} % éclairée
+              {t('sp_moon_illuminated').replace('{pct}', String(Math.round(astro.moonIllumination * 100)))}
             </Text>
           </View>
         </View>
