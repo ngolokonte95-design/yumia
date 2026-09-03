@@ -11,6 +11,8 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
 import { PlanBadgeIcon } from '../components/Avatar';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
 const API = API_BASE_URL;
 
@@ -29,18 +31,19 @@ interface Profile {
 
 const SWIPE_THRESHOLD = 100;
 
-const FILTERS = [
-  { value: 'everyone', label: '🌍 Tous' },
-  { value: 'female', label: '👩 Femmes' },
-  { value: 'male', label: '👨 Hommes' },
-] as const;
+const FILTERS: { value: 'everyone' | 'female' | 'male'; labelKey: TranslationKey }[] = [
+  { value: 'everyone', labelKey: 'dp_filter_everyone' },
+  { value: 'female', labelKey: 'dp_filter_female' },
+  { value: 'male', labelKey: 'dp_filter_male' },
+];
 
-type FilterValue = typeof FILTERS[number]['value'];
+type FilterValue = 'everyone' | 'female' | 'male';
 
 export default function DiscoverPeopleScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [idx, setIdx] = useState(0);
@@ -104,7 +107,7 @@ export default function DiscoverPeopleScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Découvrir des gens</Text>
+        <Text style={styles.title}>{t('dp_title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -116,7 +119,7 @@ export default function DiscoverPeopleScreen() {
             style={[styles.filterChip, filter === f.value && styles.filterChipActive]}
             onPress={() => setFilter(f.value)}
           >
-            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{f.label}</Text>
+            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{t(f.labelKey)}</Text>
           </Pressable>
         ))}
       </View>
@@ -124,10 +127,10 @@ export default function DiscoverPeopleScreen() {
       {!current ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>🎉</Text>
-          <Text style={styles.emptyTitle}>Tu as vu tout le monde !</Text>
-          <Text style={styles.emptyText}>Reviens plus tard pour découvrir de nouveaux profils.</Text>
+          <Text style={styles.emptyTitle}>{t('dp_empty_title')}</Text>
+          <Text style={styles.emptyText}>{t('dp_empty_text')}</Text>
           <Pressable style={styles.reloadBtn} onPress={() => load(filter)}>
-            <Text style={styles.reloadBtnText}>Recharger</Text>
+            <Text style={styles.reloadBtnText}>{t('dp_reload')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -146,10 +149,10 @@ export default function DiscoverPeopleScreen() {
           >
             {/* Like / Pass badges */}
             <Animated.View style={[styles.badge, styles.badgeLike, { opacity: likeOpacity }]}>
-              <Text style={styles.badgeText}>J'aime ❤️</Text>
+              <Text style={styles.badgeText}>{t('dp_like_badge')}</Text>
             </Animated.View>
             <Animated.View style={[styles.badge, styles.badgePass, { opacity: passOpacity }]}>
-              <Text style={styles.badgeText}>Passer 👋</Text>
+              <Text style={styles.badgeText}>{t('dp_pass_badge')}</Text>
             </Animated.View>
             <ProfileCard profile={current} />
           </Animated.View>
@@ -163,7 +166,7 @@ export default function DiscoverPeopleScreen() {
             <Text style={styles.passIcon}>👋</Text>
           </Pressable>
           <Pressable style={styles.profileBtn} onPress={() => router.push(`/user/${current.id}`)}>
-            <Text style={styles.profileBtnText}>Voir profil</Text>
+            <Text style={styles.profileBtnText}>{t('dp_see_profile')}</Text>
           </Pressable>
           <Pressable style={styles.likeActionBtn} onPress={async () => {
             await fetch(`${API}/social/follow/${current.id}`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
@@ -180,6 +183,7 @@ export default function DiscoverPeopleScreen() {
 }
 
 function ProfileCard({ profile }: { profile: Profile }) {
+  const { t } = useI18n();
   return (
     <View style={cardStyles.container}>
       {profile.photoUrl ? (
@@ -193,12 +197,12 @@ function ProfileCard({ profile }: { profile: Profile }) {
         <View style={cardStyles.nameRow}>
           <Text style={cardStyles.name}>{profile.displayName}</Text>
           <PlanBadgeIcon plan={profile.plan} size={36} />
-          <Text style={cardStyles.level}>Niv. {profile.level}</Text>
+          <Text style={cardStyles.level}>{t('dp_level_short')} {profile.level}</Text>
         </View>
         {(profile.gender || profile.birthYear) && (
           <View style={cardStyles.metaRow}>
-            {profile.gender && <Text style={cardStyles.meta}>{profile.gender === 'male' ? '👨 Homme' : profile.gender === 'female' ? '👩 Femme' : '🧑 Autre'}</Text>}
-            {profile.birthYear && <Text style={cardStyles.meta}>🎂 {new Date().getFullYear() - profile.birthYear} ans</Text>}
+            {profile.gender && <Text style={cardStyles.meta}>{profile.gender === 'male' ? t('dp_gender_male') : profile.gender === 'female' ? t('dp_gender_female') : t('dp_gender_other')}</Text>}
+            {profile.birthYear && <Text style={cardStyles.meta}>{t('dp_age_years').replace('{age}', String(new Date().getFullYear() - profile.birthYear))}</Text>}
           </View>
         )}
         {profile.bio && <Text style={cardStyles.bio} numberOfLines={3}>{profile.bio}</Text>}
