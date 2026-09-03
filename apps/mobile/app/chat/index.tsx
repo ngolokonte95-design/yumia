@@ -9,7 +9,7 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -151,7 +151,6 @@ export default function ChatListScreen() {
                 <Avatar
                   uri={photo}
                   size={52}
-                  plan={isGroup ? null : item.otherUser?.plan}
                   placeholderColor={colors.brand}
                   fallback={
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>
@@ -161,9 +160,12 @@ export default function ChatListScreen() {
                 />
                 <View style={styles.convBody}>
                   <View style={styles.convTop}>
-                    <Text style={styles.convName}>
-                      {name}{isGroup && item.participantsCount ? `  ·  ${item.participantsCount}` : ''}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 }}>
+                      <Text style={styles.convName}>
+                        {name}{isGroup && item.participantsCount ? `  ·  ${item.participantsCount}` : ''}
+                      </Text>
+                      {!isGroup && <PlanBadgeIcon plan={item.otherUser?.plan} size={18} />}
+                    </View>
                     <Text style={styles.convTime}>{formatAgo(item.updatedAt)}</Text>
                   </View>
                   <Text style={styles.convLast} numberOfLines={1}>

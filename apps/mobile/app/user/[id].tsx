@@ -173,7 +173,6 @@ export default function UserProfileScreen() {
             <Avatar
               uri={profile.photoUrl}
               size={88}
-              plan={profile.plan}
               borderWidth={2}
               borderColor={colors.background}
               placeholderColor={colors.brand}
@@ -203,7 +202,7 @@ export default function UserProfileScreen() {
       <View style={styles.nameSection}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={styles.displayName}>{profile.displayName}</Text>
-          <PlanBadgeIcon plan={profile.plan} size={18} />
+          <PlanBadgeIcon plan={profile.plan} size={26} />
         </View>
         {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
         <Text style={styles.levelBadge}>✨ Niv. {profile.level} · {profile.totalXp} XP</Text>

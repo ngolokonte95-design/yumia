@@ -10,7 +10,7 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { PostVideo } from '../../components/PostVideo';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import type { PostOverlay, AuthorRef } from '../../lib/feed-api';
 
 const API = API_BASE_URL;
@@ -256,12 +256,14 @@ export default function PostDetailScreen() {
           <Avatar
             uri={post.user?.photoUrl}
             size={38}
-            plan={post.user?.plan}
             placeholderColor={colors.brand}
             fallback={<Text style={{ color: '#fff', fontWeight: '700' }}>{post.user?.displayName[0]}</Text>}
           />
           <View>
-            <Text style={styles.authorName}>{post.user?.displayName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.authorName}>{post.user?.displayName}</Text>
+              <PlanBadgeIcon plan={post.user?.plan} size={20} />
+            </View>
             {post.place && <Text style={styles.placeName}>📍 {post.place.name}</Text>}
           </View>
           <Text style={styles.ago}>{formatAgo(post.createdAt)}</Text>
@@ -415,14 +417,16 @@ function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike:
       <Avatar
         uri={c.user?.photoUrl}
         size={30}
-        plan={c.user?.plan}
         placeholderColor={colors.brand}
         fallback={<Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{c.user?.displayName[0]}</Text>}
       />
       <View style={[styles.commentBubble, { flex: 1 }]}>
-        <Text style={styles.commentUser}>
-          {c.user?.displayName}{c.pinned ? '  📌' : ''}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Text style={styles.commentUser}>
+            {c.user?.displayName}{c.pinned ? '  📌' : ''}
+          </Text>
+          <PlanBadgeIcon plan={c.user?.plan} size={16} />
+        </View>
         <Text style={styles.commentText}>{c.content}</Text>
         <View style={styles.commentActions}>
           <Text style={styles.commentAgo}>{formatAgo(c.createdAt)}</Text>

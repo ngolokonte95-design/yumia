@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
-import { Avatar } from '../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -77,13 +77,15 @@ export default function FollowRequestsScreen() {
                   <Avatar
                     uri={item.requester.photoUrl}
                     size={52}
-                    plan={item.requester.plan}
                     placeholderColor={colors.brand}
                     fallback={<Text style={styles.avatarLetter}>{item.requester.displayName[0]}</Text>}
                   />
                 </Pressable>
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.requester.id}` as never)}>
-                  <Text style={styles.name}>{item.requester.displayName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.name}>{item.requester.displayName}</Text>
+                    <PlanBadgeIcon plan={item.requester.plan} size={18} />
+                  </View>
                   {item.requester.bio ? <Text style={styles.bio} numberOfLines={1}>{item.requester.bio}</Text> : null}
                 </Pressable>
                 {isProcessing ? (

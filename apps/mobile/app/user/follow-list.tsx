@@ -9,7 +9,7 @@ import { useAuth } from '../../lib/auth-context';
 import { socialApi } from '../../lib/social-api';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import type { Plan } from '../../lib/feed-api';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 
 type FollowUser = {
   id: string;
@@ -116,13 +116,15 @@ export default function FollowListScreen() {
                 <Avatar
                   uri={item.photoUrl}
                   size={48}
-                  plan={item.plan}
                   style={styles.avatar}
                   placeholderColor={colors.brand}
                   fallback={<Text style={styles.avatarLetter}>{item.displayName[0]?.toUpperCase()}</Text>}
                 />
                 <View style={styles.info}>
-                  <Text style={styles.name}>{item.displayName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.name}>{item.displayName}</Text>
+                    <PlanBadgeIcon plan={item.plan} size={18} />
+                  </View>
                   {item.bio ? (
                     <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text>
                   ) : (

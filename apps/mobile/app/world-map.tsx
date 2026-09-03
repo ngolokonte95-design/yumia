@@ -9,7 +9,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { isBackgroundLocationActive, startBackgroundLocation, stopBackgroundLocation } from '../lib/background-location';
 import type { Plan } from '../lib/feed-api';
-import { Avatar } from '../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -119,14 +119,16 @@ export default function WorldMapScreen() {
               <Avatar
                 uri={u.photoUrl}
                 size={38}
-                plan={u.plan}
                 placeholderColor={colors.brand}
                 fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{u.displayName[0]}</Text>}
               />
             </View>
             <Callout onPress={() => router.push(`/user/${u.userId}`)}>
               <View style={styles.callout}>
-                <Text style={styles.calloutName}>{u.displayName}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={styles.calloutName}>{u.displayName}</Text>
+                  <PlanBadgeIcon plan={u.plan} size={16} />
+                </View>
                 {u.bio && <Text style={styles.calloutBio} numberOfLines={2}>{u.bio}</Text>}
                 <Text style={styles.calloutAction}>Voir le profil →</Text>
               </View>

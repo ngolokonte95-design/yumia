@@ -12,7 +12,7 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
-import { Avatar } from '../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 
 const API = API_BASE_URL;
 
@@ -121,13 +121,15 @@ export default function CloseFriendsScreen() {
                   <Avatar
                     uri={item.photoUrl}
                     size={48}
-                    plan={item.plan}
                     placeholderColor={colors.brand}
                     fallback={<Text style={styles.avatarLetter}>{item.displayName[0]}</Text>}
                   />
                 </Pressable>
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.id}` as never)}>
-                  <Text style={styles.name}>{item.displayName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.name}>{item.displayName}</Text>
+                    <PlanBadgeIcon plan={item.plan} size={18} />
+                  </View>
                   {item.bio ? <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text> : null}
                 </Pressable>
                 {processingId === item.id ? (

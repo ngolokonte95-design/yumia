@@ -13,7 +13,7 @@ import { API_BASE_URL } from '../../lib/config';
 import { feedApi, type FeedPost, type StoryGroup, type Plan } from '../../lib/feed-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PostVideo } from '../../components/PostVideo';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 
 const API = API_BASE_URL;
@@ -124,12 +124,14 @@ function StoriesBar({
             <Avatar
               uri={group.user.photoUrl}
               size={54}
-              plan={group.user.plan}
               placeholderColor={colors.brand}
               fallback={<Text style={styles.storyAvatarLetter}>{group.user.displayName[0]?.toUpperCase()}</Text>}
             />
           </View>
-          <Text style={styles.storyName} numberOfLines={1}>{group.user.displayName.split(' ')[0]}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Text style={styles.storyName} numberOfLines={1}>{group.user.displayName.split(' ')[0]}</Text>
+            <PlanBadgeIcon plan={group.user.plan} size={12} />
+          </View>
         </Pressable>
       ))}
     </ScrollView>
@@ -236,12 +238,14 @@ function PostCard({
         <Avatar
           uri={item.user?.photoUrl}
           size={36}
-          plan={item.user?.plan}
           placeholderColor={colors.brand}
           fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{item.user?.displayName[0]}</Text>}
         />
         <View>
-          <Text style={styles.postAuthorName}>{item.user?.displayName ?? 'Utilisateur'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={styles.postAuthorName}>{item.user?.displayName ?? 'Utilisateur'}</Text>
+            <PlanBadgeIcon plan={item.user?.plan} size={18} />
+          </View>
           {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
         </View>
         <Text style={styles.postAgo}>{formatAgo(item.createdAt)}</Text>
@@ -784,12 +788,14 @@ export default function SocialTab() {
                 <Avatar
                   uri={item.photoUrl}
                   size={44}
-                  plan={item.plan}
                   placeholderColor={colors.brand}
                   fallback={<Text style={{ color: '#fff', fontWeight: '700' }}>{item.displayName[0]}</Text>}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.userName}>{item.displayName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.userName}>{item.displayName}</Text>
+                    <PlanBadgeIcon plan={item.plan} size={18} />
+                  </View>
                   {item.bio ? <Text style={styles.userBio} numberOfLines={1}>{item.bio}</Text> : null}
                 </View>
                 {!isMe && (
@@ -861,12 +867,14 @@ export default function SocialTab() {
                   <Avatar
                     uri={item.otherUser?.photoUrl}
                     size={52}
-                    plan={item.otherUser?.plan}
                     placeholderColor={colors.brand}
                     fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.otherUser?.displayName[0]}</Text>}
                   />
                   <View style={styles.encounterInfo}>
-                    <Text style={styles.encounterName}>{item.otherUser?.displayName}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Text style={styles.encounterName}>{item.otherUser?.displayName}</Text>
+                      <PlanBadgeIcon plan={item.otherUser?.plan} size={18} />
+                    </View>
                     <Text style={styles.encounterPlace}>📍 {item.place?.name ?? '?'}</Text>
                     <Text style={styles.encounterTime}>⚡ Croisé il y a {formatAgo(item.seenAt)}</Text>
                   </View>
@@ -903,12 +911,14 @@ export default function SocialTab() {
                     <Avatar
                       uri={item.photoUrl}
                       size={44}
-                      plan={item.plan}
                       placeholderColor={colors.brand}
                       fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.displayName[0]}</Text>}
                     />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.userName}>{item.displayName}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={styles.userName}>{item.displayName}</Text>
+                        <PlanBadgeIcon plan={item.plan} size={18} />
+                      </View>
                       {item.bio ? <Text style={styles.userBio} numberOfLines={1}>{item.bio}</Text> : null}
                     </View>
                     {!isMe && (

@@ -11,7 +11,7 @@ import { encryptMessage, decryptMessage, getLocalPublicKey, isE2EAvailable } fro
 import { colors, radius, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -420,7 +420,6 @@ export default function ChatRoomScreen() {
           <Avatar
             uri={partner?.photoUrl}
             size={38}
-            plan={partner?.plan}
             placeholderColor={colors.brand}
             fallback={
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
@@ -429,7 +428,10 @@ export default function ChatRoomScreen() {
             }
           />
           <View>
-            <Text style={styles.partnerName}>{partner?.displayName ?? '...'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={styles.partnerName}>{partner?.displayName ?? '...'}</Text>
+              <PlanBadgeIcon plan={partner?.plan} size={16} />
+            </View>
             {e2eActive && <Text style={styles.encLabel}>🔐 Chiffré</Text>}
           </View>
         </Pressable>

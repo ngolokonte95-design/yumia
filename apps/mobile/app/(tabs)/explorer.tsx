@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODE_META, UNIVERSE_META } from '@yumia/shared';
 import type { Mode, Universe, Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useLocation } from '../../lib/useLocation';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { socialApi } from '../../lib/social-api';
@@ -204,12 +204,14 @@ export default function ExplorerScreen() {
                 <Avatar
                   uri={u.photoUrl}
                   size={52}
-                  plan={u.plan}
                   style={styles.peopleAvatar}
                   placeholderColor={colors.brand}
                   fallback={<Text style={styles.peopleAvatarTxt}>{u.displayName[0]}</Text>}
                 />
-                <Text style={styles.peopleName} numberOfLines={1}>{u.displayName}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={styles.peopleName} numberOfLines={1}>{u.displayName}</Text>
+                  <PlanBadgeIcon plan={u.plan} size={16} />
+                </View>
                 {u.bio ? <Text style={styles.peopleBio} numberOfLines={2}>{u.bio}</Text> : null}
                 <Text style={styles.peopleLevel}>Niv. {u.level}</Text>
               </Pressable>
