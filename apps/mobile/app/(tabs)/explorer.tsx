@@ -29,6 +29,7 @@ import { useExperience } from '../../lib/useExperience';
 import { recordVisit } from '../../lib/passport-api';
 import { useSaved } from '../../lib/useSaved';
 import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 import { placeStore } from '../../lib/place-store';
 import { useWeather } from '../../lib/useWeather';
 import { SkeletonCard } from '../../components/SkeletonCard';
@@ -45,10 +46,10 @@ type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?:
 // "Sorties & billets" retiré temporairement (paiement Stripe pas encore
 // branché, back-office venue absent) — voir sorties.tsx, code conservé pour
 // réactivation future, juste plus d'accès UI.
-const QUICK_ACTIONS: { key: string; emoji: string; label: string; sub: string; route: string }[] = [
-  { key: 'guides', emoji: '🧭', label: 'Guides locaux', sub: 'Experts certifiés', route: '/guides' },
-  { key: 'group', emoji: '👥', label: 'Sortie en groupe', sub: 'Décidez ensemble', route: '/group' },
-  { key: 'deals', emoji: '💰', label: 'Bons plans', sub: 'Réserve chez nos partenaires', route: '/deals' },
+const QUICK_ACTIONS: { key: string; emoji: string; labelKey: TranslationKey; subKey: TranslationKey; route: string }[] = [
+  { key: 'guides', emoji: '🧭', labelKey: 'explorer_action_guides_label', subKey: 'explorer_action_guides_sub', route: '/guides' },
+  { key: 'group', emoji: '👥', labelKey: 'explorer_action_group_label', subKey: 'explorer_action_group_sub', route: '/group' },
+  { key: 'deals', emoji: '💰', labelKey: 'explorer_action_deals_label', subKey: 'explorer_action_deals_sub', route: '/deals' },
 ];
 
 const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];
@@ -162,15 +163,15 @@ export default function ExplorerScreen() {
 
       {/* Titre */}
       <View style={styles.section}>
-        <Text style={styles.h1}>Explorer</Text>
-        <Text style={styles.sub}>Parcours, cherche, et trouve l'expérience parfaite.</Text>
+        <Text style={styles.h1}>{t('explorer_title')}</Text>
+        <Text style={styles.sub}>{t('explorer_sub')}</Text>
       </View>
 
       {/* Recherche */}
       <View style={styles.section}>
         <Pressable style={styles.search} onPress={() => router.push('/search')}>
           <Text style={styles.searchIcon}>🔍</Text>
-          <Text style={styles.searchText}>Dis-moi ce que tu cherches…</Text>
+          <Text style={styles.searchText}>{t('explorer_search_placeholder')}</Text>
         </Pressable>
       </View>
 
@@ -180,8 +181,8 @@ export default function ExplorerScreen() {
           {QUICK_ACTIONS.map((a) => (
             <Pressable key={a.key} style={styles.actionCard} onPress={() => router.push(a.route as never)}>
               <Text style={styles.actionEmoji}>{a.emoji}</Text>
-              <Text style={styles.actionLabel}>{a.label}</Text>
-              <Text style={styles.actionSub}>{a.sub}</Text>
+              <Text style={styles.actionLabel}>{t(a.labelKey)}</Text>
+              <Text style={styles.actionSub}>{t(a.subKey)}</Text>
             </Pressable>
           ))}
         </View>
@@ -195,9 +196,9 @@ export default function ExplorerScreen() {
       {suggestedUsers.length > 0 ? (
         <View style={styles.section}>
           <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>👥 Personnes à suivre</Text>
+            <Text style={styles.sectionTitle}>{t('explorer_people_to_follow')}</Text>
             <Pressable onPress={() => router.push('/search' as never)}>
-              <Text style={styles.seeAll}>Voir plus</Text>
+              <Text style={styles.seeAll}>{t('explorer_see_more')}</Text>
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -215,7 +216,7 @@ export default function ExplorerScreen() {
                   <PlanBadgeIcon plan={u.plan} size={28} />
                 </View>
                 {u.bio ? <Text style={styles.peopleBio} numberOfLines={2}>{u.bio}</Text> : null}
-                <Text style={styles.peopleLevel}>Niv. {u.level}</Text>
+                <Text style={styles.peopleLevel}>{t('explorer_level_prefix')} {u.level}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -253,7 +254,7 @@ export default function ExplorerScreen() {
       {/* Tendances près de toi */}
       {(trending.places.length > 0 || trending.loading) && !resolving ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔥 Tendances près de toi</Text>
+          <Text style={styles.sectionTitle}>{t('explorer_trending_near_you')}</Text>
           {trending.loading ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
               {Array.from({ length: 4 }).map((_, i) => (
@@ -282,7 +283,7 @@ export default function ExplorerScreen() {
                       },
                       compatibility: 0,
                       distanceMeters: Math.round(place.distanceMeters),
-                      reason: `🔥 Tendance — ${place.visitCount} visites récentes`,
+                      reason: t('explorer_trending_reason').replace('{n}', String(place.visitCount)),
                       engine: 'mood',
                     });
                     router.push('/place');
@@ -379,7 +380,7 @@ function UniverseRow({
     <View style={styles.section}>
       <View style={styles.rowHeader}>
         <Text style={styles.sectionTitle}>{meta.emoji}  {universeLabel(t, universe)}</Text>
-        <Pressable onPress={onSeeAll}><Text style={styles.rowSeeAll}>Voir tout →</Text></Pressable>
+        <Pressable onPress={onSeeAll}><Text style={styles.rowSeeAll}>{t('explorer_see_all')}</Text></Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
         {loading
@@ -414,6 +415,7 @@ function PlaceCard({ place, onPress }: { place: NearbyPlace; onPress: () => void
 }
 
 function TrendingCard({ place, onPress }: { place: TrendingPlace; onPress: () => void }) {
+  const { t } = useI18n();
   const meta = UNIVERSE_META[place.universe];
   const distKm = place.distanceMeters < 1000
     ? `${Math.round(place.distanceMeters)} m`
@@ -428,7 +430,7 @@ function TrendingCard({ place, onPress }: { place: TrendingPlace; onPress: () =>
         </View>
       )}
       <View style={styles.trendingVisitBadge}>
-        <Text style={styles.trendingVisitText}>{place.visitCount} visites</Text>
+        <Text style={styles.trendingVisitText}>{t('explorer_visits_badge').replace('{n}', String(place.visitCount))}</Text>
       </View>
       <View style={styles.trendingInfo}>
         <Text style={styles.trendingName} numberOfLines={1}>{place.name}</Text>
@@ -447,13 +449,14 @@ function StateBox({
   text?: string;
   onRetry?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <View style={styles.stateBox}>
       {loading && <ActivityIndicator color={colors.brand} />}
       {text ? <Text style={styles.stateText}>{text}</Text> : null}
       {onRetry ? (
         <Pressable style={styles.retryBtn} onPress={onRetry}>
-          <Text style={styles.retryText}>Réessayer</Text>
+          <Text style={styles.retryText}>{t('explorer_retry')}</Text>
         </Pressable>
       ) : null}
     </View>
