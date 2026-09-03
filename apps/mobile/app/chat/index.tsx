@@ -10,6 +10,8 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
+import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 
 const API = API_BASE_URL;
 
@@ -31,20 +33,21 @@ interface UserNote {
   user: { id: string; displayName: string; photoUrl?: string; plan?: Plan | null } | null;
 }
 
-function formatAgo(iso: string): string {
+function formatAgo(iso: string, t: (key: TranslationKey) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'maintenant';
-  if (m < 60) return `${m}min`;
+  if (m < 1) return t('ci_now');
+  if (m < 60) return `${m}${t('social_time_min')}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}j`;
+  if (h < 24) return `${h}${t('social_time_hour')}`;
+  return `${Math.floor(h / 24)}${t('social_time_day')}`;
 }
 
 export default function ChatListScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [notes, setNotes] = useState<UserNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +82,7 @@ export default function ChatListScreen() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ text: noteText.trim() }),
       });
-      if (!res.ok) { Alert.alert('Erreur', 'Impossible d\'enregistrer la note.'); return; }
+      if (!res.ok) { Alert.alert(t('ci_error'), t('ci_note_save_error')); return; }
     }
     setNoteModal(false);
     void load();
@@ -89,7 +92,7 @@ export default function ChatListScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Messages</Text>
+        <Text style={styles.title}>{t('ci_title')}</Text>
         <Pressable onPress={() => router.push('/(tabs)/social')}>
           <Text style={styles.newBtn}>+</Text>
         </Pressable>
@@ -114,7 +117,7 @@ export default function ChatListScreen() {
                 {myNote ? (
                   <View style={styles.noteBubble}><Text style={styles.noteBubbleTxt} numberOfLines={2}>{myNote.text}</Text></View>
                 ) : (
-                  <View style={styles.noteBubble}><Text style={[styles.noteBubbleTxt, { color: colors.textMuted }]}>Ta note...</Text></View>
+                  <View style={styles.noteBubble}><Text style={[styles.noteBubbleTxt, { color: colors.textMuted }]}>{t('ci_your_note_placeholder')}</Text></View>
                 )}
                 {me?.photoUrl ? (
                   <Image source={{ uri: me.photoUrl }} style={styles.noteAvatar} />
@@ -123,7 +126,7 @@ export default function ChatListScreen() {
                     <Text style={{ color: '#fff', fontWeight: '700' }}>{(me?.displayName ?? 'M')[0]}</Text>
                   </View>
                 )}
-                <Text style={styles.noteName} numberOfLines={1}>Votre note</Text>
+                <Text style={styles.noteName} numberOfLines={1}>{t('ci_your_note')}</Text>
               </Pressable>
 
               {/* Notes des gens que je suis */}
@@ -144,7 +147,7 @@ export default function ChatListScreen() {
           }
           renderItem={({ item }) => {
             const isGroup = item.isGroup;
-            const name = isGroup ? (item.title ?? 'Groupe') : (item.otherUser?.displayName ?? 'Inconnu');
+            const name = isGroup ? (item.title ?? t('ci_group_default')) : (item.otherUser?.displayName ?? t('ci_unknown'));
             const photo = isGroup ? item.photoUrl : item.otherUser?.photoUrl;
             return (
               <Pressable style={styles.convRow} onPress={() => router.push(`/chat/${item.id}`)}>
@@ -166,10 +169,10 @@ export default function ChatListScreen() {
                       </Text>
                       {!isGroup && <PlanBadgeIcon plan={item.otherUser?.plan} size={32} />}
                     </View>
-                    <Text style={styles.convTime}>{formatAgo(item.updatedAt)}</Text>
+                    <Text style={styles.convTime}>{formatAgo(item.updatedAt, t)}</Text>
                   </View>
                   <Text style={styles.convLast} numberOfLines={1}>
-                    {item.lastMessage?.content ?? 'Nouvelle conversation'}
+                    {item.lastMessage?.content ?? t('ci_new_conversation')}
                   </Text>
                 </View>
               </Pressable>
@@ -180,8 +183,8 @@ export default function ChatListScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>💬</Text>
-              <Text style={styles.emptyTitle}>Aucun message</Text>
-              <Text style={styles.emptyText}>Va sur un profil et envoie un message !</Text>
+              <Text style={styles.emptyTitle}>{t('ci_empty_title')}</Text>
+              <Text style={styles.emptyText}>{t('ci_empty_text')}</Text>
             </View>
           }
         />
@@ -191,10 +194,10 @@ export default function ChatListScreen() {
       <Modal visible={noteModal} transparent animationType="slide" onRequestClose={() => setNoteModal(false)}>
         <Pressable style={styles.noteOverlay} onPress={() => setNoteModal(false)}>
           <Pressable style={styles.noteSheet} onPress={() => {}}>
-            <Text style={styles.noteSheetTitle}>💭 Ta note (disparaît après 24h)</Text>
+            <Text style={styles.noteSheetTitle}>{t('ci_note_title')}</Text>
             <TextInput
               style={styles.noteInput}
-              placeholder="Partage une pensée..."
+              placeholder={t('ci_note_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={noteText}
               onChangeText={setNoteText}
@@ -205,11 +208,11 @@ export default function ChatListScreen() {
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {myNote ? (
                 <Pressable style={styles.noteDeleteBtn} onPress={() => { setNoteText(''); void saveNote(); }}>
-                  <Text style={{ color: colors.danger, fontWeight: '700' }}>Supprimer</Text>
+                  <Text style={{ color: colors.danger, fontWeight: '700' }}>{t('ci_delete')}</Text>
                 </Pressable>
               ) : null}
               <Pressable style={styles.noteSaveBtn} onPress={() => void saveNote()}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Partager</Text>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>{t('ci_share')}</Text>
               </Pressable>
             </View>
           </Pressable>
