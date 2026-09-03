@@ -1234,6 +1234,19 @@ const FR = {
   gs_group_chose: '🎉 Le groupe a choisi !',
   gs_go_there: 'Y aller →',
   gs_choose: 'Choisir →',
+  nc_ambiance_all: 'Tous',
+  nc_ambiance_afro: 'Afro / Caribéen',
+  nc_ambiance_electro: 'Électro',
+  nc_ambiance_techno: 'Techno',
+  nc_ambiance_hiphop: 'Hip-Hop / Rap',
+  nc_ambiance_rnb: 'R&B / Soul',
+  nc_ambiance_latin: 'Latino',
+  nc_ambiance_variete: 'Variété',
+  nc_reason: '🎧 Night-club près de toi',
+  nc_title: '🎧 Night-clubs',
+  nc_subtitle: 'Les clubs près de toi — choisis ton ambiance.',
+  nc_empty_title: 'Aucun club trouvé dans ce rayon.',
+  nc_empty_hint: 'Les clubs sont souvent actifs le soir — réessaie plus tard ou élargis la zone.',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2455,6 +2468,19 @@ const EN: Record<TranslationKey, string> = {
   gs_group_chose: '🎉 The group has chosen!',
   gs_go_there: 'Go there →',
   gs_choose: 'Choose →',
+  nc_ambiance_all: 'All',
+  nc_ambiance_afro: 'Afro / Caribbean',
+  nc_ambiance_electro: 'Electro',
+  nc_ambiance_techno: 'Techno',
+  nc_ambiance_hiphop: 'Hip-Hop / Rap',
+  nc_ambiance_rnb: 'R&B / Soul',
+  nc_ambiance_latin: 'Latin',
+  nc_ambiance_variete: 'Pop/Variety',
+  nc_reason: '🎧 Nightclub near you',
+  nc_title: '🎧 Nightclubs',
+  nc_subtitle: 'Clubs near you — pick your vibe.',
+  nc_empty_title: 'No clubs found in this radius.',
+  nc_empty_hint: 'Clubs are often active in the evening — try again later or widen the area.',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3676,6 +3702,19 @@ const ES: Record<TranslationKey, string> = {
   gs_group_chose: '🎉 ¡El grupo ha elegido!',
   gs_go_there: 'Ir allí →',
   gs_choose: 'Elegir →',
+  nc_ambiance_all: 'Todos',
+  nc_ambiance_afro: 'Afro / Caribeño',
+  nc_ambiance_electro: 'Electro',
+  nc_ambiance_techno: 'Techno',
+  nc_ambiance_hiphop: 'Hip-Hop / Rap',
+  nc_ambiance_rnb: 'R&B / Soul',
+  nc_ambiance_latin: 'Latino',
+  nc_ambiance_variete: 'Variedad',
+  nc_reason: '🎧 Discoteca cerca de ti',
+  nc_title: '🎧 Discotecas',
+  nc_subtitle: 'Clubes cerca de ti — elige tu ambiente.',
+  nc_empty_title: 'No se encontraron clubes en este radio.',
+  nc_empty_hint: 'Los clubes suelen estar activos por la noche — inténtalo más tarde o amplía la zona.',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -4897,6 +4936,19 @@ const PT: Record<TranslationKey, string> = {
   gs_group_chose: '🎉 O grupo escolheu!',
   gs_go_there: 'Ir lá →',
   gs_choose: 'Escolher →',
+  nc_ambiance_all: 'Todos',
+  nc_ambiance_afro: 'Afro / Caribenho',
+  nc_ambiance_electro: 'Eletrônica',
+  nc_ambiance_techno: 'Techno',
+  nc_ambiance_hiphop: 'Hip-Hop / Rap',
+  nc_ambiance_rnb: 'R&B / Soul',
+  nc_ambiance_latin: 'Latino',
+  nc_ambiance_variete: 'Variedade',
+  nc_reason: '🎧 Boate perto de você',
+  nc_title: '🎧 Boates',
+  nc_subtitle: 'Baladas perto de você — escolha seu clima.',
+  nc_empty_title: 'Nenhuma balada encontrada neste raio.',
+  nc_empty_hint: 'As baladas costumam estar ativas à noite — tente mais tarde ou amplie a área.',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6118,6 +6170,19 @@ const AR: Record<TranslationKey, string> = {
   gs_group_chose: '🎉 اختارت المجموعة!',
   gs_go_there: 'اذهب إلى هناك ←',
   gs_choose: 'اختيار ←',
+  nc_ambiance_all: 'الكل',
+  nc_ambiance_afro: 'أفريقي / كاريبي',
+  nc_ambiance_electro: 'إلكترو',
+  nc_ambiance_techno: 'تكنو',
+  nc_ambiance_hiphop: 'هيب هوب / راب',
+  nc_ambiance_rnb: 'آر آند بي / سول',
+  nc_ambiance_latin: 'لاتيني',
+  nc_ambiance_variete: 'متنوع',
+  nc_reason: '🎧 نادي ليلي بالقرب منك',
+  nc_title: '🎧 نوادي ليلية',
+  nc_subtitle: 'النوادي القريبة منك — اختر أجواءك.',
+  nc_empty_title: 'لم يتم العثور على نوادٍ في هذا النطاق.',
+  nc_empty_hint: 'غالبًا ما تنشط النوادي في المساء — أعد المحاولة لاحقًا أو وسّع النطاق.',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

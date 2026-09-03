@@ -12,22 +12,25 @@ import { fetchNearby, type NearbyPlace } from '../lib/places-api';
 import { placeStore } from '../lib/place-store';
 import { PlacePhoto } from '../components/PlacePhoto';
 import { universeSearchRadius } from '../lib/universeRadius';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
-const AMBIANCES = [
-  { key: 'all', label: 'Tous', emoji: '🎧' },
-  { key: 'afro', label: 'Afro / Caribéen', emoji: '🌴' },
-  { key: 'electro', label: 'Électro', emoji: '⚡' },
-  { key: 'techno', label: 'Techno', emoji: '🔊' },
-  { key: 'hiphop', label: 'Hip-Hop / Rap', emoji: '🎤' },
-  { key: 'rnb', label: 'R&B / Soul', emoji: '🎵' },
-  { key: 'latin', label: 'Latino', emoji: '🎺' },
-  { key: 'variete', label: 'Variété', emoji: '🎶' },
+const AMBIANCES: { key: string; labelKey: TranslationKey; emoji: string }[] = [
+  { key: 'all', labelKey: 'nc_ambiance_all', emoji: '🎧' },
+  { key: 'afro', labelKey: 'nc_ambiance_afro', emoji: '🌴' },
+  { key: 'electro', labelKey: 'nc_ambiance_electro', emoji: '⚡' },
+  { key: 'techno', labelKey: 'nc_ambiance_techno', emoji: '🔊' },
+  { key: 'hiphop', labelKey: 'nc_ambiance_hiphop', emoji: '🎤' },
+  { key: 'rnb', labelKey: 'nc_ambiance_rnb', emoji: '🎵' },
+  { key: 'latin', labelKey: 'nc_ambiance_latin', emoji: '🎺' },
+  { key: 'variete', labelKey: 'nc_ambiance_variete', emoji: '🎶' },
 ];
 
 export default function NightclubScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { coords, resolving } = useLocation();
+  const { t } = useI18n();
   const [ambiance, setAmbiance] = useState('all');
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +47,7 @@ export default function NightclubScreen() {
   // Filtre côté client par tag d'ambiance
   const filtered = ambiance === 'all'
     ? places
-    : places.filter((p) => p.tags.some((t) => t.toLowerCase().includes(ambiance)));
+    : places.filter((p) => p.tags.some((tag) => tag.toLowerCase().includes(ambiance)));
 
   function openDetail(place: NearbyPlace) {
     placeStore.set({
@@ -62,7 +65,7 @@ export default function NightclubScreen() {
       },
       compatibility: 0,
       distanceMeters: place.distanceMeters,
-      reason: '🎧 Night-club près de toi',
+      reason: t('nc_reason'),
       engine: 'mood' as const,
     });
     router.push('/place');
@@ -75,8 +78,8 @@ export default function NightclubScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>🎧 Night-clubs</Text>
-          <Text style={styles.subtitle}>Les clubs près de toi — choisis ton ambiance.</Text>
+          <Text style={styles.title}>{t('nc_title')}</Text>
+          <Text style={styles.subtitle}>{t('nc_subtitle')}</Text>
         </View>
       </View>
 
@@ -90,7 +93,7 @@ export default function NightclubScreen() {
           >
             <Text style={styles.ambianceEmoji}>{a.emoji}</Text>
             <Text style={[styles.ambianceLabel, ambiance === a.key && styles.ambianceLabelActive]}>
-              {a.label}
+              {t(a.labelKey)}
             </Text>
           </Pressable>
         ))}
@@ -103,8 +106,8 @@ export default function NightclubScreen() {
           {filtered.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🎧</Text>
-              <Text style={styles.emptyText}>Aucun club trouvé dans ce rayon.</Text>
-              <Text style={styles.emptyHint}>Les clubs sont souvent actifs le soir — réessaie plus tard ou élargis la zone.</Text>
+              <Text style={styles.emptyText}>{t('nc_empty_title')}</Text>
+              <Text style={styles.emptyHint}>{t('nc_empty_hint')}</Text>
             </View>
           ) : (
             filtered.map((place) => (
