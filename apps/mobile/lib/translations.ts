@@ -1247,6 +1247,16 @@ const FR = {
   nc_subtitle: 'Les clubs près de toi — choisis ton ambiance.',
   nc_empty_title: 'Aucun club trouvé dans ce rayon.',
   nc_empty_hint: 'Les clubs sont souvent actifs le soir — réessaie plus tard ou élargis la zone.',
+  wm_title: 'Carte Mondiale',
+  wm_online_count: '{n} en ligne',
+  wm_see_profile: 'Voir le profil →',
+  wm_visible: '🟢 Visible sur la carte',
+  wm_invisible: '⚫ Invisible',
+  wm_perm_denied: 'Autorise la localisation "Toujours" dans les réglages pour rester visible en arrière-plan.',
+  wm_broadcasting_hint: 'Les autres utilisateurs te voient, même app fermée',
+  wm_activate_hint: 'Active pour apparaître sur la carte mondiale',
+  wm_deactivate: 'Désactiver',
+  wm_show_me: 'M\'afficher',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2481,6 +2491,16 @@ const EN: Record<TranslationKey, string> = {
   nc_subtitle: 'Clubs near you — pick your vibe.',
   nc_empty_title: 'No clubs found in this radius.',
   nc_empty_hint: 'Clubs are often active in the evening — try again later or widen the area.',
+  wm_title: 'World Map',
+  wm_online_count: '{n} online',
+  wm_see_profile: 'See profile →',
+  wm_visible: '🟢 Visible on the map',
+  wm_invisible: '⚫ Invisible',
+  wm_perm_denied: 'Allow "Always" location in settings to stay visible in the background.',
+  wm_broadcasting_hint: 'Other users can see you, even with the app closed',
+  wm_activate_hint: 'Turn on to appear on the world map',
+  wm_deactivate: 'Turn off',
+  wm_show_me: 'Show me',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3715,6 +3735,16 @@ const ES: Record<TranslationKey, string> = {
   nc_subtitle: 'Clubes cerca de ti — elige tu ambiente.',
   nc_empty_title: 'No se encontraron clubes en este radio.',
   nc_empty_hint: 'Los clubes suelen estar activos por la noche — inténtalo más tarde o amplía la zona.',
+  wm_title: 'Mapa Mundial',
+  wm_online_count: '{n} en línea',
+  wm_see_profile: 'Ver perfil →',
+  wm_visible: '🟢 Visible en el mapa',
+  wm_invisible: '⚫ Invisible',
+  wm_perm_denied: 'Permite la ubicación "Siempre" en los ajustes para seguir visible en segundo plano.',
+  wm_broadcasting_hint: 'Otros usuarios te ven, incluso con la app cerrada',
+  wm_activate_hint: 'Activa para aparecer en el mapa mundial',
+  wm_deactivate: 'Desactivar',
+  wm_show_me: 'Mostrarme',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -4949,6 +4979,16 @@ const PT: Record<TranslationKey, string> = {
   nc_subtitle: 'Baladas perto de você — escolha seu clima.',
   nc_empty_title: 'Nenhuma balada encontrada neste raio.',
   nc_empty_hint: 'As baladas costumam estar ativas à noite — tente mais tarde ou amplie a área.',
+  wm_title: 'Mapa Mundial',
+  wm_online_count: '{n} online',
+  wm_see_profile: 'Ver perfil →',
+  wm_visible: '🟢 Visível no mapa',
+  wm_invisible: '⚫ Invisível',
+  wm_perm_denied: 'Permita a localização "Sempre" nas configurações para continuar visível em segundo plano.',
+  wm_broadcasting_hint: 'Outros usuários veem você, mesmo com o app fechado',
+  wm_activate_hint: 'Ative para aparecer no mapa mundial',
+  wm_deactivate: 'Desativar',
+  wm_show_me: 'Mostrar-me',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6183,6 +6223,16 @@ const AR: Record<TranslationKey, string> = {
   nc_subtitle: 'النوادي القريبة منك — اختر أجواءك.',
   nc_empty_title: 'لم يتم العثور على نوادٍ في هذا النطاق.',
   nc_empty_hint: 'غالبًا ما تنشط النوادي في المساء — أعد المحاولة لاحقًا أو وسّع النطاق.',
+  wm_title: 'الخريطة العالمية',
+  wm_online_count: '{n} متصل',
+  wm_see_profile: 'عرض الملف الشخصي ←',
+  wm_visible: '🟢 مرئي على الخريطة',
+  wm_invisible: '⚫ غير مرئي',
+  wm_perm_denied: 'اسمح بالموقع "دائمًا" في الإعدادات لتبقى مرئيًا في الخلفية.',
+  wm_broadcasting_hint: 'يمكن للمستخدمين الآخرين رؤيتك حتى عند إغلاق التطبيق',
+  wm_activate_hint: 'فعّل للظهور على الخريطة العالمية',
+  wm_deactivate: 'إيقاف',
+  wm_show_me: 'إظهاري',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

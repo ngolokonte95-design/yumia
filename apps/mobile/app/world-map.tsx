@@ -10,6 +10,7 @@ import { API_BASE_URL } from '../lib/config';
 import { isBackgroundLocationActive, startBackgroundLocation, stopBackgroundLocation } from '../lib/background-location';
 import type { Plan } from '../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../components/Avatar';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -27,6 +28,7 @@ export default function WorldMapScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [users, setUsers] = useState<WorldUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
@@ -108,8 +110,8 @@ export default function WorldMapScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Carte Mondiale</Text>
-        <Text style={styles.count}>{users.length} en ligne</Text>
+        <Text style={styles.title}>{t('wm_title')}</Text>
+        <Text style={styles.count}>{t('wm_online_count').replace('{n}', String(users.length))}</Text>
       </View>
 
       <MapView style={styles.map} initialRegion={initialRegion} showsUserLocation>
@@ -130,7 +132,7 @@ export default function WorldMapScreen() {
                   <PlanBadgeIcon plan={u.plan} size={28} />
                 </View>
                 {u.bio && <Text style={styles.calloutBio} numberOfLines={2}>{u.bio}</Text>}
-                <Text style={styles.calloutAction}>Voir le profil →</Text>
+                <Text style={styles.calloutAction}>{t('wm_see_profile')}</Text>
               </View>
             </Callout>
           </Marker>
@@ -141,18 +143,18 @@ export default function WorldMapScreen() {
       <View style={[styles.broadcastBar, { bottom: insets.bottom + 20 }]}>
         <View style={styles.broadcastInfo}>
           <Text style={styles.broadcastTitle}>
-            {broadcasting ? '🟢 Visible sur la carte' : '⚫ Invisible'}
+            {broadcasting ? t('wm_visible') : t('wm_invisible')}
           </Text>
           <Text style={styles.broadcastSub}>
             {permissionDenied
-              ? 'Autorise la localisation "Toujours" dans les réglages pour rester visible en arrière-plan.'
+              ? t('wm_perm_denied')
               : broadcasting
-                ? 'Les autres utilisateurs te voient, même app fermée'
-                : 'Active pour apparaître sur la carte mondiale'}
+                ? t('wm_broadcasting_hint')
+                : t('wm_activate_hint')}
           </Text>
         </View>
         <Pressable style={[styles.broadcastBtn, broadcasting && styles.broadcastBtnActive]} onPress={toggleBroadcast}>
-          <Text style={styles.broadcastBtnText}>{broadcasting ? 'Désactiver' : 'M\'afficher'}</Text>
+          <Text style={styles.broadcastBtnText}>{broadcasting ? t('wm_deactivate') : t('wm_show_me')}</Text>
         </Pressable>
       </View>
     </View>
