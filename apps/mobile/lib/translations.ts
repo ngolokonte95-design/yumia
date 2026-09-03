@@ -1646,6 +1646,19 @@ const FR = {
   ve_delete_selected_text: '🗑️ Supprimer le texte sélectionné',
   ve_text_placeholder: 'Ton texte…',
   ve_add: 'Ajouter',
+  pu_title: 'Passe en Premium',
+  pu_cta: 'Passer en Premium — {price}/mois',
+  pu_later: 'Peut-être plus tard',
+  sm_title: '🔥 Ta série',
+  sm_current_streak: 'Série actuelle',
+  sm_best_record: 'Meilleur record',
+  sm_last_visit: 'Dernière visite',
+  sm_last_14_days: '14 derniers jours',
+  sm_freeze_title: '🧊 Freeze de série',
+  sm_freeze_desc: 'Protège ta série les jours où tu ne sors pas. Disponible avec YUMIA Plus.',
+  sm_upgrade_to_plus: 'Passer à Plus →',
+  sm_freeze_active_title: '🧊 Freeze activé',
+  sm_freeze_active_desc: 'Ta série est protégée. Tu peux manquer un jour sans la perdre.',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -3279,6 +3292,19 @@ const EN: Record<TranslationKey, string> = {
   ve_delete_selected_text: '🗑️ Delete selected text',
   ve_text_placeholder: 'Your text…',
   ve_add: 'Add',
+  pu_title: 'Go Premium',
+  pu_cta: 'Go Premium — {price}/month',
+  pu_later: 'Maybe later',
+  sm_title: '🔥 Your streak',
+  sm_current_streak: 'Current streak',
+  sm_best_record: 'Best record',
+  sm_last_visit: 'Last visit',
+  sm_last_14_days: 'Last 14 days',
+  sm_freeze_title: '🧊 Streak freeze',
+  sm_freeze_desc: 'Protects your streak on days you don\'t go out. Available with YUMIA Plus.',
+  sm_upgrade_to_plus: 'Upgrade to Plus →',
+  sm_freeze_active_title: '🧊 Freeze active',
+  sm_freeze_active_desc: 'Your streak is protected. You can miss a day without losing it.',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4912,6 +4938,19 @@ const ES: Record<TranslationKey, string> = {
   ve_delete_selected_text: '🗑️ Eliminar texto seleccionado',
   ve_text_placeholder: 'Tu texto…',
   ve_add: 'Añadir',
+  pu_title: 'Pásate a Premium',
+  pu_cta: 'Pásate a Premium — {price}/mes',
+  pu_later: 'Quizás más tarde',
+  sm_title: '🔥 Tu racha',
+  sm_current_streak: 'Racha actual',
+  sm_best_record: 'Mejor récord',
+  sm_last_visit: 'Última visita',
+  sm_last_14_days: 'Últimos 14 días',
+  sm_freeze_title: '🧊 Congelar racha',
+  sm_freeze_desc: 'Protege tu racha los días que no sales. Disponible con YUMIA Plus.',
+  sm_upgrade_to_plus: 'Pasar a Plus →',
+  sm_freeze_active_title: '🧊 Congelación activa',
+  sm_freeze_active_desc: 'Tu racha está protegida. Puedes fallar un día sin perderla.',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -6545,6 +6584,19 @@ const PT: Record<TranslationKey, string> = {
   ve_delete_selected_text: '🗑️ Excluir texto selecionado',
   ve_text_placeholder: 'Seu texto…',
   ve_add: 'Adicionar',
+  pu_title: 'Torne-se Premium',
+  pu_cta: 'Torne-se Premium — {price}/mês',
+  pu_later: 'Talvez mais tarde',
+  sm_title: '🔥 Sua sequência',
+  sm_current_streak: 'Sequência atual',
+  sm_best_record: 'Melhor recorde',
+  sm_last_visit: 'Última visita',
+  sm_last_14_days: 'Últimos 14 dias',
+  sm_freeze_title: '🧊 Congelar sequência',
+  sm_freeze_desc: 'Protege sua sequência nos dias em que você não sai. Disponível com o YUMIA Plus.',
+  sm_upgrade_to_plus: 'Passar para o Plus →',
+  sm_freeze_active_title: '🧊 Congelamento ativo',
+  sm_freeze_active_desc: 'Sua sequência está protegida. Você pode perder um dia sem perdê-la.',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -8178,6 +8230,19 @@ const AR: Record<TranslationKey, string> = {
   ve_delete_selected_text: '🗑️ حذف النص المحدد',
   ve_text_placeholder: 'نصك…',
   ve_add: 'إضافة',
+  pu_title: 'انتقل إلى Premium',
+  pu_cta: 'انتقل إلى Premium — {price}/شهريًا',
+  pu_later: 'ربما لاحقًا',
+  sm_title: '🔥 سلسلتك',
+  sm_current_streak: 'السلسلة الحالية',
+  sm_best_record: 'أفضل رقم قياسي',
+  sm_last_visit: 'آخر زيارة',
+  sm_last_14_days: 'آخر 14 يومًا',
+  sm_freeze_title: '🧊 تجميد السلسلة',
+  sm_freeze_desc: 'يحمي سلسلتك في الأيام التي لا تخرج فيها. متاح مع YUMIA Plus.',
+  sm_upgrade_to_plus: 'الترقية إلى Plus ←',
+  sm_freeze_active_title: '🧊 التجميد نشط',
+  sm_freeze_active_desc: 'سلسلتك محمية. يمكنك تفويت يوم دون أن تفقدها.',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

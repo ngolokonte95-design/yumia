@@ -1,6 +1,8 @@
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
+import { PLUS_PRICE_EUR } from '@yumia/shared';
 
 const PREMIUM_PURPLE = '#7C3AED';
 
@@ -17,6 +19,7 @@ interface Props {
  */
 export function PremiumUpsellModal({ visible, message, onClose }: Props) {
   const router = useRouter();
+  const { t } = useI18n();
 
   function goPremium() {
     onClose();
@@ -31,14 +34,14 @@ export function PremiumUpsellModal({ visible, message, onClose }: Props) {
           <View style={styles.crownCircle}>
             <Text style={styles.crown}>👑</Text>
           </View>
-          <Text style={styles.title}>Passe en Premium</Text>
+          <Text style={styles.title}>{t('pu_title')}</Text>
           <Text style={styles.message}>{message}</Text>
 
           <Pressable style={styles.primaryBtn} onPress={goPremium}>
-            <Text style={styles.primaryText}>Passer en Premium — 2.99€/mois</Text>
+            <Text style={styles.primaryText}>{t('pu_cta').replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`)}</Text>
           </Pressable>
           <Pressable style={styles.secondaryBtn} onPress={onClose}>
-            <Text style={styles.secondaryText}>Peut-être plus tard</Text>
+            <Text style={styles.secondaryText}>{t('pu_later')}</Text>
           </Pressable>
         </Pressable>
       </Pressable>
