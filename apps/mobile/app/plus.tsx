@@ -26,24 +26,26 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { buyPackage, fetchOfferings, packageForTier, restorePurchases } from '../lib/purchases';
 import { PlanBadgeIcon } from '../components/Avatar';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
 type PaidTier = 'plus' | 'gold' | 'diamond';
 
-const FEATURES = [
-  { emoji: '🧊', title: 'Freeze de streak', desc: 'Conserve ton streak même si tu rates un jour.' },
-  { emoji: '🔥', title: 'Tendances en avant-première', desc: 'Accède aux lieux tendance 24h avant tout le monde.' },
-  { emoji: '❤️‍🔥', title: 'Compatibilité illimitée', desc: 'Scores de compatibilité pour tous les lieux, pas seulement le Top 3.' },
-  { emoji: '🗺️', title: 'Carte premium', desc: 'Carte heatmap de tes univers préférés autour de toi.' },
-  { emoji: '📊', title: 'Stats avancées', desc: 'Analyse détaillée de ton Passeport : dépenses, univers, XP.' },
-  { emoji: '🤖', title: 'IA sans limite', desc: 'Mini-chat IA illimité sur chaque lieu — pas de quota journalier.' },
-  { emoji: '🎭', title: 'Modes exclusifs', desc: 'Accès au mode Solo romantique et surprise de luxe.' },
-  { emoji: '📍', title: 'Listes illimitées', desc: 'Crée autant de listes de lieux sauvegardés que tu veux.' },
+const FEATURES: { emoji: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
+  { emoji: '🧊', titleKey: 'plus_feat_streak_title', descKey: 'plus_feat_streak_desc' },
+  { emoji: '🔥', titleKey: 'plus_feat_trends_title', descKey: 'plus_feat_trends_desc' },
+  { emoji: '❤️‍🔥', titleKey: 'plus_feat_compat_title', descKey: 'plus_feat_compat_desc' },
+  { emoji: '🗺️', titleKey: 'plus_feat_map_title', descKey: 'plus_feat_map_desc' },
+  { emoji: '📊', titleKey: 'plus_feat_stats_title', descKey: 'plus_feat_stats_desc' },
+  { emoji: '🤖', titleKey: 'plus_feat_ai_title', descKey: 'plus_feat_ai_desc' },
+  { emoji: '🎭', titleKey: 'plus_feat_modes_title', descKey: 'plus_feat_modes_desc' },
+  { emoji: '📍', titleKey: 'plus_feat_lists_title', descKey: 'plus_feat_lists_desc' },
 ];
 
-const TIER_META: Record<PaidTier, { label: string; tagline: string; badge: PaidTier; popular?: boolean }> = {
-  plus: { label: 'YUMIA Plus', tagline: 'Débloque toutes les fonctionnalités, limites modérées.', badge: 'plus' },
-  gold: { label: 'YUMIA Gold', tagline: 'Limites bien plus hautes, pour les explorateurs assidus.', badge: 'gold', popular: true },
-  diamond: { label: 'YUMIA Diamond', tagline: 'Aucune limite, l\'expérience YUMIA sans compromis.', badge: 'diamond' },
+const TIER_META: Record<PaidTier, { label: string; taglineKey: TranslationKey; badge: PaidTier; popular?: boolean }> = {
+  plus: { label: 'YUMIA Plus', taglineKey: 'plus_tier_plus_tagline', badge: 'plus' },
+  gold: { label: 'YUMIA Gold', taglineKey: 'plus_tier_gold_tagline', badge: 'gold', popular: true },
+  diamond: { label: 'YUMIA Diamond', taglineKey: 'plus_tier_diamond_tagline', badge: 'diamond' },
 };
 
 const TIERS: PaidTier[] = ['plus', 'gold', 'diamond'];
@@ -52,6 +54,7 @@ export default function PlusScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, reloadUser } = useAuth();
+  const { t } = useI18n();
   const [selectedTier, setSelectedTier] = useState<PaidTier>('gold');
   const [loading, setLoading] = useState(false);
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
@@ -69,14 +72,14 @@ export default function PlusScreen() {
       const hasPaid = await restorePurchases();
       if (hasPaid) {
         await reloadUser();
-        Alert.alert('Abonnement restauré !', 'Ton abonnement YUMIA est maintenant actif sur ce compte.', [
-          { text: 'Super !', onPress: () => router.back() },
+        Alert.alert(t('plus_restore_success_title'), t('plus_restore_success_body'), [
+          { text: t('plus_great'), onPress: () => router.back() },
         ]);
       } else {
-        Alert.alert('Aucun achat trouvé', 'Aucun abonnement YUMIA actif n\'a été trouvé pour ce compte.');
+        Alert.alert(t('plus_restore_none_title'), t('plus_restore_none_body'));
       }
     } catch {
-      Alert.alert('Erreur', 'Impossible de restaurer les achats. Réessaie plus tard.');
+      Alert.alert(t('plus_error'), t('plus_restore_error'));
     } finally {
       setLoading(false);
     }
@@ -86,9 +89,9 @@ export default function PlusScreen() {
     const pkg = packageForTier(offerings, selectedTier);
     if (!pkg) {
       Alert.alert(
-        '🚀 Bientôt disponible !',
-        `YUMIA ${TIER_META[selectedTier].label} arrive très bientôt. Tu seras notifié dès le lancement.`,
-        [{ text: 'Super !' }],
+        t('plus_coming_soon_title'),
+        t('plus_coming_soon_body').replace('{tier}', TIER_META[selectedTier].label),
+        [{ text: t('plus_great') }],
       );
       return;
     }
@@ -96,13 +99,13 @@ export default function PlusScreen() {
     try {
       await buyPackage(pkg);
       await reloadUser();
-      Alert.alert(`Bienvenue dans ${TIER_META[selectedTier].label} !`, 'Ton abonnement est maintenant actif.', [
-        { text: "C'est parti !", onPress: () => router.back() },
+      Alert.alert(t('plus_welcome_title').replace('{tier}', TIER_META[selectedTier].label), t('plus_welcome_body'), [
+        { text: t('plus_lets_go'), onPress: () => router.back() },
       ]);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Achat annulé.';
+      const msg = err instanceof Error ? err.message : t('plus_purchase_cancelled');
       if (!msg.includes('cancelled') && !msg.includes('cancel')) {
-        Alert.alert('Erreur', msg);
+        Alert.alert(t('plus_error'), msg);
       }
     } finally {
       setLoading(false);
@@ -120,20 +123,20 @@ export default function PlusScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.badge}>✨ YUMIA+</Text>
-        <Text style={styles.heroTitle}>Passe à l'expérience{'\n'}complète</Text>
+        <Text style={styles.badge}>{t('plus_badge')}</Text>
+        <Text style={styles.heroTitle}>{t('plus_hero_title')}</Text>
         <Text style={styles.heroSub}>
-          Débloque tout le potentiel de YUMIA pour explorer sans limites.
+          {t('plus_hero_sub')}
         </Text>
       </View>
 
       {/* Fonctionnalités communes aux 3 paliers */}
       <View style={styles.featuresGrid}>
         {FEATURES.map((f) => (
-          <View key={f.title} style={styles.featureCard}>
+          <View key={f.titleKey} style={styles.featureCard}>
             <Text style={styles.featureEmoji}>{f.emoji}</Text>
-            <Text style={styles.featureTitle}>{f.title}</Text>
-            <Text style={styles.featureDesc}>{f.desc}</Text>
+            <Text style={styles.featureTitle}>{t(f.titleKey)}</Text>
+            <Text style={styles.featureDesc}>{t(f.descKey)}</Text>
           </View>
         ))}
       </View>
@@ -141,7 +144,7 @@ export default function PlusScreen() {
       {/* Sélection du palier */}
       {!isPaid ? (
         <View style={styles.pricingSection}>
-          <Text style={styles.pricingTitle}>Choisis ta formule</Text>
+          <Text style={styles.pricingTitle}>{t('plus_choose_plan')}</Text>
 
           <View style={styles.plans}>
             {TIERS.map((tier) => {
@@ -157,7 +160,7 @@ export default function PlusScreen() {
                 >
                   {meta.popular ? (
                     <View style={styles.saveBadge}>
-                      <Text style={styles.saveBadgeText}>PLUS POPULAIRE</Text>
+                      <Text style={styles.saveBadgeText}>{t('plus_most_popular')}</Text>
                     </View>
                   ) : null}
                   <View style={[styles.planRadio, isSelected && styles.planRadioSelected]}>
@@ -168,10 +171,10 @@ export default function PlusScreen() {
                     <Text style={[styles.planLabel, isSelected && styles.planLabelSelected]}>
                       {meta.label}
                     </Text>
-                    <Text style={styles.planTagline} numberOfLines={2}>{meta.tagline}</Text>
+                    <Text style={styles.planTagline} numberOfLines={2}>{t(meta.taglineKey)}</Text>
                   </View>
                   <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
-                    {priceStr}{'\n'}<Text style={styles.planPer}>/mois</Text>
+                    {priceStr}{'\n'}<Text style={styles.planPer}>{t('plus_per_month')}</Text>
                   </Text>
                 </Pressable>
               );
@@ -186,26 +189,25 @@ export default function PlusScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.ctaText}>✨ Commencer {TIER_META[selectedTier].label}</Text>
+              <Text style={styles.ctaText}>{t('plus_cta_start').replace('{tier}', TIER_META[selectedTier].label)}</Text>
             )}
           </Pressable>
 
           <Text style={styles.legal}>
-            Résiliation possible à tout moment depuis les paramètres de ton compte.
-            Prix affichés TTC. Facturation via l'App Store / Google Play.
+            {t('plus_legal')}
           </Text>
 
           <Pressable onPress={handleRestore} disabled={loading} style={styles.restoreBtn}>
-            <Text style={styles.restoreText}>Restaurer les achats</Text>
+            <Text style={styles.restoreText}>{t('plus_restore_purchases')}</Text>
           </Pressable>
         </View>
       ) : (
         <View style={styles.alreadyPlusBox}>
           <PlanBadgeIcon plan={currentPlan as PaidTier} size={48} />
           <Text style={styles.alreadyPlusTitle}>
-            Tu es déjà {TIER_META[currentPlan as PaidTier]?.label ?? 'abonné'} !
+            {t('plus_already_title').replace('{tier}', TIER_META[currentPlan as PaidTier]?.label ?? t('plus_already_subscriber'))}
           </Text>
-          <Text style={styles.alreadyPlusSub}>Toutes les fonctionnalités premium de ton palier sont actives.</Text>
+          <Text style={styles.alreadyPlusSub}>{t('plus_already_sub')}</Text>
         </View>
       )}
     </ScrollView>
