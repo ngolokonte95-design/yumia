@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -19,6 +20,7 @@ export default function ArchiveScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [tab, setTab] = useState<'archived' | 'drafts'>('archived');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,26 +39,26 @@ export default function ArchiveScreen() {
     if (!accessToken) return;
     const h = { Authorization: `Bearer ${accessToken}` };
     if (tab === 'archived') {
-      Alert.alert(post.caption ?? 'Publication archivée', undefined, [
-        { text: 'Annuler', style: 'cancel' },
+      Alert.alert(post.caption ?? t('ar_archived_post_default'), undefined, [
+        { text: t('ar_cancel'), style: 'cancel' },
         {
-          text: 'Restaurer sur le profil',
+          text: t('ar_restore_to_profile'),
           onPress: async () => { await fetch(`${API}/posts/${post.id}/archive`, { method: 'POST', headers: h }); void load(); },
         },
         {
-          text: 'Supprimer', style: 'destructive',
+          text: t('ar_delete'), style: 'destructive',
           onPress: async () => { await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: h }); void load(); },
         },
       ]);
     } else {
-      Alert.alert(post.caption ?? 'Brouillon', undefined, [
-        { text: 'Annuler', style: 'cancel' },
+      Alert.alert(post.caption ?? t('ar_draft_default'), undefined, [
+        { text: t('ar_cancel'), style: 'cancel' },
         {
-          text: 'Publier maintenant',
+          text: t('ar_publish_now'),
           onPress: async () => { await fetch(`${API}/posts/${post.id}/publish`, { method: 'POST', headers: h }); void load(); },
         },
         {
-          text: 'Supprimer', style: 'destructive',
+          text: t('ar_delete'), style: 'destructive',
           onPress: async () => { await fetch(`${API}/posts/${post.id}`, { method: 'DELETE', headers: h }); void load(); },
         },
       ]);
@@ -67,15 +69,15 @@ export default function ArchiveScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Archivés & brouillons</Text>
+        <Text style={styles.title}>{t('ar_title')}</Text>
         <View style={{ width: 30 }} />
       </View>
 
       <View style={styles.tabs}>
-        {(['archived', 'drafts'] as const).map((t) => (
-          <Pressable key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
-            <Text style={[styles.tabTxt, tab === t && styles.tabTxtActive]}>
-              {t === 'archived' ? '📁 Archivés' : '📝 Brouillons'}
+        {(['archived', 'drafts'] as const).map((tabKey) => (
+          <Pressable key={tabKey} style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]} onPress={() => setTab(tabKey)}>
+            <Text style={[styles.tabTxt, tab === tabKey && styles.tabTxtActive]}>
+              {tabKey === 'archived' ? t('ar_tab_archived') : t('ar_tab_drafts')}
             </Text>
           </Pressable>
         ))}
@@ -103,8 +105,8 @@ export default function ArchiveScreen() {
               <Text style={{ fontSize: 44, marginBottom: 10 }}>{tab === 'archived' ? '📁' : '📝'}</Text>
               <Text style={styles.emptyTxt}>
                 {tab === 'archived'
-                  ? 'Aucun post archivé.\nAppui long sur un post de ton profil → Archiver.'
-                  : 'Aucun brouillon.\nDans « Nouvelle publication », choisis « Enregistrer comme brouillon ».'}
+                  ? t('ar_empty_archived')
+                  : t('ar_empty_drafts')}
               </Text>
             </View>
           }

@@ -1315,6 +1315,17 @@ const FR = {
   bl_empty_title: 'Aucun compte bloqué',
   bl_empty_text: 'Les comptes que vous bloquez apparaîtront ici.',
   bl_unblock: 'Débloquer',
+  ar_archived_post_default: 'Publication archivée',
+  ar_cancel: 'Annuler',
+  ar_restore_to_profile: 'Restaurer sur le profil',
+  ar_delete: 'Supprimer',
+  ar_draft_default: 'Brouillon',
+  ar_publish_now: 'Publier maintenant',
+  ar_title: 'Archivés & brouillons',
+  ar_tab_archived: '📁 Archivés',
+  ar_tab_drafts: '📝 Brouillons',
+  ar_empty_archived: 'Aucun post archivé.\nAppui long sur un post de ton profil → Archiver.',
+  ar_empty_drafts: 'Aucun brouillon.\nDans « Nouvelle publication », choisis « Enregistrer comme brouillon ».',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2617,6 +2628,17 @@ const EN: Record<TranslationKey, string> = {
   bl_empty_title: 'No blocked accounts',
   bl_empty_text: 'Accounts you block will appear here.',
   bl_unblock: 'Unblock',
+  ar_archived_post_default: 'Archived post',
+  ar_cancel: 'Cancel',
+  ar_restore_to_profile: 'Restore to profile',
+  ar_delete: 'Delete',
+  ar_draft_default: 'Draft',
+  ar_publish_now: 'Publish now',
+  ar_title: 'Archived & drafts',
+  ar_tab_archived: '📁 Archived',
+  ar_tab_drafts: '📝 Drafts',
+  ar_empty_archived: 'No archived posts.\nLong-press a post on your profile → Archive.',
+  ar_empty_drafts: 'No drafts.\nIn "New post", choose "Save as draft".',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3919,6 +3941,17 @@ const ES: Record<TranslationKey, string> = {
   bl_empty_title: 'Sin cuentas bloqueadas',
   bl_empty_text: 'Las cuentas que bloquees aparecerán aquí.',
   bl_unblock: 'Desbloquear',
+  ar_archived_post_default: 'Publicación archivada',
+  ar_cancel: 'Cancelar',
+  ar_restore_to_profile: 'Restaurar al perfil',
+  ar_delete: 'Eliminar',
+  ar_draft_default: 'Borrador',
+  ar_publish_now: 'Publicar ahora',
+  ar_title: 'Archivados y borradores',
+  ar_tab_archived: '📁 Archivados',
+  ar_tab_drafts: '📝 Borradores',
+  ar_empty_archived: 'Sin publicaciones archivadas.\nMantén pulsada una publicación de tu perfil → Archivar.',
+  ar_empty_drafts: 'Sin borradores.\nEn «Nueva publicación», elige «Guardar como borrador».',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5221,6 +5254,17 @@ const PT: Record<TranslationKey, string> = {
   bl_empty_title: 'Nenhuma conta bloqueada',
   bl_empty_text: 'As contas que você bloquear aparecerão aqui.',
   bl_unblock: 'Desbloquear',
+  ar_archived_post_default: 'Publicação arquivada',
+  ar_cancel: 'Cancelar',
+  ar_restore_to_profile: 'Restaurar no perfil',
+  ar_delete: 'Excluir',
+  ar_draft_default: 'Rascunho',
+  ar_publish_now: 'Publicar agora',
+  ar_title: 'Arquivados e rascunhos',
+  ar_tab_archived: '📁 Arquivados',
+  ar_tab_drafts: '📝 Rascunhos',
+  ar_empty_archived: 'Nenhuma publicação arquivada.\nPressione e segure uma publicação no seu perfil → Arquivar.',
+  ar_empty_drafts: 'Nenhum rascunho.\nEm "Nova publicação", escolha "Salvar como rascunho".',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6523,6 +6567,17 @@ const AR: Record<TranslationKey, string> = {
   bl_empty_title: 'لا حسابات محظورة',
   bl_empty_text: 'ستظهر هنا الحسابات التي تحظرها.',
   bl_unblock: 'إلغاء الحظر',
+  ar_archived_post_default: 'منشور مؤرشف',
+  ar_cancel: 'إلغاء',
+  ar_restore_to_profile: 'استعادة إلى الملف الشخصي',
+  ar_delete: 'حذف',
+  ar_draft_default: 'مسودة',
+  ar_publish_now: 'نشر الآن',
+  ar_title: 'المؤرشف والمسودات',
+  ar_tab_archived: '📁 مؤرشف',
+  ar_tab_drafts: '📝 مسودات',
+  ar_empty_archived: 'لا توجد منشورات مؤرشفة.\nاضغط مطولاً على منشور في ملفك الشخصي ← أرشفة.',
+  ar_empty_drafts: 'لا توجد مسودات.\nفي "منشور جديد"، اختر "حفظ كمسودة".',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
