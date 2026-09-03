@@ -98,10 +98,10 @@ export default function CreatePostScreen() {
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
-      throw new Error(`Upload média échoué (HTTP ${res.status}). ${txt.slice(0, 160)}`);
+      throw new Error(t('postcreate_upload_failed').replace('{status}', String(res.status)).replace('{detail}', txt.slice(0, 160)));
     }
     return await res.json() as { url: string; thumbnailUrl?: string };
-  }, [accessToken]);
+  }, [accessToken, t]);
 
   const hasMedia = mode === 'photo' ? images.length > 0 : !!videoUri;
 

@@ -1476,6 +1476,7 @@ const FR = {
   visits_count: '{n} lieu{s} exploré{s2}',
   visits_empty_title: 'Aucune visite pour l\'instant',
   visits_empty_sub: 'Dis « J\'y suis allé » sur un lieu pour le voir ici.',
+  postcreate_upload_failed: 'Échec de l\'upload média (HTTP {status}). {detail}',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2939,6 +2940,7 @@ const EN: Record<TranslationKey, string> = {
   visits_count: '{n} place{s} explored',
   visits_empty_title: 'No visits yet',
   visits_empty_sub: 'Tap "I\'ve been here" on a place to see it here.',
+  postcreate_upload_failed: 'Media upload failed (HTTP {status}). {detail}',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4402,6 +4404,7 @@ const ES: Record<TranslationKey, string> = {
   visits_count: '{n} lugar{s} explorado{s2}',
   visits_empty_title: 'Aún no hay visitas',
   visits_empty_sub: 'Toca «Estuve aquí» en un lugar para verlo aquí.',
+  postcreate_upload_failed: 'Error al subir el archivo (HTTP {status}). {detail}',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5865,6 +5868,7 @@ const PT: Record<TranslationKey, string> = {
   visits_count: '{n} lugar{s} explorado{s2}',
   visits_empty_title: 'Nenhuma visita ainda',
   visits_empty_sub: 'Toque em "Estive aqui" em um lugar para vê-lo aqui.',
+  postcreate_upload_failed: 'Falha no upload da mídia (HTTP {status}). {detail}',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7328,6 +7332,7 @@ const AR: Record<TranslationKey, string> = {
   visits_count: '{n} مكان مُستكشف',
   visits_empty_title: 'لا توجد زيارات بعد',
   visits_empty_sub: 'اضغط "لقد ذهبت إلى هناك" على مكان لرؤيته هنا.',
+  postcreate_upload_failed: 'فشل رفع الوسائط (HTTP {status}). {detail}',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
