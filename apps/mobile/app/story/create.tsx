@@ -11,6 +11,7 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
 import { PostVideo } from '../../components/PostVideo';
+import { useI18n } from '../../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -19,6 +20,7 @@ export default function CreateStoryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ uri?: string; mediaType?: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [uri, setUri] = useState<string | null>(params.uri ?? null);
   const [type, setType] = useState<'photo' | 'video'>(params.mediaType === 'video' ? 'video' : 'photo');
   const [caption, setCaption] = useState('');
@@ -29,10 +31,10 @@ export default function CreateStoryScreen() {
   const [closeFriendsOnly, setCloseFriendsOnly] = useState(false);
   const [pollEnabled, setPollEnabled] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
-  const [pollOptA, setPollOptA] = useState('Oui');
-  const [pollOptB, setPollOptB] = useState('Non');
+  const [pollOptA, setPollOptA] = useState(t('sc_poll_yes'));
+  const [pollOptB, setPollOptB] = useState(t('sc_poll_no'));
   const [questionEnabled, setQuestionEnabled] = useState(false);
-  const [questionText, setQuestionText] = useState('Pose-moi une question !');
+  const [questionText, setQuestionText] = useState(t('sc_ask_me_prompt'));
   const [selectedMusic, setSelectedMusic] = useState<MusicTrack | null>(null);
   const [musicModalVisible, setMusicModalVisible] = useState(false);
 
@@ -52,14 +54,14 @@ export default function CreateStoryScreen() {
   };
 
   const publish = async () => {
-    if (!uri || !accessToken) { Alert.alert('Sélectionne une photo ou une vidéo'); return; }
+    if (!uri || !accessToken) { Alert.alert(t('sc_select_media')); return; }
     setLoading(true);
     try {
       const mediaUrl = await feedApi.uploadMedia(accessToken, uri);
 
       const stickers: StorySticker[] = [];
       if (pollEnabled && pollQuestion.trim()) {
-        stickers.push({ kind: 'poll', x: 50, y: 62, question: pollQuestion.trim(), options: [pollOptA.trim() || 'Oui', pollOptB.trim() || 'Non'] });
+        stickers.push({ kind: 'poll', x: 50, y: 62, question: pollQuestion.trim(), options: [pollOptA.trim() || t('sc_poll_yes'), pollOptB.trim() || t('sc_poll_no')] });
       }
       if (questionEnabled && questionText.trim()) {
         stickers.push({ kind: 'question', x: 50, y: 40, question: questionText.trim() });
@@ -82,17 +84,17 @@ export default function CreateStoryScreen() {
       });
       if (!res.ok) {
         const txt = await res.text().catch(() => '');
-        Alert.alert('Erreur', `Publication de la story échouée (HTTP ${res.status}). ${txt.slice(0, 200)}`);
+        Alert.alert(t('sc_error'), t('sc_story_publish_failed').replace('{status}', String(res.status)).replace('{detail}', txt.slice(0, 200)));
         return;
       }
 
       if (pinToProfile) {
-        await feedApi.createHighlight(accessToken, highlightTitle.trim() || 'À la une', [{ mediaUrl, type, caption: caption.trim() || undefined }]);
+        await feedApi.createHighlight(accessToken, highlightTitle.trim() || t('sc_highlight_default'), [{ mediaUrl, type, caption: caption.trim() || undefined }]);
       }
 
       router.back();
     } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : 'Échec de la publication.');
+      Alert.alert(t('sc_error'), err instanceof Error ? err.message : t('sc_publish_failed_generic'));
     } finally {
       setLoading(false);
     }
@@ -101,10 +103,10 @@ export default function CreateStoryScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.cancel}>Annuler</Text></Pressable>
-        <Text style={styles.title}>Nouvelle story</Text>
+        <Pressable onPress={() => router.back()}><Text style={styles.cancel}>{t('sc_cancel')}</Text></Pressable>
+        <Text style={styles.title}>{t('sc_title')}</Text>
         <Pressable onPress={publish} disabled={!uri || loading} style={[styles.shareBtn, (!uri || loading) && styles.shareBtnDisabled]}>
-          {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.shareBtnText}>Publier</Text>}
+          {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.shareBtnText}>{t('sc_publish')}</Text>}
         </Pressable>
       </View>
 
@@ -118,7 +120,7 @@ export default function CreateStoryScreen() {
               ? <PostVideo uri={uri} style={styles.preview} />
               : <Image source={{ uri }} style={styles.preview} />}
             <Pressable style={styles.changeBtn} onPress={() => setUri(null)}>
-              <Text style={styles.changeTxt}>Changer</Text>
+              <Text style={styles.changeTxt}>{t('sc_change')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -126,17 +128,17 @@ export default function CreateStoryScreen() {
             {/* Caméra — en avant, pleine largeur */}
             <Pressable style={styles.cameraBox} onPress={openCamera}>
               <Text style={styles.pickEmoji}>📷</Text>
-              <Text style={styles.pickLabel}>Ouvrir la caméra</Text>
-              <Text style={styles.pickHint}>Photo · Vidéo · Reel</Text>
+              <Text style={styles.pickLabel}>{t('sc_open_camera')}</Text>
+              <Text style={styles.pickHint}>{t('sc_camera_hint')}</Text>
             </Pressable>
             <View style={styles.pickRow}>
               <Pressable style={styles.pickBox} onPress={() => pick('photo')}>
                 <Text style={styles.pickEmoji}>🖼️</Text>
-                <Text style={styles.pickLabel}>Photo</Text>
+                <Text style={styles.pickLabel}>{t('sc_photo')}</Text>
               </Pressable>
               <Pressable style={styles.pickBox} onPress={() => pick('video')}>
                 <Text style={styles.pickEmoji}>🎬</Text>
-                <Text style={styles.pickLabel}>Vidéo</Text>
+                <Text style={styles.pickLabel}>{t('sc_video')}</Text>
               </Pressable>
             </View>
           </View>
@@ -144,7 +146,7 @@ export default function CreateStoryScreen() {
 
         <TextInput
           style={styles.caption}
-          placeholder="Ajouter une légende (optionnel)..."
+          placeholder={t('sc_caption_placeholder')}
           placeholderTextColor={colors.textMuted}
           value={caption}
           onChangeText={setCaption}
@@ -160,7 +162,7 @@ export default function CreateStoryScreen() {
               <Text style={styles.musicArtist} numberOfLines={1}>{selectedMusic.artist} · {selectedMusic.durationMs / 1000}s</Text>
             </View>
             <Pressable onPress={() => setMusicModalVisible(true)} style={styles.musicChangeBtn}>
-              <Text style={styles.musicChangeTxt}>Modifier</Text>
+              <Text style={styles.musicChangeTxt}>{t('sc_modify')}</Text>
             </Pressable>
             <Pressable onPress={() => setSelectedMusic(null)}>
               <Text style={{ color: colors.textMuted, fontSize: 18, paddingLeft: 4 }}>✕</Text>
@@ -169,7 +171,7 @@ export default function CreateStoryScreen() {
         ) : (
           <Pressable style={styles.musicRow} onPress={() => setMusicModalVisible(true)}>
             <Text style={{ fontSize: 20 }}>🎵</Text>
-            <Text style={styles.musicPlaceholder}>Ajouter une musique</Text>
+            <Text style={styles.musicPlaceholder}>{t('sc_add_music')}</Text>
             <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
           </Pressable>
         )}
@@ -177,15 +179,15 @@ export default function CreateStoryScreen() {
         {/* À la une */}
         <View style={styles.pinRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>📌 Enregistrer à la une</Text>
-            <Text style={styles.pinHint}>Garde cette story sur ton profil après 24h</Text>
+            <Text style={styles.pinTitle}>{t('sc_pin_title')}</Text>
+            <Text style={styles.pinHint}>{t('sc_pin_hint')}</Text>
           </View>
           <Switch value={pinToProfile} onValueChange={setPinToProfile} trackColor={{ true: colors.brand }} />
         </View>
         {pinToProfile && (
           <TextInput
             style={styles.caption}
-            placeholder="Nom de la story à la une (ex: Voyages)"
+            placeholder={t('sc_highlight_name_placeholder')}
             placeholderTextColor={colors.textMuted}
             value={highlightTitle}
             onChangeText={setHighlightTitle}
@@ -196,8 +198,8 @@ export default function CreateStoryScreen() {
         {/* Amis proches */}
         <View style={styles.pinRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>🟢 Amis proches uniquement</Text>
-            <Text style={styles.pinHint}>Seuls tes amis proches verront cette story</Text>
+            <Text style={styles.pinTitle}>{t('sc_close_friends_title')}</Text>
+            <Text style={styles.pinHint}>{t('sc_close_friends_hint')}</Text>
           </View>
           <Switch value={closeFriendsOnly} onValueChange={setCloseFriendsOnly} trackColor={{ true: '#2BB673' }} />
         </View>
@@ -205,8 +207,8 @@ export default function CreateStoryScreen() {
         {/* Sticker sondage */}
         <View style={styles.pinRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>📊 Ajouter un sondage</Text>
-            <Text style={styles.pinHint}>Tes abonnés votent directement dans la story</Text>
+            <Text style={styles.pinTitle}>{t('sc_poll_title')}</Text>
+            <Text style={styles.pinHint}>{t('sc_poll_hint')}</Text>
           </View>
           <Switch value={pollEnabled} onValueChange={setPollEnabled} trackColor={{ true: colors.brand }} />
         </View>
@@ -214,7 +216,7 @@ export default function CreateStoryScreen() {
           <View style={{ gap: 8, marginBottom: spacing.md }}>
             <TextInput
               style={[styles.caption, { marginBottom: 0 }]}
-              placeholder="Ta question (ex: On y va ce soir ?)"
+              placeholder={t('sc_poll_question_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={pollQuestion}
               onChangeText={setPollQuestion}
@@ -223,7 +225,7 @@ export default function CreateStoryScreen() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TextInput
                 style={[styles.caption, { flex: 1, marginBottom: 0 }]}
-                placeholder="Option 1"
+                placeholder={t('sc_poll_option_1')}
                 placeholderTextColor={colors.textMuted}
                 value={pollOptA}
                 onChangeText={setPollOptA}
@@ -231,7 +233,7 @@ export default function CreateStoryScreen() {
               />
               <TextInput
                 style={[styles.caption, { flex: 1, marginBottom: 0 }]}
-                placeholder="Option 2"
+                placeholder={t('sc_poll_option_2')}
                 placeholderTextColor={colors.textMuted}
                 value={pollOptB}
                 onChangeText={setPollOptB}
@@ -244,15 +246,15 @@ export default function CreateStoryScreen() {
         {/* Sticker question */}
         <View style={styles.pinRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>💬 Boîte à questions</Text>
-            <Text style={styles.pinHint}>Tes abonnés te répondent en message privé</Text>
+            <Text style={styles.pinTitle}>{t('sc_question_box_title')}</Text>
+            <Text style={styles.pinHint}>{t('sc_question_box_hint')}</Text>
           </View>
           <Switch value={questionEnabled} onValueChange={setQuestionEnabled} trackColor={{ true: colors.brand }} />
         </View>
         {questionEnabled && (
           <TextInput
             style={styles.caption}
-            placeholder="Ton invite (ex: Pose-moi une question !)"
+            placeholder={t('sc_question_prompt_placeholder')}
             placeholderTextColor={colors.textMuted}
             value={questionText}
             onChangeText={setQuestionText}
