@@ -164,7 +164,7 @@ export default function ChatListScreen() {
                       <Text style={styles.convName}>
                         {name}{isGroup && item.participantsCount ? `  ·  ${item.participantsCount}` : ''}
                       </Text>
-                      {!isGroup && <PlanBadgeIcon plan={item.otherUser?.plan} size={18} />}
+                      {!isGroup && <PlanBadgeIcon plan={item.otherUser?.plan} size={32} />}
                     </View>
                     <Text style={styles.convTime}>{formatAgo(item.updatedAt)}</Text>
                   </View>

@@ -262,7 +262,7 @@ export default function PostDetailScreen() {
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={styles.authorName}>{post.user?.displayName}</Text>
-              <PlanBadgeIcon plan={post.user?.plan} size={20} />
+              <PlanBadgeIcon plan={post.user?.plan} size={34} />
             </View>
             {post.place && <Text style={styles.placeName}>📍 {post.place.name}</Text>}
           </View>
@@ -425,7 +425,7 @@ function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike:
           <Text style={styles.commentUser}>
             {c.user?.displayName}{c.pinned ? '  📌' : ''}
           </Text>
-          <PlanBadgeIcon plan={c.user?.plan} size={16} />
+          <PlanBadgeIcon plan={c.user?.plan} size={28} />
         </View>
         <Text style={styles.commentText}>{c.content}</Text>
         <View style={styles.commentActions}>

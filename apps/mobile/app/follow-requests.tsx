@@ -84,7 +84,7 @@ export default function FollowRequestsScreen() {
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.requester.id}` as never)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={styles.name}>{item.requester.displayName}</Text>
-                    <PlanBadgeIcon plan={item.requester.plan} size={18} />
+                    <PlanBadgeIcon plan={item.requester.plan} size={32} />
                   </View>
                   {item.requester.bio ? <Text style={styles.bio} numberOfLines={1}>{item.requester.bio}</Text> : null}
                 </Pressable>

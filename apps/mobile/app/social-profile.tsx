@@ -10,6 +10,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { feedApi, type StoryHighlight } from '../lib/feed-api';
 import { VideoThumb } from '../components/VideoThumb';
+import { PlanBadgeIcon } from '../components/Avatar';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -213,7 +214,10 @@ export default function SocialProfileScreen() {
 
       {/* Nom + bio */}
       <View style={styles.bioSection}>
-        <Text style={styles.displayName}>{displayName}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.displayName}>{displayName}</Text>
+          <PlanBadgeIcon plan={user?.plan} size={30} />
+        </View>
         {bio ? <Text style={styles.bioText}>{bio}</Text> : null}
       </View>
 

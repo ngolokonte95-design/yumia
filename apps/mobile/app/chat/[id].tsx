@@ -430,7 +430,7 @@ export default function ChatRoomScreen() {
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.partnerName}>{partner?.displayName ?? '...'}</Text>
-              <PlanBadgeIcon plan={partner?.plan} size={16} />
+              <PlanBadgeIcon plan={partner?.plan} size={28} />
             </View>
             {e2eActive && <Text style={styles.encLabel}>🔐 Chiffré</Text>}
           </View>

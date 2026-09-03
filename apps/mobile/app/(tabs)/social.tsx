@@ -130,7 +130,7 @@ function StoriesBar({
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <Text style={styles.storyName} numberOfLines={1}>{group.user.displayName.split(' ')[0]}</Text>
-            <PlanBadgeIcon plan={group.user.plan} size={12} />
+            <PlanBadgeIcon plan={group.user.plan} size={22} />
           </View>
         </Pressable>
       ))}
@@ -244,7 +244,7 @@ function PostCard({
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={styles.postAuthorName}>{item.user?.displayName ?? 'Utilisateur'}</Text>
-            <PlanBadgeIcon plan={item.user?.plan} size={18} />
+            <PlanBadgeIcon plan={item.user?.plan} size={32} />
           </View>
           {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
         </View>
@@ -794,7 +794,7 @@ export default function SocialTab() {
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={styles.userName}>{item.displayName}</Text>
-                    <PlanBadgeIcon plan={item.plan} size={18} />
+                    <PlanBadgeIcon plan={item.plan} size={32} />
                   </View>
                   {item.bio ? <Text style={styles.userBio} numberOfLines={1}>{item.bio}</Text> : null}
                 </View>
@@ -873,7 +873,7 @@ export default function SocialTab() {
                   <View style={styles.encounterInfo}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Text style={styles.encounterName}>{item.otherUser?.displayName}</Text>
-                      <PlanBadgeIcon plan={item.otherUser?.plan} size={18} />
+                      <PlanBadgeIcon plan={item.otherUser?.plan} size={32} />
                     </View>
                     <Text style={styles.encounterPlace}>📍 {item.place?.name ?? '?'}</Text>
                     <Text style={styles.encounterTime}>⚡ Croisé il y a {formatAgo(item.seenAt)}</Text>
@@ -917,7 +917,7 @@ export default function SocialTab() {
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Text style={styles.userName}>{item.displayName}</Text>
-                        <PlanBadgeIcon plan={item.plan} size={18} />
+                        <PlanBadgeIcon plan={item.plan} size={32} />
                       </View>
                       {item.bio ? <Text style={styles.userBio} numberOfLines={1}>{item.bio}</Text> : null}
                     </View>

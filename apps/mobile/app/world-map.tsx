@@ -127,7 +127,7 @@ export default function WorldMapScreen() {
               <View style={styles.callout}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <Text style={styles.calloutName}>{u.displayName}</Text>
-                  <PlanBadgeIcon plan={u.plan} size={16} />
+                  <PlanBadgeIcon plan={u.plan} size={28} />
                 </View>
                 {u.bio && <Text style={styles.calloutBio} numberOfLines={2}>{u.bio}</Text>}
                 <Text style={styles.calloutAction}>Voir le profil →</Text>

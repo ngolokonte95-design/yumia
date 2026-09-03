@@ -163,7 +163,7 @@ export default function PlusScreen() {
                   <View style={[styles.planRadio, isSelected && styles.planRadioSelected]}>
                     {isSelected ? <View style={styles.planRadioDot} /> : null}
                   </View>
-                  <PlanBadgeIcon plan={meta.badge} size={28} />
+                  <PlanBadgeIcon plan={meta.badge} size={36} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.planLabel, isSelected && styles.planLabelSelected]}>
                       {meta.label}
@@ -201,7 +201,7 @@ export default function PlusScreen() {
         </View>
       ) : (
         <View style={styles.alreadyPlusBox}>
-          <PlanBadgeIcon plan={currentPlan as PaidTier} size={40} />
+          <PlanBadgeIcon plan={currentPlan as PaidTier} size={48} />
           <Text style={styles.alreadyPlusTitle}>
             Tu es déjà {TIER_META[currentPlan as PaidTier]?.label ?? 'abonné'} !
           </Text>

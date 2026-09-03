@@ -192,7 +192,7 @@ function ProfileCard({ profile }: { profile: Profile }) {
       <View style={cardStyles.info}>
         <View style={cardStyles.nameRow}>
           <Text style={cardStyles.name}>{profile.displayName}</Text>
-          <PlanBadgeIcon plan={profile.plan} size={22} />
+          <PlanBadgeIcon plan={profile.plan} size={36} />
           <Text style={cardStyles.level}>Niv. {profile.level}</Text>
         </View>
         {(profile.gender || profile.birthYear) && (

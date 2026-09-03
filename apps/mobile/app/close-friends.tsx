@@ -128,7 +128,7 @@ export default function CloseFriendsScreen() {
                 <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.id}` as never)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={styles.name}>{item.displayName}</Text>
-                    <PlanBadgeIcon plan={item.plan} size={18} />
+                    <PlanBadgeIcon plan={item.plan} size={32} />
                   </View>
                   {item.bio ? <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text> : null}
                 </Pressable>

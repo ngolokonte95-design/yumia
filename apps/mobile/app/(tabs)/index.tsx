@@ -5,6 +5,7 @@ import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { YumiaLogo } from '../../components/YumiaLogo';
+import { PlanBadgeIcon } from '../../components/Avatar';
 import { useLocation } from '../../lib/useLocation';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
@@ -95,7 +96,10 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.greetingRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>{greetTitle}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.greeting}>{greetTitle}</Text>
+              <PlanBadgeIcon plan={user?.plan} size={30} />
+            </View>
             <Text style={styles.subGreeting}>
               {city ? `📍 ${city} · ` : ''}{greetSub}
             </Text>

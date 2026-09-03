@@ -210,7 +210,7 @@ export default function ExplorerScreen() {
                 />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <Text style={styles.peopleName} numberOfLines={1}>{u.displayName}</Text>
-                  <PlanBadgeIcon plan={u.plan} size={16} />
+                  <PlanBadgeIcon plan={u.plan} size={28} />
                 </View>
                 {u.bio ? <Text style={styles.peopleBio} numberOfLines={2}>{u.bio}</Text> : null}
                 <Text style={styles.peopleLevel}>Niv. {u.level}</Text>
