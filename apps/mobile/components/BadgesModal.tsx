@@ -25,15 +25,15 @@ export function BadgesModal({ visible, onClose, earned }: Props) {
       <Pressable style={styles.overlay} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <Text style={styles.title}>🏅 Tes badges</Text>
+        <Text style={styles.title}>{t('bm_title')}</Text>
         <Text style={styles.subtitle}>
-          {earned.length} / {BADGES.length} débloqués
+          {t('bm_unlocked_count').replace('{n}', String(earned.length)).replace('{total}', String(BADGES.length))}
         </Text>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.grid}>
           {earnedBadges.length > 0 ? (
             <>
-              <Text style={styles.sectionLabel}>Obtenus</Text>
+              <Text style={styles.sectionLabel}>{t('bm_obtained')}</Text>
               <View style={styles.badgeGrid}>
                 {earnedBadges.map((b) => {
                   const meta = BADGE_META[b];
@@ -51,7 +51,7 @@ export function BadgesModal({ visible, onClose, earned }: Props) {
 
           {lockedBadges.length > 0 ? (
             <>
-              <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>À débloquer</Text>
+              <Text style={[styles.sectionLabel, { marginTop: spacing.md }]}>{t('bm_to_unlock')}</Text>
               <View style={styles.badgeGrid}>
                 {lockedBadges.map((b) => {
                   const meta = BADGE_META[b];
@@ -69,7 +69,7 @@ export function BadgesModal({ visible, onClose, earned }: Props) {
         </ScrollView>
 
         <Pressable style={styles.closeBtn} onPress={onClose}>
-          <Text style={styles.closeBtnText}>Fermer</Text>
+          <Text style={styles.closeBtnText}>{t('close')}</Text>
         </Pressable>
       </View>
     </Modal>

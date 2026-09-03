@@ -7,6 +7,9 @@ import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../theme/tokens';
 import { captureException } from '../lib/sentry';
+import { useAuthSafe } from '../lib/auth-context';
+import { TRANSLATIONS, type TranslationKey } from '../lib/translations';
+import { DEFAULT_LOCALE } from '@yumia/shared';
 
 interface Props {
   children: ReactNode;
@@ -15,6 +18,30 @@ interface Props {
 interface State {
   hasError: boolean;
   message: string;
+}
+
+/**
+ * Écran de repli, en composant fonctionnel séparé pour pouvoir lire la
+ * locale — via `useAuthSafe` (jamais de throw, même si AuthProvider a
+ * lui-même planté avant ErrorBoundary, qui l'englobe) plutôt que le hook
+ * `useI18n` habituel qui planterait dans ce cas précis.
+ */
+function ErrorFallback({ onReset }: { onReset: () => void }) {
+  const auth = useAuthSafe();
+  const locale = (auth?.user?.locale ?? DEFAULT_LOCALE) as string;
+  const dict = TRANSLATIONS[locale] ?? TRANSLATIONS['fr'];
+  const t = (key: TranslationKey) => dict[key] ?? key;
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.emoji}>😞</Text>
+      <Text style={styles.title}>{t('eb_title')}</Text>
+      <Text style={styles.body}>{t('eb_body')}</Text>
+      <Pressable style={styles.btn} onPress={onReset}>
+        <Text style={styles.btnText}>{t('eb_retry')}</Text>
+      </Pressable>
+    </View>
+  );
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -36,18 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.hasError) return this.props.children;
 
-    return (
-      <View style={styles.container}>
-        <Text style={styles.emoji}>😞</Text>
-        <Text style={styles.title}>Quelque chose s'est mal passé</Text>
-        <Text style={styles.body}>
-          YUMIA a rencontré une erreur inattendue. Appuie sur le bouton ci-dessous pour relancer.
-        </Text>
-        <Pressable style={styles.btn} onPress={this.handleReset}>
-          <Text style={styles.btnText}>Réessayer</Text>
-        </Pressable>
-      </View>
-    );
+    return <ErrorFallback onReset={this.handleReset} />;
   }
 }
 

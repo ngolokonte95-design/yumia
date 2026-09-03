@@ -4,6 +4,7 @@
  */
 import { Modal, View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
 import type { PassportVisit } from '../lib/usePassportStats';
 
 interface Props {
@@ -42,6 +43,7 @@ function buildCountries(visits: PassportVisit[]): CountryEntry[] {
 }
 
 export function CountriesModal({ visible, onClose, visits }: Props) {
+  const { t } = useI18n();
   const countries = buildCountries(visits);
 
   return (
@@ -49,13 +51,13 @@ export function CountriesModal({ visible, onClose, visits }: Props) {
       <Pressable style={styles.overlay} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <Text style={styles.title}>🌍 Pays explorés</Text>
-        <Text style={styles.subtitle}>{countries.length} pays</Text>
+        <Text style={styles.title}>{t('cm_title')}</Text>
+        <Text style={styles.subtitle}>{t('cm_country_count').replace('{n}', String(countries.length))}</Text>
 
         {countries.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>🌐</Text>
-            <Text style={styles.emptyText}>Commence à explorer le monde !</Text>
+            <Text style={styles.emptyText}>{t('cm_empty')}</Text>
           </View>
         ) : (
           <FlatList
@@ -78,7 +80,7 @@ export function CountriesModal({ visible, onClose, visits }: Props) {
         )}
 
         <Pressable style={styles.closeBtn} onPress={onClose}>
-          <Text style={styles.closeBtnText}>Fermer</Text>
+          <Text style={styles.closeBtnText}>{t('close')}</Text>
         </Pressable>
       </View>
     </Modal>

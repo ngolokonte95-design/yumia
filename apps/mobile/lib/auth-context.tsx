@@ -242,3 +242,13 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth doit être utilisé dans <AuthProvider>.');
   return ctx;
 }
+
+/**
+ * Variante sans throw — renvoie `null` hors de <AuthProvider> au lieu de
+ * planter. Réservée aux quelques endroits qui doivent rester rendables même
+ * quand AuthProvider n'est pas monté (ex. ErrorBoundary, qui l'englobe et
+ * doit pouvoir afficher son propre écran de repli si AuthProvider plante).
+ */
+export function useAuthSafe(): AuthContextValue | null {
+  return useContext(AuthContext);
+}

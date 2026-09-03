@@ -1477,6 +1477,16 @@ const FR = {
   visits_empty_title: 'Aucune visite pour l\'instant',
   visits_empty_sub: 'Dis « J\'y suis allé » sur un lieu pour le voir ici.',
   postcreate_upload_failed: 'Échec de l\'upload média (HTTP {status}). {detail}',
+  bm_title: '🏅 Tes badges',
+  bm_unlocked_count: '{n} / {total} débloqués',
+  bm_obtained: 'Obtenus',
+  bm_to_unlock: 'À débloquer',
+  cm_title: '🌍 Pays explorés',
+  cm_country_count: '{n} pays',
+  cm_empty: 'Commence à explorer le monde !',
+  eb_title: 'Quelque chose s\'est mal passé',
+  eb_body: 'YUMIA a rencontré une erreur inattendue. Appuie sur le bouton ci-dessous pour relancer.',
+  eb_retry: 'Réessayer',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2941,6 +2951,16 @@ const EN: Record<TranslationKey, string> = {
   visits_empty_title: 'No visits yet',
   visits_empty_sub: 'Tap "I\'ve been here" on a place to see it here.',
   postcreate_upload_failed: 'Media upload failed (HTTP {status}). {detail}',
+  bm_title: '🏅 Your badges',
+  bm_unlocked_count: '{n} / {total} unlocked',
+  bm_obtained: 'Earned',
+  bm_to_unlock: 'To unlock',
+  cm_title: '🌍 Countries explored',
+  cm_country_count: '{n} countries',
+  cm_empty: 'Start exploring the world!',
+  eb_title: 'Something went wrong',
+  eb_body: 'YUMIA ran into an unexpected error. Tap the button below to restart.',
+  eb_retry: 'Try again',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4405,6 +4425,16 @@ const ES: Record<TranslationKey, string> = {
   visits_empty_title: 'Aún no hay visitas',
   visits_empty_sub: 'Toca «Estuve aquí» en un lugar para verlo aquí.',
   postcreate_upload_failed: 'Error al subir el archivo (HTTP {status}). {detail}',
+  bm_title: '🏅 Tus insignias',
+  bm_unlocked_count: '{n} / {total} desbloqueadas',
+  bm_obtained: 'Obtenidas',
+  bm_to_unlock: 'Por desbloquear',
+  cm_title: '🌍 Países explorados',
+  cm_country_count: '{n} países',
+  cm_empty: '¡Empieza a explorar el mundo!',
+  eb_title: 'Algo salió mal',
+  eb_body: 'YUMIA encontró un error inesperado. Toca el botón de abajo para reiniciar.',
+  eb_retry: 'Reintentar',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5869,6 +5899,16 @@ const PT: Record<TranslationKey, string> = {
   visits_empty_title: 'Nenhuma visita ainda',
   visits_empty_sub: 'Toque em "Estive aqui" em um lugar para vê-lo aqui.',
   postcreate_upload_failed: 'Falha no upload da mídia (HTTP {status}). {detail}',
+  bm_title: '🏅 Seus emblemas',
+  bm_unlocked_count: '{n} / {total} desbloqueados',
+  bm_obtained: 'Obtidos',
+  bm_to_unlock: 'Para desbloquear',
+  cm_title: '🌍 Países explorados',
+  cm_country_count: '{n} países',
+  cm_empty: 'Comece a explorar o mundo!',
+  eb_title: 'Algo deu errado',
+  eb_body: 'O YUMIA encontrou um erro inesperado. Toque no botão abaixo para reiniciar.',
+  eb_retry: 'Tentar novamente',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7333,6 +7373,16 @@ const AR: Record<TranslationKey, string> = {
   visits_empty_title: 'لا توجد زيارات بعد',
   visits_empty_sub: 'اضغط "لقد ذهبت إلى هناك" على مكان لرؤيته هنا.',
   postcreate_upload_failed: 'فشل رفع الوسائط (HTTP {status}). {detail}',
+  bm_title: '🏅 أوسمتك',
+  bm_unlocked_count: '{n} / {total} مفتوح',
+  bm_obtained: 'محقّقة',
+  bm_to_unlock: 'للفتح',
+  cm_title: '🌍 الدول المستكشَفة',
+  cm_country_count: '{n} دولة',
+  cm_empty: 'ابدأ في استكشاف العالم!',
+  eb_title: 'حدث خطأ ما',
+  eb_body: 'واجه YUMIA خطأً غير متوقع. اضغط على الزر أدناه لإعادة التشغيل.',
+  eb_retry: 'إعادة المحاولة',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
