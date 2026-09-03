@@ -1453,6 +1453,14 @@ const FR = {
   passport_freeze_error_generic: 'Impossible d\'utiliser le freeze.',
   passport_xp_toward: 'vers',
   passport_freezes_available: 'freeze{s} disponible{s2}',
+  social_user_fallback: 'Utilisateur',
+  social_see_comments: 'Voir les {n} commentaires',
+  social_delete_error: 'Impossible de supprimer ({detail})',
+  social_menu_my_profile: '👤 Mon profil',
+  social_menu_map: '🗺️ Carte',
+  social_menu_meetups: '🌃 Meetups',
+  social_group_fallback: 'Groupe',
+  social_error_title: 'Erreur',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2893,6 +2901,14 @@ const EN: Record<TranslationKey, string> = {
   passport_freeze_error_generic: 'Unable to use the freeze.',
   passport_xp_toward: 'toward',
   passport_freezes_available: 'freeze{s} available',
+  social_user_fallback: 'User',
+  social_see_comments: 'See all {n} comments',
+  social_delete_error: 'Unable to delete ({detail})',
+  social_menu_my_profile: '👤 My profile',
+  social_menu_map: '🗺️ Map',
+  social_menu_meetups: '🌃 Meetups',
+  social_group_fallback: 'Group',
+  social_error_title: 'Error',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4333,6 +4349,14 @@ const ES: Record<TranslationKey, string> = {
   passport_freeze_error_generic: 'No se pudo usar el freeze.',
   passport_xp_toward: 'hacia',
   passport_freezes_available: 'freeze{s} disponible{s2}',
+  social_user_fallback: 'Usuario',
+  social_see_comments: 'Ver los {n} comentarios',
+  social_delete_error: 'No se pudo eliminar ({detail})',
+  social_menu_my_profile: '👤 Mi perfil',
+  social_menu_map: '🗺️ Mapa',
+  social_menu_meetups: '🌃 Meetups',
+  social_group_fallback: 'Grupo',
+  social_error_title: 'Error',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5773,6 +5797,14 @@ const PT: Record<TranslationKey, string> = {
   passport_freeze_error_generic: 'Não foi possível usar o freeze.',
   passport_xp_toward: 'em direção a',
   passport_freezes_available: 'freeze{s} disponível{s2}',
+  social_user_fallback: 'Usuário',
+  social_see_comments: 'Ver os {n} comentários',
+  social_delete_error: 'Não foi possível excluir ({detail})',
+  social_menu_my_profile: '👤 Meu perfil',
+  social_menu_map: '🗺️ Mapa',
+  social_menu_meetups: '🌃 Meetups',
+  social_group_fallback: 'Grupo',
+  social_error_title: 'Erro',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7213,6 +7245,14 @@ const AR: Record<TranslationKey, string> = {
   passport_freeze_error_generic: 'تعذر استخدام التجميد.',
   passport_xp_toward: 'نحو',
   passport_freezes_available: 'تجميد{s} متاح',
+  social_user_fallback: 'مستخدم',
+  social_see_comments: 'عرض التعليقات ({n})',
+  social_delete_error: 'تعذر الحذف ({detail})',
+  social_menu_my_profile: '👤 ملفي الشخصي',
+  social_menu_map: '🗺️ الخريطة',
+  social_menu_meetups: '🌃 لقاءات',
+  social_group_fallback: 'مجموعة',
+  social_error_title: 'خطأ',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

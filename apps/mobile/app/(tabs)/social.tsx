@@ -249,7 +249,7 @@ function PostCard({
         />
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={styles.postAuthorName}>{item.user?.displayName ?? 'Utilisateur'}</Text>
+            <Text style={styles.postAuthorName}>{item.user?.displayName ?? tr('social_user_fallback')}</Text>
             <PlanBadgeIcon plan={item.user?.plan} size={32} />
           </View>
           {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
@@ -382,7 +382,7 @@ function PostCard({
       ) : null}
       {item.commentsCount > 0 ? (
         <Pressable onPress={() => onComment(item.id)}>
-          <Text style={styles.postComments}>Voir les {item.commentsCount} commentaires</Text>
+          <Text style={styles.postComments}>{tr('social_see_comments').replace('{n}', String(item.commentsCount))}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -547,7 +547,7 @@ export default function SocialTab() {
       setFollowingPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      Alert.alert('Erreur', `Impossible de supprimer (${detail})`);
+      Alert.alert(t('social_error_title'), t('social_delete_error').replace('{detail}', detail));
     }
   }, [accessToken]);
 
@@ -757,17 +757,17 @@ export default function SocialTab() {
       <View style={styles.header}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.headerActions}>
           <Pressable onPress={() => router.push('/social-profile')} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>👤 Mon profil</Text>
+            <Text style={styles.headerBtnText}>{t('social_menu_my_profile')}</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/discover-people')} style={[styles.headerBtn, styles.headerBtnRow]}>
             <LollipopIcon size={14} />
             <Text style={styles.headerBtnText}>{t('social_menu_tind')}</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/nearby-users')} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>🗺️ Carte</Text>
+            <Text style={styles.headerBtnText}>{t('social_menu_map')}</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/meetup')} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>🌃 Meetups</Text>
+            <Text style={styles.headerBtnText}>{t('social_menu_meetups')}</Text>
           </Pressable>
         </ScrollView>
       </View>
@@ -959,7 +959,7 @@ export default function SocialTab() {
               style={{ maxHeight: 320 }}
               ListEmptyComponent={<Text style={styles.shareEmpty}>{t('social_no_conversations')}</Text>}
               renderItem={({ item: conv }) => {
-                const name = conv.isGroup ? (conv.title ?? 'Groupe') : (conv.otherUser?.displayName ?? '?');
+                const name = conv.isGroup ? (conv.title ?? t('social_group_fallback')) : (conv.otherUser?.displayName ?? '?');
                 return (
                   <Pressable style={styles.shareRow} onPress={() => void sendShare(conv.id)}>
                     {conv.otherUser?.photoUrl ? (
