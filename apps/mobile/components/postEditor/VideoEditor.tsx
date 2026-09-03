@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { MusicPickerModal, type MusicTrack } from '../MusicPicker';
 import type { PostOverlay } from '../../lib/feed-api';
+import { useI18n } from '../../lib/useI18n';
 
 const COLORS = ['#fff', '#E5484D', '#F2B705', '#2BB673', '#5C4ECC', '#000'];
 
@@ -45,6 +46,7 @@ export function VideoEditor({
   onDone: (result: VideoEditorResult) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [overlays, setOverlays] = useState<PostOverlay[]>(initial.overlays);
   const [videoMuted, setVideoMuted] = useState(initial.videoMuted);
   const [voiceUri, setVoiceUri] = useState<string | null>(initial.voiceTrackUri);
@@ -236,7 +238,7 @@ export function VideoEditor({
             </View>
           ) : (
             <Pressable onPress={done} style={styles.doneBtn}>
-              <Text style={styles.doneTxt}>Terminé</Text>
+              <Text style={styles.doneTxt}>{t('ve_done')}</Text>
             </Pressable>
           )}
         </View>
@@ -244,12 +246,12 @@ export function VideoEditor({
         {/* Barre d'icônes à droite, façon CapCut */}
         {tool !== 'draw' && (
           <View style={[styles.rail, { top: insets.top + 60 }]}>
-            <RailIcon icon="✏️" label="Texte" onPress={() => setTextInputVisible(true)} />
-            <RailIcon icon="🖊️" label="Dessin" onPress={() => setTool('draw')} />
-            <RailIcon icon="🎵" label="Musique" onPress={() => setMusicModalVisible(true)} active={!!music} />
+            <RailIcon icon="✏️" label={t('ve_rail_text')} onPress={() => setTextInputVisible(true)} />
+            <RailIcon icon="🖊️" label={t('ve_rail_draw')} onPress={() => setTool('draw')} />
+            <RailIcon icon="🎵" label={t('ve_rail_music')} onPress={() => setMusicModalVisible(true)} active={!!music} />
             <RailIcon
               icon={videoMuted ? '🔇' : '🔊'}
-              label="Son"
+              label={t('ve_rail_sound')}
               onPress={() => {
                 setVideoMuted((v) => { player.muted = !v; return !v; });
               }}
@@ -257,12 +259,12 @@ export function VideoEditor({
             />
             <RailIcon
               icon={voiceUri ? '🎙️' : '🎤'}
-              label="Voix off"
+              label={t('ve_rail_voiceover')}
               onPress={() => (isRecording ? void stopVoice() : voiceUri ? void previewVoice() : void startVoice())}
               active={!!voiceUri || isRecording}
             />
             {voiceUri && (
-              <RailIcon icon="✕" label="Retirer" onPress={() => setVoiceUri(null)} />
+              <RailIcon icon="✕" label={t('ve_rail_remove')} onPress={() => setVoiceUri(null)} />
             )}
           </View>
         )}
@@ -270,16 +272,16 @@ export function VideoEditor({
         {isRecording && (
           <View style={styles.recBanner}>
             <View style={styles.recDot} />
-            <Text style={styles.recTxt}>Enregistrement… {recSeconds}s</Text>
+            <Text style={styles.recTxt}>{t('ve_recording').replace('{s}', String(recSeconds))}</Text>
             <Pressable onPress={() => void stopVoice()} style={styles.recStop}>
-              <Text style={styles.recStopTxt}>Arrêter</Text>
+              <Text style={styles.recStopTxt}>{t('ve_stop')}</Text>
             </Pressable>
           </View>
         )}
 
         {selectedId && tool !== 'draw' && (
           <Pressable style={styles.deleteZone} onPress={() => removeOverlay(selectedId)}>
-            <Text style={styles.deleteZoneTxt}>🗑️ Supprimer le texte sélectionné</Text>
+            <Text style={styles.deleteZoneTxt}>{t('ve_delete_selected_text')}</Text>
           </Pressable>
         )}
       </View>
@@ -290,7 +292,7 @@ export function VideoEditor({
           <Pressable style={styles.textCard} onPress={() => undefined}>
             <TextInput
               style={styles.textInput}
-              placeholder="Ton texte…"
+              placeholder={t('ve_text_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={textDraft}
               onChangeText={setTextDraft}
@@ -303,7 +305,7 @@ export function VideoEditor({
               ))}
             </View>
             <Pressable style={styles.textAddBtn} onPress={addText}>
-              <Text style={styles.textAddTxt}>Ajouter</Text>
+              <Text style={styles.textAddTxt}>{t('ve_add')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>

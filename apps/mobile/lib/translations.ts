@@ -1634,6 +1634,18 @@ const FR = {
   api_timeout: 'La requête a expiré. Vérifie ta connexion.',
   api_unreachable: 'Impossible de joindre le serveur YUMIA.',
   api_request_failed: 'Requête échouée',
+  ve_done: 'Terminé',
+  ve_rail_text: 'Texte',
+  ve_rail_draw: 'Dessin',
+  ve_rail_music: 'Musique',
+  ve_rail_sound: 'Son',
+  ve_rail_voiceover: 'Voix off',
+  ve_rail_remove: 'Retirer',
+  ve_recording: 'Enregistrement… {s}s',
+  ve_stop: 'Arrêter',
+  ve_delete_selected_text: '🗑️ Supprimer le texte sélectionné',
+  ve_text_placeholder: 'Ton texte…',
+  ve_add: 'Ajouter',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -3255,6 +3267,18 @@ const EN: Record<TranslationKey, string> = {
   api_timeout: 'The request timed out. Check your connection.',
   api_unreachable: 'Unable to reach the YUMIA server.',
   api_request_failed: 'Request failed',
+  ve_done: 'Done',
+  ve_rail_text: 'Text',
+  ve_rail_draw: 'Draw',
+  ve_rail_music: 'Music',
+  ve_rail_sound: 'Sound',
+  ve_rail_voiceover: 'Voiceover',
+  ve_rail_remove: 'Remove',
+  ve_recording: 'Recording… {s}s',
+  ve_stop: 'Stop',
+  ve_delete_selected_text: '🗑️ Delete selected text',
+  ve_text_placeholder: 'Your text…',
+  ve_add: 'Add',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4876,6 +4900,18 @@ const ES: Record<TranslationKey, string> = {
   api_timeout: 'La solicitud expiró. Verifica tu conexión.',
   api_unreachable: 'No se pudo contactar con el servidor de YUMIA.',
   api_request_failed: 'Solicitud fallida',
+  ve_done: 'Listo',
+  ve_rail_text: 'Texto',
+  ve_rail_draw: 'Dibujo',
+  ve_rail_music: 'Música',
+  ve_rail_sound: 'Sonido',
+  ve_rail_voiceover: 'Voz en off',
+  ve_rail_remove: 'Quitar',
+  ve_recording: 'Grabando… {s}s',
+  ve_stop: 'Detener',
+  ve_delete_selected_text: '🗑️ Eliminar texto seleccionado',
+  ve_text_placeholder: 'Tu texto…',
+  ve_add: 'Añadir',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -6497,6 +6533,18 @@ const PT: Record<TranslationKey, string> = {
   api_timeout: 'A solicitação expirou. Verifique sua conexão.',
   api_unreachable: 'Não foi possível contatar o servidor do YUMIA.',
   api_request_failed: 'Solicitação falhou',
+  ve_done: 'Concluído',
+  ve_rail_text: 'Texto',
+  ve_rail_draw: 'Desenho',
+  ve_rail_music: 'Música',
+  ve_rail_sound: 'Som',
+  ve_rail_voiceover: 'Locução',
+  ve_rail_remove: 'Remover',
+  ve_recording: 'Gravando… {s}s',
+  ve_stop: 'Parar',
+  ve_delete_selected_text: '🗑️ Excluir texto selecionado',
+  ve_text_placeholder: 'Seu texto…',
+  ve_add: 'Adicionar',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -8118,6 +8166,18 @@ const AR: Record<TranslationKey, string> = {
   api_timeout: 'انتهت مهلة الطلب. تحقق من اتصالك.',
   api_unreachable: 'تعذر الوصول إلى خادم YUMIA.',
   api_request_failed: 'فشل الطلب',
+  ve_done: 'تم',
+  ve_rail_text: 'نص',
+  ve_rail_draw: 'رسم',
+  ve_rail_music: 'موسيقى',
+  ve_rail_sound: 'صوت',
+  ve_rail_voiceover: 'تعليق صوتي',
+  ve_rail_remove: 'إزالة',
+  ve_recording: 'جارٍ التسجيل… {s} ث',
+  ve_stop: 'إيقاف',
+  ve_delete_selected_text: '🗑️ حذف النص المحدد',
+  ve_text_placeholder: 'نصك…',
+  ve_add: 'إضافة',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
