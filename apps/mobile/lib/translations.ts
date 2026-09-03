@@ -1271,6 +1271,13 @@ const FR = {
   lb_retry: 'Réessayer',
   lb_empty_local: 'Personne n\'a exploré dans ta ville cette semaine. Sois le premier !',
   lb_empty_global: 'Aucune activité cette semaine. Lance-toi !',
+  deals_reason: '💰 Bon plan partenaire',
+  deals_load_error: 'Impossible de charger les bons plans.',
+  deals_title: '💰 Bons plans',
+  deals_subtitle: 'Réserve directement chez nos partenaires près de toi',
+  deals_retry: 'Réessayer',
+  deals_empty_title: 'Pas encore de bon plan partenaire près de toi.',
+  deals_empty_sub: 'De nouveaux partenaires arrivent bientôt — reviens vite !',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2529,6 +2536,13 @@ const EN: Record<TranslationKey, string> = {
   lb_retry: 'Try again',
   lb_empty_local: 'No one has explored in your city this week. Be the first!',
   lb_empty_global: 'No activity this week. Get started!',
+  deals_reason: '💰 Partner deal',
+  deals_load_error: 'Could not load deals.',
+  deals_title: '💰 Deals',
+  deals_subtitle: 'Book directly with our partners near you',
+  deals_retry: 'Try again',
+  deals_empty_title: 'No partner deals near you yet.',
+  deals_empty_sub: 'New partners are coming soon — check back soon!',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3787,6 +3801,13 @@ const ES: Record<TranslationKey, string> = {
   lb_retry: 'Reintentar',
   lb_empty_local: 'Nadie ha explorado en tu ciudad esta semana. ¡Sé el primero!',
   lb_empty_global: 'Sin actividad esta semana. ¡Anímate!',
+  deals_reason: '💰 Oferta de socio',
+  deals_load_error: 'No se pudieron cargar las ofertas.',
+  deals_title: '💰 Ofertas',
+  deals_subtitle: 'Reserva directamente con nuestros socios cerca de ti',
+  deals_retry: 'Reintentar',
+  deals_empty_title: 'Aún no hay ofertas de socios cerca de ti.',
+  deals_empty_sub: 'Pronto llegarán nuevos socios — ¡vuelve pronto!',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5045,6 +5066,13 @@ const PT: Record<TranslationKey, string> = {
   lb_retry: 'Tentar novamente',
   lb_empty_local: 'Ninguém explorou na sua cidade esta semana. Seja o primeiro!',
   lb_empty_global: 'Nenhuma atividade esta semana. Comece agora!',
+  deals_reason: '💰 Oferta de parceiro',
+  deals_load_error: 'Não foi possível carregar as ofertas.',
+  deals_title: '💰 Ofertas',
+  deals_subtitle: 'Reserve diretamente com nossos parceiros perto de você',
+  deals_retry: 'Tentar novamente',
+  deals_empty_title: 'Ainda não há ofertas de parceiros perto de você.',
+  deals_empty_sub: 'Novos parceiros chegando em breve — volte logo!',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6303,6 +6331,13 @@ const AR: Record<TranslationKey, string> = {
   lb_retry: 'إعادة المحاولة',
   lb_empty_local: 'لم يستكشف أحد في مدينتك هذا الأسبوع. كن الأول!',
   lb_empty_global: 'لا يوجد نشاط هذا الأسبوع. ابدأ الآن!',
+  deals_reason: '💰 عرض شريك',
+  deals_load_error: 'تعذر تحميل العروض.',
+  deals_title: '💰 عروض',
+  deals_subtitle: 'احجز مباشرة مع شركائنا بالقرب منك',
+  deals_retry: 'إعادة المحاولة',
+  deals_empty_title: 'لا توجد عروض شركاء بالقرب منك بعد.',
+  deals_empty_sub: 'شركاء جدد قادمون قريبًا — عد قريبًا!',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

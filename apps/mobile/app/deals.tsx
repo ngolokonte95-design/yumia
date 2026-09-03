@@ -20,7 +20,7 @@ import { safeMeta, placeEmoji, universeLabel } from '../lib/universeMeta';
 import { useI18n } from '../lib/useI18n';
 import { placeStore } from '../lib/place-store';
 
-function toSuggestion(place: DealPlace): Suggestion {
+function toSuggestion(place: DealPlace, reason: string): Suggestion {
   return {
     place: {
       id: place.id,
@@ -36,7 +36,7 @@ function toSuggestion(place: DealPlace): Suggestion {
     },
     compatibility: 0,
     distanceMeters: place.distanceMeters,
-    reason: '💰 Bon plan partenaire',
+    reason,
     engine: 'mood',
   };
 }
@@ -79,6 +79,7 @@ export default function DealsScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const { coords, resolving } = useLocation();
+  const { t } = useI18n();
 
   const [deals, setDeals] = useState<DealPlace[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +93,7 @@ export default function DealsScreen() {
       const data = await fetchNearbyDeals({ lat: coords.lat, lng: coords.lng, radius: 15_000 }, accessToken);
       setDeals(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de charger les bons plans.');
+      setError(e instanceof Error ? e.message : t('deals_load_error'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -103,7 +104,7 @@ export default function DealsScreen() {
   useEffect(() => { void load(); }, [load]);
 
   function openPlace(place: DealPlace) {
-    placeStore.set(toSuggestion(place));
+    placeStore.set(toSuggestion(place, t('deals_reason')));
     router.push('/place');
   }
 
@@ -114,8 +115,8 @@ export default function DealsScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>💰 Bons plans</Text>
-          <Text style={styles.subtitle}>Réserve directement chez nos partenaires près de toi</Text>
+          <Text style={styles.title}>{t('deals_title')}</Text>
+          <Text style={styles.subtitle}>{t('deals_subtitle')}</Text>
         </View>
       </View>
 
@@ -125,14 +126,14 @@ export default function DealsScreen() {
         <View style={styles.center}>
           <Text style={styles.errorText}>⚠️ {error}</Text>
           <Pressable style={styles.retryBtn} onPress={() => { setLoading(true); void load(); }}>
-            <Text style={styles.retryText}>Réessayer</Text>
+            <Text style={styles.retryText}>{t('deals_retry')}</Text>
           </Pressable>
         </View>
       ) : deals.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🔍</Text>
-          <Text style={styles.emptyText}>Pas encore de bon plan partenaire près de toi.</Text>
-          <Text style={styles.emptySubtext}>De nouveaux partenaires arrivent bientôt — reviens vite !</Text>
+          <Text style={styles.emptyText}>{t('deals_empty_title')}</Text>
+          <Text style={styles.emptySubtext}>{t('deals_empty_sub')}</Text>
         </View>
       ) : (
         <FlatList
