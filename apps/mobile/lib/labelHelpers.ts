@@ -53,3 +53,10 @@ export function itineraryMoodSub(t: T, mood: string, fallbackFr: string): string
   const translated = t(key);
   return translated === key ? fallbackFr : translated;
 }
+
+/** Condition météo (WeatherKind) — libellé traduit. */
+export function weatherKindLabel(t: T, kind: string, fallbackFr: string): string {
+  const key = `weather_kind_${kind}` as TranslationKey;
+  const translated = t(key);
+  return translated === key ? fallbackFr : translated;
+}

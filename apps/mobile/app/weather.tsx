@@ -19,6 +19,8 @@ import { useWeatherReport } from '../lib/useWeatherReport';
 import { useCitySearch } from '../lib/useCitySearch';
 import { dayMomentAt, KIND_LABEL, kindEmoji, type CitySuggestion } from '../lib/services/weather';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
+import { weatherKindLabel } from '../lib/labelHelpers';
 
 /**
  * Écran météo complet de Yumia.
@@ -30,6 +32,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 export default function WeatherScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const { coords, resolving } = useLocation();
 
   // Ville choisie par recherche — remplace la position GPS tant qu'elle est
@@ -73,7 +76,7 @@ export default function WeatherScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.brand} size="large" />
-        <Text style={styles.loadingText}>Lecture du ciel…</Text>
+        <Text style={styles.loadingText}>{t('weather_reading_sky')}</Text>
       </View>
     );
   }
@@ -82,10 +85,10 @@ export default function WeatherScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.errorEmoji}>🌫️</Text>
-        <Text style={styles.errorTitle}>Météo indisponible</Text>
-        <Text style={styles.errorText}>{error ?? 'Impossible de récupérer les conditions.'}</Text>
+        <Text style={styles.errorTitle}>{t('weather_unavailable')}</Text>
+        <Text style={styles.errorText}>{error ?? t('weather_fetch_error')}</Text>
         <PressableScale haptic onPress={() => void refresh()} style={styles.retry}>
-          <Text style={styles.retryText}>Réessayer</Text>
+          <Text style={styles.retryText}>{t('weather_retry')}</Text>
         </PressableScale>
       </View>
     );
@@ -117,7 +120,7 @@ export default function WeatherScreen() {
           <PressableScale onPress={() => router.back()} hitSlop={12} style={styles.back}>
             <Text style={styles.backIcon}>←</Text>
           </PressableScale>
-          <Text style={styles.headerTitle}>Météo</Text>
+          <Text style={styles.headerTitle}>{t('weather_title')}</Text>
           <PressableScale onPress={openSearch} hitSlop={12} style={styles.back}>
             <Text style={styles.searchIcon}>🔍</Text>
           </PressableScale>
@@ -131,12 +134,12 @@ export default function WeatherScreen() {
                 choisie, une pastille permet de revenir à sa position. */}
             <Pressable onPress={openSearch} style={styles.locationRow} hitSlop={8}>
               <Text style={styles.locationLabel} numberOfLines={1}>
-                📍 {city ? `${city.name}${city.admin1 ? `, ${city.admin1}` : ''}` : 'Ma position'}
+                📍 {city ? `${city.name}${city.admin1 ? `, ${city.admin1}` : ''}` : t('weather_my_location')}
               </Text>
             </Pressable>
             {city ? (
               <Pressable onPress={() => setCity(null)} style={styles.myLocationChip} hitSlop={8}>
-                <Text style={styles.myLocationChipText}>↩ Revenir à ma position</Text>
+                <Text style={styles.myLocationChipText}>{t('weather_back_to_my_location')}</Text>
               </Pressable>
             ) : null}
 
@@ -146,8 +149,8 @@ export default function WeatherScreen() {
               <AnimatedNumber value={current.tempC} style={styles.temp} suffix="°" />
             </View>
 
-            <Text style={styles.condition}>{KIND_LABEL[current.kind]}</Text>
-            <Text style={styles.feels}>Ressenti {current.feelsLikeC}°</Text>
+            <Text style={styles.condition}>{weatherKindLabel(t, current.kind, KIND_LABEL[current.kind])}</Text>
+            <Text style={styles.feels}>{t('weather_feels_like').replace('{temp}', String(current.feelsLikeC))}</Text>
 
             {today && (
               <Text style={styles.minmax}>
@@ -172,8 +175,7 @@ export default function WeatherScreen() {
 
         {/* Mention du fournisseur + fraîcheur de la donnée */}
         <Text style={styles.footer}>
-          {report.timezone} · Données Open-Meteo
-          {error ? ' · dernières données connues' : ''}
+          {t('weather_footer_data').replace('{tz}', report.timezone).replace('{stale}', error ? t('weather_footer_stale') : '')}
         </Text>
       </ScrollView>
 
@@ -188,7 +190,7 @@ export default function WeatherScreen() {
               <TextInput
                 ref={searchInputRef}
                 style={styles.searchInput}
-                placeholder="Cherche une ville dans le monde…"
+                placeholder={t('weather_search_placeholder')}
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 value={query}
                 onChangeText={setQuery}
@@ -198,15 +200,15 @@ export default function WeatherScreen() {
               {searching ? <ActivityIndicator size="small" color="#fff" /> : null}
             </View>
             <Pressable onPress={closeSearch} hitSlop={12} style={styles.searchCancel}>
-              <Text style={styles.searchCancelText}>Annuler</Text>
+              <Text style={styles.searchCancelText}>{t('weather_search_cancel')}</Text>
             </Pressable>
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.searchResults}>
             {!query.trim() ? (
-              <Text style={styles.searchHint}>Tape le nom d'une ville — Paris, Tokyo, São Paulo…</Text>
+              <Text style={styles.searchHint}>{t('weather_search_hint')}</Text>
             ) : results.length === 0 && !searching ? (
-              <Text style={styles.searchHint}>Aucune ville trouvée.</Text>
+              <Text style={styles.searchHint}>{t('weather_no_city_found')}</Text>
             ) : (
               results.map((c) => (
                 <Pressable key={c.id} style={styles.cityRow} onPress={() => pickCity(c)}>
