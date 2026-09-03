@@ -10,7 +10,7 @@ import { API_BASE_URL } from '../../lib/config';
 import { useI18n } from '../../lib/useI18n';
 import { usePassportStats } from '../../lib/usePassportStats';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { LocalePicker } from '../../components/LocalePicker';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { StreakModal } from '../../components/StreakModal';
@@ -78,7 +78,6 @@ export default function ProfileScreen() {
           <Avatar
             uri={photoUrl}
             size={64}
-            plan={user?.plan}
             borderWidth={photoUrl ? 2 : undefined}
             borderColor={colors.brand}
             placeholderColor={colors.brand}
@@ -86,7 +85,10 @@ export default function ProfileScreen() {
           />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{displayName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.name}>{displayName}</Text>
+            <PlanBadgeIcon plan={user?.plan} size={18} />
+          </View>
           {stats ? (
             <Text style={styles.handle}>
               {stats.level.current.emoji} {stats.level.current.titleFr}
