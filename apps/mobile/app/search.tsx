@@ -31,21 +31,22 @@ import { useSearchHistory } from '../lib/useSearchHistory';
 import { SuggestionCard } from '../components/SuggestionCard';
 import { PaywallModal } from '../components/PaywallModal';
 import type { Top3Response } from '../lib/api';
+import type { TranslationKey } from '../lib/translations';
 
-const PRICE_FILTERS = [
-  { label: 'Tous', value: undefined },
-  { label: '€', value: 1 },
-  { label: '€€', value: 2 },
-  { label: '€€€', value: 3 },
-] as const;
+const PRICE_FILTERS: { labelKey: TranslationKey; value: 1 | 2 | 3 | undefined }[] = [
+  { labelKey: 'srch_price_all', value: undefined },
+  { labelKey: 'srch_price_1', value: 1 },
+  { labelKey: 'srch_price_2', value: 2 },
+  { labelKey: 'srch_price_3', value: 3 },
+];
 
-const SUGGESTIONS_PROMPTS = [
-  '☕ Un brunch tranquille',
-  '🎨 Activité culturelle',
-  '🌿 Parc avec les enfants',
-  '🎵 Bar avec de la musique live',
-  '🍜 Resto asiatique du quartier',
-  '🌙 Sortie tardive ce soir',
+const SUGGESTIONS_PROMPT_KEYS: TranslationKey[] = [
+  'srch_prompt_brunch',
+  'srch_prompt_culture',
+  'srch_prompt_park',
+  'srch_prompt_bar',
+  'srch_prompt_asian',
+  'srch_prompt_night',
 ];
 
 export default function SearchScreen() {
@@ -86,11 +87,11 @@ export default function SearchScreen() {
       setResult(res);
       void pushHistory(trimmed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+      setError(err instanceof Error ? err.message : t('srch_generic_error'));
     } finally {
       setLoading(false);
     }
-  }, [accessToken, coords, user, pushHistory, universeFilter, maxPriceTier]);
+  }, [accessToken, coords, user, pushHistory, universeFilter, maxPriceTier, t]);
 
   function handleChip(chip: string) {
     const clean = chip.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF} ]+/gu, '').trim();
@@ -156,18 +157,18 @@ export default function SearchScreen() {
           {/* Separator */}
           <View style={styles.filterSep} />
           {/* Price chips */}
-          {PRICE_FILTERS.map(({ label, value }) => {
+          {PRICE_FILTERS.map(({ labelKey, value }) => {
             const active = maxPriceTier === value;
             return (
               <Pressable
-                key={label}
+                key={labelKey}
                 style={[styles.filterChip, active && styles.filterChipActive]}
                 onPress={() => {
                   setMaxPriceTier(value);
                   if (query.trim()) void handleSearch(query, universeFilter, value);
                 }}
               >
-                <Text style={styles.filterChipText}>{label}</Text>
+                <Text style={styles.filterChipText}>{t(labelKey)}</Text>
               </Pressable>
             );
           })}
@@ -187,9 +188,9 @@ export default function SearchScreen() {
             {history.length > 0 ? (
               <View style={styles.historySection}>
                 <View style={styles.historyHeader}>
-                  <Text style={styles.historyTitle}>Récentes</Text>
+                  <Text style={styles.historyTitle}>{t('srch_recent')}</Text>
                   <Pressable onPress={() => void clearHistory()} hitSlop={8}>
-                    <Text style={styles.clearHistory}>Effacer</Text>
+                    <Text style={styles.clearHistory}>{t('srch_clear')}</Text>
                   </Pressable>
                 </View>
                 {history.map((h) => (
@@ -206,9 +207,9 @@ export default function SearchScreen() {
             ) : null}
             <Text style={styles.hint}>{t('search_hint')}</Text>
             <View style={styles.chips}>
-              {SUGGESTIONS_PROMPTS.map((chip) => (
-                <Pressable key={chip} style={styles.chip} onPress={() => handleChip(chip)}>
-                  <Text style={styles.chipText}>{chip}</Text>
+              {SUGGESTIONS_PROMPT_KEYS.map((chipKey) => (
+                <Pressable key={chipKey} style={styles.chip} onPress={() => handleChip(t(chipKey))}>
+                  <Text style={styles.chipText}>{t(chipKey)}</Text>
                 </Pressable>
               ))}
             </View>

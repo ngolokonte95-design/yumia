@@ -1392,6 +1392,19 @@ const FR = {
   ci_note_placeholder: 'Partage une pensée...',
   ci_delete: 'Supprimer',
   ci_share: 'Partager',
+  srch_price_all: 'Tous',
+  srch_prompt_brunch: '☕ Un brunch tranquille',
+  srch_prompt_culture: '🎨 Activité culturelle',
+  srch_prompt_park: '🌿 Parc avec les enfants',
+  srch_prompt_bar: '🎵 Bar avec de la musique live',
+  srch_prompt_asian: '🍜 Resto asiatique du quartier',
+  srch_prompt_night: '🌙 Sortie tardive ce soir',
+  srch_generic_error: 'Une erreur est survenue.',
+  srch_recent: 'Récentes',
+  srch_clear: 'Effacer',
+  srch_price_1: '€',
+  srch_price_2: '€€',
+  srch_price_3: '€€€',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2771,6 +2784,19 @@ const EN: Record<TranslationKey, string> = {
   ci_note_placeholder: 'Share a thought...',
   ci_delete: 'Delete',
   ci_share: 'Share',
+  srch_price_all: 'All',
+  srch_prompt_brunch: '☕ A relaxed brunch',
+  srch_prompt_culture: '🎨 Cultural activity',
+  srch_prompt_park: '🌿 Park with the kids',
+  srch_prompt_bar: '🎵 Bar with live music',
+  srch_prompt_asian: '🍜 Local Asian restaurant',
+  srch_prompt_night: '🌙 Late outing tonight',
+  srch_generic_error: 'An error occurred.',
+  srch_recent: 'Recent',
+  srch_clear: 'Clear',
+  srch_price_1: '€',
+  srch_price_2: '€€',
+  srch_price_3: '€€€',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4150,6 +4176,19 @@ const ES: Record<TranslationKey, string> = {
   ci_note_placeholder: 'Comparte un pensamiento...',
   ci_delete: 'Eliminar',
   ci_share: 'Compartir',
+  srch_price_all: 'Todos',
+  srch_prompt_brunch: '☕ Un brunch tranquilo',
+  srch_prompt_culture: '🎨 Actividad cultural',
+  srch_prompt_park: '🌿 Parque con los niños',
+  srch_prompt_bar: '🎵 Bar con música en vivo',
+  srch_prompt_asian: '🍜 Restaurante asiático del barrio',
+  srch_prompt_night: '🌙 Salida nocturna esta noche',
+  srch_generic_error: 'Ocurrió un error.',
+  srch_recent: 'Recientes',
+  srch_clear: 'Borrar',
+  srch_price_1: '€',
+  srch_price_2: '€€',
+  srch_price_3: '€€€',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5529,6 +5568,19 @@ const PT: Record<TranslationKey, string> = {
   ci_note_placeholder: 'Compartilhe um pensamento...',
   ci_delete: 'Excluir',
   ci_share: 'Compartilhar',
+  srch_price_all: 'Todos',
+  srch_prompt_brunch: '☕ Um brunch tranquilo',
+  srch_prompt_culture: '🎨 Atividade cultural',
+  srch_prompt_park: '🌿 Parque com as crianças',
+  srch_prompt_bar: '🎵 Bar com música ao vivo',
+  srch_prompt_asian: '🍜 Restaurante asiático do bairro',
+  srch_prompt_night: '🌙 Saída noturna hoje',
+  srch_generic_error: 'Ocorreu um erro.',
+  srch_recent: 'Recentes',
+  srch_clear: 'Limpar',
+  srch_price_1: '€',
+  srch_price_2: '€€',
+  srch_price_3: '€€€',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6908,6 +6960,19 @@ const AR: Record<TranslationKey, string> = {
   ci_note_placeholder: 'شارك فكرة...',
   ci_delete: 'حذف',
   ci_share: 'مشاركة',
+  srch_price_all: 'الكل',
+  srch_prompt_brunch: '☕ فطور متأخر هادئ',
+  srch_prompt_culture: '🎨 نشاط ثقافي',
+  srch_prompt_park: '🌿 حديقة مع الأطفال',
+  srch_prompt_bar: '🎵 بار بموسيقى حية',
+  srch_prompt_asian: '🍜 مطعم آسيوي في الحي',
+  srch_prompt_night: '🌙 خرجة متأخرة الليلة',
+  srch_generic_error: 'حدث خطأ.',
+  srch_recent: 'الأخيرة',
+  srch_clear: 'مسح',
+  srch_price_1: '€',
+  srch_price_2: '€€',
+  srch_price_3: '€€€',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
