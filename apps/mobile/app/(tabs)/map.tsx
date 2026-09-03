@@ -420,7 +420,7 @@ export default function MapScreen() {
           <View style={styles.searchBox}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Cherche une ville…"
+              placeholder={t('map_search_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={cityQuery}
               onChangeText={setCityQuery}
@@ -450,11 +450,11 @@ export default function MapScreen() {
             {universe === 'cannabis' ? (
               <>
                 <CannabisIcon size={16} />
-                <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>Coffee shops</Text>
+                <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>{universeLabel(t, 'cannabis')}</Text>
               </>
             ) : (
               <Text style={styles.filterButtonText} numberOfLines={1}>
-                {universe === null ? '🗂️  Tous les univers' : `${UNIVERSE_META[universe].emoji}  ${universeLabel(t, universe)}`}
+                {universe === null ? '🗂️  ' + t('map_all_universes') : `${UNIVERSE_META[universe].emoji}  ${universeLabel(t, universe)}`}
               </Text>
             )}
             <Text style={styles.filterButtonChevron}>{filterPanelOpen ? '▲' : '▾'}</Text>
@@ -626,10 +626,10 @@ export default function MapScreen() {
               loading ? null : (
                 <Text style={styles.empty}>
                   {cityResults !== null
-                    ? `Aucun lieu trouvé pour « ${cityQuery} ». Essaie une autre ville.`
+                    ? `${t('map_no_results_city')} (${cityQuery})`
                     : tapResults !== null
-                      ? 'Aucun lieu trouvé autour de ce point.'
-                      : 'Aucun lieu dans ce rayon. Élargis ou change de filtre.'}
+                      ? t('map_no_results_point')
+                      : t('map_no_results_default')}
                 </Text>
               )
             }

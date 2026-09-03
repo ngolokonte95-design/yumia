@@ -318,6 +318,30 @@ const FR = {
   category_services: 'Services du quotidien',
   category_auto: 'Automobile',
   category_other: 'Autres',
+
+  // ---- Batch 3 : passeport / carte (généré) ----
+  passport_full_title: 'Passeport plein',
+  passport_full_visits: 'visites',
+  passport_full_sub: 'Passe en Premium pour une mémoire illimitée',
+  passport_title: 'Passeport YUMIA',
+  passport_journey_start: 'Ton aventure commence…',
+  passport_leaderboard: 'Classement',
+  passport_see_visits: 'Voir mes visites',
+  passport_protect_streak: 'Protéger mon streak',
+  passport_activity: 'Activité',
+  passport_universes_explored: 'Univers explorés',
+  passport_badges: 'Badges',
+  map_search_placeholder: 'Cherche une ville…',
+  map_all_universes: 'Tous les univers',
+  map_no_results_city: 'Aucun lieu trouvé pour cette ville. Essaie une autre ville.',
+  map_no_results_point: 'Aucun lieu trouvé autour de ce point.',
+  map_no_results_default: 'Aucun lieu dans ce rayon. Élargis ou change de filtre.',
+
+  // ---- Batch 4 : stats passeport (généré) ----
+  stat_places: 'Lieux',
+  stat_universes: 'Univers',
+  stat_countries: 'Pays',
+  stat_streak: 'Streak',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -623,6 +647,30 @@ const EN: Record<TranslationKey, string> = {
   category_services: 'Everyday Services',
   category_auto: 'Automotive',
   category_other: 'Other',
+
+  // ---- Batch 3 : passeport / carte (généré) ----
+  passport_full_title: 'Passport full',
+  passport_full_visits: 'visits',
+  passport_full_sub: 'Go Premium for unlimited memories',
+  passport_title: 'YUMIA Passport',
+  passport_journey_start: 'Your adventure begins…',
+  passport_leaderboard: 'Leaderboard',
+  passport_see_visits: 'See my visits',
+  passport_protect_streak: 'Protect my streak',
+  passport_activity: 'Activity',
+  passport_universes_explored: 'Explored universes',
+  passport_badges: 'Badges',
+  map_search_placeholder: 'Search a city…',
+  map_all_universes: 'All universes',
+  map_no_results_city: 'No places found for this city. Try another city.',
+  map_no_results_point: 'No places found around this point.',
+  map_no_results_default: 'No places in this radius. Widen or change the filter.',
+
+  // ---- Batch 4 : stats passeport (généré) ----
+  stat_places: 'Places',
+  stat_universes: 'Universes',
+  stat_countries: 'Countries',
+  stat_streak: 'Streak',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -928,6 +976,30 @@ const ES: Record<TranslationKey, string> = {
   category_services: 'Servicios Cotidianos',
   category_auto: 'Automoción',
   category_other: 'Otros',
+
+  // ---- Batch 3 : passeport / carte (généré) ----
+  passport_full_title: 'Pasaporte lleno',
+  passport_full_visits: 'visitas',
+  passport_full_sub: 'Pasa a Premium para memoria ilimitada',
+  passport_title: 'Pasaporte YUMIA',
+  passport_journey_start: 'Tu aventura comienza…',
+  passport_leaderboard: 'Clasificación',
+  passport_see_visits: 'Ver mis visitas',
+  passport_protect_streak: 'Proteger mi racha',
+  passport_activity: 'Actividad',
+  passport_universes_explored: 'Universos explorados',
+  passport_badges: 'Insignias',
+  map_search_placeholder: 'Busca una ciudad…',
+  map_all_universes: 'Todos los universos',
+  map_no_results_city: 'No se encontraron lugares para esta ciudad. Prueba otra ciudad.',
+  map_no_results_point: 'No se encontraron lugares alrededor de este punto.',
+  map_no_results_default: 'No hay lugares en este radio. Amplía o cambia el filtro.',
+
+  // ---- Batch 4 : stats passeport (généré) ----
+  stat_places: 'Lugares',
+  stat_universes: 'Universos',
+  stat_countries: 'Países',
+  stat_streak: 'Racha',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -1233,6 +1305,30 @@ const PT: Record<TranslationKey, string> = {
   category_services: 'Serviços do Dia a Dia',
   category_auto: 'Automotivo',
   category_other: 'Outros',
+
+  // ---- Batch 3 : passeport / carte (généré) ----
+  passport_full_title: 'Passaporte cheio',
+  passport_full_visits: 'visitas',
+  passport_full_sub: 'Assine o Premium para memória ilimitada',
+  passport_title: 'Passaporte YUMIA',
+  passport_journey_start: 'Sua aventura começa…',
+  passport_leaderboard: 'Classificação',
+  passport_see_visits: 'Ver minhas visitas',
+  passport_protect_streak: 'Proteger minha sequência',
+  passport_activity: 'Atividade',
+  passport_universes_explored: 'Universos explorados',
+  passport_badges: 'Emblemas',
+  map_search_placeholder: 'Busque uma cidade…',
+  map_all_universes: 'Todos os universos',
+  map_no_results_city: 'Nenhum lugar encontrado para esta cidade. Tente outra cidade.',
+  map_no_results_point: 'Nenhum lugar encontrado perto deste ponto.',
+  map_no_results_default: 'Nenhum lugar neste raio. Amplie ou mude o filtro.',
+
+  // ---- Batch 4 : stats passeport (généré) ----
+  stat_places: 'Lugares',
+  stat_universes: 'Universos',
+  stat_countries: 'Países',
+  stat_streak: 'Sequência',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -1538,6 +1634,30 @@ const AR: Record<TranslationKey, string> = {
   category_services: 'خدمات يومية',
   category_auto: 'السيارات',
   category_other: 'أخرى',
+
+  // ---- Batch 3 : passeport / carte (généré) ----
+  passport_full_title: 'جواز السفر ممتلئ',
+  passport_full_visits: 'زيارات',
+  passport_full_sub: 'اشترك في بريميوم لذاكرة غير محدودة',
+  passport_title: 'جواز سفر يوميا',
+  passport_journey_start: 'مغامرتك تبدأ…',
+  passport_leaderboard: 'لوحة المتصدرين',
+  passport_see_visits: 'عرض زياراتي',
+  passport_protect_streak: 'حماية سلسلتي',
+  passport_activity: 'النشاط',
+  passport_universes_explored: 'العوالم المستكشفة',
+  passport_badges: 'الأوسمة',
+  map_search_placeholder: 'ابحث عن مدينة…',
+  map_all_universes: 'جميع العوالم',
+  map_no_results_city: 'لم يتم العثور على أماكن لهذه المدينة. جرّب مدينة أخرى.',
+  map_no_results_point: 'لم يتم العثور على أماكن حول هذه النقطة.',
+  map_no_results_default: 'لا توجد أماكن ضمن هذا النطاق. وسّع أو غيّر الفلتر.',
+
+  // ---- Batch 4 : stats passeport (généré) ----
+  stat_places: 'الأماكن',
+  stat_universes: 'العوالم',
+  stat_countries: 'الدول',
+  stat_streak: 'السلسلة',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

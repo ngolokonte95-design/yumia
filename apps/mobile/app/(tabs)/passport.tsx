@@ -48,10 +48,10 @@ export default function PassportScreen() {
   }
 
   const statCards = [
-    { label: 'Lieux', value: String(passport?.totalVisits ?? 0) },
-    { label: 'Univers', value: String(passport?.distinctUniverses ?? 0) },
-    { label: 'Pays', value: String(passport?.distinctCountries ?? 0) },
-    { label: 'Streak', value: `${stats?.streak.current ?? 0} 🔥` },
+    { label: t('stat_places'), value: String(passport?.totalVisits ?? 0) },
+    { label: t('stat_universes'), value: String(passport?.distinctUniverses ?? 0) },
+    { label: t('stat_countries'), value: String(passport?.distinctCountries ?? 0) },
+    { label: t('stat_streak'), value: `${stats?.streak.current ?? 0} 🔥` },
   ];
 
   return (
@@ -75,8 +75,8 @@ export default function PassportScreen() {
         >
           <Text style={styles.passportFullEmoji}>👑</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.passportFullTitle}>Passeport plein ({getLimit('passportMaxEntries')} visites)</Text>
-            <Text style={styles.passportFullSub}>Passe en Premium pour une mémoire illimitée → 2.99€/mois</Text>
+            <Text style={styles.passportFullTitle}>{t('passport_full_title')} ({getLimit('passportMaxEntries')} {t('passport_full_visits')})</Text>
+            <Text style={styles.passportFullSub}>{t('passport_full_sub')} → 2.99€/mois</Text>
           </View>
           <Text style={styles.passportFullArrow}>›</Text>
         </Pressable>
@@ -85,17 +85,17 @@ export default function PassportScreen() {
       <View style={styles.section}>
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Passeport YUMIA</Text>
+            <Text style={styles.title}>{t('passport_title')}</Text>
             {level ? (
               <Text style={styles.levelLine}>
                 {level.emoji} {level.titleFr} · {stats?.totalXp} XP
               </Text>
             ) : (
-              <Text style={styles.levelLine}>Ton aventure commence…</Text>
+              <Text style={styles.levelLine}>{t('passport_journey_start')}</Text>
             )}
           </View>
           <Pressable style={styles.leaderboardBtn} onPress={() => router.push('/leaderboard')}>
-            <Text style={styles.leaderboardText}>🏆 Classement</Text>
+            <Text style={styles.leaderboardText}>🏆 {t('passport_leaderboard')}</Text>
           </Pressable>
         </View>
       </View>
@@ -141,7 +141,7 @@ export default function PassportScreen() {
       <View style={[styles.section, { marginTop: 0 }]}>
         <Pressable style={styles.historyBtn} onPress={() => router.push('/visits')}>
           <Text style={styles.historyIcon}>🗺️</Text>
-          <Text style={styles.historyLabel}>Voir mes visites</Text>
+          <Text style={styles.historyLabel}>{t('passport_see_visits')}</Text>
           <Text style={styles.historyChevron}>›</Text>
         </Pressable>
       </View>
@@ -160,7 +160,7 @@ export default function PassportScreen() {
               <>
                 <Text style={styles.freezeIcon}>🧊</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.freezeTitle}>Protéger mon streak</Text>
+                  <Text style={styles.freezeTitle}>{t('passport_protect_streak')}</Text>
                   <Text style={styles.freezeSub}>
                     {stats?.streak.freezesLeft} freeze{(stats?.streak.freezesLeft ?? 0) > 1 ? 's' : ''} disponible{(stats?.streak.freezesLeft ?? 0) > 1 ? 's' : ''}
                   </Text>
@@ -173,7 +173,7 @@ export default function PassportScreen() {
 
       {/* Heatmap d'activité (90 jours) */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Activité</Text>
+        <Text style={styles.sectionTitle}>{t('passport_activity')}</Text>
         <View style={styles.heatmapCard}>
           <ActivityHeatmap data={heatmap} />
         </View>
@@ -182,7 +182,7 @@ export default function PassportScreen() {
       {/* Universe breakdown */}
       {universeBreakdown.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Univers explorés</Text>
+          <Text style={styles.sectionTitle}>{t('passport_universes_explored')}</Text>
           <View style={styles.universeList}>
             {universeBreakdown.slice(0, 5).map((item) => (
               <UniverseBar key={item.universe} item={item} />
@@ -194,7 +194,7 @@ export default function PassportScreen() {
       {/* Badges */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          Badges · {earned.size}/{BADGES.length}
+          {t('passport_badges')} · {earned.size}/{BADGES.length}
         </Text>
         <View style={styles.badgeGrid}>
           {BADGES.map((b) => {
