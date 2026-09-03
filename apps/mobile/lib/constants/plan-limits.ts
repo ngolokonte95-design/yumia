@@ -7,6 +7,7 @@
  * usePlanLimits.ts.
  */
 import type { Plan } from '@yumia/shared';
+import type { TranslationKey } from '../translations';
 
 export const FREE_LIMITS = {
   suggestionsPerDay: 15,
@@ -36,20 +37,18 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   },
 };
 
-/** Message affiché par PremiumUpsellModal quand la limite Free est atteinte. */
-export const LIMIT_MESSAGES: Record<LimitedFeature, string> = {
-  suggestionsPerDay:
-    'Tu as utilisé tes 15 suggestions du jour. Passe en Plus pour aller beaucoup plus loin, à partir de 2.99€/mois. 👑',
-  plannerPerWeek:
-    'Tu as déjà planifié 3 soirées cette semaine. Passe en Plus pour en planifier bien plus, à partir de 2.99€/mois. 👑',
-  predictivePerWeek:
-    'Tu as utilisé tes 2 suggestions anticipées de la semaine. Passe en Plus pour que YUMIA anticipe plus souvent ta vie sociale, à partir de 2.99€/mois. 👑',
-  circleMaxMembers:
-    'Ton cercle est limité à 5 personnes. Passe en Plus pour inviter plus de proches, à partir de 2.99€/mois. 👑',
-  passportMaxEntries:
-    'Ton Passport est plein. Passe en Plus pour garder une mémoire bien plus large de tes expériences, à partir de 2.99€/mois. 👑',
-  travelCities:
-    'Le Mode Voyage gratuit est limité à 6 villes. Passe en Plus pour explorer bien plus de villes, à partir de 2.99€/mois. 👑',
+/**
+ * Clé de traduction du message affiché par PremiumUpsellModal quand la limite
+ * Free est atteinte — traduit à l'usage (usePlanLimits) pour rester dans la
+ * locale de l'utilisateur, avec {price} interpolé depuis PLUS_PRICE_EUR.
+ */
+export const LIMIT_MESSAGE_KEYS: Record<LimitedFeature, TranslationKey> = {
+  suggestionsPerDay: 'limit_suggestions_per_day',
+  plannerPerWeek: 'limit_planner_per_week',
+  predictivePerWeek: 'limit_predictive_per_week',
+  circleMaxMembers: 'limit_circle_max_members',
+  passportMaxEntries: 'limit_passport_max_entries',
+  travelCities: 'limit_travel_cities',
 };
 
 /** Période de réinitialisation d'un compteur d'usage (pour les limites temporelles). */

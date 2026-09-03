@@ -12,12 +12,14 @@ import { useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Plan } from '@yumia/shared';
 import { useAuth } from './auth-context';
+import { useI18n } from './useI18n';
 import {
   LIMITS_BY_PLAN,
-  LIMIT_MESSAGES,
+  LIMIT_MESSAGE_KEYS,
   LIMIT_PERIOD,
   type LimitedFeature,
 } from './constants/plan-limits';
+import { PLUS_PRICE_EUR } from '@yumia/shared';
 
 export interface LimitCheck {
   allowed: boolean;
@@ -56,6 +58,7 @@ async function readCount(feature: LimitedFeature, period: 'day' | 'week' | 'none
 
 export function usePlanLimits() {
   const { user } = useAuth();
+  const { t } = useI18n();
   // `isPremium` legacy conservé en repli tant que tous les comptes n'ont pas
   // encore de `plan` explicite (anciens utilisateurs Plus déjà marqués
   // isPremium avant l'ajout des paliers) — mappé sur 'plus' dans ce cas.
@@ -77,9 +80,12 @@ export function usePlanLimits() {
       const period = LIMIT_PERIOD[feature];
       const used = period === 'none' ? currentCount ?? 0 : await readCount(feature, period);
       const allowed = used < limit;
-      return { allowed, message: allowed ? '' : LIMIT_MESSAGES[feature] };
+      const message = allowed
+        ? ''
+        : t(LIMIT_MESSAGE_KEYS[feature]).replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`);
+      return { allowed, message };
     },
-    [isAdmin, getLimit],
+    [isAdmin, getLimit, t],
   );
 
   const recordUsage = useCallback(

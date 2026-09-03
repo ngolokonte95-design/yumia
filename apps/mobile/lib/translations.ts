@@ -1624,6 +1624,12 @@ const FR = {
   wxm_legend_very_poor_short: 'Très mauv.',
   wxm_attr_radar: 'Radar RainViewer',
   wxm_attr_air: 'Qualité de l\'air Open-Meteo',
+  limit_suggestions_per_day: 'Tu as utilisé tes 15 suggestions du jour. Passe en Plus pour aller beaucoup plus loin, à partir de {price}/mois. 👑',
+  limit_planner_per_week: 'Tu as déjà planifié 3 soirées cette semaine. Passe en Plus pour en planifier bien plus, à partir de {price}/mois. 👑',
+  limit_predictive_per_week: 'Tu as utilisé tes 2 suggestions anticipées de la semaine. Passe en Plus pour que YUMIA anticipe plus souvent ta vie sociale, à partir de {price}/mois. 👑',
+  limit_circle_max_members: 'Ton cercle est limité à 5 personnes. Passe en Plus pour inviter plus de proches, à partir de {price}/mois. 👑',
+  limit_passport_max_entries: 'Ton Passport est plein. Passe en Plus pour garder une mémoire bien plus large de tes expériences, à partir de {price}/mois. 👑',
+  limit_travel_cities: 'Le Mode Voyage gratuit est limité à 6 villes. Passe en Plus pour explorer bien plus de villes, à partir de {price}/mois. 👑',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -3235,6 +3241,12 @@ const EN: Record<TranslationKey, string> = {
   wxm_legend_very_poor_short: 'Very poor',
   wxm_attr_radar: 'RainViewer radar',
   wxm_attr_air: 'Open-Meteo air quality',
+  limit_suggestions_per_day: 'You\'ve used your 15 suggestions for today. Go Plus to go much further, starting at {price}/month. 👑',
+  limit_planner_per_week: 'You\'ve already planned 3 evenings this week. Go Plus to plan many more, starting at {price}/month. 👑',
+  limit_predictive_per_week: 'You\'ve used your 2 advance suggestions for the week. Go Plus so YUMIA anticipates your social life more often, starting at {price}/month. 👑',
+  limit_circle_max_members: 'Your circle is limited to 5 people. Go Plus to invite more friends, starting at {price}/month. 👑',
+  limit_passport_max_entries: 'Your Passport is full. Go Plus to keep a much larger memory of your experiences, starting at {price}/month. 👑',
+  limit_travel_cities: 'Free Travel Mode is limited to 6 cities. Go Plus to explore many more cities, starting at {price}/month. 👑',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4846,6 +4858,12 @@ const ES: Record<TranslationKey, string> = {
   wxm_legend_very_poor_short: 'Muy mala',
   wxm_attr_radar: 'Radar RainViewer',
   wxm_attr_air: 'Calidad del aire Open-Meteo',
+  limit_suggestions_per_day: 'Has usado tus 15 sugerencias del día. Pásate a Plus para ir mucho más lejos, desde {price}/mes. 👑',
+  limit_planner_per_week: 'Ya has planificado 3 noches esta semana. Pásate a Plus para planificar muchas más, desde {price}/mes. 👑',
+  limit_predictive_per_week: 'Has usado tus 2 sugerencias anticipadas de la semana. Pásate a Plus para que YUMIA anticipe tu vida social más a menudo, desde {price}/mes. 👑',
+  limit_circle_max_members: 'Tu círculo está limitado a 5 personas. Pásate a Plus para invitar a más amigos, desde {price}/mes. 👑',
+  limit_passport_max_entries: 'Tu Pasaporte está lleno. Pásate a Plus para conservar una memoria mucho más amplia de tus experiencias, desde {price}/mes. 👑',
+  limit_travel_cities: 'El Modo Viaje gratuito está limitado a 6 ciudades. Pásate a Plus para explorar muchas más ciudades, desde {price}/mes. 👑',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -6457,6 +6475,12 @@ const PT: Record<TranslationKey, string> = {
   wxm_legend_very_poor_short: 'Muito ruim',
   wxm_attr_radar: 'Radar RainViewer',
   wxm_attr_air: 'Qualidade do ar Open-Meteo',
+  limit_suggestions_per_day: 'Você usou suas 15 sugestões do dia. Passe para o Plus para ir muito mais longe, a partir de {price}/mês. 👑',
+  limit_planner_per_week: 'Você já planejou 3 noites esta semana. Passe para o Plus para planejar muito mais, a partir de {price}/mês. 👑',
+  limit_predictive_per_week: 'Você usou suas 2 sugestões antecipadas da semana. Passe para o Plus para que o YUMIA antecipe sua vida social com mais frequência, a partir de {price}/mês. 👑',
+  limit_circle_max_members: 'Seu círculo é limitado a 5 pessoas. Passe para o Plus para convidar mais amigos, a partir de {price}/mês. 👑',
+  limit_passport_max_entries: 'Seu Passaporte está cheio. Passe para o Plus para manter uma memória muito maior das suas experiências, a partir de {price}/mês. 👑',
+  limit_travel_cities: 'O Modo Viagem gratuito é limitado a 6 cidades. Passe para o Plus para explorar muito mais cidades, a partir de {price}/mês. 👑',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -8068,6 +8092,12 @@ const AR: Record<TranslationKey, string> = {
   wxm_legend_very_poor_short: 'سيئة جدًا',
   wxm_attr_radar: 'رادار RainViewer',
   wxm_attr_air: 'جودة الهواء من Open-Meteo',
+  limit_suggestions_per_day: 'لقد استخدمت اقتراحاتك الـ 15 لليوم. انتقل إلى Plus للذهاب أبعد من ذلك، ابتداءً من {price}/شهريًا. 👑',
+  limit_planner_per_week: 'لقد خططت بالفعل لـ 3 أمسيات هذا الأسبوع. انتقل إلى Plus لتخطيط المزيد، ابتداءً من {price}/شهريًا. 👑',
+  limit_predictive_per_week: 'لقد استخدمت اقتراحاتك المسبقة الـ 2 لهذا الأسبوع. انتقل إلى Plus ليتوقع YUMIA حياتك الاجتماعية أكثر، ابتداءً من {price}/شهريًا. 👑',
+  limit_circle_max_members: 'دائرتك محدودة بـ 5 أشخاص. انتقل إلى Plus لدعوة المزيد من الأصدقاء، ابتداءً من {price}/شهريًا. 👑',
+  limit_passport_max_entries: 'جواز سفرك ممتلئ. انتقل إلى Plus للاحتفاظ بذاكرة أكبر بكثير لتجاربك، ابتداءً من {price}/شهريًا. 👑',
+  limit_travel_cities: 'وضع السفر المجاني محدود بـ 6 مدن. انتقل إلى Plus لاستكشاف المزيد من المدن، ابتداءً من {price}/شهريًا. 👑',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
