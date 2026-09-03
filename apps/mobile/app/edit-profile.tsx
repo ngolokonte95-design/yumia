@@ -22,6 +22,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { uploadAvatarRequest } from '../lib/auth-api';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const LOCALES = [
   { code: 'fr', label: '🇫🇷 Français' },
@@ -37,6 +38,7 @@ export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, accessToken, updateProfile } = useAuth();
+  const { t } = useI18n();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
@@ -57,7 +59,7 @@ export default function EditProfileScreen() {
   async function handlePickAvatar() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Active l\'accès à la galerie dans les réglages.');
+      Alert.alert(t('ep_perm_denied_title'), t('ep_perm_denied_body'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -83,7 +85,7 @@ export default function EditProfileScreen() {
       await updateProfile({ displayName: displayName.trim(), bio: bio.trim() || undefined, locale });
       router.back();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de sauvegarder.');
+      setError(err instanceof Error ? err.message : t('ep_save_error'));
       setUploadingAvatar(false);
     } finally {
       setLoading(false);
@@ -93,11 +95,11 @@ export default function EditProfileScreen() {
   function handleDiscard() {
     if (!dirty) { router.back(); return; }
     Alert.alert(
-      'Annuler les modifications ?',
-      'Tes changements seront perdus.',
+      t('ep_discard_title'),
+      t('ep_discard_body'),
       [
-        { text: 'Continuer', style: 'cancel' },
-        { text: 'Annuler', style: 'destructive', onPress: () => router.back() },
+        { text: t('ep_continue'), style: 'cancel' },
+        { text: t('ep_discard_confirm'), style: 'destructive', onPress: () => router.back() },
       ],
     );
   }
@@ -119,9 +121,9 @@ export default function EditProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={handleDiscard} style={styles.navBtn}>
-            <Text style={styles.navBtnText}>Annuler</Text>
+            <Text style={styles.navBtnText}>{t('ep_cancel')}</Text>
           </Pressable>
-          <Text style={styles.title}>Modifier le profil</Text>
+          <Text style={styles.title}>{t('ep_title')}</Text>
           <Pressable
             style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
             onPress={handleSave}
@@ -129,7 +131,7 @@ export default function EditProfileScreen() {
           >
             {loading
               ? <ActivityIndicator color={colors.brand} size="small" />
-              : <Text style={[styles.saveBtnText, !canSave && styles.saveBtnTextDisabled]}>Sauvegarder</Text>
+              : <Text style={[styles.saveBtnText, !canSave && styles.saveBtnTextDisabled]}>{t('ep_save')}</Text>
             }
           </Pressable>
         </View>
@@ -159,16 +161,16 @@ export default function EditProfileScreen() {
                 </View>
               )}
             </Pressable>
-            <Text style={styles.avatarHint}>Appuie pour changer la photo</Text>
+            <Text style={styles.avatarHint}>{t('ep_avatar_hint')}</Text>
           </View>
 
           {/* Champs */}
           <View style={styles.section}>
             <View style={styles.field}>
-              <Text style={styles.label}>Nom affiché</Text>
+              <Text style={styles.label}>{t('ep_display_name')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ton prénom ou pseudo"
+                placeholder={t('ep_name_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -178,10 +180,10 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Bio</Text>
+              <Text style={styles.label}>{t('ep_bio')}</Text>
               <TextInput
                 style={[styles.input, styles.bioInput]}
-                placeholder="En quelques mots sur toi…"
+                placeholder={t('ep_bio_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={bio}
                 onChangeText={setBio}
@@ -194,17 +196,17 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t('ep_email')}</Text>
               <View style={styles.inputReadonly}>
                 <Text style={styles.inputReadonlyText}>{user?.email}</Text>
               </View>
-              <Text style={styles.fieldHint}>L'email ne peut pas être modifié.</Text>
+              <Text style={styles.fieldHint}>{t('ep_email_hint')}</Text>
             </View>
           </View>
 
           {/* Langue */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Langue</Text>
+            <Text style={styles.sectionTitle}>{t('ep_language')}</Text>
             {LOCALES.map((l) => (
               <Pressable
                 key={l.code}
