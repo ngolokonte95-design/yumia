@@ -38,8 +38,12 @@ const FLAG: Record<string, string> = {
   RU: '🇷🇺', CN: '🇨🇳', IN: '🇮🇳', XX: '🌍',
 };
 
+const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
+
 function flagOf(code: string) { return FLAG[code] ?? '🌍'; }
-function fmtDate(iso: string) { return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+function fmtDate(iso: string, locale = 'fr') {
+  return new Date(iso).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: boolean }) {
   return (
@@ -55,7 +59,7 @@ export default function AdminScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -281,7 +285,7 @@ export default function AdminScreen() {
                   </View>
                   <Text style={styles.userEmail}>{u.email}</Text>
                 </View>
-                <Text style={styles.userDate}>{fmtDate(u.createdAt)}</Text>
+                <Text style={styles.userDate}>{fmtDate(u.createdAt, locale)}</Text>
               </View>
             ))}
           </View>
