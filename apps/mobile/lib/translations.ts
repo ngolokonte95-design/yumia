@@ -1365,6 +1365,11 @@ const FR = {
   col_new_collection: 'Nouvelle collection',
   col_name_placeholder: 'Nom (ex. Restos à tester)',
   col_create: 'Créer',
+  fr_title: 'Demandes d\'abonnement',
+  fr_empty_title: 'Aucune demande en attente',
+  fr_empty_text: 'Les demandes d\'abonnement apparaîtront ici.',
+  fr_confirm: 'Confirmer',
+  fr_delete: 'Supprimer',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2717,6 +2722,11 @@ const EN: Record<TranslationKey, string> = {
   col_new_collection: 'New collection',
   col_name_placeholder: 'Name (e.g. Restaurants to try)',
   col_create: 'Create',
+  fr_title: 'Follow requests',
+  fr_empty_title: 'No pending requests',
+  fr_empty_text: 'Follow requests will appear here.',
+  fr_confirm: 'Confirm',
+  fr_delete: 'Delete',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4069,6 +4079,11 @@ const ES: Record<TranslationKey, string> = {
   col_new_collection: 'Nueva colección',
   col_name_placeholder: 'Nombre (ej. Restaurantes por probar)',
   col_create: 'Crear',
+  fr_title: 'Solicitudes de seguimiento',
+  fr_empty_title: 'Sin solicitudes pendientes',
+  fr_empty_text: 'Las solicitudes de seguimiento aparecerán aquí.',
+  fr_confirm: 'Confirmar',
+  fr_delete: 'Eliminar',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5421,6 +5436,11 @@ const PT: Record<TranslationKey, string> = {
   col_new_collection: 'Nova coleção',
   col_name_placeholder: 'Nome (ex. Restaurantes para testar)',
   col_create: 'Criar',
+  fr_title: 'Solicitações de seguidor',
+  fr_empty_title: 'Nenhuma solicitação pendente',
+  fr_empty_text: 'As solicitações de seguidor aparecerão aqui.',
+  fr_confirm: 'Confirmar',
+  fr_delete: 'Excluir',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6773,6 +6793,11 @@ const AR: Record<TranslationKey, string> = {
   col_new_collection: 'مجموعة جديدة',
   col_name_placeholder: 'الاسم (مثال: مطاعم للتجربة)',
   col_create: 'إنشاء',
+  fr_title: 'طلبات المتابعة',
+  fr_empty_title: 'لا توجد طلبات معلقة',
+  fr_empty_text: 'ستظهر طلبات المتابعة هنا.',
+  fr_confirm: 'تأكيد',
+  fr_delete: 'حذف',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

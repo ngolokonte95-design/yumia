@@ -7,6 +7,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../components/Avatar';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -20,6 +21,7 @@ export default function FollowRequestsScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [requests, setRequests] = useState<FollowRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function FollowRequestsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Demandes d'abonnement</Text>
+        <Text style={styles.title}>{t('fr_title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -65,8 +67,8 @@ export default function FollowRequestsScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>👥</Text>
-              <Text style={styles.emptyTitle}>Aucune demande en attente</Text>
-              <Text style={styles.emptyText}>Les demandes d'abonnement apparaîtront ici.</Text>
+              <Text style={styles.emptyTitle}>{t('fr_empty_title')}</Text>
+              <Text style={styles.emptyText}>{t('fr_empty_text')}</Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -93,10 +95,10 @@ export default function FollowRequestsScreen() {
                 ) : (
                   <View style={styles.btnGroup}>
                     <Pressable style={styles.acceptBtn} onPress={() => void respond(item.id, true)}>
-                      <Text style={styles.acceptTxt}>Confirmer</Text>
+                      <Text style={styles.acceptTxt}>{t('fr_confirm')}</Text>
                     </Pressable>
                     <Pressable style={styles.rejectBtn} onPress={() => void respond(item.id, false)}>
-                      <Text style={styles.rejectTxt}>Supprimer</Text>
+                      <Text style={styles.rejectTxt}>{t('fr_delete')}</Text>
                     </Pressable>
                   </View>
                 )}
