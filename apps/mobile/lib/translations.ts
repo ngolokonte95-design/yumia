@@ -1469,6 +1469,7 @@ const FR = {
   profile_share_visits: 'visites',
   profile_share_message: 'Je suis {name} sur YUMIA !\n{level}{visits}\nRejoins-moi et découvre les meilleures expériences autour de toi.',
   itin_share_header: 'Itinéraire',
+  place_share_message: '{emoji} {name} — découvert via YUMIA !\n{link}',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2925,6 +2926,7 @@ const EN: Record<TranslationKey, string> = {
   profile_share_visits: 'visits',
   profile_share_message: 'I\'m {name} on YUMIA!\n{level}{visits}\nJoin me and discover the best experiences around you.',
   itin_share_header: 'Itinerary',
+  place_share_message: '{emoji} {name} — discovered via YUMIA!\n{link}',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4381,6 +4383,7 @@ const ES: Record<TranslationKey, string> = {
   profile_share_visits: 'visitas',
   profile_share_message: '¡Soy {name} en YUMIA!\n{level}{visits}\nÚnete a mí y descubre las mejores experiencias cerca de ti.',
   itin_share_header: 'Itinerario',
+  place_share_message: '{emoji} {name} — descubierto en YUMIA!\n{link}',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5837,6 +5840,7 @@ const PT: Record<TranslationKey, string> = {
   profile_share_visits: 'visitas',
   profile_share_message: 'Eu sou {name} no YUMIA!\n{level}{visits}\nJunte-se a mim e descubra as melhores experiências ao seu redor.',
   itin_share_header: 'Roteiro',
+  place_share_message: '{emoji} {name} — descoberto via YUMIA!\n{link}',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7293,6 +7297,7 @@ const AR: Record<TranslationKey, string> = {
   profile_share_visits: 'زيارة',
   profile_share_message: 'أنا {name} على YUMIA!\n{level}{visits}\nانضم إلي واكتشف أفضل التجارب من حولك.',
   itin_share_header: 'خط سير',
+  place_share_message: '{emoji} {name} — اكتُشف عبر YUMIA!\n{link}',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
