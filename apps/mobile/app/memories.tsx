@@ -10,6 +10,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/auth-context';
 import { feedApi, type FeedPost } from '../lib/feed-api';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
+
+const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
 
 const { width: SW } = Dimensions.get('window');
 const GRID_ITEM = (SW - 4) / 3;
@@ -36,9 +40,10 @@ function isSameMonthDay(a: Date, b: Date) {
 
 // ── Carte Flashback ───────────────────────────────────────────────────────────
 function FlashbackCard({ post }: { post: FeedPost }) {
+  const { t, locale } = useI18n();
   const d = new Date(post.createdAt);
   const year = d.getFullYear();
-  const dayLabel = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  const dayLabel = d.toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { day: 'numeric', month: 'long' });
   return (
     <Pressable style={styles.flashCard}>
       {post.mediaUrls[0] ? (
@@ -50,7 +55,7 @@ function FlashbackCard({ post }: { post: FeedPost }) {
       )}
       <View style={styles.flashOverlay}>
         <View style={styles.flashBar} />
-        <Text style={styles.flashTitle}>Flashback du {dayLabel}</Text>
+        <Text style={styles.flashTitle}>{t('mem_flashback_of').replace('{day}', dayLabel)}</Text>
         <Text style={styles.flashYear}>{year}</Text>
       </View>
     </Pressable>
@@ -76,6 +81,7 @@ export default function MemoriesScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<MemTab>('accueil');
   const [myPosts, setMyPosts] = useState<FeedPost[]>([]);
   const [localMems, setLocalMems] = useState<LocalMemory[]>([]);
@@ -135,11 +141,11 @@ export default function MemoriesScreen() {
     );
   }
 
-  const TABS: { id: MemTab; label: string }[] = [
-    { id: 'accueil', label: 'Accueil' },
-    { id: 'appareil', label: 'Appareil' },
-    { id: 'ia', label: 'Yumia IA' },
-    { id: 'stories', label: 'Stories' },
+  const TABS: { id: MemTab; labelKey: TranslationKey }[] = [
+    { id: 'accueil', labelKey: 'mem_tab_home' },
+    { id: 'appareil', labelKey: 'mem_tab_device' },
+    { id: 'ia', labelKey: 'mem_tab_ai' },
+    { id: 'stories', labelKey: 'mem_tab_stories' },
   ];
 
   // ── Contenu de l'onglet "Appareil" ──────────────────────────────────────────
@@ -148,16 +154,16 @@ export default function MemoriesScreen() {
       <Pressable style={styles.galleryBanner} onPress={pickFromGallery}>
         <Text style={styles.galleryBannerIcon}>🖼️</Text>
         <View style={{ flex: 1 }}>
-          <Text style={styles.galleryBannerTitle}>Photos de la galerie</Text>
-          <Text style={styles.galleryBannerSub}>Importer depuis votre galerie</Text>
+          <Text style={styles.galleryBannerTitle}>{t('mem_gallery_photos_title')}</Text>
+          <Text style={styles.galleryBannerSub}>{t('mem_gallery_photos_sub')}</Text>
         </View>
         <Text style={styles.galleryBannerArrow}>›</Text>
       </Pressable>
       {localMems.length === 0 ? (
         <View style={styles.emptySection}>
           <Text style={{ fontSize: 40, marginBottom: 12 }}>📁</Text>
-          <Text style={styles.emptyTitle}>Aucun souvenir local</Text>
-          <Text style={styles.emptySub}>Tes photos et vidéos enregistrées depuis la caméra Yumia apparaîtront ici.</Text>
+          <Text style={styles.emptyTitle}>{t('mem_empty_local_title')}</Text>
+          <Text style={styles.emptySub}>{t('mem_empty_local_sub')}</Text>
         </View>
       ) : (
         <FlatList
@@ -183,14 +189,14 @@ export default function MemoriesScreen() {
       {/* Créer une vidéo */}
       <Pressable style={styles.createVideoBanner} onPress={() => router.push('/camera?mode=reel' as never)}>
         <Text style={styles.createVideoBannerIcon}>🎬</Text>
-        <Text style={styles.createVideoBannerTxt}>Créer une vidéo</Text>
+        <Text style={styles.createVideoBannerTxt}>{t('mem_create_video')}</Text>
         <Text style={styles.createVideoBannerArrow}>›</Text>
       </Pressable>
 
       {/* Flashbacks */}
       {flashbacks.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Flashbacks</Text>
+          <Text style={styles.sectionTitle}>{t('mem_flashbacks')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: spacing.md }}>
             {flashbacks.map((p) => <FlashbackCard key={p.id} post={p} />)}
           </ScrollView>
@@ -201,9 +207,9 @@ export default function MemoriesScreen() {
       {recentLocal.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Photos récentes de votre galerie</Text>
+            <Text style={styles.sectionTitle}>{t('mem_recent_gallery_photos')}</Text>
             <Pressable onPress={() => setActiveTab('appareil')}>
-              <Text style={styles.seeAll}>Voir tout</Text>
+              <Text style={styles.seeAll}>{t('mem_see_all')}</Text>
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4, paddingHorizontal: spacing.md }}>
@@ -220,15 +226,15 @@ export default function MemoriesScreen() {
       {/* Mes publications Yumia */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{recentYumiaPosts.length} Souvenirs Yumia</Text>
+          <Text style={styles.sectionTitle}>{t('mem_yumia_memories_count').replace('{n}', String(recentYumiaPosts.length))}</Text>
         </View>
         {recentYumiaPosts.length === 0 ? (
           <View style={styles.emptySection}>
             <Text style={{ fontSize: 40, marginBottom: 12 }}>📸</Text>
-            <Text style={styles.emptyTitle}>Aucune publication</Text>
-            <Text style={styles.emptySub}>Tes posts et reels Yumia seront sauvegardés ici.</Text>
+            <Text style={styles.emptyTitle}>{t('mem_empty_posts_title')}</Text>
+            <Text style={styles.emptySub}>{t('mem_empty_posts_sub')}</Text>
             <Pressable style={styles.emptyBtn} onPress={() => router.push('/camera' as never)}>
-              <Text style={styles.emptyBtnTxt}>📷 Ouvrir la caméra</Text>
+              <Text style={styles.emptyBtnTxt}>{t('mem_open_camera')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -259,10 +265,10 @@ export default function MemoriesScreen() {
   const renderStories = () => (
     <View style={styles.emptySection}>
       <Text style={{ fontSize: 40, marginBottom: 12 }}>⭕</Text>
-      <Text style={styles.emptyTitle}>Tes Stories</Text>
-      <Text style={styles.emptySub}>Les stories que tu publies sont sauvegardées ici pendant 24h.</Text>
+      <Text style={styles.emptyTitle}>{t('mem_stories_title')}</Text>
+      <Text style={styles.emptySub}>{t('mem_stories_sub')}</Text>
       <Pressable style={styles.emptyBtn} onPress={() => router.push('/camera?mode=story' as never)}>
-        <Text style={styles.emptyBtnTxt}>📷 Nouvelle Story</Text>
+        <Text style={styles.emptyBtnTxt}>{t('mem_new_story')}</Text>
       </Pressable>
     </View>
   );
@@ -271,8 +277,8 @@ export default function MemoriesScreen() {
   const renderIA = () => (
     <View style={styles.emptySection}>
       <Text style={{ fontSize: 40, marginBottom: 12 }}>🤖</Text>
-      <Text style={styles.emptyTitle}>Snaps générés par l'IA</Text>
-      <Text style={styles.emptySub}>Les contenus créés avec les outils IA Yumia apparaîtront ici bientôt.</Text>
+      <Text style={styles.emptyTitle}>{t('mem_ai_title')}</Text>
+      <Text style={styles.emptySub}>{t('mem_ai_sub')}</Text>
     </View>
   );
 
@@ -283,13 +289,13 @@ export default function MemoriesScreen() {
         <Pressable style={styles.headerBack} onPress={() => router.back()}>
           <Text style={styles.headerBackTxt}>∨</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Souvenirs</Text>
+        <Text style={styles.headerTitle}>{t('mem_header_title')}</Text>
         <View style={styles.headerRight}>
           <Pressable style={styles.headerIconBtn}>
             <Text style={styles.headerIconTxt}>🔍</Text>
           </Pressable>
           <Pressable style={styles.headerSelectBtn}>
-            <Text style={styles.headerSelectTxt}>Sélectionner</Text>
+            <Text style={styles.headerSelectTxt}>{t('mem_select')}</Text>
           </Pressable>
         </View>
       </View>
@@ -301,9 +307,9 @@ export default function MemoriesScreen() {
         style={styles.tabBar}
         contentContainerStyle={styles.tabBarContent}
       >
-        {TABS.map((t) => (
-          <Pressable key={t.id} style={[styles.tabBtn, activeTab === t.id && styles.tabBtnActive]} onPress={() => setActiveTab(t.id)}>
-            <Text style={[styles.tabTxt, activeTab === t.id && styles.tabTxtActive]}>{t.label}</Text>
+        {TABS.map((tab) => (
+          <Pressable key={tab.id} style={[styles.tabBtn, activeTab === tab.id && styles.tabBtnActive]} onPress={() => setActiveTab(tab.id)}>
+            <Text style={[styles.tabTxt, activeTab === tab.id && styles.tabTxtActive]}>{t(tab.labelKey)}</Text>
           </Pressable>
         ))}
       </ScrollView>
