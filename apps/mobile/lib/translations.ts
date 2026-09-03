@@ -1283,6 +1283,16 @@ const FR = {
   si_empty_title: 'Aucun itinéraire enregistré pour l\'instant.',
   si_empty_sub: 'Génère un itinéraire puis appuie sur "Enregistrer" pour le retrouver ici.',
   si_steps_count: '{n} étapes',
+  sid_not_found: 'Itinéraire introuvable.',
+  sid_delete_confirm_title: 'Supprimer cet itinéraire ?',
+  sid_delete_confirm_body: 'Cette action est définitive.',
+  sid_cancel: 'Annuler',
+  sid_delete: 'Supprimer',
+  sid_error: 'Erreur',
+  sid_delete_error: 'Suppression impossible. Réessaie.',
+  sid_deleting: 'Suppression…',
+  sid_delete_btn: '🗑️ Supprimer cet itinéraire',
+  sid_step_of: 'Étape de votre itinéraire {mood}',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2553,6 +2563,16 @@ const EN: Record<TranslationKey, string> = {
   si_empty_title: 'No saved itineraries yet.',
   si_empty_sub: 'Generate an itinerary then tap "Save" to find it here.',
   si_steps_count: '{n} steps',
+  sid_not_found: 'Itinerary not found.',
+  sid_delete_confirm_title: 'Delete this itinerary?',
+  sid_delete_confirm_body: 'This action is permanent.',
+  sid_cancel: 'Cancel',
+  sid_delete: 'Delete',
+  sid_error: 'Error',
+  sid_delete_error: 'Could not delete. Try again.',
+  sid_deleting: 'Deleting…',
+  sid_delete_btn: '🗑️ Delete this itinerary',
+  sid_step_of: 'Step from your {mood} itinerary',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3823,6 +3843,16 @@ const ES: Record<TranslationKey, string> = {
   si_empty_title: 'Aún no hay itinerarios guardados.',
   si_empty_sub: 'Genera un itinerario y luego toca "Guardar" para encontrarlo aquí.',
   si_steps_count: '{n} etapas',
+  sid_not_found: 'Itinerario no encontrado.',
+  sid_delete_confirm_title: '¿Eliminar este itinerario?',
+  sid_delete_confirm_body: 'Esta acción es definitiva.',
+  sid_cancel: 'Cancelar',
+  sid_delete: 'Eliminar',
+  sid_error: 'Error',
+  sid_delete_error: 'No se pudo eliminar. Inténtalo de nuevo.',
+  sid_deleting: 'Eliminando…',
+  sid_delete_btn: '🗑️ Eliminar este itinerario',
+  sid_step_of: 'Etapa de tu itinerario {mood}',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5093,6 +5123,16 @@ const PT: Record<TranslationKey, string> = {
   si_empty_title: 'Nenhum itinerário salvo ainda.',
   si_empty_sub: 'Gere um itinerário e toque em "Salvar" para encontrá-lo aqui.',
   si_steps_count: '{n} etapas',
+  sid_not_found: 'Itinerário não encontrado.',
+  sid_delete_confirm_title: 'Excluir este itinerário?',
+  sid_delete_confirm_body: 'Esta ação é definitiva.',
+  sid_cancel: 'Cancelar',
+  sid_delete: 'Excluir',
+  sid_error: 'Erro',
+  sid_delete_error: 'Não foi possível excluir. Tente novamente.',
+  sid_deleting: 'Excluindo…',
+  sid_delete_btn: '🗑️ Excluir este itinerário',
+  sid_step_of: 'Etapa do seu itinerário {mood}',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6363,6 +6403,16 @@ const AR: Record<TranslationKey, string> = {
   si_empty_title: 'لا توجد رحلات محفوظة بعد.',
   si_empty_sub: 'أنشئ رحلة ثم اضغط "حفظ" لتجدها هنا.',
   si_steps_count: '{n} مراحل',
+  sid_not_found: 'الرحلة غير موجودة.',
+  sid_delete_confirm_title: 'حذف هذه الرحلة؟',
+  sid_delete_confirm_body: 'هذا الإجراء نهائي.',
+  sid_cancel: 'إلغاء',
+  sid_delete: 'حذف',
+  sid_error: 'خطأ',
+  sid_delete_error: 'تعذر الحذف. حاول مرة أخرى.',
+  sid_deleting: 'جارٍ الحذف…',
+  sid_delete_btn: '🗑️ حذف هذه الرحلة',
+  sid_step_of: 'مرحلة من رحلتك {mood}',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

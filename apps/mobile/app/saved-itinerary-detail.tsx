@@ -12,20 +12,23 @@ import { deleteSavedItinerary, type ItineraryStep } from '../lib/itinerary-api';
 import { safeMoodMeta } from '../lib/itinerary-meta';
 import { savedItineraryStore } from '../lib/saved-itinerary-store';
 import { placeStore } from '../lib/place-store';
+import { useI18n } from '../lib/useI18n';
+import { itineraryMoodLabel } from '../lib/labelHelpers';
 
 export default function SavedItineraryDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const item = savedItineraryStore.get();
   const [deleting, setDeleting] = useState(false);
 
   if (!item) {
     return (
       <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
-        <Text style={styles.errorText}>Itinéraire introuvable.</Text>
+        <Text style={styles.errorText}>{t('sid_not_found')}</Text>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Retour</Text>
+          <Text style={styles.backText}>{t('place_back')}</Text>
         </Pressable>
       </View>
     );
@@ -33,24 +36,26 @@ export default function SavedItineraryDetailScreen() {
 
   const meta = safeMoodMeta(item.mood);
 
+  const moodLabel = itineraryMoodLabel(t, item.mood, meta.label);
+
   const shareItinerary = async () => {
     const text = [
-      `${meta.emoji} Itinéraire ${meta.label} — ${item.city}`,
+      `${meta.emoji} Itinéraire ${moodLabel} — ${item.city}`,
       '',
       item.summary,
       '',
       ...item.steps.map((s) => `${s.time} ${s.emoji} ${s.name} (${s.duration})\n  ${s.description}`),
       '',
-      '— Généré par YUMIA ✨',
+      t('itin_generated_by'),
     ].join('\n');
     await Share.share({ message: text }).catch(() => undefined);
   };
 
   const handleDelete = () => {
-    Alert.alert('Supprimer cet itinéraire ?', 'Cette action est définitive.', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('sid_delete_confirm_title'), t('sid_delete_confirm_body'), [
+      { text: t('sid_cancel'), style: 'cancel' },
       {
-        text: 'Supprimer', style: 'destructive',
+        text: t('sid_delete'), style: 'destructive',
         onPress: async () => {
           if (!accessToken) return;
           setDeleting(true);
@@ -58,7 +63,7 @@ export default function SavedItineraryDetailScreen() {
             await deleteSavedItinerary(accessToken, item.id);
             router.back();
           } catch {
-            Alert.alert('Erreur', 'Suppression impossible. Réessaie.');
+            Alert.alert(t('sid_error'), t('sid_delete_error'));
           } finally {
             setDeleting(false);
           }
@@ -84,7 +89,7 @@ export default function SavedItineraryDetailScreen() {
       },
       compatibility: 0,
       distanceMeters: 0,
-      reason: `${step.emoji} Étape de votre itinéraire ${meta.label}`,
+      reason: `${step.emoji} ${t('sid_step_of').replace('{mood}', moodLabel)}`,
       engine: 'mood',
     });
     router.push('/place');
@@ -99,7 +104,7 @@ export default function SavedItineraryDetailScreen() {
         <View style={styles.headerCenter}>
           <Text style={styles.headerEmoji}>{meta.emoji}</Text>
           <View>
-            <Text style={styles.headerTitle}>{meta.label}</Text>
+            <Text style={styles.headerTitle}>{moodLabel}</Text>
             <Text style={styles.headerSub}>{item.city}</Text>
           </View>
         </View>
@@ -138,7 +143,7 @@ export default function SavedItineraryDetailScreen() {
                 ) : null}
                 {step.placeId ? (
                   <Pressable style={[styles.placeBtn, { borderColor: meta.color }]} onPress={() => navigateToPlace(step)}>
-                    <Text style={[styles.placeBtnText, { color: meta.color }]}>Voir ce lieu →</Text>
+                    <Text style={[styles.placeBtnText, { color: meta.color }]}>{t('itin_see_place')}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -147,7 +152,7 @@ export default function SavedItineraryDetailScreen() {
         ))}
 
         <Pressable style={[styles.deleteBtn, deleting && { opacity: 0.6 }]} onPress={handleDelete} disabled={deleting}>
-          <Text style={styles.deleteBtnText}>{deleting ? 'Suppression…' : '🗑️ Supprimer cet itinéraire'}</Text>
+          <Text style={styles.deleteBtnText}>{deleting ? t('sid_deleting') : t('sid_delete_btn')}</Text>
         </Pressable>
       </ScrollView>
     </View>
