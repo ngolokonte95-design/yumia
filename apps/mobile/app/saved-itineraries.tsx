@@ -11,6 +11,8 @@ import { useAuth } from '../lib/auth-context';
 import { fetchSavedItineraries, type SavedItinerary } from '../lib/itinerary-api';
 import { safeMoodMeta } from '../lib/itinerary-meta';
 import { savedItineraryStore } from '../lib/saved-itinerary-store';
+import { useI18n } from '../lib/useI18n';
+import { itineraryMoodLabel } from '../lib/labelHelpers';
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -20,6 +22,7 @@ export default function SavedItinerariesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [items, setItems] = useState<SavedItinerary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,8 +54,8 @@ export default function SavedItinerariesScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>📚 Mes itinéraires</Text>
-          <Text style={styles.subtitle}>Retrouve tes plans enregistrés</Text>
+          <Text style={styles.title}>{t('si_title')}</Text>
+          <Text style={styles.subtitle}>{t('si_subtitle')}</Text>
         </View>
       </View>
 
@@ -61,8 +64,8 @@ export default function SavedItinerariesScreen() {
       ) : items.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🗺️</Text>
-          <Text style={styles.emptyText}>Aucun itinéraire enregistré pour l'instant.</Text>
-          <Text style={styles.emptySubtext}>Génère un itinéraire puis appuie sur "Enregistrer" pour le retrouver ici.</Text>
+          <Text style={styles.emptyText}>{t('si_empty_title')}</Text>
+          <Text style={styles.emptySubtext}>{t('si_empty_sub')}</Text>
         </View>
       ) : (
         <FlatList
@@ -78,9 +81,9 @@ export default function SavedItinerariesScreen() {
                   <Text style={styles.emojiBadgeText}>{meta.emoji}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{meta.label} · {item.city}</Text>
+                  <Text style={styles.cardTitle}>{itineraryMoodLabel(t, item.mood, meta.label)} · {item.city}</Text>
                   <Text style={styles.cardSummary} numberOfLines={2}>{item.summary}</Text>
-                  <Text style={styles.cardMeta}>{item.steps.length} étapes · {fmtDate(item.createdAt)}</Text>
+                  <Text style={styles.cardMeta}>{t('si_steps_count').replace('{n}', String(item.steps.length))} · {fmtDate(item.createdAt)}</Text>
                 </View>
               </Pressable>
             );

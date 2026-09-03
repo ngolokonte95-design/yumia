@@ -1278,6 +1278,11 @@ const FR = {
   deals_retry: 'Réessayer',
   deals_empty_title: 'Pas encore de bon plan partenaire près de toi.',
   deals_empty_sub: 'De nouveaux partenaires arrivent bientôt — reviens vite !',
+  si_title: '📚 Mes itinéraires',
+  si_subtitle: 'Retrouve tes plans enregistrés',
+  si_empty_title: 'Aucun itinéraire enregistré pour l\'instant.',
+  si_empty_sub: 'Génère un itinéraire puis appuie sur "Enregistrer" pour le retrouver ici.',
+  si_steps_count: '{n} étapes',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2543,6 +2548,11 @@ const EN: Record<TranslationKey, string> = {
   deals_retry: 'Try again',
   deals_empty_title: 'No partner deals near you yet.',
   deals_empty_sub: 'New partners are coming soon — check back soon!',
+  si_title: '📚 My itineraries',
+  si_subtitle: 'Find your saved plans',
+  si_empty_title: 'No saved itineraries yet.',
+  si_empty_sub: 'Generate an itinerary then tap "Save" to find it here.',
+  si_steps_count: '{n} steps',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3808,6 +3818,11 @@ const ES: Record<TranslationKey, string> = {
   deals_retry: 'Reintentar',
   deals_empty_title: 'Aún no hay ofertas de socios cerca de ti.',
   deals_empty_sub: 'Pronto llegarán nuevos socios — ¡vuelve pronto!',
+  si_title: '📚 Mis itinerarios',
+  si_subtitle: 'Encuentra tus planes guardados',
+  si_empty_title: 'Aún no hay itinerarios guardados.',
+  si_empty_sub: 'Genera un itinerario y luego toca "Guardar" para encontrarlo aquí.',
+  si_steps_count: '{n} etapas',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5073,6 +5088,11 @@ const PT: Record<TranslationKey, string> = {
   deals_retry: 'Tentar novamente',
   deals_empty_title: 'Ainda não há ofertas de parceiros perto de você.',
   deals_empty_sub: 'Novos parceiros chegando em breve — volte logo!',
+  si_title: '📚 Meus itinerários',
+  si_subtitle: 'Encontre seus planos salvos',
+  si_empty_title: 'Nenhum itinerário salvo ainda.',
+  si_empty_sub: 'Gere um itinerário e toque em "Salvar" para encontrá-lo aqui.',
+  si_steps_count: '{n} etapas',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6338,6 +6358,11 @@ const AR: Record<TranslationKey, string> = {
   deals_retry: 'إعادة المحاولة',
   deals_empty_title: 'لا توجد عروض شركاء بالقرب منك بعد.',
   deals_empty_sub: 'شركاء جدد قادمون قريبًا — عد قريبًا!',
+  si_title: '📚 رحلاتي',
+  si_subtitle: 'اعثر على خططك المحفوظة',
+  si_empty_title: 'لا توجد رحلات محفوظة بعد.',
+  si_empty_sub: 'أنشئ رحلة ثم اضغط "حفظ" لتجدها هنا.',
+  si_steps_count: '{n} مراحل',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
