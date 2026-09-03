@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
 const { width: SW } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -41,11 +43,15 @@ const ZOOM_OPTIONS = [
   { label: '5×', value: 0.8 },
 ];
 
-const BOTTOM_MODES: { id: BottomMode; label: string }[] = [
-  { id: 'photo', label: 'PHOTO' },
-  { id: 'video', label: 'VIDÉO' },
-  { id: 'reel',  label: 'REEL'  },
+const BOTTOM_MODES: { id: BottomMode; labelKey: TranslationKey }[] = [
+  { id: 'photo', labelKey: 'camera_mode_photo' },
+  { id: 'video', labelKey: 'camera_mode_video' },
+  { id: 'reel',  labelKey: 'camera_mode_reel'  },
 ];
+
+function filterLabel(t: (key: TranslationKey) => string, filter: FilterDef): string {
+  return filter.id === 'aucun' ? t('camera_filter_none') : filter.label;
+}
 
 // ─── Composant Review plein écran ────────────────────────────────────────────
 function ReviewScreen({
@@ -58,6 +64,7 @@ function ReviewScreen({
   onSaveMemory: () => Promise<void>;
   onNext: () => void;
 }) {
+  const { t } = useI18n();
   const [saved, setSaved] = useState(false);
   const videoPlayer = useVideoPlayer(
     preview.type === 'video' ? preview.uri : null,
@@ -98,7 +105,7 @@ function ReviewScreen({
         {/* Badge filtre */}
         {FILTERS[filterIdx].id !== 'aucun' && (
           <View style={reviewStyles.filterBadge}>
-            <Text style={reviewStyles.filterBadgeTxt}>{FILTERS[filterIdx].label}</Text>
+            <Text style={reviewStyles.filterBadgeTxt}>{filterLabel(t, FILTERS[filterIdx])}</Text>
           </View>
         )}
       </View>
@@ -108,14 +115,14 @@ function ReviewScreen({
         {/* Enregistrer */}
         <Pressable style={reviewStyles.actionBtn} onPress={handleSave}>
           <Text style={{ fontSize: 26 }}>{saved ? '✅' : '💾'}</Text>
-          <Text style={reviewStyles.actionLabel}>{saved ? 'Enregistré' : 'Souvenirs'}</Text>
+          <Text style={reviewStyles.actionLabel}>{saved ? t('camera_saved') : t('camera_memories')}</Text>
         </Pressable>
 
         <View style={{ flex: 1 }} />
 
         {/* Suivant */}
         <Pressable style={reviewStyles.nextBtn} onPress={onNext}>
-          <Text style={reviewStyles.nextBtnTxt}>Suivant →</Text>
+          <Text style={reviewStyles.nextBtnTxt}>{t('camera_next')}</Text>
         </Pressable>
       </View>
     </View>
@@ -141,6 +148,7 @@ export default function CameraScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
@@ -220,13 +228,13 @@ export default function CameraScreen() {
     return (
       <View style={[styles.center, { paddingTop: insets.top, backgroundColor: '#000' }]}>
         <Text style={styles.permEmoji}>📷</Text>
-        <Text style={styles.permTitle}>Accès à la caméra requis</Text>
-        <Text style={styles.permSub}>Yumia a besoin de ta caméra pour prendre des photos et vidéos.</Text>
+        <Text style={styles.permTitle}>{t('camera_perm_title')}</Text>
+        <Text style={styles.permSub}>{t('camera_perm_sub')}</Text>
         <Pressable style={styles.permBtn} onPress={requestPermission}>
-          <Text style={styles.permBtnTxt}>Autoriser la caméra</Text>
+          <Text style={styles.permBtnTxt}>{t('camera_perm_allow')}</Text>
         </Pressable>
         <Pressable style={{ marginTop: 16 }} onPress={() => router.back()}>
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15 }}>Annuler</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15 }}>{t('camera_cancel')}</Text>
         </Pressable>
       </View>
     );
@@ -280,7 +288,7 @@ export default function CameraScreen() {
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) {
         const txt = await up.text().catch(() => '');
-        Alert.alert('Erreur', `Upload échoué (HTTP ${up.status}). ${txt.slice(0, 200)}`);
+        Alert.alert(t('camera_error'), t('camera_upload_failed').replace('{status}', String(up.status)).replace('{detail}', txt.slice(0, 200)));
         return;
       }
       const { url } = await up.json() as { url: string };
@@ -298,24 +306,24 @@ export default function CameraScreen() {
         const sRes = await fetch(`${API}/stories`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ mediaUrl: url, type: storyType, caption }) });
         if (!sRes.ok) {
           const txt = await sRes.text().catch(() => '');
-          Alert.alert('Erreur', `Publication de la story échouée (HTTP ${sRes.status}). ${txt.slice(0, 200)}`);
+          Alert.alert(t('camera_error'), t('camera_story_failed').replace('{status}', String(sRes.status)).replace('{detail}', txt.slice(0, 200)));
           return;
         }
         if (pinToProfile) {
-          await fetch(`${API}/stories/highlights`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ title: highlightTitle.trim() || 'À la une', items: [{ mediaUrl: url, type: storyType, caption }] }) });
+          await fetch(`${API}/stories/highlights`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ title: highlightTitle.trim() || t('camera_highlight_default'), items: [{ mediaUrl: url, type: storyType, caption }] }) });
         }
         router.replace('/(tabs)/social' as never);
       } else {
         const pRes = await fetch(`${API}/posts`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ mediaUrls: [url], caption, mediaType: isVideo ? 'video' : 'photo', isReel: publishTarget === 'reel' }) });
         if (!pRes.ok) {
           const txt = await pRes.text().catch(() => '');
-          Alert.alert('Erreur', `Publication échouée (HTTP ${pRes.status}). ${txt.slice(0, 200)}`);
+          Alert.alert(t('camera_error'), t('camera_publish_failed').replace('{status}', String(pRes.status)).replace('{detail}', txt.slice(0, 200)));
           return;
         }
         router.replace(publishTarget === 'reel' ? '/reels' : '/(tabs)/social' as never);
       }
     } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : 'Échec de la publication.');
+      Alert.alert(t('camera_error'), err instanceof Error ? err.message : t('camera_publish_failed_generic'));
     } finally { setUploading(false); }
   };
 
@@ -350,11 +358,11 @@ export default function CameraScreen() {
           <Pressable onPress={() => setPreviewPhase('review')}>
             <Text style={styles.publishBack}>←</Text>
           </Pressable>
-          <Text style={styles.publishTitle}>Nouvelle publication</Text>
+          <Text style={styles.publishTitle}>{t('camera_new_post_title')}</Text>
           <Pressable onPress={publish} disabled={uploading} style={styles.publishHeaderBtn}>
             {uploading
               ? <ActivityIndicator color={colors.brand} size="small" />
-              : <Text style={styles.publishHeaderBtnTxt}>Partager</Text>}
+              : <Text style={styles.publishHeaderBtnTxt}>{t('camera_share')}</Text>}
           </Pressable>
         </View>
 
@@ -372,7 +380,7 @@ export default function CameraScreen() {
             </View>
             {FILTERS[filterIdx].id !== 'aucun' && (
               <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeTxt}>✦ {FILTERS[filterIdx].label}</Text>
+                <Text style={styles.filterBadgeTxt}>✦ {filterLabel(t, FILTERS[filterIdx])}</Text>
               </View>
             )}
           </View>
@@ -380,7 +388,7 @@ export default function CameraScreen() {
           {/* Légende */}
           <TextInput
             style={styles.captionInput}
-            placeholder="Ajoute une légende..."
+            placeholder={t('camera_caption_placeholder')}
             placeholderTextColor="rgba(255,255,255,0.35)"
             value={caption}
             onChangeText={setCaption}
@@ -389,13 +397,13 @@ export default function CameraScreen() {
           />
 
           {/* Cible */}
-          <Text style={styles.sectionLabel}>Publier en tant que</Text>
+          <Text style={styles.sectionLabel}>{t('camera_publish_as')}</Text>
           <View style={styles.targetRow}>
-            {(['post', 'story', 'reel'] as PublishTarget[]).map((t) => (
-              <Pressable key={t} style={[styles.targetBtn, publishTarget === t && styles.targetBtnActive]} onPress={() => setPublishTarget(t)}>
-                <Text style={styles.targetEmoji}>{t === 'post' ? '📸' : t === 'story' ? '⭕' : '🎬'}</Text>
-                <Text style={[styles.targetLabel, publishTarget === t && { color: colors.brand }]}>
-                  {t === 'post' ? 'Publication' : t === 'story' ? 'Story' : 'Reel'}
+            {(['post', 'story', 'reel'] as PublishTarget[]).map((target) => (
+              <Pressable key={target} style={[styles.targetBtn, publishTarget === target && styles.targetBtnActive]} onPress={() => setPublishTarget(target)}>
+                <Text style={styles.targetEmoji}>{target === 'post' ? '📸' : target === 'story' ? '⭕' : '🎬'}</Text>
+                <Text style={[styles.targetLabel, publishTarget === target && { color: colors.brand }]}>
+                  {target === 'post' ? t('camera_target_post') : target === 'story' ? t('camera_target_story') : t('camera_target_reel')}
                 </Text>
               </Pressable>
             ))}
@@ -406,15 +414,15 @@ export default function CameraScreen() {
             <>
               <View style={styles.optRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.optTitle}>📌 Enregistrer à la une</Text>
-                  <Text style={styles.optHint}>Garde cette story sur ton profil après 24h</Text>
+                  <Text style={styles.optTitle}>{t('camera_pin_highlight_title')}</Text>
+                  <Text style={styles.optHint}>{t('camera_pin_highlight_hint')}</Text>
                 </View>
                 <Switch value={pinToProfile} onValueChange={setPinToProfile} trackColor={{ false: 'rgba(255,255,255,0.2)', true: colors.brand }} thumbColor="#fff" />
               </View>
               {pinToProfile && (
                 <TextInput
                   style={styles.captionInput}
-                  placeholder="Nom de la story à la une..."
+                  placeholder={t('camera_highlight_name_placeholder')}
                   placeholderTextColor="rgba(255,255,255,0.35)"
                   value={highlightTitle}
                   onChangeText={setHighlightTitle}
@@ -427,8 +435,8 @@ export default function CameraScreen() {
           {/* Souvenirs */}
           <View style={styles.optRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.optTitle}>💾 Enregistrer dans Souvenirs</Text>
-              <Text style={styles.optHint}>Retrouve ce contenu dans tes Souvenirs</Text>
+              <Text style={styles.optTitle}>{t('camera_save_memories_title')}</Text>
+              <Text style={styles.optHint}>{t('camera_save_memories_hint')}</Text>
             </View>
             <Switch value={saveToMemories} onValueChange={setSaveToMemories} trackColor={{ false: 'rgba(255,255,255,0.2)', true: colors.brand }} thumbColor="#fff" />
           </View>
@@ -471,7 +479,7 @@ export default function CameraScreen() {
 
       {/* Nom du filtre (apparaît brièvement au swipe) */}
       <Animated.View style={[styles.filterNameBadge, { opacity: filterLabelOpacity, bottom: insets.bottom + 160 }]} pointerEvents="none">
-        <Text style={styles.filterNameTxt}>{activeFilter.label}</Text>
+        <Text style={styles.filterNameTxt}>{filterLabel(t, activeFilter)}</Text>
       </Animated.View>
 
       {/* Compte à rebours */}
@@ -548,7 +556,7 @@ export default function CameraScreen() {
           onPress={() => router.push((mode === 'story' ? '/story/create' : '/post/create') as never)}
         >
           <Text style={{ fontSize: 30 }}>🖼️</Text>
-          <Text style={styles.shutterSideLabel}>Galerie</Text>
+          <Text style={styles.shutterSideLabel}>{t('camera_gallery')}</Text>
         </Pressable>
 
         <Pressable
@@ -564,7 +572,7 @@ export default function CameraScreen() {
 
         <Pressable style={styles.shutterSide} onPress={() => setFacing((f) => f === 'back' ? 'front' : 'back')}>
           <Text style={{ fontSize: 30 }}>🔄</Text>
-          <Text style={styles.shutterSideLabel}>Retourner</Text>
+          <Text style={styles.shutterSideLabel}>{t('camera_flip')}</Text>
         </Pressable>
       </View>
 
@@ -572,7 +580,7 @@ export default function CameraScreen() {
       <View style={[styles.modeRow, { bottom: insets.bottom + 60 }]}>
         {BOTTOM_MODES.map((m) => (
           <Pressable key={m.id} onPress={() => switchMode(m.id)}>
-            <Text style={[styles.modeTxt, bottomMode === m.id && styles.modeTxtActive]}>{m.label}</Text>
+            <Text style={[styles.modeTxt, bottomMode === m.id && styles.modeTxtActive]}>{t(m.labelKey)}</Text>
           </Pressable>
         ))}
       </View>
@@ -580,7 +588,7 @@ export default function CameraScreen() {
       {/* Indicateur de swipe filtre (discret, apparaît la 1ère fois) */}
       {filterIdx === 0 && (
         <View style={[styles.swipeHint, { bottom: insets.bottom + 30 }]} pointerEvents="none">
-          <Text style={styles.swipeHintTxt}>← swipe pour changer de filtre →</Text>
+          <Text style={styles.swipeHintTxt}>{t('camera_swipe_hint')}</Text>
         </View>
       )}
     </View>
