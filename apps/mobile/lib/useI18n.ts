@@ -8,6 +8,7 @@ import { I18nManager } from 'react-native';
 import { useAuth } from './auth-context';
 import { TRANSLATIONS, type TranslationKey } from './translations';
 import { DEFAULT_LOCALE } from '@yumia/shared';
+import { setApiLocale } from './api';
 
 export function useI18n() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export function useI18n() {
     if (I18nManager.isRTL !== rtl) {
       I18nManager.forceRTL(rtl);
     }
+    setApiLocale(locale);
   }, [locale]);
 
   function t(key: TranslationKey): string {

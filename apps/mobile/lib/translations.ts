@@ -1631,6 +1631,9 @@ const FR = {
   limit_passport_max_entries: 'Ton Passport est plein. Passe en Plus pour garder une mémoire bien plus large de tes expériences, à partir de {price}/mois. 👑',
   limit_travel_cities: 'Le Mode Voyage gratuit est limité à 6 villes. Passe en Plus pour explorer bien plus de villes, à partir de {price}/mois. 👑',
   bgloc_notification_body: 'Ta position est partagée pour te faire découvrir des membres proches.',
+  api_timeout: 'La requête a expiré. Vérifie ta connexion.',
+  api_unreachable: 'Impossible de joindre le serveur YUMIA.',
+  api_request_failed: 'Requête échouée',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -3249,6 +3252,9 @@ const EN: Record<TranslationKey, string> = {
   limit_passport_max_entries: 'Your Passport is full. Go Plus to keep a much larger memory of your experiences, starting at {price}/month. 👑',
   limit_travel_cities: 'Free Travel Mode is limited to 6 cities. Go Plus to explore many more cities, starting at {price}/month. 👑',
   bgloc_notification_body: 'Your location is shared to help you discover nearby members.',
+  api_timeout: 'The request timed out. Check your connection.',
+  api_unreachable: 'Unable to reach the YUMIA server.',
+  api_request_failed: 'Request failed',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4867,6 +4873,9 @@ const ES: Record<TranslationKey, string> = {
   limit_passport_max_entries: 'Tu Pasaporte está lleno. Pásate a Plus para conservar una memoria mucho más amplia de tus experiencias, desde {price}/mes. 👑',
   limit_travel_cities: 'El Modo Viaje gratuito está limitado a 6 ciudades. Pásate a Plus para explorar muchas más ciudades, desde {price}/mes. 👑',
   bgloc_notification_body: 'Tu ubicación se comparte para ayudarte a descubrir miembros cercanos.',
+  api_timeout: 'La solicitud expiró. Verifica tu conexión.',
+  api_unreachable: 'No se pudo contactar con el servidor de YUMIA.',
+  api_request_failed: 'Solicitud fallida',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -6485,6 +6494,9 @@ const PT: Record<TranslationKey, string> = {
   limit_passport_max_entries: 'Seu Passaporte está cheio. Passe para o Plus para manter uma memória muito maior das suas experiências, a partir de {price}/mês. 👑',
   limit_travel_cities: 'O Modo Viagem gratuito é limitado a 6 cidades. Passe para o Plus para explorar muito mais cidades, a partir de {price}/mês. 👑',
   bgloc_notification_body: 'Sua localização é compartilhada para ajudar você a descobrir membros próximos.',
+  api_timeout: 'A solicitação expirou. Verifique sua conexão.',
+  api_unreachable: 'Não foi possível contatar o servidor do YUMIA.',
+  api_request_failed: 'Solicitação falhou',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -8103,6 +8115,9 @@ const AR: Record<TranslationKey, string> = {
   limit_passport_max_entries: 'جواز سفرك ممتلئ. انتقل إلى Plus للاحتفاظ بذاكرة أكبر بكثير لتجاربك، ابتداءً من {price}/شهريًا. 👑',
   limit_travel_cities: 'وضع السفر المجاني محدود بـ 6 مدن. انتقل إلى Plus لاستكشاف المزيد من المدن، ابتداءً من {price}/شهريًا. 👑',
   bgloc_notification_body: 'يتم مشاركة موقعك لمساعدتك على اكتشاف الأعضاء القريبين.',
+  api_timeout: 'انتهت مهلة الطلب. تحقق من اتصالك.',
+  api_unreachable: 'تعذر الوصول إلى خادم YUMIA.',
+  api_request_failed: 'فشل الطلب',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
