@@ -12,6 +12,8 @@ import { API_BASE_URL } from '../../lib/config';
 import { PostVideo } from '../../components/PostVideo';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import type { PostOverlay, AuthorRef } from '../../lib/feed-api';
+import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 
 const API = API_BASE_URL;
 
@@ -71,14 +73,14 @@ interface Post {
   comments: Comment[];
 }
 
-function formatAgo(iso: string) {
+function formatAgo(iso: string, t: (key: TranslationKey) => string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'À l\'instant';
-  if (m < 60) return `${m} min`;
+  if (m < 1) return t('social_time_now');
+  if (m < 60) return `${m} ${t('social_time_min')}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}j`;
+  if (h < 24) return `${h}${t('social_time_hour')}`;
+  return `${Math.floor(h / 24)}${t('social_time_day')}`;
 }
 
 export default function PostDetailScreen() {
@@ -86,6 +88,7 @@ export default function PostDetailScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
@@ -231,7 +234,7 @@ export default function PostDetailScreen() {
   };
 
   if (loading) return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} /></View>;
-  if (!post) return <View style={[styles.center, { paddingTop: insets.top }]}><Text style={{ color: colors.textMuted }}>Post introuvable</Text></View>;
+  if (!post) return <View style={[styles.center, { paddingTop: insets.top }]}><Text style={{ color: colors.textMuted }}>{t('pd_not_found')}</Text></View>;
 
   // Même ordre de détection que le feed (social.tsx) : mediaUrls[0] d'abord
   // s'il a une extension vidéo, sinon repli sur `videoUrl`. Sans ce repli, un
@@ -266,7 +269,7 @@ export default function PostDetailScreen() {
             </View>
             {post.place && <Text style={styles.placeName}>📍 {post.place.name}</Text>}
           </View>
-          <Text style={styles.ago}>{formatAgo(post.createdAt)}</Text>
+          <Text style={styles.ago}>{formatAgo(post.createdAt, t)}</Text>
         </Pressable>
 
         {/* Video player */}
@@ -334,9 +337,9 @@ export default function PostDetailScreen() {
 
         {/* Comments — en fil, avec likes et réponses */}
         <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>Commentaires</Text>
+          <Text style={styles.commentsTitle}>{t('pd_comments_title')}</Text>
           {post.commentsDisabled ? (
-            <Text style={{ color: colors.textMuted, fontSize: 13 }}>Les commentaires sont désactivés sur ce post.</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('pd_comments_disabled')}</Text>
           ) : post.comments.map((c) => (
             <View key={c.id}>
               <CommentRow
@@ -360,7 +363,7 @@ export default function PostDetailScreen() {
           {replyTo ? (
             <View style={styles.replyBanner}>
               <Text style={styles.replyBannerText} numberOfLines={1}>
-                ↩︎ Réponse à <Text style={{ fontWeight: '700' }}>{replyTo.user?.displayName}</Text> : {replyTo.content}
+                {t('pd_reply_to')} <Text style={{ fontWeight: '700' }}>{replyTo.user?.displayName}</Text> : {replyTo.content}
               </Text>
               <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
                 <Text style={{ color: colors.textMuted, fontSize: 15 }}>✕</Text>
@@ -370,13 +373,13 @@ export default function PostDetailScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TextInput
               style={styles.commentInput}
-              placeholder={replyTo ? `Répondre à ${replyTo.user?.displayName}...` : 'Ajouter un commentaire...'}
+              placeholder={replyTo ? t('pd_reply_placeholder').replace('{name}', replyTo.user?.displayName ?? '') : t('pd_comment_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={comment}
               onChangeText={setComment}
             />
             <Pressable onPress={sendComment} disabled={!comment.trim() || posting} style={styles.sendBtn}>
-              {posting ? <ActivityIndicator color={colors.brand} size="small" /> : <Text style={styles.sendTxt}>Envoyer</Text>}
+              {posting ? <ActivityIndicator color={colors.brand} size="small" /> : <Text style={styles.sendTxt}>{t('pd_send')}</Text>}
             </Pressable>
           </View>
         </View>
@@ -386,22 +389,22 @@ export default function PostDetailScreen() {
       <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
         <View style={styles.editOverlay}>
           <View style={[styles.editSheet, { paddingBottom: insets.bottom + 16 }]}>
-            <Text style={styles.editTitle}>Modifier la légende</Text>
+            <Text style={styles.editTitle}>{t('pd_edit_caption_title')}</Text>
             <TextInput
               style={styles.editInput}
               value={editCaption}
               onChangeText={setEditCaption}
-              placeholder="Écris une légende…"
+              placeholder={t('pd_caption_placeholder')}
               placeholderTextColor={colors.textMuted}
               multiline
               autoFocus
             />
             <View style={styles.editActions}>
               <Pressable style={styles.editCancel} onPress={() => setEditing(false)}>
-                <Text style={styles.editCancelTxt}>Annuler</Text>
+                <Text style={styles.editCancelTxt}>{t('pd_cancel')}</Text>
               </Pressable>
               <Pressable style={styles.editSave} onPress={saveEdit} disabled={savingEdit}>
-                {savingEdit ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.editSaveTxt}>Enregistrer</Text>}
+                {savingEdit ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.editSaveTxt}>{t('pd_save')}</Text>}
               </Pressable>
             </View>
           </View>
@@ -412,6 +415,7 @@ export default function PostDetailScreen() {
 }
 
 function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike: () => void; onReply: () => void }) {
+  const { t } = useI18n();
   return (
     <View style={styles.commentRow}>
       <Avatar
@@ -429,9 +433,9 @@ function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike:
         </View>
         <Text style={styles.commentText}>{c.content}</Text>
         <View style={styles.commentActions}>
-          <Text style={styles.commentAgo}>{formatAgo(c.createdAt)}</Text>
+          <Text style={styles.commentAgo}>{formatAgo(c.createdAt, t)}</Text>
           <Pressable onPress={onReply} hitSlop={6}>
-            <Text style={styles.commentActionTxt}>Répondre</Text>
+            <Text style={styles.commentActionTxt}>{t('pd_reply')}</Text>
           </Pressable>
         </View>
       </View>

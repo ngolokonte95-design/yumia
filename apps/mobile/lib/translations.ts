@@ -958,6 +958,18 @@ const FR = {
   group_precisions_label: 'Précisions (optionnel)',
   group_precisions_placeholder: 'Ex : festif mais pas trop bruyant',
   group_find_place: '🤖 Trouver le bon endroit',
+  pd_not_found: 'Post introuvable',
+  pd_comments_title: 'Commentaires',
+  pd_comments_disabled: 'Les commentaires sont désactivés sur ce post.',
+  pd_reply_to: '↩︎ Réponse à',
+  pd_reply_placeholder: 'Répondre à {name}...',
+  pd_comment_placeholder: 'Ajouter un commentaire...',
+  pd_send: 'Envoyer',
+  pd_edit_caption_title: 'Modifier la légende',
+  pd_caption_placeholder: 'Écris une légende…',
+  pd_cancel: 'Annuler',
+  pd_save: 'Enregistrer',
+  pd_reply: 'Répondre',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -1903,6 +1915,18 @@ const EN: Record<TranslationKey, string> = {
   group_precisions_label: 'Details (optional)',
   group_precisions_placeholder: 'E.g.: festive but not too loud',
   group_find_place: '🤖 Find the right place',
+  pd_not_found: 'Post not found',
+  pd_comments_title: 'Comments',
+  pd_comments_disabled: 'Comments are disabled on this post.',
+  pd_reply_to: '↩︎ Reply to',
+  pd_reply_placeholder: 'Reply to {name}...',
+  pd_comment_placeholder: 'Add a comment...',
+  pd_send: 'Send',
+  pd_edit_caption_title: 'Edit caption',
+  pd_caption_placeholder: 'Write a caption…',
+  pd_cancel: 'Cancel',
+  pd_save: 'Save',
+  pd_reply: 'Reply',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -2848,6 +2872,18 @@ const ES: Record<TranslationKey, string> = {
   group_precisions_label: 'Detalles (opcional)',
   group_precisions_placeholder: 'Ej.: festivo pero no muy ruidoso',
   group_find_place: '🤖 Encontrar el lugar ideal',
+  pd_not_found: 'Publicación no encontrada',
+  pd_comments_title: 'Comentarios',
+  pd_comments_disabled: 'Los comentarios están desactivados en esta publicación.',
+  pd_reply_to: '↩︎ Responder a',
+  pd_reply_placeholder: 'Responder a {name}...',
+  pd_comment_placeholder: 'Añadir un comentario...',
+  pd_send: 'Enviar',
+  pd_edit_caption_title: 'Editar descripción',
+  pd_caption_placeholder: 'Escribe una descripción…',
+  pd_cancel: 'Cancelar',
+  pd_save: 'Guardar',
+  pd_reply: 'Responder',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -3793,6 +3829,18 @@ const PT: Record<TranslationKey, string> = {
   group_precisions_label: 'Detalhes (opcional)',
   group_precisions_placeholder: 'Ex: festivo mas não muito barulhento',
   group_find_place: '🤖 Encontrar o lugar certo',
+  pd_not_found: 'Publicação não encontrada',
+  pd_comments_title: 'Comentários',
+  pd_comments_disabled: 'Os comentários estão desativados nesta publicação.',
+  pd_reply_to: '↩︎ Responder a',
+  pd_reply_placeholder: 'Responder a {name}...',
+  pd_comment_placeholder: 'Adicionar um comentário...',
+  pd_send: 'Enviar',
+  pd_edit_caption_title: 'Editar legenda',
+  pd_caption_placeholder: 'Escreva uma legenda…',
+  pd_cancel: 'Cancelar',
+  pd_save: 'Salvar',
+  pd_reply: 'Responder',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -4738,6 +4786,18 @@ const AR: Record<TranslationKey, string> = {
   group_precisions_label: 'تفاصيل (اختياري)',
   group_precisions_placeholder: 'مثال: احتفالي لكن ليس صاخبًا جدًا',
   group_find_place: '🤖 العثور على المكان المناسب',
+  pd_not_found: 'المنشور غير موجود',
+  pd_comments_title: 'التعليقات',
+  pd_comments_disabled: 'التعليقات معطّلة على هذا المنشور.',
+  pd_reply_to: '↩︎ رد على',
+  pd_reply_placeholder: 'الرد على {name}...',
+  pd_comment_placeholder: 'إضافة تعليق...',
+  pd_send: 'إرسال',
+  pd_edit_caption_title: 'تعديل التعليق',
+  pd_caption_placeholder: 'اكتب تعليقًا…',
+  pd_cancel: 'إلغاء',
+  pd_save: 'حفظ',
+  pd_reply: 'رد',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
