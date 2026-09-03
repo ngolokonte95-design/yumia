@@ -1308,6 +1308,9 @@ const FR = {
   dp_gender_female: '👩 Femme',
   dp_gender_other: '🧑 Autre',
   dp_age_years: '🎂 {age} ans',
+  join_invalid_code: 'Code invalide ou expiré.',
+  join_oops: 'Oops !',
+  join_joining: 'Jonction à la session…',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2603,6 +2606,9 @@ const EN: Record<TranslationKey, string> = {
   dp_gender_female: '👩 Woman',
   dp_gender_other: '🧑 Other',
   dp_age_years: '🎂 {age} years old',
+  join_invalid_code: 'Invalid or expired code.',
+  join_oops: 'Oops!',
+  join_joining: 'Joining the session…',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3898,6 +3904,9 @@ const ES: Record<TranslationKey, string> = {
   dp_gender_female: '👩 Mujer',
   dp_gender_other: '🧑 Otro',
   dp_age_years: '🎂 {age} años',
+  join_invalid_code: 'Código inválido o caducado.',
+  join_oops: '¡Ups!',
+  join_joining: 'Uniéndose a la sesión…',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5193,6 +5202,9 @@ const PT: Record<TranslationKey, string> = {
   dp_gender_female: '👩 Mulher',
   dp_gender_other: '🧑 Outro',
   dp_age_years: '🎂 {age} anos',
+  join_invalid_code: 'Código inválido ou expirado.',
+  join_oops: 'Ops!',
+  join_joining: 'Entrando na sessão…',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6488,6 +6500,9 @@ const AR: Record<TranslationKey, string> = {
   dp_gender_female: '👩 امرأة',
   dp_gender_other: '🧑 آخر',
   dp_age_years: '🎂 {age} سنة',
+  join_invalid_code: 'رمز غير صالح أو منتهي الصلاحية.',
+  join_oops: 'عذرًا!',
+  join_joining: 'جارٍ الانضمام إلى الجلسة…',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

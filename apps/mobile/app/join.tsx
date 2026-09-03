@@ -11,12 +11,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { joinGroupRequest } from '../lib/groups-api';
+import { useI18n } from '../lib/useI18n';
 
 export default function JoinScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { code } = useLocalSearchParams<{ code: string }>();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,22 +29,22 @@ export default function JoinScreen() {
         router.replace({ pathname: '/group-session', params: { id: session.id } });
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Code invalide ou expiré.');
+        setError(err instanceof Error ? err.message : t('join_invalid_code'));
       });
-  }, [code, accessToken]);
+  }, [code, accessToken, t]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
       {error ? (
         <>
           <Text style={styles.emoji}>⚠️</Text>
-          <Text style={styles.title}>Oops !</Text>
+          <Text style={styles.title}>{t('join_oops')}</Text>
           <Text style={styles.subtitle}>{error}</Text>
         </>
       ) : (
         <>
           <ActivityIndicator color={colors.brand} size="large" />
-          <Text style={styles.subtitle}>Jonction à la session…</Text>
+          <Text style={styles.subtitle}>{t('join_joining')}</Text>
         </>
       )}
     </View>
