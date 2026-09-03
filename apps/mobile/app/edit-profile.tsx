@@ -28,10 +28,16 @@ const LOCALES = [
   { code: 'fr', label: '🇫🇷 Français' },
   { code: 'en', label: '🇬🇧 English' },
   { code: 'es', label: '🇪🇸 Español' },
-  { code: 'de', label: '🇩🇪 Deutsch' },
-  { code: 'it', label: '🇮🇹 Italiano' },
   { code: 'pt', label: '🇵🇹 Português' },
   { code: 'ar', label: '🇸🇦 العربية' },
+  { code: 'nl', label: '🇳🇱 Nederlands' },
+  { code: 'it', label: '🇮🇹 Italiano' },
+  { code: 'zh', label: '🇨🇳 中文' },
+  { code: 'ru', label: '🇷🇺 Русский' },
+  { code: 'hi', label: '🇮🇳 हिन्दी' },
+  { code: 'de', label: '🇩🇪 Deutsch' },
+  { code: 'pl', label: '🇵🇱 Polski' },
+  { code: 'sv', label: '🇸🇪 Svenska' },
 ];
 
 export default function EditProfileScreen() {

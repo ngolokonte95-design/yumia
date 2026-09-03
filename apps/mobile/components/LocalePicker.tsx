@@ -16,6 +16,14 @@ const LOCALES: Locale[] = [
   { code: 'es', label: 'Español', nativeLabel: 'Español' },
   { code: 'pt', label: 'Português', nativeLabel: 'Português' },
   { code: 'ar', label: 'Arabic', nativeLabel: 'العربية', rtl: true },
+  { code: 'nl', label: 'Dutch', nativeLabel: 'Nederlands' },
+  { code: 'it', label: 'Italian', nativeLabel: 'Italiano' },
+  { code: 'zh', label: 'Chinese', nativeLabel: '中文' },
+  { code: 'ru', label: 'Russian', nativeLabel: 'Русский' },
+  { code: 'hi', label: 'Hindi', nativeLabel: 'हिन्दी' },
+  { code: 'de', label: 'German', nativeLabel: 'Deutsch' },
+  { code: 'pl', label: 'Polish', nativeLabel: 'Polski' },
+  { code: 'sv', label: 'Swedish', nativeLabel: 'Svenska' },
 ];
 
 interface Props {
