@@ -16,10 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { forgotPasswordRequest } from '../lib/auth-api';
+import { useI18n } from '../lib/useI18n';
 
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -34,7 +36,7 @@ export default function ForgotPasswordScreen() {
       await forgotPasswordRequest(email.trim().toLowerCase());
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+      setError(err instanceof Error ? err.message : t('fp_error_generic'));
     } finally {
       setLoading(false);
     }
@@ -52,16 +54,16 @@ export default function ForgotPasswordScreen() {
 
         <View style={styles.content}>
           <Text style={styles.emoji}>🔑</Text>
-          <Text style={styles.title}>Mot de passe oublié</Text>
+          <Text style={styles.title}>{t('fp_title')}</Text>
 
           {!sent ? (
             <>
               <Text style={styles.sub}>
-                Saisis ton email et nous t'envoyons un code à 6 chiffres valable 15 minutes.
+                {t('fp_sub_request')}
               </Text>
 
               <View style={styles.field}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={styles.label}>{t('fp_email_label')}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="ton@email.com"
@@ -85,26 +87,25 @@ export default function ForgotPasswordScreen() {
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnText}>Envoyer le code</Text>
+                  : <Text style={styles.btnText}>{t('fp_send_code_btn')}</Text>
                 }
               </Pressable>
             </>
           ) : (
             <>
               <Text style={styles.sub}>
-                Si un compte existe pour cet email, un code vient d'être envoyé.{'\n'}
-                Vérifie ta boîte mail (et tes spams).
+                {t('fp_sub_sent')}
               </Text>
 
               <Pressable
                 style={styles.btn}
                 onPress={() => router.push('/reset-password')}
               >
-                <Text style={styles.btnText}>Saisir le code →</Text>
+                <Text style={styles.btnText}>{t('fp_enter_code_btn')}</Text>
               </Pressable>
 
               <Pressable style={styles.linkBtn} onPress={() => setSent(false)}>
-                <Text style={styles.linkText}>Renvoyer un code</Text>
+                <Text style={styles.linkText}>{t('fp_resend_btn')}</Text>
               </Pressable>
             </>
           )}

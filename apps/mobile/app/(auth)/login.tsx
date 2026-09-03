@@ -41,7 +41,7 @@ export default function LoginScreen() {
       await login(email.trim(), password);
       // La redirection vers (tabs) est gérée par le gate du layout racine.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connexion impossible.');
+      setError(err instanceof Error ? err.message : t('login_error_generic'));
       setSubmitting(false);
     }
   }
@@ -88,7 +88,7 @@ export default function LoginScreen() {
             style={styles.forgotBtn}
             onPress={() => router.push('/forgot-password')}
           >
-            <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+            <Text style={styles.forgotText}>{t('login_forgot_password')}</Text>
           </Pressable>
 
           <Pressable

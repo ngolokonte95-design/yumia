@@ -47,7 +47,7 @@ export default function RegisterScreen() {
       await register({ displayName: displayName.trim(), email: email.trim(), password });
       // Redirection vers (tabs) gérée par le gate du layout racine.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Inscription impossible.');
+      setError(err instanceof Error ? err.message : t('register_error_generic'));
       setSubmitting(false);
     }
   }
@@ -149,15 +149,15 @@ export default function RegisterScreen() {
             créent un compte. Les deux liens doivent rester joignables : les
             testeurs des stores les ouvrent pendant la revue. */}
         <Text style={styles.legal}>
-          En créant un compte, tu acceptes les{' '}
+          {t('register_legal_prefix')}{' '}
           <Text style={styles.legalLink} onPress={() => void Linking.openURL(TERMS_URL)}>
-            Conditions d'utilisation
+            {t('register_legal_terms')}
           </Text>
-          {' '}et la{' '}
+          {' '}{t('register_legal_and')}{' '}
           <Text style={styles.legalLink} onPress={() => void Linking.openURL(PRIVACY_URL)}>
-            Politique de confidentialité
+            {t('register_legal_privacy')}
           </Text>
-          {' '}de YUMIA, et tu t'engages à ne publier aucun contenu offensant.
+          {' '}{t('register_legal_suffix')}
         </Text>
 
         <View style={styles.footer}>
