@@ -11,7 +11,7 @@ import { ActivityHeatmap } from '../../components/ActivityHeatmap';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import { useI18n } from '../../lib/useI18n';
-import { badgeName } from '../../lib/labelHelpers';
+import { badgeName, levelName } from '../../lib/labelHelpers';
 import type { UniverseCount } from '../../lib/passport-api';
 
 /**
@@ -36,12 +36,14 @@ export default function PassportScreen() {
     try {
       const result = await freezeStreak(accessToken);
       Alert.alert(
-        '🧊 Streak protégé !',
-        `Ton streak est maintenu pour aujourd\'hui. Il te reste ${result.freezesLeft} freeze${result.freezesLeft > 1 ? 's' : ''}.`,
+        t('passport_freeze_alert_title'),
+        t('passport_freeze_alert_body')
+          .replace('{n}', String(result.freezesLeft))
+          .replace('{s}', result.freezesLeft > 1 ? 's' : ''),
       );
       reload();
     } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : 'Impossible d\'utiliser le freeze.');
+      Alert.alert(t('passport_freeze_error_title'), err instanceof Error ? err.message : t('passport_freeze_error_generic'));
     } finally {
       setFreezing(false);
     }
@@ -88,7 +90,7 @@ export default function PassportScreen() {
             <Text style={styles.title}>{t('passport_title')}</Text>
             {level ? (
               <Text style={styles.levelLine}>
-                {level.emoji} {level.titleFr} · {stats?.totalXp} XP
+                {level.emoji} {levelName(t, level.level, level.titleFr)} · {stats?.totalXp} XP
               </Text>
             ) : (
               <Text style={styles.levelLine}>{t('passport_journey_start')}</Text>
@@ -121,8 +123,8 @@ export default function PassportScreen() {
             />
           </View>
           <Text style={styles.progressHint}>
-            {stats.level.xpIntoLevel} / {stats.level.xpForNext} XP vers {stats.level.next.emoji}{' '}
-            {stats.level.next.titleFr}
+            {stats.level.xpIntoLevel} / {stats.level.xpForNext} XP {t('passport_xp_toward')} {stats.level.next.emoji}{' '}
+            {levelName(t, stats.level.next.level, stats.level.next.titleFr)}
           </Text>
         </View>
       ) : null}
@@ -162,7 +164,9 @@ export default function PassportScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.freezeTitle}>{t('passport_protect_streak')}</Text>
                   <Text style={styles.freezeSub}>
-                    {stats?.streak.freezesLeft} freeze{(stats?.streak.freezesLeft ?? 0) > 1 ? 's' : ''} disponible{(stats?.streak.freezesLeft ?? 0) > 1 ? 's' : ''}
+                    {stats?.streak.freezesLeft} {t('passport_freezes_available')
+                      .replace('{s}', (stats?.streak.freezesLeft ?? 0) > 1 ? 's' : '')
+                      .replace('{s2}', (stats?.streak.freezesLeft ?? 0) > 1 ? 's' : '')}
                   </Text>
                 </View>
               </>

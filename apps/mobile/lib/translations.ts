@@ -1441,6 +1441,18 @@ const FR = {
   fp_sub_sent: 'Si un compte existe pour cet email, un code vient d\'être envoyé.\nVérifie ta boîte mail (et tes spams).',
   fp_enter_code_btn: 'Saisir le code →',
   fp_resend_btn: 'Renvoyer un code',
+  level_1_name: 'Curieux',
+  level_2_name: 'Habitué',
+  level_3_name: 'Explorateur',
+  level_4_name: 'Voyageur',
+  level_5_name: 'Connaisseur',
+  level_6_name: 'Légende YUMIA',
+  passport_freeze_alert_title: '🧊 Streak protégé !',
+  passport_freeze_alert_body: 'Ton streak est maintenu pour aujourd\'hui. Il te reste {n} freeze{s}.',
+  passport_freeze_error_title: 'Erreur',
+  passport_freeze_error_generic: 'Impossible d\'utiliser le freeze.',
+  passport_xp_toward: 'vers',
+  passport_freezes_available: 'freeze{s} disponible{s2}',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2869,6 +2881,18 @@ const EN: Record<TranslationKey, string> = {
   fp_sub_sent: 'If an account exists for this email, a code has just been sent.\nCheck your inbox (and spam folder).',
   fp_enter_code_btn: 'Enter code →',
   fp_resend_btn: 'Resend a code',
+  level_1_name: 'Curious',
+  level_2_name: 'Regular',
+  level_3_name: 'Explorer',
+  level_4_name: 'Traveler',
+  level_5_name: 'Connoisseur',
+  level_6_name: 'YUMIA Legend',
+  passport_freeze_alert_title: '🧊 Streak protected!',
+  passport_freeze_alert_body: 'Your streak is maintained for today. You have {n} freeze{s} left.',
+  passport_freeze_error_title: 'Error',
+  passport_freeze_error_generic: 'Unable to use the freeze.',
+  passport_xp_toward: 'toward',
+  passport_freezes_available: 'freeze{s} available',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4297,6 +4321,18 @@ const ES: Record<TranslationKey, string> = {
   fp_sub_sent: 'Si existe una cuenta para este correo, se acaba de enviar un código.\nRevisa tu bandeja de entrada (y spam).',
   fp_enter_code_btn: 'Ingresar código →',
   fp_resend_btn: 'Reenviar un código',
+  level_1_name: 'Curioso',
+  level_2_name: 'Habitual',
+  level_3_name: 'Explorador',
+  level_4_name: 'Viajero',
+  level_5_name: 'Conocedor',
+  level_6_name: 'Leyenda YUMIA',
+  passport_freeze_alert_title: '🧊 ¡Racha protegida!',
+  passport_freeze_alert_body: 'Tu racha se mantiene por hoy. Te quedan {n} freeze{s}.',
+  passport_freeze_error_title: 'Error',
+  passport_freeze_error_generic: 'No se pudo usar el freeze.',
+  passport_xp_toward: 'hacia',
+  passport_freezes_available: 'freeze{s} disponible{s2}',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5725,6 +5761,18 @@ const PT: Record<TranslationKey, string> = {
   fp_sub_sent: 'Se existir uma conta para este e-mail, um código acaba de ser enviado.\nVerifique sua caixa de entrada (e spam).',
   fp_enter_code_btn: 'Digitar código →',
   fp_resend_btn: 'Reenviar um código',
+  level_1_name: 'Curioso',
+  level_2_name: 'Habitual',
+  level_3_name: 'Explorador',
+  level_4_name: 'Viajante',
+  level_5_name: 'Conhecedor',
+  level_6_name: 'Lenda YUMIA',
+  passport_freeze_alert_title: '🧊 Sequência protegida!',
+  passport_freeze_alert_body: 'Sua sequência é mantida por hoje. Você tem {n} freeze{s} restantes.',
+  passport_freeze_error_title: 'Erro',
+  passport_freeze_error_generic: 'Não foi possível usar o freeze.',
+  passport_xp_toward: 'em direção a',
+  passport_freezes_available: 'freeze{s} disponível{s2}',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7153,6 +7201,18 @@ const AR: Record<TranslationKey, string> = {
   fp_sub_sent: 'إذا كان هناك حساب لهذا البريد الإلكتروني، فقد تم للتو إرسال رمز.\nتحقق من بريدك الوارد (والبريد المزعج).',
   fp_enter_code_btn: 'إدخال الرمز ←',
   fp_resend_btn: 'إعادة إرسال الرمز',
+  level_1_name: 'فضولي',
+  level_2_name: 'مُعتاد',
+  level_3_name: 'مستكشف',
+  level_4_name: 'مسافر',
+  level_5_name: 'خبير',
+  level_6_name: 'أسطورة YUMIA',
+  passport_freeze_alert_title: '🧊 تم حماية السلسلة!',
+  passport_freeze_alert_body: 'تم الحفاظ على سلسلتك لليوم. تبقى لديك {n} تجميد{s}.',
+  passport_freeze_error_title: 'خطأ',
+  passport_freeze_error_generic: 'تعذر استخدام التجميد.',
+  passport_xp_toward: 'نحو',
+  passport_freezes_available: 'تجميد{s} متاح',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

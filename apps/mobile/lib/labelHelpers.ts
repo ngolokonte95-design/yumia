@@ -67,3 +67,10 @@ export function calendarCategoryLabel(t: T, category: string, fallbackFr: string
   const translated = t(key);
   return translated === key ? fallbackFr : translated;
 }
+
+/** Titre de niveau de passeport (Curieux, Habitué, Explorateur…) — libellé traduit. */
+export function levelName(t: T, level: number, fallbackFr: string): string {
+  const key = `level_${level}_name` as TranslationKey;
+  const translated = t(key);
+  return translated === key ? fallbackFr : translated;
+}
