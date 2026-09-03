@@ -130,7 +130,7 @@ export default function ItineraryScreen() {
   const shareItinerary = async () => {
     if (!result) return;
     const text = [
-      `${meta.emoji} Itinéraire ${itineraryMoodLabel(tr, mood, meta.label)} — ${city || 'Paris'}`,
+      `${meta.emoji} ${tr('itin_share_header')} ${itineraryMoodLabel(tr, mood, meta.label)} — ${city || 'Paris'}`,
       '',
       result.itinerary,
       '',
