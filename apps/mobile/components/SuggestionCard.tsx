@@ -8,6 +8,7 @@ import { haptics } from '../lib/useHaptics';
 import type { VisitFeedback, VisitResult } from '../lib/passport-api';
 import { XpToast } from './XpToast';
 import { PlacePhoto } from './PlacePhoto';
+import type { TranslationKey } from '../lib/translations';
 
 interface Props {
   suggestion: Suggestion;
@@ -22,10 +23,10 @@ interface Props {
 
 type VisitState = 'idle' | 'loading' | 'feedback' | 'done';
 
-const FEEDBACK_OPTS: { key: VisitFeedback; emoji: string; label: string }[] = [
-  { key: 'loved', emoji: '❤️', label: 'Adoré' },
-  { key: 'neutral', emoji: '😐', label: 'Correct' },
-  { key: 'disliked', emoji: '👎', label: 'Déçu' },
+const FEEDBACK_OPTS: { key: VisitFeedback; emoji: string; labelKey: TranslationKey }[] = [
+  { key: 'loved', emoji: '❤️', labelKey: 'place_feedback_loved' },
+  { key: 'neutral', emoji: '😐', labelKey: 'place_feedback_neutral' },
+  { key: 'disliked', emoji: '👎', labelKey: 'place_feedback_disliked' },
 ];
 
 /** Carte de suggestion : photo (placeholder), nom, méta, compatibilité, explication IA. */
@@ -112,7 +113,7 @@ export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved =
         <Text style={styles.metaLine}>
           {universeLabel(t, place.universe)} · {'€'.repeat(place.priceTier)}
           {distanceMeters != null ? ` · ${formatDistance(distanceMeters)}` : ''}
-          {place.openNow ? ' · Ouvert' : ''}
+          {place.openNow ? ` · ${t('sc_open_now')}` : ''}
         </Text>
 
         <Text style={styles.reason} numberOfLines={2}>
@@ -122,7 +123,7 @@ export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved =
         {onVisit ? (
           visitState === 'feedback' ? (
             <View style={styles.feedbackRow}>
-              <Text style={styles.feedbackPrompt}>C'était comment ?</Text>
+              <Text style={styles.feedbackPrompt}>{t('place_feedback_prompt')}</Text>
               <View style={styles.feedbackBtns}>
                 {FEEDBACK_OPTS.map((opt) => (
                   <Pressable
@@ -131,12 +132,12 @@ export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved =
                     onPress={() => void handleFeedback(opt.key)}
                   >
                     <Text style={styles.feedbackEmoji}>{opt.emoji}</Text>
-                    <Text style={styles.feedbackLabel}>{opt.label}</Text>
+                    <Text style={styles.feedbackLabel}>{t(opt.labelKey)}</Text>
                   </Pressable>
                 ))}
               </View>
               <Pressable onPress={handleSkipFeedback} hitSlop={8}>
-                <Text style={styles.skipFeedback}>Passer →</Text>
+                <Text style={styles.skipFeedback}>{t('sc_skip_feedback')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -149,7 +150,7 @@ export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved =
                 <ActivityIndicator color={colors.brand} size="small" />
               ) : (
                 <Text style={[styles.visitText, visitState === 'done' && styles.visitTextDone]}>
-                  {visitState === 'done' ? '✓ Visité · +XP' : "📍 J'y suis allé"}
+                  {visitState === 'done' ? t('place_visited') : t('place_visit_btn')}
                 </Text>
               )}
             </Pressable>

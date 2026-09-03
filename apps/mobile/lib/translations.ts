@@ -1659,6 +1659,8 @@ const FR = {
   sm_upgrade_to_plus: 'Passer à Plus →',
   sm_freeze_active_title: '🧊 Freeze activé',
   sm_freeze_active_desc: 'Ta série est protégée. Tu peux manquer un jour sans la perdre.',
+  sc_skip_feedback: 'Passer →',
+  sc_open_now: 'Ouvert',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -3305,6 +3307,8 @@ const EN: Record<TranslationKey, string> = {
   sm_upgrade_to_plus: 'Upgrade to Plus →',
   sm_freeze_active_title: '🧊 Freeze active',
   sm_freeze_active_desc: 'Your streak is protected. You can miss a day without losing it.',
+  sc_skip_feedback: 'Skip →',
+  sc_open_now: 'Open',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4951,6 +4955,8 @@ const ES: Record<TranslationKey, string> = {
   sm_upgrade_to_plus: 'Pasar a Plus →',
   sm_freeze_active_title: '🧊 Congelación activa',
   sm_freeze_active_desc: 'Tu racha está protegida. Puedes fallar un día sin perderla.',
+  sc_skip_feedback: 'Omitir →',
+  sc_open_now: 'Abierto',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -6597,6 +6603,8 @@ const PT: Record<TranslationKey, string> = {
   sm_upgrade_to_plus: 'Passar para o Plus →',
   sm_freeze_active_title: '🧊 Congelamento ativo',
   sm_freeze_active_desc: 'Sua sequência está protegida. Você pode perder um dia sem perdê-la.',
+  sc_skip_feedback: 'Pular →',
+  sc_open_now: 'Aberto',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -8243,6 +8251,8 @@ const AR: Record<TranslationKey, string> = {
   sm_upgrade_to_plus: 'الترقية إلى Plus ←',
   sm_freeze_active_title: '🧊 التجميد نشط',
   sm_freeze_active_desc: 'سلسلتك محمية. يمكنك تفويت يوم دون أن تفقدها.',
+  sc_skip_feedback: 'تخطي ←',
+  sc_open_now: 'مفتوح',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
