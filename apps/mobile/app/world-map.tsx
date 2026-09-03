@@ -86,7 +86,7 @@ export default function WorldMapScreen() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ lat: coords.latitude, lng: coords.longitude, visibility: 'map' }),
       });
-      const started = await startBackgroundLocation();
+      const started = await startBackgroundLocation(t('bgloc_notification_body'));
       if (!started) {
         setPermissionDenied(true);
         return;

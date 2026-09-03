@@ -35,8 +35,13 @@ TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
   }
 });
 
-/** Démarre le suivi en arrière-plan. Nécessite la permission "toujours autoriser". */
-export async function startBackgroundLocation(): Promise<boolean> {
+/**
+ * Démarre le suivi en arrière-plan. Nécessite la permission "toujours autoriser".
+ * `notificationBody` (texte de la notification persistante Android tant que
+ * le suivi tourne) est fourni traduit par l'appelant — ce module n'a pas
+ * accès au contexte React (donc à useI18n) pour le traduire lui-même.
+ */
+export async function startBackgroundLocation(notificationBody: string): Promise<boolean> {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return false;
 
@@ -53,7 +58,7 @@ export async function startBackgroundLocation(): Promise<boolean> {
     showsBackgroundLocationIndicator: false,
     foregroundService: {
       notificationTitle: 'YUMIA',
-      notificationBody: 'Ta position est partagée pour te faire découvrir des membres proches.',
+      notificationBody,
     },
     pausesUpdatesAutomatically: false,
   });
