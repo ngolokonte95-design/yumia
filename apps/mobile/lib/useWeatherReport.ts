@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cacheGet, cacheKey, cacheSet } from './cache';
 import { getWeatherProvider, type WeatherReport } from './services/weather';
+import { useI18n } from './useI18n';
 
 /**
  * Rapport météo complet pour un point donné, avec cache « stale-while-revalidate ».
@@ -23,6 +24,7 @@ export interface WeatherReportState {
 }
 
 export function useWeatherReport(lat?: number, lng?: number): WeatherReportState {
+  const { t } = useI18n();
   const [report, setReport] = useState<WeatherReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,11 +59,15 @@ export function useWeatherReport(lat?: number, lng?: number): WeatherReportState
       setReport(fresh);
       setError(null);
       void cacheSet(ck, fresh, TTL);
-    } catch (err) {
+    } catch {
       if (controller.signal.aborted) return;
       // On garde la donnée en cache affichée : un écran météo figé vaut mieux
       // qu'un écran vide.
-      setError(err instanceof Error ? err.message : 'Météo indisponible');
+      // Message générique traduit plutôt qu'err.message : les erreurs du
+      // fournisseur (open-meteo.ts, radar.ts) restent en français côté code,
+      // trop techniques/instables pour être affichées telles quelles à
+      // l'utilisateur de toute façon.
+      setError(t('weather_unavailable'));
     } finally {
       if (!controller.signal.aborted) {
         setLoading(false);

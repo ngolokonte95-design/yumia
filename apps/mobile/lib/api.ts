@@ -5,27 +5,10 @@
 import type { Mode, Mood, Suggestion } from '@yumia/shared';
 import { API_BASE_URL } from './config';
 import type { Universe } from './auth-api';
-import { TRANSLATIONS } from './translations';
+import { tRuntime as apiT } from './i18n-runtime';
 
 /** URL de base de l'API (ex. pour les `fetch` directs des écrans qui n'utilisent pas `request`). */
 export const apiBase = API_BASE_URL;
-
-/**
- * Locale courante, tenue à jour par useI18n (via `setApiLocale`) — ce module
- * n'a pas accès au contexte React pour lire la locale via un hook, mais les
- * messages d'erreur réseau ci-dessous doivent tout de même parler la langue
- * de l'utilisateur.
- */
-let _locale = 'fr';
-
-export function setApiLocale(locale: string): void {
-  _locale = locale;
-}
-
-function apiT(key: 'api_timeout' | 'api_unreachable' | 'api_request_failed'): string {
-  const dict = TRANSLATIONS[_locale] ?? TRANSLATIONS['fr'];
-  return dict[key] ?? key;
-}
 
 /**
  * Registered by AuthProvider so that api.ts can silently refresh an expired

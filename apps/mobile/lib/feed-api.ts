@@ -4,6 +4,7 @@
  */
 import { API_BASE_URL } from './config';
 import type { Plan } from './auth-api';
+import { tRuntime } from './i18n-runtime';
 export type { Plan };
 
 const API = API_BASE_URL;
@@ -220,7 +221,7 @@ export const feedApi = {
     const r = await fetch(`${API}/posts/upload`, { method: 'POST', headers: auth(token), body: form });
     if (!r.ok) {
       const txt = await r.text().catch(() => '');
-      throw new Error(`Upload média échoué (HTTP ${r.status}). ${txt.slice(0, 160)}`);
+      throw new Error(tRuntime('postcreate_upload_failed').replace('{status}', String(r.status)).replace('{detail}', txt.slice(0, 160)));
     }
     return await r.json() as { url: string; thumbnailUrl?: string };
   },
