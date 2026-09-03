@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -32,6 +33,7 @@ export default function MeetupScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [meetups, setMeetups] = useState<Meetup[]>([]);
   const [loading, setLoading] = useState(true);
   const [city, setCity] = useState('');
@@ -62,7 +64,7 @@ export default function MeetupScreen() {
 
   const createMeetup = async () => {
     if (!form.title.trim() || !form.city.trim() || !form.date.trim()) {
-      Alert.alert('Remplis le titre, la ville et la date');
+      Alert.alert(t('mu_fill_required'));
       return;
     }
     setCreating(true);
@@ -83,7 +85,7 @@ export default function MeetupScreen() {
       setForm({ title: '', description: '', city: '', date: '', maxAttendees: '' });
       void load();
     } else {
-      Alert.alert('Erreur', 'Impossible de créer le meetup');
+      Alert.alert(t('mu_error'), t('mu_create_error'));
     }
   };
 
@@ -91,9 +93,9 @@ export default function MeetupScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Meetups</Text>
+        <Text style={styles.title}>{t('mu_title')}</Text>
         <Pressable style={styles.createBtn} onPress={() => setShowCreate(true)}>
-          <Text style={styles.createBtnText}>+ Créer</Text>
+          <Text style={styles.createBtnText}>{t('mu_create')}</Text>
         </Pressable>
       </View>
 
@@ -101,7 +103,7 @@ export default function MeetupScreen() {
       <View style={styles.filterRow}>
         <TextInput
           style={styles.cityInput}
-          placeholder="🏙️ Filtrer par ville..."
+          placeholder={t('mu_filter_city_placeholder')}
           placeholderTextColor={colors.textMuted}
           value={city}
           onChangeText={setCity}
@@ -134,9 +136,9 @@ export default function MeetupScreen() {
               </View>
               <View style={styles.cardBottom}>
                 <View style={styles.hostRow}>
-                  <Text style={styles.hostText}>par {item.host?.displayName ?? '?'}</Text>
+                  <Text style={styles.hostText}>{t('mu_by_host').replace('{name}', item.host?.displayName ?? '?')}</Text>
                   <Text style={styles.attendees}>
-                    👥 {item.attendeesCount}{item.maxAttendees ? `/${item.maxAttendees}` : ''} participants
+                    {t('mu_participants').replace('{n}', String(item.attendeesCount)).replace('{max}', item.maxAttendees ? `/${item.maxAttendees}` : '')}
                   </Text>
                 </View>
                 <Pressable
@@ -144,7 +146,7 @@ export default function MeetupScreen() {
                   onPress={() => void rsvp(item.id, item.myStatus)}
                 >
                   <Text style={[styles.rsvpBtnText, item.myStatus === 'going' && styles.rsvpBtnTextActive]}>
-                    {item.myStatus === 'going' ? '✓ Je participe' : 'Je sors ce soir !'}
+                    {item.myStatus === 'going' ? t('mu_going') : t('mu_join_tonight')}
                   </Text>
                 </Pressable>
               </View>
@@ -153,8 +155,8 @@ export default function MeetupScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🌃</Text>
-              <Text style={styles.emptyTitle}>Aucun meetup prévu</Text>
-              <Text style={styles.emptyText}>Sois le premier à organiser une sortie !</Text>
+              <Text style={styles.emptyTitle}>{t('mu_empty_title')}</Text>
+              <Text style={styles.emptyText}>{t('mu_empty_text')}</Text>
             </View>
           }
         />
@@ -164,24 +166,24 @@ export default function MeetupScreen() {
       <Modal visible={showCreate} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.modal, { paddingTop: insets.top || 24 }]}>
           <View style={styles.modalHeader}>
-            <Pressable onPress={() => setShowCreate(false)}><Text style={styles.cancel}>Annuler</Text></Pressable>
-            <Text style={styles.modalTitle}>Nouveau meetup</Text>
+            <Pressable onPress={() => setShowCreate(false)}><Text style={styles.cancel}>{t('mu_cancel')}</Text></Pressable>
+            <Text style={styles.modalTitle}>{t('mu_new_meetup')}</Text>
             <Pressable onPress={createMeetup} disabled={creating} style={styles.saveBtn}>
-              {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Créer</Text>}
+              {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>{t('mu_create').replace('+ ', '')}</Text>}
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={{ padding: spacing.md, gap: 12 }}>
-            <TextInput style={styles.input} placeholder="Titre *" placeholderTextColor={colors.textMuted} value={form.title} onChangeText={(v) => setForm((f) => ({ ...f, title: v }))} />
-            <TextInput style={[styles.input, { minHeight: 80 }]} placeholder="Description" placeholderTextColor={colors.textMuted} value={form.description} onChangeText={(v) => setForm((f) => ({ ...f, description: v }))} multiline />
-            <TextInput style={styles.input} placeholder="Ville * (ex: Paris)" placeholderTextColor={colors.textMuted} value={form.city} onChangeText={(v) => setForm((f) => ({ ...f, city: v }))} />
+            <TextInput style={styles.input} placeholder={t('mu_title_field_placeholder')} placeholderTextColor={colors.textMuted} value={form.title} onChangeText={(v) => setForm((f) => ({ ...f, title: v }))} />
+            <TextInput style={[styles.input, { minHeight: 80 }]} placeholder={t('mu_description_placeholder')} placeholderTextColor={colors.textMuted} value={form.description} onChangeText={(v) => setForm((f) => ({ ...f, description: v }))} multiline />
+            <TextInput style={styles.input} placeholder={t('mu_city_field_placeholder')} placeholderTextColor={colors.textMuted} value={form.city} onChangeText={(v) => setForm((f) => ({ ...f, city: v }))} />
             <TextInput
               style={styles.input}
-              placeholder="Date et heure * (ex: 2026-07-10T20:00)"
+              placeholder={t('mu_date_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={form.date}
               onChangeText={(v) => setForm((f) => ({ ...f, date: v }))}
             />
-            <TextInput style={styles.input} placeholder="Max participants (optionnel)" placeholderTextColor={colors.textMuted} value={form.maxAttendees} onChangeText={(v) => setForm((f) => ({ ...f, maxAttendees: v }))} keyboardType="numeric" />
+            <TextInput style={styles.input} placeholder={t('mu_max_attendees_placeholder')} placeholderTextColor={colors.textMuted} value={form.maxAttendees} onChangeText={(v) => setForm((f) => ({ ...f, maxAttendees: v }))} keyboardType="numeric" />
           </ScrollView>
         </View>
       </Modal>
