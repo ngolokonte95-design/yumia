@@ -187,7 +187,10 @@ const FeedCard = memo(function FeedCard({
 
   async function handleShare() {
     await Share.share({
-      message: `${meta.emoji} ${place.name} — découvert via YUMIA !\nyumia://place?id=${place.id}`,
+      message: t('place_share_message')
+        .replace('{emoji}', meta.emoji)
+        .replace('{name}', place.name)
+        .replace('{link}', `yumia://place?id=${place.id}`),
       title: place.name,
       url: `yumia://place?id=${place.id}`,
     });
