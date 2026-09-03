@@ -8,25 +8,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
 interface Msg { role: 'user' | 'assistant'; content: string }
 
-const SUGGESTIONS = [
-  'Où sortir ce soir à Paris ?',
-  'Propose-moi un lieu romantique',
-  'J\'ai faim, quoi de bon ?',
-  'Activité cool pour ce weekend',
-];
-
 export default function ChatbotScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
+  const SUGGESTIONS = [
+    t('chatbot_suggestion_1'),
+    t('chatbot_suggestion_2'),
+    t('chatbot_suggestion_3'),
+    t('chatbot_suggestion_4'),
+  ];
   const [messages, setMessages] = useState<Msg[]>([{
     role: 'assistant',
-    content: 'Salut ! Je suis YUMIA Assistant 👋 Dis-moi ce que tu cherches — un resto, une sortie, une activité — et je te trouve ce qu\'il te faut !',
+    content: t('chatbot_welcome'),
   }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +53,7 @@ export default function ChatbotScreen() {
         setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
       }
     } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: 'Oups, un problème est survenu 😕' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: t('chatbot_error') }]);
     } finally {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
@@ -70,7 +71,7 @@ export default function ChatbotScreen() {
           <Text style={styles.headerEmoji}>🤖</Text>
           <View>
             <Text style={styles.headerTitle}>YUMIA Assistant</Text>
-            <Text style={styles.headerSub}>Ton copilote d'expériences</Text>
+            <Text style={styles.headerSub}>{t('chatbot_header_sub')}</Text>
           </View>
         </View>
       </View>
@@ -114,7 +115,7 @@ export default function ChatbotScreen() {
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder="Dis-moi ce que tu cherches..."
+            placeholder={t('chatbot_input_placeholder')}
             placeholderTextColor={colors.textMuted}
             multiline
             maxLength={500}

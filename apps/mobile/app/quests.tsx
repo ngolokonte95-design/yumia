@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -24,6 +25,7 @@ interface Quest {
 }
 
 function QuestCard({ quest }: { quest: Quest }) {
+  const { t } = useI18n();
   const pct = Math.min((quest.progress / quest.target) * 100, 100);
   return (
     <View style={[styles.card, quest.completed && styles.cardDone]}>
@@ -43,7 +45,7 @@ function QuestCard({ quest }: { quest: Quest }) {
             <View style={[styles.progressFill, { width: `${pct}%` as `${number}%` }, quest.completed && styles.progressDone]} />
           </View>
           <Text style={styles.progressText}>
-            {quest.completed ? '✅ Complété !' : `${quest.progress}/${quest.target}`}
+            {quest.completed ? t('quests_completed_badge') : `${quest.progress}/${quest.target}`}
           </Text>
         </View>
       </View>
@@ -55,6 +57,7 @@ export default function QuestsScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'done'>('all');
@@ -82,7 +85,7 @@ export default function QuestsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Quêtes</Text>
+        <Text style={styles.title}>{t('quests_title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -90,12 +93,12 @@ export default function QuestsScreen() {
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statVal}>{doneCount}/{quests.length}</Text>
-          <Text style={styles.statLabel}>Complétées</Text>
+          <Text style={styles.statLabel}>{t('quests_completed_stat')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statBox}>
           <Text style={styles.statVal}>{totalXp}</Text>
-          <Text style={styles.statLabel}>XP gagnés</Text>
+          <Text style={styles.statLabel}>{t('quests_xp_earned_stat')}</Text>
         </View>
       </View>
 
@@ -104,7 +107,7 @@ export default function QuestsScreen() {
         {(['all', 'active', 'done'] as const).map((f) => (
           <Pressable key={f} style={[styles.filterChip, filter === f && styles.filterChipActive]} onPress={() => setFilter(f)}>
             <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {f === 'all' ? 'Toutes' : f === 'active' ? 'En cours' : 'Terminées'}
+              {f === 'all' ? t('quests_filter_all') : f === 'active' ? t('quests_filter_active') : t('quests_filter_done')}
             </Text>
           </Pressable>
         ))}
@@ -122,7 +125,7 @@ export default function QuestsScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={{ fontSize: 40, marginBottom: 12 }}>🏆</Text>
-              <Text style={styles.emptyText}>Aucune quête ici</Text>
+              <Text style={styles.emptyText}>{t('quests_empty')}</Text>
             </View>
           }
         />

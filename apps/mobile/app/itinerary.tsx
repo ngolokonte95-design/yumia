@@ -41,22 +41,22 @@ interface Step {
   placeLng?: number;
 }
 
-const DURATIONS: Array<{ key: Duration; label: string; emoji: string }> = [
-  { key: 'demi-journée', label: 'Demi-journée', emoji: '🌤️' },
-  { key: 'soirée', label: 'Soirée', emoji: '🌆' },
-  { key: 'journée', label: 'Journée complète', emoji: '☀️' },
-  { key: 'weekend', label: 'Weekend', emoji: '🗓️' },
+const DURATIONS: Array<{ key: Duration; labelKey: string; emoji: string }> = [
+  { key: 'demi-journée', labelKey: 'itin_duration_halfday', emoji: '🌤️' },
+  { key: 'soirée', labelKey: 'itin_duration_evening', emoji: '🌆' },
+  { key: 'journée', labelKey: 'itin_duration_fullday', emoji: '☀️' },
+  { key: 'weekend', labelKey: 'itin_duration_weekend', emoji: '🗓️' },
 ];
 
 // "Semaine" n'a de sens que pour le mode Voyage — un itinéraire d'une
 // semaine pour un date ou une sortie entre amis n'est pas un cas d'usage
 // réaliste. Ajoutée à la liste uniquement quand mood === 'touriste'.
-const WEEK_DURATION: { key: Duration; label: string; emoji: string } = { key: 'semaine', label: 'Semaine', emoji: '🧳' };
+const WEEK_DURATION: { key: Duration; labelKey: string; emoji: string } = { key: 'semaine', labelKey: 'itin_duration_week', emoji: '🧳' };
 
-const BUDGETS: Array<{ key: Budget; emoji: string; label: string; desc: string }> = [
-  { key: 'économique', emoji: '💸', label: 'Économique', desc: '< 30€/pers.' },
-  { key: 'moyen', emoji: '💶', label: 'Moyen', desc: '30-80€/pers.' },
-  { key: 'premium', emoji: '💎', label: 'Premium', desc: '80€+/pers.' },
+const BUDGETS: Array<{ key: Budget; emoji: string; labelKey: string; desc: string }> = [
+  { key: 'économique', emoji: '💸', labelKey: 'itin_budget_cheap', desc: '< 30€/pers.' },
+  { key: 'moyen', emoji: '💶', labelKey: 'itin_budget_medium', desc: '30-80€/pers.' },
+  { key: 'premium', emoji: '💎', labelKey: 'itin_budget_premium', desc: '80€+/pers.' },
 ];
 
 export default function ItineraryScreen() {
@@ -118,10 +118,10 @@ export default function ItineraryScreen() {
       if (res.ok) {
         setResult(await res.json());
       } else {
-        setResult({ itinerary: '', steps: [], error: `Erreur ${res.status}. Réessaie.` });
+        setResult({ itinerary: '', steps: [], error: tr('itin_error_status' as never).replace('{n}', String(res.status)) });
       }
     } catch {
-      setResult({ itinerary: '', steps: [], error: 'Connexion impossible. Vérifie ta connexion.' });
+      setResult({ itinerary: '', steps: [], error: tr('itin_error_connection') });
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,7 @@ export default function ItineraryScreen() {
       '',
       ...result.steps.map((s) => `${s.time} ${s.emoji} ${s.name} (${s.duration})\n  ${s.description}`),
       '',
-      '— Généré par YUMIA ✨',
+      tr('itin_generated_by'),
     ].join('\n');
     await Share.share({ message: text }).catch(() => undefined);
   };
@@ -151,7 +151,7 @@ export default function ItineraryScreen() {
       });
       setSaved(true);
     } catch {
-      Alert.alert('Erreur', 'Impossible d\'enregistrer cet itinéraire. Réessaie.');
+      Alert.alert(tr('itin_error_title'), tr('itin_error_save'));
     } finally {
       setSaving(false);
     }
@@ -207,7 +207,7 @@ export default function ItineraryScreen() {
       <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
 
         {/* Sélection du mood */}
-        <Text style={styles.label}>Pour qui ?</Text>
+        <Text style={styles.label}>{tr('itin_label_forwho')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
           {MOODS.map((m) => {
             const mm = MOOD_META[m];
@@ -231,7 +231,7 @@ export default function ItineraryScreen() {
         </ScrollView>
 
         {/* Durée */}
-        <Text style={styles.label}>Durée</Text>
+        <Text style={styles.label}>{tr('itin_label_duration')}</Text>
         <View style={styles.chipGrid}>
           {(mood === 'touriste' ? [...DURATIONS, WEEK_DURATION] : DURATIONS).map((d) => (
             <Pressable
@@ -240,13 +240,13 @@ export default function ItineraryScreen() {
               onPress={() => { setDuration(d.key); setCitySuggestOpen(false); }}
             >
               <Text style={styles.durationEmoji}>{d.emoji}</Text>
-              <Text style={[styles.durationLabel, duration === d.key && styles.chipLabelActive]}>{d.label}</Text>
+              <Text style={[styles.durationLabel, duration === d.key && styles.chipLabelActive]}>{tr(d.labelKey as never)}</Text>
             </Pressable>
           ))}
         </View>
 
         {/* Budget */}
-        <Text style={styles.label}>Budget</Text>
+        <Text style={styles.label}>{tr('itin_label_budget')}</Text>
         <View style={styles.chipGrid}>
           {BUDGETS.map((b) => (
             <Pressable
@@ -262,7 +262,7 @@ export default function ItineraryScreen() {
                   adjustsFontSizeToFit
                   minimumFontScale={0.8}
                 >
-                  {b.label}
+                  {tr(b.labelKey as never)}
                 </Text>
                 <Text style={[styles.budgetDesc, budget === b.key && { color: 'rgba(255,255,255,0.8)' }]}>{b.desc}</Text>
               </View>
@@ -275,7 +275,7 @@ export default function ItineraryScreen() {
           style={styles.label}
           onLayout={(e) => { cityFieldY.current = e.nativeEvent.layout.y; }}
         >
-          Ville
+          {tr('itin_label_city')}
         </Text>
         <View>
           <TextInput
@@ -283,7 +283,7 @@ export default function ItineraryScreen() {
             value={city}
             onChangeText={(t) => { setCity(t); setCitySuggestOpen(true); }}
             onFocus={() => setCitySuggestOpen(true)}
-            placeholder="Paris (par défaut)"
+            placeholder={tr('itin_city_placeholder')}
             placeholderTextColor={colors.textMuted}
             returnKeyType="done"
             onSubmitEditing={() => setCitySuggestOpen(false)}
@@ -294,7 +294,7 @@ export default function ItineraryScreen() {
               {citySearching ? (
                 <ActivityIndicator color={meta.color} size="small" style={{ padding: 12 }} />
               ) : citySuggestions.length === 0 ? (
-                <Text style={styles.citySuggestEmpty}>Aucune ville trouvée.</Text>
+                <Text style={styles.citySuggestEmpty}>{tr('itin_no_city_found')}</Text>
               ) : (
                 citySuggestions.map((c: CitySuggestion) => (
                   <Pressable
@@ -314,13 +314,13 @@ export default function ItineraryScreen() {
         </View>
 
         {/* Contraintes */}
-        <Text style={styles.label}>Contraintes (optionnel)</Text>
+        <Text style={styles.label}>{tr('itin_label_constraints')}</Text>
         <TextInput
           style={[styles.input, { height: 64 }]}
           value={constraints}
           onChangeText={setConstraints}
           onFocus={() => setCitySuggestOpen(false)}
-          placeholder="ex: végétarien, enfants de 5 et 8 ans, pas d'alcool…"
+          placeholder={tr('itin_constraints_placeholder')}
           placeholderTextColor={colors.textMuted}
           multiline
         />
@@ -334,10 +334,10 @@ export default function ItineraryScreen() {
           {loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color="#fff" />
-              <Text style={styles.generateBtnText}>YUMIA IA réfléchit…</Text>
+              <Text style={styles.generateBtnText}>{tr('itin_generating')}</Text>
             </View>
           ) : (
-            <Text style={styles.generateBtnText}>✨ Générer mon itinéraire</Text>
+            <Text style={styles.generateBtnText}>{tr('itin_generate_btn')}</Text>
           )}
         </Pressable>
 
@@ -346,7 +346,7 @@ export default function ItineraryScreen() {
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>⚠️ {result.error}</Text>
             <Pressable onPress={() => void generate()} style={[styles.retryBtn, { backgroundColor: meta.color }]}>
-              <Text style={styles.retryText}>Réessayer</Text>
+              <Text style={styles.retryText}>{tr('itin_retry')}</Text>
             </Pressable>
           </View>
         ) : result && result.steps.length > 0 ? (
@@ -399,7 +399,7 @@ export default function ItineraryScreen() {
                         style={[styles.placeBtn, { borderColor: meta.color }]}
                         onPress={() => navigateToPlace(step)}
                       >
-                        <Text style={[styles.placeBtnText, { color: meta.color }]}>Voir ce lieu →</Text>
+                        <Text style={[styles.placeBtnText, { color: meta.color }]}>{tr('itin_see_place')}</Text>
                       </Pressable>
                     ) : null}
                   </View>
@@ -417,15 +417,15 @@ export default function ItineraryScreen() {
                 {saving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.actionBtnText}>{saved ? '✓ Enregistré' : '💾 Enregistrer'}</Text>
+                  <Text style={styles.actionBtnText}>{saved ? tr('itin_saved') : tr('itin_save')}</Text>
                 )}
               </Pressable>
               <Pressable style={[styles.actionBtn, { backgroundColor: meta.color }]} onPress={() => void shareItinerary()}>
-                <Text style={styles.actionBtnText}>↑ Partager</Text>
+                <Text style={styles.actionBtnText}>{tr('itin_share')}</Text>
               </Pressable>
             </View>
             <Pressable style={[styles.actionBtnOutline, { marginTop: spacing.sm }]} onPress={() => { setResult(null); void generate(); }}>
-              <Text style={[styles.actionBtnOutlineText, { color: meta.color }]}>↺ Nouvel itinéraire</Text>
+              <Text style={[styles.actionBtnOutlineText, { color: meta.color }]}>{tr('itin_new')}</Text>
             </Pressable>
           </View>
         ) : null}

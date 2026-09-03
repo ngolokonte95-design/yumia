@@ -132,10 +132,10 @@ function SwipeCard({ place, onLike, onDislike, onTap, isTop }: SwipeCardProps) {
         {isTop ? (
           <>
             <Animated.View style={[styles.badge, styles.badgeLike, { opacity: likeOpacity }]}>
-              <Text style={styles.badgeText}>J'AIME ❤️</Text>
+              <Text style={styles.badgeText}>{t('swipe_like_badge')}</Text>
             </Animated.View>
             <Animated.View style={[styles.badge, styles.badgeNope, { opacity: nopeOpacity }]}>
-              <Text style={styles.badgeText}>PASSER 👎</Text>
+              <Text style={styles.badgeText}>{t('swipe_nope_badge')}</Text>
             </Animated.View>
           </>
         ) : null}
@@ -156,6 +156,7 @@ function SwipeCard({ place, onLike, onDislike, onTap, isTop }: SwipeCardProps) {
 export default function SwipeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useI18n();
   const { accessToken } = useAuth();
   const { coords, resolving } = useLocation();
   const [index, setIndex] = useState(0);
@@ -217,8 +218,8 @@ export default function SwipeScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Découverte</Text>
-        <Text style={styles.counter}>{Math.max(0, places.length - index)} restants</Text>
+        <Text style={styles.title}>{t('swipe_title')}</Text>
+        <Text style={styles.counter}>{Math.max(0, places.length - index)} {t('swipe_remaining_suffix')}</Text>
       </View>
 
       {/* Stack de cartes */}
@@ -226,15 +227,15 @@ export default function SwipeScreen() {
         {loading && places.length === 0 ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.brand} size="large" />
-            <Text style={styles.stateText}>Chargement des lieux…</Text>
+            <Text style={styles.stateText}>{t('swipe_loading')}</Text>
           </View>
         ) : done ? (
           <View style={styles.center}>
             <Text style={styles.doneEmoji}>🎉</Text>
-            <Text style={styles.doneTitle}>C'est tout !</Text>
-            <Text style={styles.doneBody}>Tu as exploré tous les lieux autour de toi.</Text>
+            <Text style={styles.doneTitle}>{t('swipe_done_title')}</Text>
+            <Text style={styles.doneBody}>{t('swipe_done_body')}</Text>
             <Pressable style={styles.retryBtn} onPress={() => { setIndex(0); setRound((r) => r + 1); }}>
-              <Text style={styles.retryText}>Recommencer</Text>
+              <Text style={styles.retryText}>{t('swipe_retry')}</Text>
             </Pressable>
           </View>
         ) : (
