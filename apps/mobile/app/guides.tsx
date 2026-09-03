@@ -13,11 +13,13 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchGuides, bookGuide, type Guide } from '../lib/business-api';
+import { useI18n } from '../lib/useI18n';
 
 export default function GuidesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const { city: locCity } = useLocation();
   const { city: paramCity } = useLocalSearchParams<{ city?: string }>();
 
@@ -49,8 +51,8 @@ export default function GuidesScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>🧭 Guides locaux</Text>
-          <Text style={styles.subtitle}>Des experts certifiés pour vivre la ville autrement.</Text>
+          <Text style={styles.title}>{t('gd_title')}</Text>
+          <Text style={styles.subtitle}>{t('gd_subtitle')}</Text>
         </View>
       </View>
 
@@ -58,7 +60,7 @@ export default function GuidesScreen() {
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Dans quelle ville ?"
+          placeholder={t('gd_city_placeholder')}
           placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={setQuery}
@@ -67,7 +69,7 @@ export default function GuidesScreen() {
           autoCorrect={false}
         />
         <Pressable style={styles.searchBtn} onPress={() => load(query)}>
-          <Text style={styles.searchBtnText}>Chercher</Text>
+          <Text style={styles.searchBtnText}>{t('gd_search')}</Text>
         </Pressable>
       </View>
 
@@ -76,7 +78,7 @@ export default function GuidesScreen() {
       ) : (
         <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.md }}>
           {guides.length === 0 ? (
-            <Text style={styles.empty}>Aucun guide pour « {query} » pour l'instant. Essaie Paris, Lyon, Marseille, London ou Barcelona.</Text>
+            <Text style={styles.empty}>{t('gd_empty').replace('{city}', query)}</Text>
           ) : (
             guides.map((g) => (
               <Pressable key={g.id} style={styles.card} onPress={() => setSelected(g)}>
@@ -86,9 +88,9 @@ export default function GuidesScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={styles.nameRow}>
                     <Text style={styles.guideName}>{g.name}</Text>
-                    {g.certified ? <Text style={styles.certBadge}>✓ Certifié</Text> : null}
+                    {g.certified ? <Text style={styles.certBadge}>{t('gd_certified')}</Text> : null}
                   </View>
-                  <Text style={styles.guideMeta}>⭐ {g.rating.toFixed(1)} · {g.city} · {g.pricePerPerson}€/pers</Text>
+                  <Text style={styles.guideMeta}>⭐ {g.rating.toFixed(1)} · {g.city} · {g.pricePerPerson}€/{t('gd_per_person')}</Text>
                   {g.bio ? <Text style={styles.guideBio} numberOfLines={2}>{g.bio}</Text> : null}
                 </View>
               </Pressable>
@@ -106,9 +108,9 @@ export default function GuidesScreen() {
           try {
             await bookGuide(accessToken, selected.id, dateIso, people);
             setSelected(null);
-            Alert.alert('Réservation envoyée 🎉', `Ta demande auprès de ${selected.name} est enregistrée. Tu seras recontacté pour finaliser.`);
+            Alert.alert(t('gd_booking_sent_title'), t('gd_booking_sent_body').replace('{name}', selected.name));
           } catch (e) {
-            Alert.alert('Erreur', e instanceof Error ? e.message : 'Réservation impossible.');
+            Alert.alert(t('gd_error'), e instanceof Error ? e.message : t('gd_booking_error'));
           }
         }}
       />
@@ -124,6 +126,7 @@ function BookingModal({
   onClose: () => void;
   onConfirm: (dateIso: string, people: number) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [dayOffset, setDayOffset] = useState(1);
   const [people, setPeople] = useState(2);
   const [submitting, setSubmitting] = useState(false);
@@ -147,10 +150,10 @@ function BookingModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>Réserver avec {guide.name}</Text>
-          <Text style={styles.sheetSub}>{guide.pricePerPerson}€ par personne</Text>
+          <Text style={styles.sheetTitle}>{t('gd_book_with').replace('{name}', guide.name)}</Text>
+          <Text style={styles.sheetSub}>{t('gd_per_person_price').replace('{price}', String(guide.pricePerPerson))}</Text>
 
-          <Text style={styles.fieldLabel}>Date</Text>
+          <Text style={styles.fieldLabel}>{t('gd_date')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
             {days.map((o) => (
               <Pressable key={o} style={[styles.dayChip, dayOffset === o && styles.dayChipActive]} onPress={() => setDayOffset(o)}>
@@ -159,7 +162,7 @@ function BookingModal({
             ))}
           </ScrollView>
 
-          <Text style={styles.fieldLabel}>Personnes</Text>
+          <Text style={styles.fieldLabel}>{t('gd_people')}</Text>
           <View style={styles.counterRow}>
             <Pressable style={styles.counterBtn} onPress={() => setPeople((p) => Math.max(1, p - 1))}>
               <Text style={styles.counterBtnText}>−</Text>
@@ -171,7 +174,7 @@ function BookingModal({
           </View>
 
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('gd_total')}</Text>
             <Text style={styles.totalValue}>{total}€</Text>
           </View>
 
@@ -186,10 +189,10 @@ function BookingModal({
                 setSubmitting(false);
               }}
             >
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Demander à réserver</Text>}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>{t('gd_request_booking')}</Text>}
             </Pressable>
           ) : (
-            <Text style={styles.loginHint}>Connecte-toi pour réserver un guide.</Text>
+            <Text style={styles.loginHint}>{t('gd_login_hint')}</Text>
           )}
         </View>
       </KeyboardAvoidingView>
