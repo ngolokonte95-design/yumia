@@ -15,14 +15,15 @@ import {
   favoritesApi,
   type FavoriteCollection, type FavoriteItem, type FavoriteKind, type FavoriteSort,
 } from '../lib/favorites-api';
+import type { TranslationKey } from '../lib/translations';
 
 /** Onglet de type — `null` signifie « tout ». */
 type KindFilter = FavoriteKind | null;
 
-const SORT_LABEL: Record<FavoriteSort, string> = {
-  recent: 'Récents',
-  oldest: 'Anciens',
-  name: 'A → Z',
+const SORT_LABEL_KEY: Record<FavoriteSort, TranslationKey> = {
+  recent: 'fav_sort_recent',
+  oldest: 'fav_sort_oldest',
+  name: 'fav_sort_name',
 };
 
 /**
@@ -36,6 +37,7 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [items, setItems] = useState<FavoriteItem[]>([]);
   const [collections, setCollections] = useState<FavoriteCollection[]>([]);
@@ -91,12 +93,12 @@ export default function FavoritesScreen() {
 
   const removeCollection = (c: FavoriteCollection) => {
     Alert.alert(
-      'Supprimer la collection',
-      `« ${c.name} » sera supprimée. Son contenu reste dans tes favoris.`,
+      t('fav_delete_collection_title'),
+      t('fav_delete_collection_body').replace('{name}', c.name),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('fav_cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('fav_delete'),
           style: 'destructive',
           onPress: async () => {
             if (!accessToken) return;
@@ -139,7 +141,7 @@ export default function FavoritesScreen() {
         <PressableScale onPress={() => router.back()} hitSlop={12} style={styles.headerBtn}>
           <Text style={styles.headerIcon}>←</Text>
         </PressableScale>
-        <Text style={styles.headerTitle}>Favoris</Text>
+        <Text style={styles.headerTitle}>{t('fav_title')}</Text>
         <PressableScale onPress={() => setShowCreate(true)} hitSlop={12} style={styles.headerBtn}>
           <Text style={styles.headerIcon}>＋</Text>
         </PressableScale>
@@ -151,7 +153,7 @@ export default function FavoritesScreen() {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher dans mes favoris"
+            placeholder={t('fav_search_placeholder')}
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -172,7 +174,7 @@ export default function FavoritesScreen() {
         contentContainerStyle={styles.chips}
       >
         <Chip
-          label={`Tout${total ? ` · ${items.length}` : ''}`}
+          label={`${t('fav_all')}${total ? ` · ${items.length}` : ''}`}
           active={activeCollection === null}
           onPress={() => setActiveCollection(null)}
         />
@@ -198,7 +200,7 @@ export default function FavoritesScreen() {
               style={[styles.kindBtn, kind === k && styles.kindBtnActive]}
             >
               <Text style={[styles.kindTxt, kind === k && styles.kindTxtActive]}>
-                {k === null ? 'Tout' : k === 'place' ? '📍 Lieux' : '🖼️ Posts'}
+                {k === null ? t('fav_kind_all') : k === 'place' ? t('fav_kind_places') : t('fav_kind_posts')}
               </Text>
             </PressableScale>
           ))}
@@ -209,7 +211,7 @@ export default function FavoritesScreen() {
           onPress={() => setSort((s) => (s === 'recent' ? 'name' : s === 'name' ? 'oldest' : 'recent'))}
           style={styles.sortBtn}
         >
-          <Text style={styles.sortTxt}>⇅ {SORT_LABEL[sort]}</Text>
+          <Text style={styles.sortTxt}>⇅ {t(SORT_LABEL_KEY[sort])}</Text>
         </PressableScale>
       </View>
 
@@ -302,7 +304,7 @@ function FavoriteRow({
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle} numberOfLines={1}>{item.title}</Text>
             <Text style={styles.rowMeta} numberOfLines={1}>
-              {item.kind === 'post' ? 'Publication' : (item.universe ? universeLabel(t, item.universe) : 'Lieu')}
+              {item.kind === 'post' ? t('fav_post_label') : (item.universe ? universeLabel(t, item.universe) : t('fav_place_label'))}
               {item.subtitle ? ` · ${item.subtitle}` : ''}
             </Text>
           </View>
@@ -317,16 +319,17 @@ function FavoriteRow({
 }
 
 function EmptyState({ search, collection }: { search: string; collection: string | null }) {
+  const { t } = useI18n();
   const message = search
-    ? 'Aucun favori ne correspond à cette recherche.'
+    ? t('fav_empty_search')
     : collection
-      ? 'Cette collection est encore vide. Range-y un favori depuis le menu ⋯.'
-      : 'Appuie sur ❤️ sur un lieu ou une publication pour le retrouver ici.';
+      ? t('fav_empty_collection')
+      : t('fav_empty_default');
 
   return (
     <View style={styles.empty}>
       <Text style={styles.emptyEmoji}>{search ? '🔍' : '❤️'}</Text>
-      <Text style={styles.emptyTitle}>{search ? 'Rien trouvé' : 'Aucun favori'}</Text>
+      <Text style={styles.emptyTitle}>{search ? t('fav_nothing_found') : t('fav_empty_title')}</Text>
       <Text style={styles.emptyText}>{message}</Text>
     </View>
   );
@@ -338,18 +341,19 @@ function CreateCollectionModal({
   visible: boolean; name: string;
   onChangeName: (v: string) => void; onClose: () => void; onCreate: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <PressableScale onPress={onClose} scaleTo={1} style={styles.backdrop}>
           <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>Nouvelle collection</Text>
+            <Text style={styles.sheetTitle}>{t('fav_new_collection')}</Text>
             <Text style={styles.sheetHint}>
-              Une collection peut contenir aussi bien des lieux que des publications.
+              {t('fav_new_collection_hint')}
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex. Week-end, Road trip, À tester"
+              placeholder={t('fav_collection_name_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={name}
               onChangeText={onChangeName}
@@ -362,7 +366,7 @@ function CreateCollectionModal({
               disabled={!name.trim()}
               style={[styles.primaryBtn, !name.trim() && styles.primaryBtnDisabled]}
             >
-              <Text style={styles.primaryBtnTxt}>Créer</Text>
+              <Text style={styles.primaryBtnTxt}>{t('fav_create')}</Text>
             </PressableScale>
           </View>
         </PressableScale>
@@ -379,11 +383,12 @@ function AssignModal({
   onClose: () => void;
   onAssign: (collectionId: string | null) => void;
 }) {
+  const { t } = useI18n();
   return (
     <Modal visible={!!item} transparent animationType="slide" onRequestClose={onClose}>
       <PressableScale onPress={onClose} scaleTo={1} style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>Ranger dans…</Text>
+          <Text style={styles.sheetTitle}>{t('fav_organize_into')}</Text>
           <Text style={styles.sheetHint} numberOfLines={1}>{item?.title}</Text>
 
           <ScrollView style={styles.assignList}>
@@ -401,14 +406,14 @@ function AssignModal({
             ))}
             {collections.length === 0 && (
               <Text style={styles.assignEmpty}>
-                Aucune collection. Crée-en une avec ＋ en haut de l'écran.
+                {t('fav_no_collections')}
               </Text>
             )}
           </ScrollView>
 
           {item?.collectionId && (
             <PressableScale onPress={() => onAssign(null)} style={styles.removeBtn}>
-              <Text style={styles.removeTxt}>Retirer de la collection</Text>
+              <Text style={styles.removeTxt}>{t('fav_remove_from_collection')}</Text>
             </PressableScale>
           )}
         </View>
