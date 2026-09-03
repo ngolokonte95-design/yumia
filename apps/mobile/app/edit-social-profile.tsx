@@ -9,19 +9,21 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
 const API = API_BASE_URL;
 
-const GENDERS = [
-  { value: 'male', label: '👨 Homme' },
-  { value: 'female', label: '👩 Femme' },
-  { value: 'other', label: '🧑 Autre' },
+const GENDERS: { value: string; labelKey: TranslationKey }[] = [
+  { value: 'male', labelKey: 'esp_gender_male' },
+  { value: 'female', labelKey: 'esp_gender_female' },
+  { value: 'other', labelKey: 'esp_gender_other' },
 ];
 
-const INTERESTED_IN = [
-  { value: 'everyone', label: '💑 Tout le monde' },
-  { value: 'female', label: '👩 Femmes' },
-  { value: 'male', label: '👨 Hommes' },
+const INTERESTED_IN: { value: string; labelKey: TranslationKey }[] = [
+  { value: 'everyone', labelKey: 'esp_interested_everyone' },
+  { value: 'female', labelKey: 'esp_interested_female' },
+  { value: 'male', labelKey: 'esp_interested_male' },
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -30,6 +32,7 @@ export default function EditSocialProfileScreen() {
   const { user, accessToken, updateProfile } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
@@ -102,9 +105,9 @@ export default function EditSocialProfileScreen() {
     <ScrollView style={[styles.container, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Modifier le profil</Text>
+        <Text style={styles.title}>{t('esp_title')}</Text>
         <Pressable onPress={save} disabled={saving} style={styles.saveBtn}>
-          {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveTxt}>Sauvegarder</Text>}
+          {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveTxt}>{t('esp_save')}</Text>}
         </Pressable>
       </View>
 
@@ -120,25 +123,25 @@ export default function EditSocialProfileScreen() {
           )}
           <View style={styles.cameraIcon}><Text style={{ fontSize: 16 }}>📷</Text></View>
         </Pressable>
-        <Text style={styles.avatarHint}>Appuie pour changer ta photo</Text>
+        <Text style={styles.avatarHint}>{t('esp_avatar_hint')}</Text>
       </View>
 
       {/* Nom */}
       <View style={styles.section}>
-        <Text style={styles.label}>Nom affiché</Text>
+        <Text style={styles.label}>{t('esp_display_name')}</Text>
         <TextInput
           style={styles.input}
           value={displayName}
           onChangeText={setDisplayName}
           maxLength={40}
-          placeholder="Ton prénom ou pseudo"
+          placeholder={t('esp_name_placeholder')}
           placeholderTextColor={colors.textMuted}
         />
       </View>
 
       {/* Bio */}
       <View style={styles.section}>
-        <Text style={styles.label}>Bio</Text>
+        <Text style={styles.label}>{t('esp_bio')}</Text>
         <TextInput
           style={[styles.input, styles.inputMulti]}
           value={bio}
@@ -146,7 +149,7 @@ export default function EditSocialProfileScreen() {
           maxLength={200}
           multiline
           numberOfLines={3}
-          placeholder="Parle de toi en quelques mots..."
+          placeholder={t('esp_bio_placeholder')}
           placeholderTextColor={colors.textMuted}
         />
         <Text style={styles.counter}>{bio.length}/200</Text>
@@ -154,7 +157,7 @@ export default function EditSocialProfileScreen() {
 
       {/* Sexe */}
       <View style={styles.section}>
-        <Text style={styles.label}>Je suis</Text>
+        <Text style={styles.label}>{t('esp_i_am')}</Text>
         <View style={styles.chips}>
           {GENDERS.map((g) => (
             <Pressable
@@ -162,7 +165,7 @@ export default function EditSocialProfileScreen() {
               style={[styles.chip, gender === g.value && styles.chipActive]}
               onPress={() => setGender(g.value)}
             >
-              <Text style={[styles.chipText, gender === g.value && styles.chipTextActive]}>{g.label}</Text>
+              <Text style={[styles.chipText, gender === g.value && styles.chipTextActive]}>{t(g.labelKey)}</Text>
             </Pressable>
           ))}
         </View>
@@ -170,21 +173,21 @@ export default function EditSocialProfileScreen() {
 
       {/* Âge */}
       <View style={styles.section}>
-        <Text style={styles.label}>Année de naissance {age ? `→ ${age} ans` : ''}</Text>
+        <Text style={styles.label}>{t('esp_birth_year')} {age ? t('esp_years_old').replace('{age}', String(age)) : ''}</Text>
         <TextInput
           style={styles.input}
           value={birthYear}
           onChangeText={(v) => setBirthYear(v.replace(/\D/g, '').slice(0, 4))}
           keyboardType="numeric"
           maxLength={4}
-          placeholder="ex: 1995"
+          placeholder={t('esp_birth_year_placeholder')}
           placeholderTextColor={colors.textMuted}
         />
       </View>
 
       {/* Intéressé par */}
       <View style={styles.section}>
-        <Text style={styles.label}>Je souhaite rencontrer</Text>
+        <Text style={styles.label}>{t('esp_want_to_meet')}</Text>
         <View style={styles.chips}>
           {INTERESTED_IN.map((opt) => (
             <Pressable
@@ -192,23 +195,23 @@ export default function EditSocialProfileScreen() {
               style={[styles.chip, interestedIn === opt.value && styles.chipActive]}
               onPress={() => setInterestedIn(opt.value)}
             >
-              <Text style={[styles.chipText, interestedIn === opt.value && styles.chipTextActive]}>{opt.label}</Text>
+              <Text style={[styles.chipText, interestedIn === opt.value && styles.chipTextActive]}>{t(opt.labelKey)}</Text>
             </Pressable>
           ))}
         </View>
-        <Text style={styles.hint}>Seules les personnes correspondant à ta préférence te seront proposées.</Text>
+        <Text style={styles.hint}>{t('esp_meet_hint')}</Text>
       </View>
 
       {/* Profil privé / public */}
       <View style={styles.section}>
-        <Text style={styles.label}>Confidentialité du compte</Text>
+        <Text style={styles.label}>{t('esp_account_privacy')}</Text>
         <View style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.toggleTitle}>{isPrivate ? '🔒 Compte privé' : '🌐 Compte public'}</Text>
+            <Text style={styles.toggleTitle}>{isPrivate ? t('esp_private_account') : t('esp_public_account')}</Text>
             <Text style={styles.toggleSub}>
               {isPrivate
-                ? 'Seuls tes abonnés approuvés voient tes publications.'
-                : 'Tout le monde peut voir tes publications.'}
+                ? t('esp_private_sub')
+                : t('esp_public_sub')}
             </Text>
           </View>
           <Switch
