@@ -10,6 +10,7 @@ import { socialApi } from '../../lib/social-api';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
+import { useI18n } from '../../lib/useI18n';
 
 type FollowUser = {
   id: string;
@@ -25,6 +26,7 @@ export default function FollowListScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [users, setUsers] = useState<FollowUser[]>([]);
   const [filtered, setFiltered] = useState<FollowUser[]>([]);
@@ -33,7 +35,7 @@ export default function FollowListScreen() {
   const [following, setFollowing] = useState<Set<string>>(new Set());
 
   const isFollowers = type === 'followers';
-  const title = isFollowers ? 'Abonnés' : 'Abonnements';
+  const title = isFollowers ? t('fl_followers') : t('fl_following');
 
   const load = useCallback(async () => {
     if (!accessToken || !userId) return;
@@ -85,7 +87,7 @@ export default function FollowListScreen() {
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Rechercher..."
+          placeholder={t('fl_search_placeholder')}
           placeholderTextColor={colors.textMuted}
           clearButtonMode="while-editing"
         />
@@ -102,7 +104,7 @@ export default function FollowListScreen() {
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.empty}>Aucun résultat</Text>
+              <Text style={styles.empty}>{t('fl_no_results')}</Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -128,7 +130,7 @@ export default function FollowListScreen() {
                   {item.bio ? (
                     <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text>
                   ) : (
-                    <Text style={styles.level}>✨ Niveau {item.level}</Text>
+                    <Text style={styles.level}>{t('fl_level').replace('{n}', String(item.level))}</Text>
                   )}
                 </View>
                 {!isMe && (
@@ -137,7 +139,7 @@ export default function FollowListScreen() {
                     onPress={() => void toggleFollow(item.id)}
                   >
                     <Text style={[styles.followTxt, isFollowed && styles.followTxtActive]}>
-                      {isFollowed ? 'Abonné' : 'Suivre'}
+                      {isFollowed ? t('fl_followed') : t('fl_follow')}
                     </Text>
                   </Pressable>
                 )}

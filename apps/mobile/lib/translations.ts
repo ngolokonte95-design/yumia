@@ -1370,6 +1370,13 @@ const FR = {
   fr_empty_text: 'Les demandes d\'abonnement apparaîtront ici.',
   fr_confirm: 'Confirmer',
   fr_delete: 'Supprimer',
+  fl_followers: 'Abonnés',
+  fl_following: 'Abonnements',
+  fl_search_placeholder: 'Rechercher...',
+  fl_no_results: 'Aucun résultat',
+  fl_level: '✨ Niveau {n}',
+  fl_followed: 'Abonné',
+  fl_follow: 'Suivre',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2727,6 +2734,13 @@ const EN: Record<TranslationKey, string> = {
   fr_empty_text: 'Follow requests will appear here.',
   fr_confirm: 'Confirm',
   fr_delete: 'Delete',
+  fl_followers: 'Followers',
+  fl_following: 'Following',
+  fl_search_placeholder: 'Search...',
+  fl_no_results: 'No results',
+  fl_level: '✨ Level {n}',
+  fl_followed: 'Following',
+  fl_follow: 'Follow',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4084,6 +4098,13 @@ const ES: Record<TranslationKey, string> = {
   fr_empty_text: 'Las solicitudes de seguimiento aparecerán aquí.',
   fr_confirm: 'Confirmar',
   fr_delete: 'Eliminar',
+  fl_followers: 'Seguidores',
+  fl_following: 'Siguiendo',
+  fl_search_placeholder: 'Buscar...',
+  fl_no_results: 'Sin resultados',
+  fl_level: '✨ Nivel {n}',
+  fl_followed: 'Siguiendo',
+  fl_follow: 'Seguir',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5441,6 +5462,13 @@ const PT: Record<TranslationKey, string> = {
   fr_empty_text: 'As solicitações de seguidor aparecerão aqui.',
   fr_confirm: 'Confirmar',
   fr_delete: 'Excluir',
+  fl_followers: 'Seguidores',
+  fl_following: 'Seguindo',
+  fl_search_placeholder: 'Buscar...',
+  fl_no_results: 'Nenhum resultado',
+  fl_level: '✨ Nível {n}',
+  fl_followed: 'Seguindo',
+  fl_follow: 'Seguir',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6798,6 +6826,13 @@ const AR: Record<TranslationKey, string> = {
   fr_empty_text: 'ستظهر طلبات المتابعة هنا.',
   fr_confirm: 'تأكيد',
   fr_delete: 'حذف',
+  fl_followers: 'المتابعون',
+  fl_following: 'يتابع',
+  fl_search_placeholder: 'بحث...',
+  fl_no_results: 'لا توجد نتائج',
+  fl_level: '✨ المستوى {n}',
+  fl_followed: 'متابَع',
+  fl_follow: 'متابعة',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
