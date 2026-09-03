@@ -16,7 +16,7 @@ import {
 } from '../lib/calendar-api';
 import {
   addMonths, dayKey, formatEventTime, formatLongDate, isForeignTimezone,
-  isSameDay, monthRange, MONTHS,
+  isSameDay, monthRange, monthsFor,
 } from '../lib/calendar-format';
 import { useI18n } from '../lib/useI18n';
 import { calendarCategoryLabel } from '../lib/labelHelpers';
@@ -34,7 +34,7 @@ export default function CalendarScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const params = useLocalSearchParams<{
     title?: string; placeId?: string; placeName?: string; address?: string; category?: string;
   }>();
@@ -153,7 +153,7 @@ export default function CalendarScreen() {
             <Text style={styles.navArrow}>‹</Text>
           </PressableScale>
           <Text style={styles.monthLabel}>
-            {MONTHS[month.getMonth()]} {month.getFullYear()}
+            {monthsFor(locale)[month.getMonth()]} {month.getFullYear()}
           </Text>
           <PressableScale onPress={() => setMonth((m) => addMonths(m, 1))} hitSlop={12}>
             <Text style={styles.navArrow}>›</Text>
@@ -181,7 +181,7 @@ export default function CalendarScreen() {
       <View style={styles.agendaHeader}>
         <View style={styles.agendaHeadRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.agendaTitle}>{formatLongDate(selected)}</Text>
+            <Text style={styles.agendaTitle}>{formatLongDate(selected, locale)}</Text>
             <Text style={styles.agendaCount}>
               {dayEvents.length === 0 ? t('calendar_nothing_planned') : t('calendar_events_count').replace('{n}', String(dayEvents.length)).replace('{s}', dayEvents.length > 1 ? 's' : '')}
             </Text>

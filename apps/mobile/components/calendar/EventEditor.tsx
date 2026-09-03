@@ -8,7 +8,7 @@ import {
   CATEGORIES, CATEGORY_META,
   type CalendarEvent, type EventCategory, type EventDraft,
 } from '../../lib/calendar-api';
-import { addDays, formatLongDate, MONTHS } from '../../lib/calendar-format';
+import { addDays, formatLongDate } from '../../lib/calendar-format';
 import { useI18n } from '../../lib/useI18n';
 import { calendarCategoryLabel } from '../../lib/labelHelpers';
 import type { TranslationKey } from '../../lib/translations';
@@ -68,13 +68,14 @@ function TimeStepper({
 
 /** Sélecteur de jour compact : navigation jour par jour autour de la date. */
 function DayPicker({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
+  const { locale } = useI18n();
   return (
     <View style={styles.stepper}>
       <PressableScale onPress={() => onChange(addDays(value, -1))} style={styles.stepBtn} hitSlop={8}>
         <Text style={styles.stepTxt}>◀</Text>
       </PressableScale>
       <Text style={styles.dayLabel} numberOfLines={1}>
-        {formatLongDate(value)} {value.getFullYear() !== new Date().getFullYear() ? value.getFullYear() : ''}
+        {formatLongDate(value, locale)} {value.getFullYear() !== new Date().getFullYear() ? value.getFullYear() : ''}
       </Text>
       <PressableScale onPress={() => onChange(addDays(value, 1))} style={styles.stepBtn} hitSlop={8}>
         <Text style={styles.stepTxt}>▶</Text>

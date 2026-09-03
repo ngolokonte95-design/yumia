@@ -2,7 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { CATEGORY_META, type CalendarEvent, type EventCategory } from '../../lib/calendar-api';
-import { dayKey, isSameDay, monthGrid, WEEKDAYS } from '../../lib/calendar-format';
+import { dayKey, isSameDay, monthGrid, weekdaysFor } from '../../lib/calendar-format';
+import { useI18n } from '../../lib/useI18n';
 
 /** Nombre maximal de pastilles affichées sous un jour. */
 const MAX_DOTS = 3;
@@ -23,13 +24,14 @@ export function MonthGrid({
   eventsByDay: Map<string, CalendarEvent[]>;
   onSelect: (day: Date) => void;
 }) {
+  const { locale } = useI18n();
   const days = monthGrid(month);
   const today = new Date();
 
   return (
     <View style={styles.wrap}>
       <View style={styles.weekdays}>
-        {WEEKDAYS.map((d, i) => (
+        {weekdaysFor(locale).map((d, i) => (
           <Text key={i} style={styles.weekday}>{d}</Text>
         ))}
       </View>

@@ -7,11 +7,47 @@
  * `formatEventTime`.
  */
 
+/** Repli par défaut (français) — préférer {@link weekdaysFor} pour une locale précise. */
 export const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+/** Repli par défaut (français) — préférer {@link monthsFor} pour une locale précise. */
 export const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
+
+const WEEKDAYS_BY_LOCALE: Record<string, string[]> = {
+  fr: ['L', 'M', 'M', 'J', 'V', 'S', 'D'],
+  en: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+  es: ['L', 'M', 'X', 'J', 'V', 'S', 'D'],
+  pt: ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'],
+  ar: ['ن', 'ث', 'ر', 'خ', 'ج', 'س', 'ح'],
+};
+
+const MONTHS_BY_LOCALE: Record<string, string[]> = {
+  fr: MONTHS,
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  es: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+  pt: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
+  ar: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
+};
+
+const WEEKDAYS_LONG_BY_LOCALE: Record<string, string[]> = {
+  fr: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
+  en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  es: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+  pt: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
+  ar: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+};
+
+/** Initiales des jours de la semaine (en-tête de la grille mensuelle), dans une locale donnée. */
+export function weekdaysFor(locale = 'fr'): string[] {
+  return WEEKDAYS_BY_LOCALE[locale] ?? WEEKDAYS_BY_LOCALE.fr;
+}
+
+/** Noms complets des mois, dans une locale donnée. */
+export function monthsFor(locale = 'fr'): string[] {
+  return MONTHS_BY_LOCALE[locale] ?? MONTHS_BY_LOCALE.fr;
+}
 
 export function startOfDay(d: Date): Date {
   const c = new Date(d);
@@ -112,7 +148,8 @@ export function isForeignTimezone(timezone?: string): boolean {
 }
 
 /** Libellé long : « Mercredi 5 août ». */
-export function formatLongDate(d: Date): string {
-  const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-  return `${days[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()].toLowerCase()}`;
+export function formatLongDate(d: Date, locale = 'fr'): string {
+  const days = WEEKDAYS_LONG_BY_LOCALE[locale] ?? WEEKDAYS_LONG_BY_LOCALE.fr;
+  const months = monthsFor(locale);
+  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()].toLowerCase()}`;
 }
