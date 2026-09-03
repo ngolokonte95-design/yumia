@@ -1046,6 +1046,9 @@ const FR = {
   nb_delete_note: 'Supprimer la note',
   nb_error: 'Erreur',
   nb_photo_upload_error: 'L\'image n\'a pas pu être envoyée.',
+  notif_title: 'Notifications',
+  notif_empty_title: 'Aucune notification pour le moment.',
+  notif_empty_hint: 'YUMIA t\'avertira quand de nouvelles adresses correspondent à tes envies.',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2079,6 +2082,9 @@ const EN: Record<TranslationKey, string> = {
   nb_delete_note: 'Delete note',
   nb_error: 'Error',
   nb_photo_upload_error: 'The image could not be sent.',
+  notif_title: 'Notifications',
+  notif_empty_title: 'No notifications yet.',
+  notif_empty_hint: 'YUMIA will notify you when new places match what you\'re looking for.',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3112,6 +3118,9 @@ const ES: Record<TranslationKey, string> = {
   nb_delete_note: 'Eliminar nota',
   nb_error: 'Error',
   nb_photo_upload_error: 'No se pudo enviar la imagen.',
+  notif_title: 'Notificaciones',
+  notif_empty_title: 'Sin notificaciones por el momento.',
+  notif_empty_hint: 'YUMIA te avisará cuando nuevos lugares coincidan con lo que buscas.',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -4145,6 +4154,9 @@ const PT: Record<TranslationKey, string> = {
   nb_delete_note: 'Excluir nota',
   nb_error: 'Erro',
   nb_photo_upload_error: 'Não foi possível enviar a imagem.',
+  notif_title: 'Notificações',
+  notif_empty_title: 'Nenhuma notificação por enquanto.',
+  notif_empty_hint: 'O YUMIA vai te avisar quando novos lugares combinarem com o que você procura.',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -5178,6 +5190,9 @@ const AR: Record<TranslationKey, string> = {
   nb_delete_note: 'حذف الملاحظة',
   nb_error: 'خطأ',
   nb_photo_upload_error: 'تعذر إرسال الصورة.',
+  notif_title: 'الإشعارات',
+  notif_empty_title: 'لا توجد إشعارات بعد.',
+  notif_empty_hint: 'سيخبرك يوميا عندما تتطابق أماكن جديدة مع رغباتك.',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

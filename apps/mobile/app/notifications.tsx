@@ -17,6 +17,7 @@ import { useAuth } from '../lib/auth-context';
 import { notificationsApi, type ServerNotification } from '../lib/notifications-api';
 import { notificationTarget } from '../lib/notificationRouting';
 import { clearUnreadCountLocally, refreshUnreadCount } from '../lib/useNotifications';
+import { useI18n } from '../lib/useI18n';
 
 const TYPE_ICON: Record<string, string> = {
   post_like: '❤️',
@@ -38,6 +39,7 @@ export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [items, setItems] = useState<ServerNotification[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export default function NotificationsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Notifications</Text>
+        <Text style={styles.title}>{t('notif_title')}</Text>
       </View>
 
       {loading ? (
@@ -95,8 +97,8 @@ export default function NotificationsScreen() {
       ) : items.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>🔔</Text>
-          <Text style={styles.emptyText}>Aucune notification pour le moment.</Text>
-          <Text style={styles.emptyHint}>YUMIA t'avertira quand de nouvelles adresses correspondent à tes envies.</Text>
+          <Text style={styles.emptyText}>{t('notif_empty_title')}</Text>
+          <Text style={styles.emptyHint}>{t('notif_empty_hint')}</Text>
         </View>
       ) : (
         <FlatList
@@ -121,10 +123,14 @@ export default function NotificationsScreen() {
   );
 }
 
+const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
+
 function NotifRow({ item, onPress }: { item: ServerNotification; onPress: () => void }) {
+  const { locale } = useI18n();
   const date = new Date(item.createdAt);
-  const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const intlLocale = INTL_LOCALE[locale] ?? 'fr-FR';
+  const timeStr = date.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' });
+  const dateStr = date.toLocaleDateString(intlLocale, { day: 'numeric', month: 'short' });
 
   return (
     <Pressable style={[styles.row, !item.read && styles.rowUnread]} onPress={onPress}>
