@@ -24,12 +24,13 @@ import { placeStore } from '../lib/place-store';
 import type { SavedPlace } from '../lib/useSavedPlaces';
 
 const ALL = '__all__';
+const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
 
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { places, loading, error, reload, remove } = useSavedPlaces(accessToken);
   const [activeUniverse, setActiveUniverse] = useState<string>(ALL);
 
@@ -60,7 +61,7 @@ export default function SavedScreen() {
         tags: sp.place.tags,
       },
       compatibility: 0,
-      reason: 'Lieu sauvegardé dans tes adresses.',
+      reason: t('saved_place_reason'),
       engine: 'mood' as const,
     });
     router.push('/place');
@@ -68,12 +69,12 @@ export default function SavedScreen() {
 
   async function handleRemove(sp: SavedPlace) {
     Alert.alert(
-      'Retirer de mes adresses ?',
+      t('saved_remove_confirm_title'),
       sp.place.name,
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('saved_cancel'), style: 'cancel' },
         {
-          text: 'Retirer',
+          text: t('saved_remove'),
           style: 'destructive',
           onPress: () => void remove(sp.place.id),
         },
@@ -88,7 +89,7 @@ export default function SavedScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Mes adresses</Text>
+        <Text style={styles.title}>{t('saved_title')}</Text>
         <Text style={styles.count}>{places.length}</Text>
       </View>
 
@@ -109,7 +110,7 @@ export default function SavedScreen() {
                 onPress={() => setActiveUniverse(item)}
               >
                 <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                  {meta && item !== ALL ? `${meta.emoji} ${universeLabel(t, item)}` : 'Tous'}
+                  {meta && item !== ALL ? `${meta.emoji} ${universeLabel(t, item)}` : t('saved_filter_all')}
                 </Text>
               </Pressable>
             );
@@ -134,8 +135,8 @@ export default function SavedScreen() {
           <Text style={styles.emptyEmoji}>🤍</Text>
           <Text style={styles.emptyText}>
             {places.length === 0
-              ? 'Aucune adresse sauvegardée pour l\'instant.'
-              : 'Aucun lieu pour ce filtre.'}
+              ? t('saved_empty_none')
+              : t('saved_empty_filter')}
           </Text>
         </View>
       ) : (
@@ -149,7 +150,7 @@ export default function SavedScreen() {
           }
           renderItem={({ item }) => {
             const meta = safeMeta(item.place.universe);
-            const date = new Date(item.createdAt).toLocaleDateString('fr-FR', {
+            const date = new Date(item.createdAt).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', {
               day: 'numeric',
               month: 'short',
             });

@@ -16,10 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { resetPasswordRequest } from '../lib/auth-api';
+import { useI18n } from '../lib/useI18n';
 
 export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useI18n();
   const passwordRef = useRef<TextInput>(null);
 
   const [code, setCode] = useState('');
@@ -44,7 +46,7 @@ export default function ResetPasswordScreen() {
       await resetPasswordRequest(code.trim(), password);
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Code invalide ou expiré.');
+      setError(err instanceof Error ? err.message : t('rp_error_generic'));
     } finally {
       setLoading(false);
     }
@@ -55,12 +57,12 @@ export default function ResetPasswordScreen() {
       <View style={[styles.screen, { paddingTop: insets.top + spacing.lg }]}>
         <View style={styles.successBox}>
           <Text style={styles.successEmoji}>✅</Text>
-          <Text style={styles.successTitle}>Mot de passe mis à jour !</Text>
+          <Text style={styles.successTitle}>{t('rp_success_title')}</Text>
           <Text style={styles.successSub}>
-            Tu peux maintenant te connecter avec ton nouveau mot de passe.
+            {t('rp_success_sub')}
           </Text>
           <Pressable style={styles.btn} onPress={() => router.replace('/(auth)/login')}>
-            <Text style={styles.btnText}>Se connecter</Text>
+            <Text style={styles.btnText}>{t('rp_login_btn')}</Text>
           </Pressable>
         </View>
       </View>
@@ -79,12 +81,12 @@ export default function ResetPasswordScreen() {
 
         <View style={styles.content}>
           <Text style={styles.emoji}>🔐</Text>
-          <Text style={styles.title}>Nouveau mot de passe</Text>
-          <Text style={styles.sub}>Saisis le code reçu par email et ton nouveau mot de passe.</Text>
+          <Text style={styles.title}>{t('rp_title')}</Text>
+          <Text style={styles.sub}>{t('rp_sub')}</Text>
 
           {/* Code OTP */}
           <View style={styles.field}>
-            <Text style={styles.label}>Code à 6 chiffres</Text>
+            <Text style={styles.label}>{t('rp_code_label')}</Text>
             <TextInput
               style={[styles.input, styles.codeInput]}
               placeholder="123456"
@@ -100,7 +102,7 @@ export default function ResetPasswordScreen() {
 
           {/* Nouveau mdp */}
           <View style={styles.field}>
-            <Text style={styles.label}>Nouveau mot de passe (8 car. min.)</Text>
+            <Text style={styles.label}>{t('rp_new_password_label')}</Text>
             <TextInput
               ref={passwordRef}
               style={styles.input}
@@ -115,7 +117,7 @@ export default function ResetPasswordScreen() {
 
           {/* Confirmation */}
           <View style={styles.field}>
-            <Text style={styles.label}>Confirmer le mot de passe</Text>
+            <Text style={styles.label}>{t('rp_confirm_label')}</Text>
             <TextInput
               style={[styles.input, confirm.length > 0 && !passwordMatch && styles.inputError]}
               placeholder="••••••••"
@@ -127,7 +129,7 @@ export default function ResetPasswordScreen() {
               onSubmitEditing={handleReset}
             />
             {confirm.length > 0 && !passwordMatch ? (
-              <Text style={styles.fieldError}>Les mots de passe ne correspondent pas.</Text>
+              <Text style={styles.fieldError}>{t('rp_password_mismatch')}</Text>
             ) : null}
           </View>
 
@@ -140,12 +142,12 @@ export default function ResetPasswordScreen() {
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.btnText}>Réinitialiser</Text>
+              : <Text style={styles.btnText}>{t('rp_submit_btn')}</Text>
             }
           </Pressable>
 
           <Pressable style={styles.linkBtn} onPress={() => router.replace('/forgot-password')}>
-            <Text style={styles.linkText}>Renvoyer un code</Text>
+            <Text style={styles.linkText}>{t('rp_resend_btn')}</Text>
           </Pressable>
         </View>
       </View>
