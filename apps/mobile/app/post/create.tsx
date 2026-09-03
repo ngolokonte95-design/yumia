@@ -13,6 +13,7 @@ import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker'
 import { PostVideo } from '../../components/PostVideo';
 import { VideoEditor } from '../../components/postEditor/VideoEditor';
 import type { PostOverlay } from '../../lib/feed-api';
+import { useI18n } from '../../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -23,6 +24,7 @@ export default function CreatePostScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ uri?: string; mediaType?: string }>();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const [mode, setMode] = useState<MediaMode>('photo');
   const [images, setImages] = useState<string[]>(params.uri && params.mediaType !== 'video' ? [params.uri] : []);
   const [videoUri, setVideoUri] = useState<string | null>(params.uri && params.mediaType === 'video' ? params.uri : null);
@@ -105,7 +107,7 @@ export default function CreatePostScreen() {
 
   const submit = async (asDraft = false) => {
     if (!hasMedia) {
-      Alert.alert(mode === 'photo' ? 'Ajoute au moins une photo' : 'Sélectionne une vidéo');
+      Alert.alert(mode === 'photo' ? t('postcreate_add_photo') : t('postcreate_select_video'));
       return;
     }
     setLoading(true);
@@ -169,10 +171,10 @@ export default function CreatePostScreen() {
         router.back();
       } else {
         const txt = await res.text().catch(() => '');
-        Alert.alert('Erreur', `Publication échouée (HTTP ${res.status}). ${txt.slice(0, 200)}`);
+        Alert.alert(t('postcreate_error'), t('postcreate_publish_failed').replace('{status}', String(res.status)).replace('{detail}', txt.slice(0, 200)));
       }
     } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : 'Échec de la publication.');
+      Alert.alert(t('postcreate_error'), err instanceof Error ? err.message : t('postcreate_publish_failed_generic'));
     } finally {
       setLoading(false);
     }
@@ -181,14 +183,14 @@ export default function CreatePostScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.cancel}>Annuler</Text></Pressable>
-        <Text style={styles.title}>Nouvelle publication</Text>
+        <Pressable onPress={() => router.back()}><Text style={styles.cancel}>{t('postcreate_cancel')}</Text></Pressable>
+        <Text style={styles.title}>{t('postcreate_title')}</Text>
         <Pressable
           onPress={() => void submit()}
           disabled={loading || !hasMedia}
           style={[styles.shareBtn, (!hasMedia || loading) && styles.shareBtnDisabled]}
         >
-          {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.shareBtnText}>Partager</Text>}
+          {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.shareBtnText}>{t('postcreate_share')}</Text>}
         </Pressable>
       </View>
 
@@ -196,10 +198,10 @@ export default function CreatePostScreen() {
         {/* Mode toggle */}
         <View style={styles.modeRow}>
           <Pressable style={[styles.modeBtn, mode === 'photo' && styles.modeBtnActive]} onPress={() => { setMode('photo'); setVideoUri(null); }}>
-            <Text style={[styles.modeTxt, mode === 'photo' && styles.modeTxtActive]}>📷 Photo</Text>
+            <Text style={[styles.modeTxt, mode === 'photo' && styles.modeTxtActive]}>{t('postcreate_mode_photo')}</Text>
           </Pressable>
           <Pressable style={[styles.modeBtn, mode === 'video' && styles.modeBtnActive]} onPress={() => { setMode('video'); setImages([]); }}>
-            <Text style={[styles.modeTxt, mode === 'video' && styles.modeTxtActive]}>🎬 Vidéo</Text>
+            <Text style={[styles.modeTxt, mode === 'video' && styles.modeTxtActive]}>{t('postcreate_mode_video')}</Text>
           </Pressable>
         </View>
 
@@ -223,12 +225,12 @@ export default function CreatePostScreen() {
             <View style={styles.mediaChoiceRow}>
               <Pressable style={styles.mediaChoiceBtn} onPress={openCamera}>
                 <Text style={styles.mediaChoiceEmoji}>📷</Text>
-                <Text style={styles.mediaChoiceLabel}>Caméra</Text>
+                <Text style={styles.mediaChoiceLabel}>{t('postcreate_camera')}</Text>
               </Pressable>
               <Pressable style={styles.mediaChoiceBtn} onPress={() => void pickImages()}>
                 <Text style={styles.mediaChoiceEmoji}>🖼️</Text>
-                <Text style={styles.mediaChoiceLabel}>Galerie</Text>
-                <Text style={styles.mediaChoiceHint}>Jusqu'à 10 photos</Text>
+                <Text style={styles.mediaChoiceLabel}>{t('postcreate_gallery')}</Text>
+                <Text style={styles.mediaChoiceHint}>{t('postcreate_up_to_10_photos')}</Text>
               </Pressable>
             </View>
           )
@@ -248,13 +250,13 @@ export default function CreatePostScreen() {
               />
               <View style={styles.videoPreviewActions}>
                 <Pressable style={[styles.videoPreviewBtn, styles.videoPreviewBtnPrimary]} onPress={() => setEditorOpen(true)}>
-                  <Text style={[styles.videoPreviewBtnTxt, { color: '#fff' }]}>✏️ Modifier</Text>
+                  <Text style={[styles.videoPreviewBtnTxt, { color: '#fff' }]}>{t('postcreate_edit')}</Text>
                 </Pressable>
                 <Pressable style={styles.videoPreviewBtn} onPress={() => void pickVideo()}>
-                  <Text style={styles.videoPreviewBtnTxt}>🔁 Changer</Text>
+                  <Text style={styles.videoPreviewBtnTxt}>{t('postcreate_change')}</Text>
                 </Pressable>
                 <Pressable style={styles.videoPreviewBtn} onPress={() => setVideoUri(null)}>
-                  <Text style={[styles.videoPreviewBtnTxt, { color: '#f87171' }]}>✕ Retirer</Text>
+                  <Text style={[styles.videoPreviewBtnTxt, { color: '#f87171' }]}>{t('postcreate_remove')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -262,12 +264,12 @@ export default function CreatePostScreen() {
             <View style={styles.mediaChoiceRow}>
               <Pressable style={styles.mediaChoiceBtn} onPress={openCamera}>
                 <Text style={styles.mediaChoiceEmoji}>📷</Text>
-                <Text style={styles.mediaChoiceLabel}>Caméra</Text>
+                <Text style={styles.mediaChoiceLabel}>{t('postcreate_camera')}</Text>
               </Pressable>
               <Pressable style={styles.mediaChoiceBtn} onPress={() => void pickVideo()}>
                 <Text style={styles.mediaChoiceEmoji}>🎬</Text>
-                <Text style={styles.mediaChoiceLabel}>Galerie</Text>
-                <Text style={styles.mediaChoiceHint}>Max 60 secondes</Text>
+                <Text style={styles.mediaChoiceLabel}>{t('postcreate_gallery')}</Text>
+                <Text style={styles.mediaChoiceHint}>{t('postcreate_max_60s')}</Text>
               </Pressable>
             </View>
           )
@@ -287,7 +289,7 @@ export default function CreatePostScreen() {
               </Text>
             </View>
             <Pressable onPress={() => setMusicModalVisible(true)} style={styles.musicChangeBtn}>
-              <Text style={styles.musicChangeTxt}>Modifier</Text>
+              <Text style={styles.musicChangeTxt}>{t('postcreate_modify')}</Text>
             </Pressable>
             <Pressable onPress={() => setSelectedMusic(null)}>
               <Text style={{ color: colors.textMuted, fontSize: 18, paddingLeft: 4 }}>✕</Text>
@@ -296,7 +298,7 @@ export default function CreatePostScreen() {
         ) : (
           <Pressable style={styles.musicRow} onPress={() => setMusicModalVisible(true)}>
             <Text style={styles.musicIcon}>🎵</Text>
-            <Text style={styles.musicPlaceholder}>Ajouter une musique</Text>
+            <Text style={styles.musicPlaceholder}>{t('postcreate_add_music')}</Text>
             <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
           </Pressable>
         )}
@@ -306,16 +308,16 @@ export default function CreatePostScreen() {
             au-dessus (comme en mode photo), la répéter ici ferait doublon. */}
         {mode === 'video' && videoUri && (overlays.length > 0 || voiceUri || videoMuted) && (
           <View style={styles.editorSummary}>
-            {overlays.length > 0 && <Text style={styles.editorSummaryTxt}>✏️ {overlays.length} ajout{overlays.length > 1 ? 's' : ''}</Text>}
-            {voiceUri && <Text style={styles.editorSummaryTxt}>🎙️ Voix off</Text>}
-            {videoMuted && <Text style={styles.editorSummaryTxt}>🔇 Son coupé</Text>}
+            {overlays.length > 0 && <Text style={styles.editorSummaryTxt}>{t('postcreate_additions_count').replace('{n}', String(overlays.length)).replace('{s}', overlays.length > 1 ? 's' : '')}</Text>}
+            {voiceUri && <Text style={styles.editorSummaryTxt}>{t('postcreate_voice_over')}</Text>}
+            {videoMuted && <Text style={styles.editorSummaryTxt}>{t('postcreate_muted_sound')}</Text>}
           </View>
         )}
 
         {/* Caption */}
         <TextInput
           style={styles.captionInput}
-          placeholder="Écris une légende... (#hashtags acceptés)"
+          placeholder={t('postcreate_caption_placeholder')}
           placeholderTextColor={colors.textMuted}
           value={caption}
           onChangeText={setCaption}
@@ -327,11 +329,11 @@ export default function CreatePostScreen() {
         {/* Options */}
         <View style={styles.optionsBox}>
           <Pressable style={styles.optionRow} onPress={() => setCommentsDisabled((v) => !v)}>
-            <Text style={styles.optionLabel}>💬 Désactiver les commentaires</Text>
+            <Text style={styles.optionLabel}>{t('postcreate_disable_comments')}</Text>
             <Text style={styles.optionToggle}>{commentsDisabled ? '✅' : '⬜'}</Text>
           </Pressable>
           <Pressable style={styles.optionRow} onPress={() => setHideLikeCount((v) => !v)}>
-            <Text style={styles.optionLabel}>❤️ Masquer le nombre de J'aime</Text>
+            <Text style={styles.optionLabel}>{t('postcreate_hide_likes')}</Text>
             <Text style={styles.optionToggle}>{hideLikeCount ? '✅' : '⬜'}</Text>
           </Pressable>
         </View>
@@ -341,7 +343,7 @@ export default function CreatePostScreen() {
           disabled={loading || !hasMedia}
           onPress={() => void submit(true)}
         >
-          <Text style={styles.draftBtnText}>📝 Enregistrer comme brouillon</Text>
+          <Text style={styles.draftBtnText}>{t('postcreate_save_draft')}</Text>
         </Pressable>
       </ScrollView>
 
