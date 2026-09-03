@@ -13,6 +13,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../components/Avatar';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -29,14 +30,15 @@ export default function CloseFriendsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { type } = useLocalSearchParams<{ type?: string }>();
+  const { t } = useI18n();
   const isFavorites = type === 'favorites';
 
   const basePath = isFavorites ? 'favorites' : 'close-friends';
-  const title = isFavorites ? 'Favoris' : 'Amis proches';
+  const title = isFavorites ? t('cf_title_favorites') : t('cf_title_close_friends');
   const emptyIcon = isFavorites ? '⭐' : '🟢';
   const emptyText = isFavorites
-    ? 'Les publications de vos favoris sont mises en avant dans votre fil.'
-    : 'Vos amis proches voient vos stories réservées au cercle proche.';
+    ? t('cf_empty_text_favorites')
+    : t('cf_empty_text_close_friends');
 
   const [members, setMembers] = useState<SimpleUser[]>([]);
   const [following, setFollowing] = useState<SimpleUser[]>([]);
@@ -103,13 +105,13 @@ export default function CloseFriendsScreen() {
           contentContainerStyle={{ paddingVertical: 8, paddingBottom: insets.bottom + 40 }}
           ListHeaderComponent={
             members.length > 0 ? (
-              <Text style={styles.count}>{members.length} {members.length > 1 ? 'personnes' : 'personne'}</Text>
+              <Text style={styles.count}>{members.length} {members.length > 1 ? t('cf_people_plural') : t('cf_people_singular')}</Text>
             ) : null
           }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>{emptyIcon}</Text>
-              <Text style={styles.emptyTitle}>Personne pour l'instant</Text>
+              <Text style={styles.emptyTitle}>{t('cf_empty_title')}</Text>
               <Text style={styles.emptyText}>{emptyText}</Text>
             </View>
           }
@@ -140,7 +142,7 @@ export default function CloseFriendsScreen() {
                     onPress={() => void toggle(item)}
                   >
                     <Text style={isMember ? styles.removeTxt : styles.addTxt}>
-                      {isMember ? 'Retirer' : 'Ajouter'}
+                      {isMember ? t('cf_remove') : t('cf_add')}
                     </Text>
                   </Pressable>
                 )}

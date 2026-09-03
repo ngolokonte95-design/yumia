@@ -1345,6 +1345,15 @@ const FR = {
   mu_city_field_placeholder: 'Ville * (ex: Paris)',
   mu_date_placeholder: 'Date et heure * (ex: 2026-07-10T20:00)',
   mu_max_attendees_placeholder: 'Max participants (optionnel)',
+  cf_title_favorites: 'Favoris',
+  cf_title_close_friends: 'Amis proches',
+  cf_empty_text_favorites: 'Les publications de vos favoris sont mises en avant dans votre fil.',
+  cf_empty_text_close_friends: 'Vos amis proches voient vos stories réservées au cercle proche.',
+  cf_people_singular: 'personne',
+  cf_people_plural: 'personnes',
+  cf_empty_title: 'Personne pour l\'instant',
+  cf_remove: 'Retirer',
+  cf_add: 'Ajouter',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2677,6 +2686,15 @@ const EN: Record<TranslationKey, string> = {
   mu_city_field_placeholder: 'City * (e.g.: Paris)',
   mu_date_placeholder: 'Date and time * (e.g.: 2026-07-10T20:00)',
   mu_max_attendees_placeholder: 'Max attendees (optional)',
+  cf_title_favorites: 'Favorites',
+  cf_title_close_friends: 'Close friends',
+  cf_empty_text_favorites: 'Posts from your favorites are highlighted in your feed.',
+  cf_empty_text_close_friends: 'Your close friends see your stories reserved for the close circle.',
+  cf_people_singular: 'person',
+  cf_people_plural: 'people',
+  cf_empty_title: 'No one yet',
+  cf_remove: 'Remove',
+  cf_add: 'Add',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4009,6 +4027,15 @@ const ES: Record<TranslationKey, string> = {
   mu_city_field_placeholder: 'Ciudad * (ej.: París)',
   mu_date_placeholder: 'Fecha y hora * (ej.: 2026-07-10T20:00)',
   mu_max_attendees_placeholder: 'Máx. participantes (opcional)',
+  cf_title_favorites: 'Favoritos',
+  cf_title_close_friends: 'Amigos cercanos',
+  cf_empty_text_favorites: 'Las publicaciones de tus favoritos se destacan en tu feed.',
+  cf_empty_text_close_friends: 'Tus amigos cercanos ven tus historias reservadas al círculo cercano.',
+  cf_people_singular: 'persona',
+  cf_people_plural: 'personas',
+  cf_empty_title: 'Nadie por ahora',
+  cf_remove: 'Quitar',
+  cf_add: 'Añadir',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5341,6 +5368,15 @@ const PT: Record<TranslationKey, string> = {
   mu_city_field_placeholder: 'Cidade * (ex: Paris)',
   mu_date_placeholder: 'Data e hora * (ex: 2026-07-10T20:00)',
   mu_max_attendees_placeholder: 'Máx. participantes (opcional)',
+  cf_title_favorites: 'Favoritos',
+  cf_title_close_friends: 'Amigos próximos',
+  cf_empty_text_favorites: 'As publicações dos seus favoritos são destacadas no seu feed.',
+  cf_empty_text_close_friends: 'Seus amigos próximos veem seus stories reservados para o círculo próximo.',
+  cf_people_singular: 'pessoa',
+  cf_people_plural: 'pessoas',
+  cf_empty_title: 'Ninguém por enquanto',
+  cf_remove: 'Remover',
+  cf_add: 'Adicionar',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -6673,6 +6709,15 @@ const AR: Record<TranslationKey, string> = {
   mu_city_field_placeholder: 'المدينة * (مثال: باريس)',
   mu_date_placeholder: 'التاريخ والوقت * (مثال: 2026-07-10T20:00)',
   mu_max_attendees_placeholder: 'الحد الأقصى للمشاركين (اختياري)',
+  cf_title_favorites: 'المفضلة',
+  cf_title_close_friends: 'الأصدقاء المقربون',
+  cf_empty_text_favorites: 'يتم إبراز منشورات مفضلاتك في تغذيتك.',
+  cf_empty_text_close_friends: 'يرى أصدقاؤك المقربون قصصك المخصصة للدائرة المقربة.',
+  cf_people_singular: 'شخص',
+  cf_people_plural: 'أشخاص',
+  cf_empty_title: 'لا أحد حتى الآن',
+  cf_remove: 'إزالة',
+  cf_add: 'إضافة',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
