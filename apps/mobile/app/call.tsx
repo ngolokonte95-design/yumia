@@ -10,6 +10,7 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL, TURN_SERVER } from '../lib/config';
 import { isE2EAvailable } from '../lib/e2e-crypto';
+import { useI18n } from '../lib/useI18n';
 
 // Import lazy — react-native-webrtc nécessite un build natif (pas Expo Go)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,16 +40,14 @@ function fmtTimer(s: number) {
 
 // ── Écran affiché dans Expo Go (pas de build natif) ──────────────────────────
 function NoWebRTCScreen({ onBack }: { onBack: () => void }) {
+  const { t } = useI18n();
   return (
     <View style={noStyles.container}>
       <Text style={noStyles.icon}>📞</Text>
-      <Text style={noStyles.title}>Appels non disponibles</Text>
-      <Text style={noStyles.body}>
-        Les appels voix/vidéo nécessitent un build natif de l'application.{'\n\n'}
-        Cette fonctionnalité sera active dès que tu auras ton compte Apple Developer et que le build sera installé sur ton iPhone.
-      </Text>
+      <Text style={noStyles.title}>{t('call_no_webrtc_title')}</Text>
+      <Text style={noStyles.body}>{t('call_no_webrtc_body')}</Text>
       <Pressable style={noStyles.btn} onPress={onBack}>
-        <Text style={noStyles.btnTxt}>← Retour</Text>
+        <Text style={noStyles.btnTxt}>{t('call_back')}</Text>
       </Pressable>
     </View>
   );
@@ -76,6 +75,7 @@ export default function CallScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const callType: CallType  = callTypeParam === 'video' ? 'video' : 'voice';
   const isIncoming           = incoming === 'true';
@@ -324,10 +324,10 @@ export default function CallScreen() {
   };
 
   const statusLabel = () => {
-    if (callState === 'calling')   return 'Appel en cours...';
-    if (callState === 'ringing')   return 'Appel entrant';
+    if (callState === 'calling')   return t('call_status_calling');
+    if (callState === 'ringing')   return t('call_status_ringing');
     if (callState === 'connected') return fmtTimer(timer);
-    return 'Appel terminé';
+    return t('call_status_ended');
   };
 
   const initials = (partnerName ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -349,7 +349,7 @@ export default function CallScreen() {
       {/* Badge chiffrement */}
       {encrypted && callState === 'connected' && (
         <View style={styles.encBadge}>
-          <Text style={styles.encBadgeTxt}>🔐 Appel chiffré de bout en bout</Text>
+          <Text style={styles.encBadgeTxt}>{t('call_encrypted_badge')}</Text>
         </View>
       )}
 
@@ -364,7 +364,7 @@ export default function CallScreen() {
             </View>
           )}
           {(callState === 'calling' || callState === 'ringing') && <View style={styles.avatarRing} />}
-          <Text style={styles.partnerName}>{partnerName ?? 'Utilisateur'}</Text>
+          <Text style={styles.partnerName}>{partnerName ?? t('call_user_fallback')}</Text>
           <Text style={styles.callStatus}>{statusLabel()}</Text>
           {callState === 'calling' && <ActivityIndicator color="rgba(255,255,255,0.6)" size="small" style={{ marginTop: 8 }} />}
         </View>
@@ -381,12 +381,12 @@ export default function CallScreen() {
       {/* Contrôles en cours d'appel */}
       {callState === 'connected' && (
         <View style={styles.inCallControls}>
-          <CallControl icon={isMuted ? '🔇' : '🎤'} label={isMuted ? 'Muet' : 'Micro'} active={!isMuted} onPress={toggleMute} />
-          <CallControl icon={speakerOn ? '🔊' : '🔉'} label="Haut-parleur" active={speakerOn} onPress={() => setSpeakerOn(!speakerOn)} />
+          <CallControl icon={isMuted ? '🔇' : '🎤'} label={isMuted ? t('call_muted') : t('call_mic')} active={!isMuted} onPress={toggleMute} />
+          <CallControl icon={speakerOn ? '🔊' : '🔉'} label={t('call_speaker')} active={speakerOn} onPress={() => setSpeakerOn(!speakerOn)} />
           {callType === 'video' && (
-            <CallControl icon={videoOn ? '📹' : '🚫'} label={videoOn ? 'Caméra' : 'Cam off'} active={videoOn} onPress={toggleVideo} />
+            <CallControl icon={videoOn ? '📹' : '🚫'} label={videoOn ? t('call_camera') : t('call_camera_off')} active={videoOn} onPress={toggleVideo} />
           )}
-          <CallControl icon="⌨️" label="Clavier" active={false} onPress={() => {}} />
+          <CallControl icon="⌨️" label={t('call_keyboard')} active={false} onPress={() => {}} />
         </View>
       )}
 
@@ -395,11 +395,11 @@ export default function CallScreen() {
         <View style={styles.incomingActions}>
           <Pressable style={styles.declineBtn} onPress={declineCall}>
             <Text style={styles.callBtnIcon}>📴</Text>
-            <Text style={styles.callBtnLabel}>Refuser</Text>
+            <Text style={styles.callBtnLabel}>{t('call_decline')}</Text>
           </Pressable>
           <Pressable style={styles.acceptBtn} onPress={acceptCall}>
             <Text style={styles.callBtnIcon}>{callType === 'video' ? '📹' : '📞'}</Text>
-            <Text style={styles.callBtnLabel}>Accepter</Text>
+            <Text style={styles.callBtnLabel}>{t('call_accept')}</Text>
           </Pressable>
         </View>
       )}
@@ -408,13 +408,13 @@ export default function CallScreen() {
       {(callState === 'calling' || callState === 'connected') && (
         <Pressable style={styles.endBtn} onPress={endCall}>
           <Text style={styles.endBtnIcon}>📴</Text>
-          <Text style={styles.endBtnLabel}>Terminer</Text>
+          <Text style={styles.endBtnLabel}>{t('call_end')}</Text>
         </Pressable>
       )}
 
       {callState === 'ended' && (
         <View style={styles.endedBadge}>
-          <Text style={styles.endedTxt}>Appel terminé</Text>
+          <Text style={styles.endedTxt}>{t('call_status_ended')}</Text>
         </View>
       )}
     </View>

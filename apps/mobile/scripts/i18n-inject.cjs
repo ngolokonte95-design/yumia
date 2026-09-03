@@ -25,7 +25,7 @@ for (const lang of langs) {
 
   let insertion = '';
   for (const key of Object.keys(data)) {
-    const val = data[key][lang].replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const val = data[key][lang].replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
     insertion += `  ${key}: '${val}',\n`;
   }
 
