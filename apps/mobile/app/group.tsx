@@ -32,16 +32,18 @@ import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { SuggestionCard } from '../components/SuggestionCard';
 import type { Top3Response } from '../lib/api';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
 type Tab = 'session' | 'quick';
 
-const THEMES = [
-  { key: 'afterwork', emoji: '🍻', label: 'Afterwork' },
-  { key: 'birthday', emoji: '🎂', label: 'Anniversaire' },
-  { key: 'sport', emoji: '⚽', label: 'Après le sport' },
-  { key: 'friends', emoji: '💑', label: 'Soirée entre amis' },
-  { key: 'family', emoji: '👨‍👩‍👧', label: 'Sortie famille' },
-  { key: 'business', emoji: '💼', label: "Repas d'affaires" },
+const THEMES: { key: string; emoji: string; labelKey: TranslationKey }[] = [
+  { key: 'afterwork', emoji: '🍻', labelKey: 'group_theme_afterwork' },
+  { key: 'birthday', emoji: '🎂', labelKey: 'group_theme_birthday' },
+  { key: 'sport', emoji: '⚽', labelKey: 'group_theme_sport' },
+  { key: 'friends', emoji: '💑', labelKey: 'group_theme_friends' },
+  { key: 'family', emoji: '👨‍👩‍👧', labelKey: 'group_theme_family' },
+  { key: 'business', emoji: '💼', labelKey: 'group_theme_business' },
 ];
 
 const SIZES = [2, 3, 4, 5, 6, 8, 10, 15, 20];
@@ -53,6 +55,7 @@ export default function GroupScreen() {
   const { accessToken } = useAuth();
   const { savedIds, save, unsave } = useSaved(accessToken);
   const { getLimit } = usePlanLimits();
+  const { t } = useI18n();
   const [upsell, setUpsell] = useState<string | null>(null);
 
   const { code: deepLinkCode } = useLocalSearchParams<{ code?: string }>();
@@ -80,30 +83,30 @@ export default function GroupScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleCreate() {
-    if (!accessToken) { Alert.alert('Connexion requise', 'Connecte-toi pour créer une session.'); return; }
+    if (!accessToken) { Alert.alert(t('group_login_required_title'), t('group_login_required_create')); return; }
     setSessionLoading(true);
     setSessionError(null);
     try {
       const session = await createGroupRequest(accessToken);
       router.push(`/group-session?id=${session.id}`);
     } catch (err) {
-      setSessionError(err instanceof Error ? err.message : 'Impossible de créer la session.');
+      setSessionError(err instanceof Error ? err.message : t('group_create_session_error'));
     } finally {
       setSessionLoading(false);
     }
   }
 
   async function handleJoin() {
-    if (!accessToken) { Alert.alert('Connexion requise', 'Connecte-toi pour rejoindre une session.'); return; }
+    if (!accessToken) { Alert.alert(t('group_login_required_title'), t('group_login_required_join')); return; }
     const code = joinCode.trim().toUpperCase();
-    if (code.length !== 6) { setSessionError('Le code doit contenir 6 caractères.'); return; }
+    if (code.length !== 6) { setSessionError(t('group_code_length_error')); return; }
     setSessionLoading(true);
     setSessionError(null);
     try {
       const session = await joinGroupRequest(accessToken, code);
       router.push(`/group-session?id=${session.id}`);
     } catch (err) {
-      setSessionError(err instanceof Error ? err.message : 'Code invalide ou session introuvable.');
+      setSessionError(err instanceof Error ? err.message : t('group_invalid_code_error'));
     } finally {
       setSessionLoading(false);
     }
@@ -115,13 +118,14 @@ export default function GroupScreen() {
     setError(null);
     setResult(null);
     try {
-      const themeLabel = THEMES.find((t) => t.key === theme)?.label;
-      const query = [themeLabel, `groupe de ${size} personnes`, note.trim() || null]
+      const themeDef = THEMES.find((th) => th.key === theme);
+      const themeLabel = themeDef ? t(themeDef.labelKey) : undefined;
+      const query = [themeLabel, t('group_of_people').replace('{n}', String(size)), note.trim() || null]
         .filter(Boolean).join(', ');
       const data = await searchPlaces(accessToken, { lat: coords.lat, lng: coords.lng, query, locale: 'fr' });
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de recherche.');
+      setError(err instanceof Error ? err.message : t('group_search_error'));
     } finally {
       setLoading(false);
     }
@@ -145,8 +149,8 @@ export default function GroupScreen() {
             <Text style={styles.backText}>←</Text>
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>👥 Sortie en groupe</Text>
-            <Text style={styles.subtitle}>Planifiez ensemble, sans prise de tête.</Text>
+            <Text style={styles.title}>{t('group_title')}</Text>
+            <Text style={styles.subtitle}>{t('group_subtitle')}</Text>
           </View>
         </View>
 
@@ -157,7 +161,7 @@ export default function GroupScreen() {
             onPress={() => setTab('session')}
           >
             <Text style={[styles.tabText, tab === 'session' && styles.tabTextActive]}>
-              🗳 Session vote
+              {t('group_tab_session')}
             </Text>
           </Pressable>
           <Pressable
@@ -165,7 +169,7 @@ export default function GroupScreen() {
             onPress={() => setTab('quick')}
           >
             <Text style={[styles.tabText, tab === 'quick' && styles.tabTextActive]}>
-              ⚡ Recherche rapide
+              {t('group_tab_quick')}
             </Text>
           </Pressable>
         </View>
@@ -183,8 +187,8 @@ export default function GroupScreen() {
                 : <>
                     <Text style={styles.createBtnIcon}>🎯</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.createBtnTitle}>Créer une session</Text>
-                      <Text style={styles.createBtnSub}>Obtiens un code à partager avec tes amis</Text>
+                      <Text style={styles.createBtnTitle}>{t('group_create_session_title')}</Text>
+                      <Text style={styles.createBtnSub}>{t('group_create_session_sub')}</Text>
                     </View>
                     <Text style={styles.createBtnChevron}>›</Text>
                   </>
@@ -193,7 +197,7 @@ export default function GroupScreen() {
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>ou rejoindre</Text>
+              <Text style={styles.dividerText}>{t('group_or_join')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -201,7 +205,7 @@ export default function GroupScreen() {
             <View style={styles.joinBox}>
               <TextInput
                 style={styles.codeInput}
-                placeholder="Code à 6 lettres"
+                placeholder={t('group_code_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={joinCode}
                 onChangeText={(v) => setJoinCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
@@ -216,7 +220,7 @@ export default function GroupScreen() {
                 onPress={handleJoin}
                 disabled={joinCode.length !== 6 || sessionLoading}
               >
-                <Text style={styles.joinBtnText}>Rejoindre</Text>
+                <Text style={styles.joinBtnText}>{t('group_join_btn')}</Text>
               </Pressable>
             </View>
 
@@ -224,15 +228,14 @@ export default function GroupScreen() {
 
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
-                💡 Dans une session, chaque membre vote pour ou contre chaque lieu proposé.
-                Le lieu avec le plus de 👍 est sélectionné automatiquement.
+                {t('group_info_text')}
               </Text>
             </View>
           </View>
         ) : (
           <View>
             <View style={styles.section}>
-              <Text style={styles.label}>Occasion</Text>
+              <Text style={styles.label}>{t('group_occasion')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {THEMES.map((th) => (
                   <Pressable
@@ -242,7 +245,7 @@ export default function GroupScreen() {
                   >
                     <Text style={styles.chipEmoji}>{th.emoji}</Text>
                     <Text style={[styles.chipLabel, theme === th.key && styles.chipLabelActive]}>
-                      {th.label}
+                      {t(th.labelKey)}
                     </Text>
                   </Pressable>
                 ))}
@@ -250,7 +253,7 @@ export default function GroupScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.label}>Nombre de personnes</Text>
+              <Text style={styles.label}>{t('group_number_of_people')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {SIZES.map((n) => {
                   const circleLimit = getLimit('circleMaxMembers');
@@ -261,7 +264,7 @@ export default function GroupScreen() {
                       style={[styles.sizeChip, size === n && !locked && styles.chipActive, locked && styles.sizeChipLocked]}
                       onPress={() => {
                         if (locked) {
-                          setUpsell(`Ton cercle est limité à ${circleLimit} personnes à ce palier. Passe à un forfait supérieur pour inviter plus de proches. 👑`);
+                          setUpsell(t('group_circle_limit').replace('{n}', String(circleLimit)));
                           return;
                         }
                         setSize(n);
@@ -277,10 +280,10 @@ export default function GroupScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.label}>Précisions (optionnel)</Text>
+              <Text style={styles.label}>{t('group_precisions_label')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ex : festif mais pas trop bruyant"
+                placeholder={t('group_precisions_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={note}
                 onChangeText={setNote}
@@ -297,7 +300,7 @@ export default function GroupScreen() {
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.searchBtnText}>🤖 Trouver le bon endroit</Text>
+                  : <Text style={styles.searchBtnText}>{t('group_find_place')}</Text>
                 }
               </Pressable>
             </View>
