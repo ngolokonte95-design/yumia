@@ -340,7 +340,7 @@ export default function MapScreen() {
       },
       compatibility: 0,
       distanceMeters: place.distanceMeters,
-      reason: `${universeLabel(t, place.universe)} à ${formatDistance(place.distanceMeters)}.`,
+      reason: `${universeLabel(t, place.universe)} ${t('map_reason_at_distance')} ${formatDistance(place.distanceMeters)}.`,
       engine: 'mood' as const,
     });
     router.push('/place');
@@ -397,10 +397,10 @@ export default function MapScreen() {
   }, [markerIds]);
 
   const drawerTitle = cityResults !== null
-    ? `${cityResults.length} lieu${cityResults.length > 1 ? 'x' : ''} à « ${cityQuery} »`
+    ? t('map_places_city').replace('{n}', String(cityResults.length)).replace('{city}', cityQuery)
     : tapResults !== null
-    ? `${tapResults.length} lieu${tapResults.length > 1 ? 'x' : ''} autour de ce point`
-    : `${displayPlaces.length} lieu${displayPlaces.length > 1 ? 'x' : ''} autour de toi`;
+    ? t('map_places_point').replace('{n}', String(tapResults.length))
+    : t('map_places_you').replace('{n}', String(displayPlaces.length));
 
   return (
     <View style={styles.screen}>
@@ -477,7 +477,7 @@ export default function MapScreen() {
               contentContainerStyle={styles.filterGrid}
               keyboardShouldPersistTaps="handled"
             >
-              <FilterTile label="Tous" emoji="🗂️" active={universe === null} onPress={() => selectUniverse(null)} />
+              <FilterTile label={t('map_all_filter')} emoji="🗂️" active={universe === null} onPress={() => selectUniverse(null)} />
               {SORTED_UNIVERSES.map((u) => (
                 <FilterTile
                   key={u}
@@ -516,7 +516,7 @@ export default function MapScreen() {
       {resolving ? (
         <View style={styles.mapPlaceholder}>
           <ActivityIndicator color={colors.brand} size="large" />
-          <Text style={styles.locatingText}>Localisation en cours…</Text>
+          <Text style={styles.locatingText}>{t('map_locating')}</Text>
         </View>
       ) : (
         <MapView
@@ -709,7 +709,7 @@ function PlaceRow({
           {!hideDist && place.distanceMeters > 0 ? ` · ${formatDistance(place.distanceMeters)}` : ''}
         </Text>
         {closingTime ? (
-          <Text style={styles.rowHours}>🕐 Ferme à {closingTime}</Text>
+          <Text style={styles.rowHours}>{t('map_closes_at').replace('{time}', closingTime)}</Text>
         ) : null}
       </View>
       <Pressable style={styles.detailBtn} onPress={onDetail} hitSlop={8}>

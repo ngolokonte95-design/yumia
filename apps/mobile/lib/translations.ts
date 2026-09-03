@@ -452,6 +452,13 @@ const FR = {
   social_encounter_crossed: '⚡ Croisé il y a',
   social_level_prefix: 'Niv.',
   social_send_to: '✈️ Envoyer à...',
+  map_locating: 'Localisation en cours…',
+  map_all_filter: 'Tous',
+  map_places_city: '{n} lieux à « {city} »',
+  map_places_point: '{n} lieux autour de ce point',
+  map_places_you: '{n} lieux autour de toi',
+  map_closes_at: '🕐 Ferme à {time}',
+  map_reason_at_distance: 'à',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -891,6 +898,13 @@ const EN: Record<TranslationKey, string> = {
   social_encounter_crossed: '⚡ Crossed paths',
   social_level_prefix: 'Lvl',
   social_send_to: '✈️ Send to...',
+  map_locating: 'Locating…',
+  map_all_filter: 'All',
+  map_places_city: '{n} places in "{city}"',
+  map_places_point: '{n} places around this point',
+  map_places_you: '{n} places around you',
+  map_closes_at: '🕐 Closes at {time}',
+  map_reason_at_distance: 'at',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -1330,6 +1344,13 @@ const ES: Record<TranslationKey, string> = {
   social_encounter_crossed: '⚡ Se cruzaron',
   social_level_prefix: 'Niv.',
   social_send_to: '✈️ Enviar a...',
+  map_locating: 'Localizando…',
+  map_all_filter: 'Todos',
+  map_places_city: '{n} lugares en «{city}»',
+  map_places_point: '{n} lugares alrededor de este punto',
+  map_places_you: '{n} lugares a tu alrededor',
+  map_closes_at: '🕐 Cierra a las {time}',
+  map_reason_at_distance: 'a',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -1769,6 +1790,13 @@ const PT: Record<TranslationKey, string> = {
   social_encounter_crossed: '⚡ Cruzaram',
   social_level_prefix: 'Nív.',
   social_send_to: '✈️ Enviar para...',
+  map_locating: 'Localizando…',
+  map_all_filter: 'Todos',
+  map_places_city: '{n} lugares em "{city}"',
+  map_places_point: '{n} lugares ao redor deste ponto',
+  map_places_you: '{n} lugares ao seu redor',
+  map_closes_at: '🕐 Fecha às {time}',
+  map_reason_at_distance: 'a',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -2208,6 +2236,13 @@ const AR: Record<TranslationKey, string> = {
   social_encounter_crossed: '⚡ التقيتما منذ',
   social_level_prefix: 'مستوى',
   social_send_to: '✈️ إرسال إلى...',
+  map_locating: 'جارٍ تحديد الموقع…',
+  map_all_filter: 'الكل',
+  map_places_city: '{n} مكان في «{city}»',
+  map_places_point: '{n} مكان حول هذه النقطة',
+  map_places_you: '{n} مكان حولك',
+  map_closes_at: '🕐 يغلق في {time}',
+  map_reason_at_distance: 'على بعد',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
