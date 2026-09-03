@@ -16,6 +16,7 @@ import { safeMeta, universeLabel } from '../../lib/universeMeta';
 import { moodLabel } from '../../lib/labelHelpers';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 import { useLocation } from '../../lib/useLocation';
 import { useFeed } from '../../lib/useFeed';
 import { useWeather } from '../../lib/useWeather';
@@ -79,18 +80,18 @@ export default function ForYouScreen() {
       {busy && suggestions.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand} size="large" />
-          <Text style={styles.centerText}>YUMIA prépare ton inspiration…</Text>
+          <Text style={styles.centerText}>{t('fy_preparing')}</Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.centerText}>{error}</Text>
           <Pressable style={styles.retryBtn} onPress={reload}>
-            <Text style={styles.retryText}>Réessayer</Text>
+            <Text style={styles.retryText}>{t('fy_retry')}</Text>
           </Pressable>
         </View>
       ) : suggestions.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.centerText}>Rien à explorer ici pour le moment.</Text>
+          <Text style={styles.centerText}>{t('fy_empty')}</Text>
         </View>
       ) : (
         <FlatList
@@ -145,10 +146,10 @@ export default function ForYouScreen() {
   );
 }
 
-const FEED_FEEDBACK_OPTS: { key: VisitFeedback; emoji: string; label: string }[] = [
-  { key: 'loved', emoji: '❤️', label: 'Adoré' },
-  { key: 'neutral', emoji: '😐', label: 'Correct' },
-  { key: 'disliked', emoji: '👎', label: 'Déçu' },
+const FEED_FEEDBACK_OPTS: { key: VisitFeedback; emoji: string; labelKey: TranslationKey }[] = [
+  { key: 'loved', emoji: '❤️', labelKey: 'place_feedback_loved' },
+  { key: 'neutral', emoji: '😐', labelKey: 'place_feedback_neutral' },
+  { key: 'disliked', emoji: '👎', labelKey: 'place_feedback_disliked' },
 ];
 
 const FeedCard = memo(function FeedCard({
@@ -226,17 +227,17 @@ const FeedCard = memo(function FeedCard({
       <Modal visible={showFeedback} transparent animationType="slide" onRequestClose={() => { setShowFeedback(false); void submitVisit(); }}>
         <Pressable style={styles.feedbackOverlay} onPress={() => { setShowFeedback(false); void submitVisit(); }}>
           <View style={styles.feedbackSheet}>
-            <Text style={styles.feedbackTitle}>C'était comment ?</Text>
+            <Text style={styles.feedbackTitle}>{t('place_feedback_prompt')}</Text>
             <View style={styles.feedbackRow}>
               {FEED_FEEDBACK_OPTS.map((opt) => (
                 <Pressable key={opt.key} style={styles.feedbackOpt} onPress={() => void submitVisit(opt.key)}>
                   <Text style={styles.feedbackOptEmoji}>{opt.emoji}</Text>
-                  <Text style={styles.feedbackOptLabel}>{opt.label}</Text>
+                  <Text style={styles.feedbackOptLabel}>{t(opt.labelKey)}</Text>
                 </Pressable>
               ))}
             </View>
             <Pressable onPress={() => { setShowFeedback(false); void submitVisit(); }} style={{ marginTop: spacing.sm }}>
-              <Text style={styles.skipLabel}>Passer</Text>
+              <Text style={styles.skipLabel}>{t('fy_skip')}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -246,7 +247,7 @@ const FeedCard = memo(function FeedCard({
       <View style={styles.actions}>
         <Pressable style={styles.action} onPress={handleSave}>
           <Text style={styles.actionEmoji}>{saved ? '❤️' : '🤍'}</Text>
-          <Text style={styles.actionLabel}>{saved ? 'Sauvegardé' : 'Garder'}</Text>
+          <Text style={styles.actionLabel}>{saved ? t('fy_saved') : t('fy_keep')}</Text>
         </Pressable>
         {onVisit ? (
           <Pressable style={styles.action} onPress={handleVisitPress} disabled={visitState !== 'idle'}>
@@ -254,16 +255,16 @@ const FeedCard = memo(function FeedCard({
               ? <ActivityIndicator color="#fff" size="small" />
               : <Text style={styles.actionEmoji}>{visitState === 'done' ? '✅' : '📍'}</Text>
             }
-            <Text style={styles.actionLabel}>{visitState === 'done' ? 'Visité' : "J'y suis"}</Text>
+            <Text style={styles.actionLabel}>{visitState === 'done' ? t('fy_visited') : t('fy_im_here')}</Text>
           </Pressable>
         ) : null}
         <Pressable style={styles.action} onPress={onOpenDetail}>
           <Text style={styles.actionEmoji}>🤖</Text>
-          <Text style={styles.actionLabel}>Demander</Text>
+          <Text style={styles.actionLabel}>{t('fy_ask')}</Text>
         </Pressable>
         <Pressable style={styles.action} onPress={() => void handleShare()}>
           <Text style={styles.actionEmoji}>📤</Text>
-          <Text style={styles.actionLabel}>Partager</Text>
+          <Text style={styles.actionLabel}>{t('fy_share')}</Text>
         </Pressable>
       </View>
 

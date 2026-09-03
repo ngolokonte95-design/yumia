@@ -1167,6 +1167,16 @@ const FR = {
   sur_draw_singular: 'tirage',
   sur_draw_plural: 'tirages',
   sur_dice_universe_title: 'Univers du dé',
+  fy_preparing: 'YUMIA prépare ton inspiration…',
+  fy_retry: 'Réessayer',
+  fy_empty: 'Rien à explorer ici pour le moment.',
+  fy_skip: 'Passer',
+  fy_saved: 'Sauvegardé',
+  fy_keep: 'Garder',
+  fy_visited: 'Visité',
+  fy_im_here: 'J\'y suis',
+  fy_ask: 'Demander',
+  fy_share: 'Partager',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2321,6 +2331,16 @@ const EN: Record<TranslationKey, string> = {
   sur_draw_singular: 'draw',
   sur_draw_plural: 'draws',
   sur_dice_universe_title: 'Dice universe',
+  fy_preparing: 'YUMIA is preparing your inspiration…',
+  fy_retry: 'Try again',
+  fy_empty: 'Nothing to explore here right now.',
+  fy_skip: 'Skip',
+  fy_saved: 'Saved',
+  fy_keep: 'Keep',
+  fy_visited: 'Visited',
+  fy_im_here: 'I\'m here',
+  fy_ask: 'Ask',
+  fy_share: 'Share',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3475,6 +3495,16 @@ const ES: Record<TranslationKey, string> = {
   sur_draw_singular: 'sorteo',
   sur_draw_plural: 'sorteos',
   sur_dice_universe_title: 'Universo del dado',
+  fy_preparing: 'YUMIA está preparando tu inspiración…',
+  fy_retry: 'Reintentar',
+  fy_empty: 'Nada que explorar aquí por el momento.',
+  fy_skip: 'Omitir',
+  fy_saved: 'Guardado',
+  fy_keep: 'Guardar',
+  fy_visited: 'Visitado',
+  fy_im_here: 'Estoy aquí',
+  fy_ask: 'Preguntar',
+  fy_share: 'Compartir',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -4629,6 +4659,16 @@ const PT: Record<TranslationKey, string> = {
   sur_draw_singular: 'sorteio',
   sur_draw_plural: 'sorteios',
   sur_dice_universe_title: 'Universo do dado',
+  fy_preparing: 'O YUMIA está preparando sua inspiração…',
+  fy_retry: 'Tentar novamente',
+  fy_empty: 'Nada para explorar aqui no momento.',
+  fy_skip: 'Pular',
+  fy_saved: 'Salvo',
+  fy_keep: 'Guardar',
+  fy_visited: 'Visitado',
+  fy_im_here: 'Estou aqui',
+  fy_ask: 'Perguntar',
+  fy_share: 'Compartilhar',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -5783,6 +5823,16 @@ const AR: Record<TranslationKey, string> = {
   sur_draw_singular: 'سحبة',
   sur_draw_plural: 'سحبات',
   sur_dice_universe_title: 'مجال النرد',
+  fy_preparing: 'يوميا يجهّز إلهامك…',
+  fy_retry: 'إعادة المحاولة',
+  fy_empty: 'لا يوجد شيء لاستكشافه هنا الآن.',
+  fy_skip: 'تخطي',
+  fy_saved: 'محفوظ',
+  fy_keep: 'احتفظ',
+  fy_visited: 'تمت الزيارة',
+  fy_im_here: 'أنا هنا',
+  fy_ask: 'اسأل',
+  fy_share: 'مشاركة',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
