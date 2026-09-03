@@ -70,7 +70,7 @@ export default function UniverseScreen() {
       },
       compatibility: 0,
       distanceMeters: p.distanceMeters,
-      reason: `Lieu ${universe ? universeLabel(t, universe) : universe} à ${formatDistance(p.distanceMeters)}.`,
+      reason: t('uv_place_at_distance').replace('{universe}', universe ? universeLabel(t, universe) : String(universe)).replace('{dist}', formatDistance(p.distanceMeters)),
       engine: 'mood' as const,
     });
     router.push('/place');
@@ -80,9 +80,9 @@ export default function UniverseScreen() {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + spacing.lg }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Retour</Text>
+          <Text style={styles.backText}>{t('uv_back')}</Text>
         </Pressable>
-        <Text style={styles.error}>Univers inconnu.</Text>
+        <Text style={styles.error}>{t('uv_unknown')}</Text>
       </View>
     );
   }
@@ -98,7 +98,7 @@ export default function UniverseScreen() {
           <Text style={styles.headerEmoji}>{meta.emoji}</Text>
           <View>
             <Text style={styles.headerLabel}>{universeLabel(t, universe)}</Text>
-            {placeParam ? <Text style={styles.headerSubLabel} numberOfLines={1}>à {placeParam}</Text> : null}
+            {placeParam ? <Text style={styles.headerSubLabel} numberOfLines={1}>{t('uv_at')} {placeParam}</Text> : null}
           </View>
         </View>
         <Text style={styles.count}>{places.length}</Text>
@@ -108,7 +108,7 @@ export default function UniverseScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand} size="large" />
           <Text style={styles.loadingText}>
-            {placeParam ? `YUMIA cherche près de ${placeParam}…` : 'YUMIA cherche près de toi…'}
+            {placeParam ? t('uv_searching_near_place').replace('{place}', placeParam) : t('uv_searching_near_you')}
           </Text>
         </View>
       ) : error ? (
@@ -121,7 +121,7 @@ export default function UniverseScreen() {
       ) : places.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>{meta.emoji}</Text>
-          <Text style={styles.emptyText}>Aucun lieu de ce type près de toi.</Text>
+          <Text style={styles.emptyText}>{t('uv_empty')}</Text>
         </View>
       ) : (
         <FlatList
@@ -134,7 +134,7 @@ export default function UniverseScreen() {
           }
           renderItem={({ item }) => {
             const isSaved = savedIds.has(item.id);
-            const todayHours = getTodayHours(item.openingHours);
+            const todayHours = getTodayHours(item.openingHours, t);
             return (
               <Pressable style={styles.card} onPress={() => handleTap(item)}>
                 <View style={styles.cardLeft}>
@@ -186,19 +186,19 @@ function formatDistance(m: number): string {
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
 }
 
-function getTodayHours(hours?: string[]): string | null {
+function getTodayHours(hours: string[] | undefined, t: (key: import('../lib/translations').TranslationKey) => string): string | null {
   if (!hours || hours.length === 0) return null;
   const todayIdx = (new Date().getDay() + 6) % 7;
   const entry = hours[todayIdx];
   if (!entry) return null;
   const colonIdx = entry.indexOf(': ');
   const timeRange = colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry;
-  if (timeRange.toLowerCase().includes('fermé') || timeRange.toLowerCase().includes('closed')) return 'Fermé';
+  if (timeRange.toLowerCase().includes('fermé') || timeRange.toLowerCase().includes('closed')) return t('uv_closed');
   // Extrait l'heure de fermeture (après le tiret)
   const parts = timeRange.split(/\s[–\-]\s/);
   if (parts.length < 2) return timeRange;
   const closing = parts[parts.length - 1].trim();
-  return `Ferme à ${to24h(closing)}`;
+  return t('uv_closes_at').replace('{time}', to24h(closing));
 }
 
 function to24h(time: string): string {

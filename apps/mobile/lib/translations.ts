@@ -1118,6 +1118,15 @@ const FR = {
   fav_organize_into: 'Ranger dans…',
   fav_no_collections: 'Aucune collection. Crée-en une avec ＋ en haut de l\'écran.',
   fav_remove_from_collection: 'Retirer de la collection',
+  uv_back: '← Retour',
+  uv_unknown: 'Univers inconnu.',
+  uv_at: 'à',
+  uv_searching_near_place: 'YUMIA cherche près de {place}…',
+  uv_searching_near_you: 'YUMIA cherche près de toi…',
+  uv_empty: 'Aucun lieu de ce type près de toi.',
+  uv_place_at_distance: 'Lieu {universe} à {dist}.',
+  uv_closed: 'Fermé',
+  uv_closes_at: 'Ferme à {time}',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2223,6 +2232,15 @@ const EN: Record<TranslationKey, string> = {
   fav_organize_into: 'Add to…',
   fav_no_collections: 'No collections. Create one with ＋ at the top of the screen.',
   fav_remove_from_collection: 'Remove from collection',
+  uv_back: '← Back',
+  uv_unknown: 'Unknown universe.',
+  uv_at: 'at',
+  uv_searching_near_place: 'YUMIA is searching near {place}…',
+  uv_searching_near_you: 'YUMIA is searching near you…',
+  uv_empty: 'No places of this type near you.',
+  uv_place_at_distance: '{universe} place at {dist}.',
+  uv_closed: 'Closed',
+  uv_closes_at: 'Closes at {time}',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -3328,6 +3346,15 @@ const ES: Record<TranslationKey, string> = {
   fav_organize_into: 'Guardar en…',
   fav_no_collections: 'Sin colecciones. Crea una con ＋ en la parte superior de la pantalla.',
   fav_remove_from_collection: 'Quitar de la colección',
+  uv_back: '← Volver',
+  uv_unknown: 'Universo desconocido.',
+  uv_at: 'en',
+  uv_searching_near_place: 'YUMIA está buscando cerca de {place}…',
+  uv_searching_near_you: 'YUMIA está buscando cerca de ti…',
+  uv_empty: 'No hay lugares de este tipo cerca de ti.',
+  uv_place_at_distance: 'Lugar {universe} a {dist}.',
+  uv_closed: 'Cerrado',
+  uv_closes_at: 'Cierra a las {time}',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -4433,6 +4460,15 @@ const PT: Record<TranslationKey, string> = {
   fav_organize_into: 'Organizar em…',
   fav_no_collections: 'Nenhuma coleção. Crie uma com ＋ no topo da tela.',
   fav_remove_from_collection: 'Remover da coleção',
+  uv_back: '← Voltar',
+  uv_unknown: 'Universo desconhecido.',
+  uv_at: 'em',
+  uv_searching_near_place: 'O YUMIA está procurando perto de {place}…',
+  uv_searching_near_you: 'O YUMIA está procurando perto de você…',
+  uv_empty: 'Nenhum lugar deste tipo perto de você.',
+  uv_place_at_distance: 'Local {universe} a {dist}.',
+  uv_closed: 'Fechado',
+  uv_closes_at: 'Fecha às {time}',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -5538,6 +5574,15 @@ const AR: Record<TranslationKey, string> = {
   fav_organize_into: 'ترتيب في…',
   fav_no_collections: 'لا توجد مجموعات. أنشئ واحدة بالضغط على ＋ أعلى الشاشة.',
   fav_remove_from_collection: 'إزالة من المجموعة',
+  uv_back: '← رجوع',
+  uv_unknown: 'عالم غير معروف.',
+  uv_at: 'في',
+  uv_searching_near_place: 'يبحث يوميا بالقرب من {place}…',
+  uv_searching_near_you: 'يبحث يوميا بالقرب منك…',
+  uv_empty: 'لا توجد أماكن من هذا النوع بالقرب منك.',
+  uv_place_at_distance: 'مكان {universe} على بعد {dist}.',
+  uv_closed: 'مغلق',
+  uv_closes_at: 'يغلق في {time}',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
