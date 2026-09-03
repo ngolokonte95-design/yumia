@@ -13,6 +13,7 @@ import { useAuth } from '../lib/auth-context';
 import { feedApi, type StoryGroup, type StorySticker } from '../lib/feed-api';
 import { colors, radius, spacing } from '../theme/tokens';
 import type { MusicTrack } from '../components/MusicPicker';
+import { useI18n } from '../lib/useI18n';
 
 const { width, height } = Dimensions.get('window');
 const STORY_MS = 5000;
@@ -25,6 +26,7 @@ function StoryVideo({ uri }: { uri: string }) {
 
 /** Sticker sondage votable, superposé sur la story. */
 function PollSticker({ sticker, storyId, token }: { sticker: StorySticker; storyId: string; token: string }) {
+  const { t } = useI18n();
   const [results, setResults] = useState<number[]>([]);
   const [myVote, setMyVote] = useState<number | null>(null);
 
@@ -38,7 +40,7 @@ function PollSticker({ sticker, storyId, token }: { sticker: StorySticker; story
   };
 
   const total = results.reduce((a, b) => a + b, 0);
-  const options = sticker.options ?? ['Oui', 'Non'];
+  const options = sticker.options ?? [t('sv_poll_yes'), t('sv_poll_no')];
 
   return (
     <View style={[styles.sticker, { left: `${Math.max(4, Math.min(60, sticker.x - 25))}%`, top: `${sticker.y}%`, width: '70%' }]}>
@@ -57,7 +59,7 @@ function PollSticker({ sticker, storyId, token }: { sticker: StorySticker; story
             </Pressable>
           );
         })}
-        {total > 0 && <Text style={styles.pollTotal}>{total} vote{total > 1 ? 's' : ''}</Text>}
+        {total > 0 && <Text style={styles.pollTotal}>{t('sv_votes_count').replace('{n}', String(total)).replace('{s}', total > 1 ? 's' : '')}</Text>}
       </View>
     </View>
   );
@@ -68,6 +70,7 @@ export default function StoryViewerScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [group, setGroup] = useState<StoryGroup | null>(null);
   const [index, setIndex] = useState(0);
@@ -205,14 +208,14 @@ export default function StoryViewerScreen() {
     setPaused(true);
     try {
       const perm = await MediaLibrary.requestPermissionsAsync();
-      if (!perm.granted) { Alert.alert('Permission refusée', 'Autorise l\'accès aux photos pour enregistrer.'); return; }
+      if (!perm.granted) { Alert.alert(t('sv_perm_denied_title'), t('sv_perm_denied_body')); return; }
       const dest = new Directory(Paths.cache, `story-${story.id}-${Date.now()}`);
       dest.create();
       const file = await File.downloadFileAsync(story.mediaUrl, dest, { idempotent: true });
       await MediaLibrary.saveToLibraryAsync(file.uri);
-      Alert.alert('Enregistré', 'La story a été enregistrée dans tes photos.');
+      Alert.alert(t('sv_saved_title'), t('sv_saved_body'));
     } catch {
-      Alert.alert('Erreur', 'Impossible d\'enregistrer cette story.');
+      Alert.alert(t('sv_error'), t('sv_save_error'));
     } finally {
       setSaving(false);
       setPaused(false);
@@ -223,10 +226,10 @@ export default function StoryViewerScreen() {
     if (!accessToken || !group) return;
     const story = group.stories[index];
     setPaused(true);
-    Alert.alert('Supprimer cette story ?', 'Cette action est irréversible.', [
-      { text: 'Annuler', style: 'cancel', onPress: () => setPaused(false) },
+    Alert.alert(t('sv_delete_confirm_title'), t('sv_delete_confirm_body'), [
+      { text: t('sv_cancel'), style: 'cancel', onPress: () => setPaused(false) },
       {
-        text: 'Supprimer',
+        text: t('sv_delete'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -236,7 +239,7 @@ export default function StoryViewerScreen() {
             setIndex((i) => Math.min(i, group.stories.length - 2));
             setPaused(false);
           } catch {
-            Alert.alert('Erreur', 'Impossible de supprimer cette story.');
+            Alert.alert(t('sv_error'), t('sv_delete_error'));
             setPaused(false);
           }
         },
@@ -250,8 +253,8 @@ export default function StoryViewerScreen() {
   if (!group || group.stories.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.empty}>Aucune story active</Text>
-        <Pressable onPress={close} style={styles.closeFallback}><Text style={styles.closeTxt}>Fermer</Text></Pressable>
+        <Text style={styles.empty}>{t('sv_no_active_story')}</Text>
+        <Pressable onPress={close} style={styles.closeFallback}><Text style={styles.closeTxt}>{t('sv_close')}</Text></Pressable>
       </View>
     );
   }
@@ -291,7 +294,7 @@ export default function StoryViewerScreen() {
         )}
         <Text style={styles.name}>{group.user.displayName}</Text>
         {story.closeFriendsOnly ? (
-          <View style={styles.cfBadge}><Text style={styles.cfBadgeTxt}>🟢 Amis proches</Text></View>
+          <View style={styles.cfBadge}><Text style={styles.cfBadgeTxt}>{t('sv_close_friends')}</Text></View>
         ) : null}
         <Pressable onPress={close} hitSlop={12}><Text style={styles.close}>✕</Text></Pressable>
       </View>
@@ -306,7 +309,7 @@ export default function StoryViewerScreen() {
             <View key={i} style={[styles.sticker, { left: '10%', top: `${st.y}%`, width: '80%' }]}>
               <View style={styles.questionBox}>
                 <Text style={styles.questionText}>{st.question}</Text>
-                <Text style={styles.questionHint}>Réponds avec la barre en bas ⬇️</Text>
+                <Text style={styles.questionHint}>{t('sv_question_hint')}</Text>
               </View>
             </View>
           );
@@ -355,7 +358,7 @@ export default function StoryViewerScreen() {
       {isMine ? (
         <View style={[styles.myStoryRow, { bottom: insets.bottom + 16 }]}>
           <Pressable style={styles.viewsBar} onPress={openViewers}>
-            <Text style={styles.viewsTxt}>👁 {story.viewCount ?? 0} vue{(story.viewCount ?? 0) > 1 ? 's' : ''} — voir qui</Text>
+            <Text style={styles.viewsTxt}>{t('sv_views_count').replace('{n}', String(story.viewCount ?? 0)).replace('{s}', (story.viewCount ?? 0) > 1 ? 's' : '')}</Text>
           </Pressable>
           <Pressable style={styles.circleActionBtn} onPress={() => void saveStory()} disabled={saving} hitSlop={8}>
             {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.circleActionTxt}>💾</Text>}
@@ -368,7 +371,7 @@ export default function StoryViewerScreen() {
         <View style={[styles.replyBar, { bottom: insets.bottom + 12 }]}>
           <TextInput
             style={styles.replyInput}
-            placeholder={replySent ? 'Réponse envoyée ✓' : `Répondre à ${group.user.displayName.split(' ')[0]}...`}
+            placeholder={replySent ? t('sv_reply_sent') : t('sv_reply_to').replace('{name}', group.user.displayName.split(' ')[0])}
             placeholderTextColor="rgba(255,255,255,0.6)"
             value={replyText}
             onChangeText={setReplyText}
@@ -387,12 +390,12 @@ export default function StoryViewerScreen() {
       <Modal visible={viewersOpen} transparent animationType="slide" onRequestClose={() => setViewersOpen(false)}>
         <Pressable style={styles.viewersOverlay} onPress={() => setViewersOpen(false)}>
           <View style={styles.viewersSheet}>
-            <Text style={styles.viewersTitle}>👁 Vues ({viewers.length})</Text>
+            <Text style={styles.viewersTitle}>{t('sv_views_title').replace('{n}', String(viewers.length))}</Text>
             <FlatList
               data={viewers}
               keyExtractor={(v) => v.user.id}
               style={{ maxHeight: height * 0.4 }}
-              ListEmptyComponent={<Text style={styles.viewersEmpty}>Personne n'a encore vu cette story.</Text>}
+              ListEmptyComponent={<Text style={styles.viewersEmpty}>{t('sv_no_viewers_yet')}</Text>}
               renderItem={({ item }) => (
                 <Pressable
                   style={styles.viewerRow}
