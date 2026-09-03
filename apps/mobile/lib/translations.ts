@@ -1470,6 +1470,12 @@ const FR = {
   profile_share_message: 'Je suis {name} sur YUMIA !\n{level}{visits}\nRejoins-moi et découvre les meilleures expériences autour de toi.',
   itin_share_header: 'Itinéraire',
   place_share_message: '{emoji} {name} — découvert via YUMIA !\n{link}',
+  swipe_discovered_reason: 'Découvert en mode Swipe.',
+  visits_load_error: 'Erreur de chargement.',
+  visits_title: 'Mes visites',
+  visits_count: '{n} lieu{s} exploré{s2}',
+  visits_empty_title: 'Aucune visite pour l\'instant',
+  visits_empty_sub: 'Dis « J\'y suis allé » sur un lieu pour le voir ici.',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2927,6 +2933,12 @@ const EN: Record<TranslationKey, string> = {
   profile_share_message: 'I\'m {name} on YUMIA!\n{level}{visits}\nJoin me and discover the best experiences around you.',
   itin_share_header: 'Itinerary',
   place_share_message: '{emoji} {name} — discovered via YUMIA!\n{link}',
+  swipe_discovered_reason: 'Discovered in Swipe mode.',
+  visits_load_error: 'Loading error.',
+  visits_title: 'My visits',
+  visits_count: '{n} place{s} explored',
+  visits_empty_title: 'No visits yet',
+  visits_empty_sub: 'Tap "I\'ve been here" on a place to see it here.',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4384,6 +4396,12 @@ const ES: Record<TranslationKey, string> = {
   profile_share_message: '¡Soy {name} en YUMIA!\n{level}{visits}\nÚnete a mí y descubre las mejores experiencias cerca de ti.',
   itin_share_header: 'Itinerario',
   place_share_message: '{emoji} {name} — descubierto en YUMIA!\n{link}',
+  swipe_discovered_reason: 'Descubierto en modo Swipe.',
+  visits_load_error: 'Error de carga.',
+  visits_title: 'Mis visitas',
+  visits_count: '{n} lugar{s} explorado{s2}',
+  visits_empty_title: 'Aún no hay visitas',
+  visits_empty_sub: 'Toca «Estuve aquí» en un lugar para verlo aquí.',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5841,6 +5859,12 @@ const PT: Record<TranslationKey, string> = {
   profile_share_message: 'Eu sou {name} no YUMIA!\n{level}{visits}\nJunte-se a mim e descubra as melhores experiências ao seu redor.',
   itin_share_header: 'Roteiro',
   place_share_message: '{emoji} {name} — descoberto via YUMIA!\n{link}',
+  swipe_discovered_reason: 'Descoberto no modo Swipe.',
+  visits_load_error: 'Erro ao carregar.',
+  visits_title: 'Minhas visitas',
+  visits_count: '{n} lugar{s} explorado{s2}',
+  visits_empty_title: 'Nenhuma visita ainda',
+  visits_empty_sub: 'Toque em "Estive aqui" em um lugar para vê-lo aqui.',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7298,6 +7322,12 @@ const AR: Record<TranslationKey, string> = {
   profile_share_message: 'أنا {name} على YUMIA!\n{level}{visits}\nانضم إلي واكتشف أفضل التجارب من حولك.',
   itin_share_header: 'خط سير',
   place_share_message: '{emoji} {name} — اكتُشف عبر YUMIA!\n{link}',
+  swipe_discovered_reason: 'اكتُشف في وضع السحب.',
+  visits_load_error: 'خطأ في التحميل.',
+  visits_title: 'زياراتي',
+  visits_count: '{n} مكان مُستكشف',
+  visits_empty_title: 'لا توجد زيارات بعد',
+  visits_empty_sub: 'اضغط "لقد ذهبت إلى هناك" على مكان لرؤيته هنا.',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

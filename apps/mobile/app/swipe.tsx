@@ -202,11 +202,11 @@ export default function SwipeScreen() {
       },
       compatibility: 0,
       distanceMeters: place.distanceMeters,
-      reason: `Découvert en mode Swipe.`,
+      reason: t('swipe_discovered_reason'),
       engine: 'mood' as const,
     });
     router.push('/place');
-  }, [router]);
+  }, [router, t]);
 
   const visible = places.slice(index, index + 2);
   const done = index >= places.length && !loading;

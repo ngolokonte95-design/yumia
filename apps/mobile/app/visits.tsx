@@ -24,10 +24,13 @@ import { fetchPlaceById } from '../lib/places-api';
 
 const FEEDBACK_EMOJI: Record<string, string> = { loved: '❤️', neutral: '😐', disliked: '👎' };
 
+const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
+
 export default function VisitsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [items, setItems] = useState<VisitHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -48,10 +51,10 @@ export default function VisitsScreen() {
         nextCursor.current = page.nextCursor;
         hasMore.current = page.nextCursor !== null;
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erreur de chargement.');
+        setError(e instanceof Error ? e.message : t('visits_load_error'));
       }
     },
-    [accessToken],
+    [accessToken, t],
   );
 
   useEffect(() => {
@@ -95,9 +98,14 @@ export default function VisitsScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Mes visites</Text>
+          <Text style={styles.title}>{t('visits_title')}</Text>
           {total > 0 ? (
-            <Text style={styles.subtitle}>{total} lieu{total > 1 ? 'x' : ''} exploré{total > 1 ? 's' : ''}</Text>
+            <Text style={styles.subtitle}>
+              {t('visits_count')
+                .replace('{n}', String(total))
+                .replace('{s2}', total > 1 ? 's' : '')
+                .replace('{s}', total > 1 ? 's' : '')}
+            </Text>
           ) : null}
         </View>
       </View>
@@ -113,8 +121,8 @@ export default function VisitsScreen() {
       ) : items.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyEmoji}>🗺️</Text>
-          <Text style={styles.emptyTitle}>Aucune visite pour l'instant</Text>
-          <Text style={styles.emptySub}>Dis « J'y suis allé » sur un lieu pour le voir ici.</Text>
+          <Text style={styles.emptyTitle}>{t('visits_empty_title')}</Text>
+          <Text style={styles.emptySub}>{t('visits_empty_sub')}</Text>
         </View>
       ) : (
         <FlatList
@@ -138,10 +146,10 @@ export default function VisitsScreen() {
 }
 
 function VisitRow({ item, onPress }: { item: VisitHistoryItem; onPress: () => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const meta = safeMeta(item.place.universe);
   const date = new Date(item.visitedAt);
-  const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  const dateStr = date.toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
     <Pressable style={styles.row} onPress={onPress}>
