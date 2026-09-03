@@ -23,6 +23,7 @@ interface Props {
 }
 
 export function ExperienceCard({ result, savedIds, onSave, onVisit, onStepPress }: Props) {
+  const { t } = useI18n();
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{result.titleFr}</Text>
@@ -51,7 +52,7 @@ export function ExperienceCard({ result, savedIds, onSave, onVisit, onStepPress 
       {result.steps.length === 0 && (
         <View style={styles.empty}>
           <Text style={styles.emptyText}>
-            Aucun lieu disponible dans ce rayon pour cet itinéraire.
+            {t('ec_no_place_in_radius')}
           </Text>
         </View>
       )}
@@ -167,7 +168,7 @@ function StepCard({
               {visitState === 'loading'
                 ? <ActivityIndicator size="small" color={colors.brand} />
                 : <Text style={[styles.visitText, visitState === 'done' && styles.visitTextDone]}>
-                    {visitState === 'done' ? '✓ Visité' : '📍 J\'y vais'}
+                    {visitState === 'done' ? t('ec_visited') : t('ec_going')}
                   </Text>}
             </Pressable>
           )

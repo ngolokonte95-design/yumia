@@ -1487,6 +1487,10 @@ const FR = {
   eb_title: 'Quelque chose s\'est mal passé',
   eb_body: 'YUMIA a rencontré une erreur inattendue. Appuie sur le bouton ci-dessous pour relancer.',
   eb_retry: 'Réessayer',
+  ec_no_place_in_radius: 'Aucun lieu disponible dans ce rayon pour cet itinéraire.',
+  ec_visited: '✓ Visité',
+  ec_going: '📍 J\'y vais',
+  lp_title: 'Langue & région',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2961,6 +2965,10 @@ const EN: Record<TranslationKey, string> = {
   eb_title: 'Something went wrong',
   eb_body: 'YUMIA ran into an unexpected error. Tap the button below to restart.',
   eb_retry: 'Try again',
+  ec_no_place_in_radius: 'No place available within this radius for this itinerary.',
+  ec_visited: '✓ Visited',
+  ec_going: '📍 I\'m going',
+  lp_title: 'Language & region',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4435,6 +4443,10 @@ const ES: Record<TranslationKey, string> = {
   eb_title: 'Algo salió mal',
   eb_body: 'YUMIA encontró un error inesperado. Toca el botón de abajo para reiniciar.',
   eb_retry: 'Reintentar',
+  ec_no_place_in_radius: 'No hay ningún lugar disponible en este radio para este itinerario.',
+  ec_visited: '✓ Visitado',
+  ec_going: '📍 Voy',
+  lp_title: 'Idioma y región',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5909,6 +5921,10 @@ const PT: Record<TranslationKey, string> = {
   eb_title: 'Algo deu errado',
   eb_body: 'O YUMIA encontrou um erro inesperado. Toque no botão abaixo para reiniciar.',
   eb_retry: 'Tentar novamente',
+  ec_no_place_in_radius: 'Nenhum lugar disponível neste raio para este roteiro.',
+  ec_visited: '✓ Visitado',
+  ec_going: '📍 Vou',
+  lp_title: 'Idioma e região',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7383,6 +7399,10 @@ const AR: Record<TranslationKey, string> = {
   eb_title: 'حدث خطأ ما',
   eb_body: 'واجه YUMIA خطأً غير متوقع. اضغط على الزر أدناه لإعادة التشغيل.',
   eb_retry: 'إعادة المحاولة',
+  ec_no_place_in_radius: 'لا يوجد مكان متاح ضمن هذا النطاق لهذا المسار.',
+  ec_visited: '✓ تمت الزيارة',
+  ec_going: '📍 أنا ذاهب',
+  lp_title: 'اللغة والمنطقة',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

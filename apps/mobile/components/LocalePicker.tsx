@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, I18nManager } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
 
 interface Locale {
   code: string;
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function LocalePicker({ visible, currentLocale, onSelect, onClose }: Props) {
+  const { t } = useI18n();
   const [pending, setPending] = useState<string | null>(null);
 
   async function handleSelect(code: string) {
@@ -47,7 +49,7 @@ export function LocalePicker({ visible, currentLocale, onSelect, onClose }: Prop
       <Pressable style={styles.backdrop} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <Text style={styles.title}>Langue & région</Text>
+        <Text style={styles.title}>{t('lp_title')}</Text>
         {LOCALES.map((loc) => {
           const active = loc.code === currentLocale;
           const loading = pending === loc.code;
@@ -75,7 +77,7 @@ export function LocalePicker({ visible, currentLocale, onSelect, onClose }: Prop
           );
         })}
         <Pressable style={styles.cancelBtn} onPress={onClose}>
-          <Text style={styles.cancelText}>Annuler</Text>
+          <Text style={styles.cancelText}>{t('cancel')}</Text>
         </Pressable>
       </View>
     </Modal>
