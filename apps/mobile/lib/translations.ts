@@ -459,6 +459,13 @@ const FR = {
   map_places_you: '{n} lieux autour de toi',
   map_closes_at: '🕐 Ferme à {time}',
   map_reason_at_distance: 'à',
+  reels_follow: 'Suivre',
+  reels_tab_foryou: 'Pour vous',
+  reels_tab_following: 'Ami(e)s',
+  reels_empty_title: 'Aucun reel',
+  reels_empty_text: 'Sois le premier à publier une vidéo reel sur Yumia !',
+  reels_create_btn: '🎬 Créer un reel',
+  reels_share_message: 'Regarde ce reel sur Yumia 🎬',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -905,6 +912,13 @@ const EN: Record<TranslationKey, string> = {
   map_places_you: '{n} places around you',
   map_closes_at: '🕐 Closes at {time}',
   map_reason_at_distance: 'at',
+  reels_follow: 'Follow',
+  reels_tab_foryou: 'For you',
+  reels_tab_following: 'Friends',
+  reels_empty_title: 'No reels',
+  reels_empty_text: 'Be the first to post a reel video on YUMIA!',
+  reels_create_btn: '🎬 Create a reel',
+  reels_share_message: 'Check out this reel on YUMIA 🎬',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -1351,6 +1365,13 @@ const ES: Record<TranslationKey, string> = {
   map_places_you: '{n} lugares a tu alrededor',
   map_closes_at: '🕐 Cierra a las {time}',
   map_reason_at_distance: 'a',
+  reels_follow: 'Seguir',
+  reels_tab_foryou: 'Para ti',
+  reels_tab_following: 'Amigos',
+  reels_empty_title: 'Sin reels',
+  reels_empty_text: '¡Sé el primero en publicar un video reel en YUMIA!',
+  reels_create_btn: '🎬 Crear un reel',
+  reels_share_message: 'Mira este reel en YUMIA 🎬',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -1797,6 +1818,13 @@ const PT: Record<TranslationKey, string> = {
   map_places_you: '{n} lugares ao seu redor',
   map_closes_at: '🕐 Fecha às {time}',
   map_reason_at_distance: 'a',
+  reels_follow: 'Seguir',
+  reels_tab_foryou: 'Para você',
+  reels_tab_following: 'Amigos',
+  reels_empty_title: 'Nenhum reel',
+  reels_empty_text: 'Seja o primeiro a publicar um vídeo reel no YUMIA!',
+  reels_create_btn: '🎬 Criar um reel',
+  reels_share_message: 'Veja este reel no YUMIA 🎬',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -2243,6 +2271,13 @@ const AR: Record<TranslationKey, string> = {
   map_places_you: '{n} مكان حولك',
   map_closes_at: '🕐 يغلق في {time}',
   map_reason_at_distance: 'على بعد',
+  reels_follow: 'متابعة',
+  reels_tab_foryou: 'لك',
+  reels_tab_following: 'الأصدقاء',
+  reels_empty_title: 'لا يوجد ريلز',
+  reels_empty_text: 'كن أول من ينشر فيديو ريلز على يوميا!',
+  reels_create_btn: '🎬 إنشاء ريلز',
+  reels_share_message: 'شاهد هذا الريلز على يوميا 🎬',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

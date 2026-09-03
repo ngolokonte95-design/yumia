@@ -13,6 +13,7 @@ import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { feedApi, type FeedPost, type PostOverlay } from '../lib/feed-api';
 import { PostOverlays } from '../components/PostOverlays';
+import { useI18n } from '../lib/useI18n';
 
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -301,6 +302,7 @@ function ReelCard({
     onLike(item.id);
   };
 
+  const { t } = useI18n();
   const mediaUrl = item.mediaUrls?.[0];
   const isVideo = !!mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('video'));
 
@@ -416,7 +418,7 @@ function ReelCard({
           <Text style={styles.reelAuthorName}>{item.user?.displayName ?? 'Yumia'}</Text>
           {/* Bouton Suivre inline */}
           <Pressable style={styles.reelFollowBtn} onPress={() => item.user && onFollow(item.user.id)}>
-            <Text style={styles.reelFollowTxt}>Suivre</Text>
+            <Text style={styles.reelFollowTxt}>{t('reels_follow')}</Text>
           </Pressable>
         </Pressable>
         {item.caption ? (
@@ -472,6 +474,9 @@ export default function ReelsScreen() {
   const router = useRouter();
   const { postId, t } = useLocalSearchParams<{ postId?: string; t?: string }>();
   const startAtSec = t ? parseFloat(t) : undefined;
+  // Alias `tr` : le paramètre de route `t` (position de départ, secondes)
+  // masquerait le `t` de useI18n.
+  const { t: tr } = useI18n();
   const insets = useSafeAreaInsets();
   const [reelTab, setReelTab] = useState<ReelTab>('foryou');
   const [reels, setReels] = useState<FeedPost[]>([]);
@@ -565,11 +570,11 @@ export default function ReelsScreen() {
         </Pressable>
         <View style={styles.tabsRow}>
           <Pressable onPress={() => setReelTab('foryou')}>
-            <Text style={[styles.tabTxt, reelTab === 'foryou' && styles.tabTxtActive]}>Pour vous</Text>
+            <Text style={[styles.tabTxt, reelTab === 'foryou' && styles.tabTxtActive]}>{tr('reels_tab_foryou')}</Text>
           </Pressable>
           <View style={styles.tabDivider} />
           <Pressable onPress={() => setReelTab('following')}>
-            <Text style={[styles.tabTxt, reelTab === 'following' && styles.tabTxtActive]}>Ami(e)s</Text>
+            <Text style={[styles.tabTxt, reelTab === 'following' && styles.tabTxtActive]}>{tr('reels_tab_following')}</Text>
           </Pressable>
         </View>
         <Pressable style={styles.cameraBtn} onPress={() => router.push('/camera?mode=reel' as never)}>
@@ -582,15 +587,15 @@ export default function ReelsScreen() {
       ) : reels.length === 0 ? (
         <View style={styles.center}>
           <Text style={{ fontSize: 48, marginBottom: 16 }}>🎬</Text>
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Aucun reel</Text>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 8 }}>{tr('reels_empty_title')}</Text>
           <Text style={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center', paddingHorizontal: 32, lineHeight: 22 }}>
-            Sois le premier à publier une vidéo reel sur Yumia !
+            {tr('reels_empty_text')}
           </Text>
           <Pressable
             style={[styles.createReelBtn, { marginTop: 24 }]}
             onPress={() => router.push('/camera?mode=reel' as never)}
           >
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>🎬 Créer un reel</Text>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{tr('reels_create_btn')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -619,7 +624,7 @@ export default function ReelsScreen() {
               shouldMount={Math.abs(index - activeIndex) <= 1}
               onLike={toggleLike}
               onComment={(id) => router.push(`/post/${id}` as never)}
-              onShare={(it) => void Share.share({ message: `Regarde ce reel sur Yumia 🎬` })}
+              onShare={() => void Share.share({ message: tr('reels_share_message') })}
               onUserPress={(id) => router.push(`/user/${id}` as never)}
               onFollow={toggleFollow}
               startAtSec={item.id === postId ? startAtSec : undefined}
