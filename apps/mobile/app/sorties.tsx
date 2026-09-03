@@ -12,11 +12,13 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchBoostedVenues, purchaseTicket, type Venue } from '../lib/business-api';
+import { useI18n } from '../lib/useI18n';
 
 export default function SortiesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const { coords, resolving } = useLocation();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,8 +44,8 @@ export default function SortiesScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>🎟️ Sorties & billets</Text>
-          <Text style={styles.subtitle}>Les événements à ne pas manquer près de toi.</Text>
+          <Text style={styles.title}>{t('sor_title')}</Text>
+          <Text style={styles.subtitle}>{t('sor_subtitle')}</Text>
         </View>
       </View>
 
@@ -52,13 +54,13 @@ export default function SortiesScreen() {
       ) : (
         <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.md }}>
           {venues.length === 0 ? (
-            <Text style={styles.empty}>Aucun événement à l'affiche pour l'instant. Reviens bientôt !</Text>
+            <Text style={styles.empty}>{t('sor_empty')}</Text>
           ) : (
             venues.map((v) => (
               <View key={v.id} style={styles.card}>
                 <View style={styles.cardTop}>
                   <Text style={styles.venueName}>{v.name}</Text>
-                  {v.boostLevel >= 3 ? <Text style={styles.hotBadge}>🔥 À la une</Text> : null}
+                  {v.boostLevel >= 3 ? <Text style={styles.hotBadge}>{t('sor_featured')}</Text> : null}
                 </View>
                 {v.eventName ? <Text style={styles.eventName}>{v.eventName}</Text> : null}
                 <Text style={styles.eventMeta}>
@@ -66,15 +68,15 @@ export default function SortiesScreen() {
                 </Text>
                 <View style={styles.cardBottom}>
                   <Text style={styles.price}>
-                    {v.ticketPrice != null ? `${v.ticketPrice}€` : 'Gratuit'}
-                    <Text style={styles.priceUnit}> / billet</Text>
+                    {v.ticketPrice != null ? `${v.ticketPrice}€` : t('sor_free')}
+                    <Text style={styles.priceUnit}>{t('sor_per_ticket')}</Text>
                   </Text>
                   <Pressable
                     style={styles.buyBtn}
                     onPress={() => setSelected(v)}
                     disabled={v.ticketPrice == null}
                   >
-                    <Text style={styles.buyText}>Réserver</Text>
+                    <Text style={styles.buyText}>{t('sor_book')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -98,9 +100,9 @@ export default function SortiesScreen() {
               selected.ticketPrice,
             );
             setSelected(null);
-            Alert.alert('Billet(s) réservé(s) 🎉', `${qty} billet${qty > 1 ? 's' : ''} pour ${selected.eventName}. Le paiement sera finalisé prochainement.`);
+            Alert.alert(t('sor_tickets_booked_title'), t('sor_tickets_booked_body').replace('{qty}', String(qty)).replace('{s}', qty > 1 ? 's' : '').replace('{event}', selected.eventName ?? ''));
           } catch (e) {
-            Alert.alert('Erreur', e instanceof Error ? e.message : 'Réservation impossible.');
+            Alert.alert(t('sor_error'), e instanceof Error ? e.message : t('sor_booking_error'));
           }
         }}
       />
@@ -116,6 +118,7 @@ function TicketModal({
   onClose: () => void;
   onConfirm: (qty: number) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [qty, setQty] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   if (!venue || venue.ticketPrice == null) return null;
@@ -130,7 +133,7 @@ function TicketModal({
           <Text style={styles.sheetTitle}>{venue.eventName}</Text>
           <Text style={styles.sheetSub}>{venue.name} · {venue.ticketPrice}€ / billet</Text>
 
-          <Text style={styles.fieldLabel}>Nombre de billets</Text>
+          <Text style={styles.fieldLabel}>{t('sor_ticket_count')}</Text>
           <View style={styles.counterRow}>
             <Pressable style={styles.counterBtn} onPress={() => setQty((q) => Math.max(1, q - 1))}>
               <Text style={styles.counterBtnText}>−</Text>
@@ -142,7 +145,7 @@ function TicketModal({
           </View>
 
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('sor_total')}</Text>
             <Text style={styles.totalValue}>{total}€</Text>
           </View>
 
@@ -152,10 +155,10 @@ function TicketModal({
               disabled={submitting}
               onPress={async () => { setSubmitting(true); await onConfirm(qty); setSubmitting(false); }}
             >
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Réserver mes billets</Text>}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>{t('sor_confirm')}</Text>}
             </Pressable>
           ) : (
-            <Text style={styles.loginHint}>Connecte-toi pour réserver des billets.</Text>
+            <Text style={styles.loginHint}>{t('sor_login_hint')}</Text>
           )}
         </View>
       </View>
