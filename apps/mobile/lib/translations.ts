@@ -368,6 +368,20 @@ const FR = {
   social_menu_reels: 'Reels',
   social_menu_memories: 'Souvenirs',
   social_menu_tind: 'Tind',
+
+  // ---- Batch 6 : profil (généré) ----
+  profile_max_level: 'Niveau max atteint 🏆',
+  profile_recent_visits: 'Visites récentes',
+  profile_setting_saved: '❤️ Mes favoris',
+  profile_setting_locale: '🌐 Langue & région',
+  profile_setting_notifs: '🔔 Notifications',
+  profile_setting_privacy: '🔒 Confidentialité',
+  profile_setting_admin: '🛠️ Dashboard Admin',
+  profile_setting_share: '📤 Partager mon profil',
+
+  // ---- Batch 7 (généré) ----
+  profile_level_prefix: 'Niveau',
+  profile_next_level: 'Prochain niveau :',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -723,6 +737,20 @@ const EN: Record<TranslationKey, string> = {
   social_menu_reels: 'Reels',
   social_menu_memories: 'Memories',
   social_menu_tind: 'Tind',
+
+  // ---- Batch 6 : profil (généré) ----
+  profile_max_level: 'Max level reached 🏆',
+  profile_recent_visits: 'Recent visits',
+  profile_setting_saved: '❤️ My favorites',
+  profile_setting_locale: '🌐 Language & region',
+  profile_setting_notifs: '🔔 Notifications',
+  profile_setting_privacy: '🔒 Privacy',
+  profile_setting_admin: '🛠️ Admin Dashboard',
+  profile_setting_share: '📤 Share my profile',
+
+  // ---- Batch 7 (généré) ----
+  profile_level_prefix: 'Level',
+  profile_next_level: 'Next level:',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -1078,6 +1106,20 @@ const ES: Record<TranslationKey, string> = {
   social_menu_reels: 'Reels',
   social_menu_memories: 'Recuerdos',
   social_menu_tind: 'Tind',
+
+  // ---- Batch 6 : profil (généré) ----
+  profile_max_level: 'Nivel máximo alcanzado 🏆',
+  profile_recent_visits: 'Visitas recientes',
+  profile_setting_saved: '❤️ Mis favoritos',
+  profile_setting_locale: '🌐 Idioma y región',
+  profile_setting_notifs: '🔔 Notificaciones',
+  profile_setting_privacy: '🔒 Privacidad',
+  profile_setting_admin: '🛠️ Panel de Admin',
+  profile_setting_share: '📤 Compartir mi perfil',
+
+  // ---- Batch 7 (généré) ----
+  profile_level_prefix: 'Nivel',
+  profile_next_level: 'Próximo nivel:',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -1433,6 +1475,20 @@ const PT: Record<TranslationKey, string> = {
   social_menu_reels: 'Reels',
   social_menu_memories: 'Memórias',
   social_menu_tind: 'Tind',
+
+  // ---- Batch 6 : profil (généré) ----
+  profile_max_level: 'Nível máximo atingido 🏆',
+  profile_recent_visits: 'Visitas recentes',
+  profile_setting_saved: '❤️ Meus favoritos',
+  profile_setting_locale: '🌐 Idioma e região',
+  profile_setting_notifs: '🔔 Notificações',
+  profile_setting_privacy: '🔒 Privacidade',
+  profile_setting_admin: '🛠️ Painel Admin',
+  profile_setting_share: '📤 Compartilhar meu perfil',
+
+  // ---- Batch 7 (généré) ----
+  profile_level_prefix: 'Nível',
+  profile_next_level: 'Próximo nível:',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -1788,6 +1844,20 @@ const AR: Record<TranslationKey, string> = {
   social_menu_reels: 'ريلز',
   social_menu_memories: 'الذكريات',
   social_menu_tind: 'Tind',
+
+  // ---- Batch 6 : profil (généré) ----
+  profile_max_level: 'تم بلوغ المستوى الأقصى 🏆',
+  profile_recent_visits: 'الزيارات الأخيرة',
+  profile_setting_saved: '❤️ المفضلة',
+  profile_setting_locale: '🌐 اللغة والمنطقة',
+  profile_setting_notifs: '🔔 الإشعارات',
+  profile_setting_privacy: '🔒 الخصوصية',
+  profile_setting_admin: '🛠️ لوحة الإدارة',
+  profile_setting_share: '📤 مشاركة ملفي الشخصي',
+
+  // ---- Batch 7 (généré) ----
+  profile_level_prefix: 'المستوى',
+  profile_next_level: 'المستوى التالي:',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

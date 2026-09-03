@@ -118,7 +118,7 @@ export default function ProfileScreen() {
           <View style={styles.xpCard}>
             <View style={styles.xpHeader}>
               <Text style={styles.xpLabel}>
-                {t('profile_xp')} · Niveau {stats.level.current.value}
+                {t('profile_xp')} · {t('profile_level_prefix')} {stats.level.current.value}
               </Text>
               <Text style={styles.xpValue}>
                 {stats.level.xpIntoLevel} / {stats.level.xpForNext} XP
@@ -139,10 +139,10 @@ export default function ProfileScreen() {
             </View>
             {stats.level.next ? (
               <Text style={styles.xpNext}>
-                Prochain niveau : {stats.level.next.emoji} {stats.level.next.titleFr}
+                {t('profile_next_level')} {stats.level.next.emoji} {stats.level.next.titleFr}
               </Text>
             ) : (
-              <Text style={styles.xpNext}>Niveau max atteint 🏆</Text>
+              <Text style={styles.xpNext}>{t('profile_max_level')}</Text>
             )}
           </View>
         </View>
@@ -206,7 +206,7 @@ export default function ProfileScreen() {
       {/* Visites récentes */}
       {passport && passport.visits.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Visites récentes</Text>
+          <Text style={styles.sectionTitle}>{t('profile_recent_visits')}</Text>
           <View style={styles.timeline}>
             {passport.visits.slice(0, 8).map((v) => {
               const meta = safeMeta(v.place.universe);
@@ -274,14 +274,14 @@ export default function ProfileScreen() {
       {/* Réglages */}
       <View style={styles.section}>
         {[
-          { key: 'saved', label: '❤️ Mes favoris', onPress: () => router.push('/favorites' as never) },
-          { key: 'locale', label: '🌐 Langue & région', onPress: () => setShowLocalePicker(true) },
-          { key: 'notifs', label: '🔔 Notifications', onPress: () => router.push('/notifications') },
-          { key: 'privacy', label: '🔒 Confidentialité', onPress: () => router.push('/settings') },
-          ...(isAdmin ? [{ key: 'admin', label: '🛠️ Dashboard Admin', onPress: () => router.push('/admin') }] : []),
+          { key: 'saved', label: t('profile_setting_saved'), onPress: () => router.push('/favorites' as never) },
+          { key: 'locale', label: t('profile_setting_locale'), onPress: () => setShowLocalePicker(true) },
+          { key: 'notifs', label: t('profile_setting_notifs'), onPress: () => router.push('/notifications') },
+          { key: 'privacy', label: t('profile_setting_privacy'), onPress: () => router.push('/settings') },
+          ...(isAdmin ? [{ key: 'admin', label: t('profile_setting_admin'), onPress: () => router.push('/admin') }] : []),
           {
             key: 'share',
-            label: '📤 Partager mon profil',
+            label: t('profile_setting_share'),
             onPress: () => {
               const levelLabel = stats ? `${stats.level.current.emoji} ${stats.level.current.titleFr}` : '';
               const visitsLabel = passport ? `${passport.totalVisits} visites` : '';
