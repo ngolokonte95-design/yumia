@@ -88,8 +88,8 @@ export default function SurpriseScreen() {
       if (!data.suggestions.length) {
         setError(
           universeFilter
-            ? `Aucun lieu de ce type près de toi pour l'instant. Essaie un autre univers, ou réessaie !`
-            : 'Aucune surprise près de toi pour l\'instant. Réessaie !',
+            ? t('sur_no_results_filtered')
+            : t('sur_no_results'),
         );
         return;
       }
@@ -102,11 +102,11 @@ export default function SurpriseScreen() {
 
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur. Réessaie !');
+      setError(err instanceof Error ? err.message : t('sur_generic_error'));
     } finally {
       setLoading(false);
     }
-  }, [loading, coords, city, user, universeFilter, shake, fadeAnim, checkLimit, recordUsage]);
+  }, [loading, coords, city, user, universeFilter, shake, fadeAnim, checkLimit, recordUsage, t]);
 
   function goToDetail() {
     if (!result) return;
@@ -133,13 +133,13 @@ export default function SurpriseScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Text style={styles.backText}>← Retour</Text>
+        <Text style={styles.backText}>{t('sur_back')}</Text>
       </Pressable>
 
       <View style={styles.body}>
-        <Text style={styles.heading}>🎲 Surprise Me</Text>
+        <Text style={styles.heading}>{t('sur_heading')}</Text>
         <Text style={styles.sub}>
-          L'IA choisit pour toi. Un tap, un endroit. Pas le temps de chercher.
+          {t('sur_sub')}
         </Text>
 
         {/* Univers dans lequel le dé est lancé — "Tous" par défaut (comportement
@@ -147,7 +147,7 @@ export default function SurpriseScreen() {
             que de laisser un résultat de l'ancien univers affiché. */}
         <Pressable style={styles.universePicker} onPress={() => setPickerOpen(true)}>
           <Text style={styles.universePickerText}>
-            {universeFilter ? `${UNIVERSE_META[universeFilter].emoji} ${universeLabel(t, universeFilter)}` : '🎲 Tous les univers'}
+            {universeFilter ? `${UNIVERSE_META[universeFilter].emoji} ${universeLabel(t, universeFilter)}` : t('sur_all_universes')}
           </Text>
           <Text style={styles.universePickerChevron}>▾</Text>
         </Pressable>
@@ -168,7 +168,7 @@ export default function SurpriseScreen() {
         </Animated.View>
 
         <Text style={styles.tapHint}>
-          {spins === 0 ? 'Appuie pour découvrir' : 'Encore ?'}
+          {spins === 0 ? t('sur_tap_discover') : t('sur_tap_again')}
         </Text>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -186,10 +186,10 @@ export default function SurpriseScreen() {
 
             <View style={styles.cardActions}>
               <Pressable style={styles.cardBtn} onPress={goToDetail}>
-                <Text style={styles.cardBtnText}>Voir le lieu</Text>
+                <Text style={styles.cardBtnText}>{t('sur_see_place')}</Text>
               </Pressable>
               <Pressable style={[styles.cardBtn, styles.cardBtnSecondary]} onPress={spin}>
-                <Text style={styles.cardBtnSecondaryText}>🎲 Autre chose</Text>
+                <Text style={styles.cardBtnSecondaryText}>{t('sur_something_else')}</Text>
               </Pressable>
             </View>
           </Animated.View>
@@ -197,7 +197,7 @@ export default function SurpriseScreen() {
 
         {spins > 0 ? (
           <Text style={styles.countHint}>
-            {spins} {spins === 1 ? 'tirage' : 'tirages'}
+            {spins} {spins === 1 ? t('sur_draw_singular') : t('sur_draw_plural')}
             {spins >= 10 ? ' 🎉' : ''}
           </Text>
         ) : null}
@@ -212,7 +212,7 @@ export default function SurpriseScreen() {
         <Pressable style={styles.backdrop} onPress={() => setPickerOpen(false)}>
           <Pressable style={styles.sheet} onPress={() => undefined}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Univers du dé</Text>
+            <Text style={styles.sheetTitle}>{t('sur_dice_universe_title')}</Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <Pressable
@@ -220,7 +220,7 @@ export default function SurpriseScreen() {
                 onPress={() => selectUniverse(null)}
               >
                 <Text style={styles.universeRowEmoji}>🎲</Text>
-                <Text style={styles.universeRowLabel}>Tous les univers</Text>
+                <Text style={styles.universeRowLabel}>{t('sur_all_universes').replace('🎲 ', '')}</Text>
                 {universeFilter === null && <Text style={styles.universeRowCheck}>✓</Text>}
               </Pressable>
 
