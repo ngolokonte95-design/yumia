@@ -9,6 +9,7 @@ import { useAuth } from '../lib/auth-context';
 import { affiliateProviderLabel } from '../lib/affiliate-labels';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
+import { useI18n } from '../lib/useI18n';
 
 const API = API_BASE_URL;
 
@@ -54,6 +55,7 @@ export default function AdminScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +75,10 @@ export default function AdminScreen() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await res.json() as { updated?: number };
-      Alert.alert('Backfill terminé', `${data.updated ?? 0} utilisateur(s) mis à jour.`);
+      Alert.alert(t('adm_backfill_done_title'), t('adm_backfill_done_body').replace('{n}', String(data.updated ?? 0)));
       void load();
     } catch {
-      Alert.alert('Erreur', 'Backfill échoué.');
+      Alert.alert(t('adm_error'), t('adm_backfill_failed'));
     }
   }
 
@@ -124,13 +126,13 @@ export default function AdminScreen() {
     <ScrollView style={[styles.container, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Dashboard Admin</Text>
+        <Text style={styles.title}>{t('adm_title')}</Text>
         <Pressable onPress={load} style={styles.refreshBtn}><Text style={styles.refreshTxt}>↻</Text></Pressable>
       </View>
 
       {/* ── Actions ── */}
       <Pressable style={styles.backfillBtn} onPress={backfillCountries}>
-        <Text style={styles.backfillTxt}>🌍 Détecter les pays (backfill)</Text>
+        <Text style={styles.backfillTxt}>{t('adm_backfill_countries')}</Text>
       </Pressable>
 
       {/* ── Erreur de chargement ── */}
@@ -143,18 +145,18 @@ export default function AdminScreen() {
       {/* ── Overview ── */}
       {overview?.users && (
         <>
-          <Text style={styles.sectionTitle}>Vue d'ensemble</Text>
+          <Text style={styles.sectionTitle}>{t('adm_overview')}</Text>
           <View style={styles.statsGrid}>
-            <StatCard label="Utilisateurs" value={overview.users.total} accent />
-            <StatCard label="Premium" value={overview.users.premium} sub={`${Math.round((overview.users.premium / Math.max(overview.users.total, 1)) * 100)}%`} />
-            <StatCard label="Actifs 7j" value={overview.users.active7d} />
-            <StatCard label="Nouveaux auj." value={overview.users.newToday} />
-            <StatCard label="Nouveaux 7j" value={overview.users.newThisWeek} />
-            <StatCard label="Nouveaux 30j" value={overview.users.newThisMonth} />
+            <StatCard label={t('adm_users')} value={overview.users.total} accent />
+            <StatCard label={t('adm_premium')} value={overview.users.premium} sub={`${Math.round((overview.users.premium / Math.max(overview.users.total, 1)) * 100)}%`} />
+            <StatCard label={t('adm_active_7d')} value={overview.users.active7d} />
+            <StatCard label={t('adm_new_today')} value={overview.users.newToday} />
+            <StatCard label={t('adm_new_7d')} value={overview.users.newThisWeek} />
+            <StatCard label={t('adm_new_30d')} value={overview.users.newThisMonth} />
           </View>
           <View style={styles.statsGrid}>
-            <StatCard label="Lieux" value={overview.content.places} />
-            <StatCard label="Visites" value={overview.content.visits} />
+            <StatCard label={t('adm_places')} value={overview.content.places} />
+            <StatCard label={t('adm_visits')} value={overview.content.visits} />
           </View>
         </>
       )}
@@ -162,7 +164,7 @@ export default function AdminScreen() {
       {/* ── Utilisateurs par pays ── */}
       {byCountry.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Utilisateurs par pays</Text>
+          <Text style={styles.sectionTitle}>{t('adm_users_by_country')}</Text>
           <View style={styles.card}>
             {byCountry.slice(0, 20).map((row) => (
               <View key={row.countryCode} style={styles.countryRow}>
@@ -182,7 +184,7 @@ export default function AdminScreen() {
       {/* ── Croissance inscriptions (30j) ── */}
       {growth.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Inscriptions (30 derniers jours)</Text>
+          <Text style={styles.sectionTitle}>{t('adm_registrations_30d')}</Text>
           <View style={[styles.card, styles.growthChart]}>
             {growth.map((g) => (
               <View key={g.date} style={styles.growthBar}>
@@ -197,7 +199,7 @@ export default function AdminScreen() {
       {/* ── Lieux par univers ── */}
       {byUniverse.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Lieux par univers</Text>
+          <Text style={styles.sectionTitle}>{t('adm_places_by_universe')}</Text>
           <View style={styles.card}>
             {byUniverse.map((row) => (
               <View key={row.universe} style={styles.univRow}>
@@ -215,11 +217,11 @@ export default function AdminScreen() {
       {/* ── Affiliation ── */}
       {affiliateStats && (
         <>
-          <Text style={styles.sectionTitle}>💰 Affiliation</Text>
+          <Text style={styles.sectionTitle}>{t('adm_affiliation')}</Text>
           <View style={styles.statsGrid}>
-            <StatCard label="Clics" value={affiliateStats.totalClicks} accent />
-            <StatCard label="Conversions" value={affiliateStats.totalConversions} sub={`${affiliateStats.conversionRate}%`} />
-            <StatCard label="Revenu" value={`${(affiliateStats.revenueCents / 100).toFixed(2)} €`} />
+            <StatCard label={t('adm_clicks')} value={affiliateStats.totalClicks} accent />
+            <StatCard label={t('adm_conversions')} value={affiliateStats.totalConversions} sub={`${affiliateStats.conversionRate}%`} />
+            <StatCard label={t('adm_revenue')} value={`${(affiliateStats.revenueCents / 100).toFixed(2)} €`} />
           </View>
 
           {affiliateTrend.length > 0 && (
@@ -248,14 +250,14 @@ export default function AdminScreen() {
                       <View style={[styles.barFillGreen, { width: `${(row.count / max) * 100}%` }]} />
                     </View>
                     <Text style={styles.univCount}>{row.count}</Text>
-                    <Text style={[styles.countryPct, { width: 50 }]}>{conv} conv.</Text>
+                    <Text style={[styles.countryPct, { width: 50 }]}>{conv} {t('adm_conv_short')}</Text>
                   </View>
                 );
               })}
             </View>
           ) : (
             <View style={styles.card}>
-              <Text style={styles.statLabel}>Aucun clic enregistré pour l'instant — les boutons de réservation apparaissent dès qu'un partenaire (Booking.com...) est configuré et qu'un lieu correspond à un univers couvert.</Text>
+              <Text style={styles.statLabel}>{t('adm_no_clicks')}</Text>
             </View>
           )}
         </>
@@ -264,7 +266,7 @@ export default function AdminScreen() {
       {/* ── Inscriptions récentes ── */}
       {recentUsers.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Dernières inscriptions</Text>
+          <Text style={styles.sectionTitle}>{t('adm_recent_signups')}</Text>
           <View style={styles.card}>
             {recentUsers.map((u) => (
               <View key={u.id} style={styles.userRow}>
@@ -274,7 +276,7 @@ export default function AdminScreen() {
                 <View style={styles.userInfo}>
                   <View style={styles.userNameRow}>
                     <Text style={styles.userName}>{u.displayName}</Text>
-                    {u.isPremium && <Text style={styles.premiumBadge}>⭐ Plus</Text>}
+                    {u.isPremium && <Text style={styles.premiumBadge}>{t('adm_plus_badge')}</Text>}
                     {u.countryCode && <Text style={styles.userFlag}>{flagOf(u.countryCode)}</Text>}
                   </View>
                   <Text style={styles.userEmail}>{u.email}</Text>
