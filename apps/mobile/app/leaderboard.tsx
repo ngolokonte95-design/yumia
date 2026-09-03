@@ -20,9 +20,11 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { getLeaderboard, type LeaderboardEntry } from '../lib/passport-api';
 import { LEVELS } from '@yumia/shared';
+import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
-const SCOPE_LABELS = { global: '🌍 Mondial', local: '📍 Ma ville' } as const;
-type Scope = keyof typeof SCOPE_LABELS;
+const SCOPE_LABEL_KEYS = { global: 'lb_scope_global', local: 'lb_scope_local' } as const satisfies Record<string, TranslationKey>;
+type Scope = keyof typeof SCOPE_LABEL_KEYS;
 
 function levelEmoji(level: number): string {
   const def = LEVELS.find((l) => l.level === level);
@@ -34,6 +36,7 @@ export default function LeaderboardScreen() {
   const router = useRouter();
   const { accessToken, user } = useAuth();
   const { city } = useLocation();
+  const { t } = useI18n();
 
   const [scope, setScope] = useState<Scope>('global');
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -49,7 +52,7 @@ export default function LeaderboardScreen() {
       const data = await getLeaderboard(accessToken, cityFilter);
       setEntries(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement.');
+      setError(err instanceof Error ? err.message : t('lb_load_error'));
     } finally {
       setLoading(false);
     }
@@ -85,19 +88,19 @@ export default function LeaderboardScreen() {
         {/* Infos */}
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={1}>
-            {item.displayName ?? 'Anonyme'}
-            {isMe ? ' (toi)' : ''}
+            {item.displayName ?? t('lb_anonymous')}
+            {isMe ? t('lb_you_suffix') : ''}
           </Text>
           <Text style={styles.meta}>
-            {levelEmoji(item.level)} Niv. {item.level}
-            {item.streak > 0 ? ` · 🔥 ${item.streak}j` : ''}
+            {levelEmoji(item.level)} {t('lb_level_short')} {item.level}
+            {item.streak > 0 ? ` · ${t('lb_streak_days').replace('{n}', String(item.streak))}` : ''}
           </Text>
         </View>
 
         {/* XP de la semaine */}
         <View style={styles.xpWrap}>
           <Text style={styles.xpValue}>{item.weeklyXp}</Text>
-          <Text style={styles.xpLabel}>XP / sem.</Text>
+          <Text style={styles.xpLabel}>{t('lb_xp_per_week')}</Text>
         </View>
       </View>
     );
@@ -110,34 +113,34 @@ export default function LeaderboardScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.title}>🏆 Classement</Text>
+        <Text style={styles.title}>{t('lb_title')}</Text>
         <View style={styles.scopePills}>
-          {(Object.entries(SCOPE_LABELS) as [Scope, string][]).map(([key, label]) => (
+          {(Object.entries(SCOPE_LABEL_KEYS) as [Scope, TranslationKey][]).map(([key, labelKey]) => (
             <Pressable
               key={key}
               style={[styles.scopeChip, scope === key && styles.scopeChipActive]}
               onPress={() => setScope(key)}
             >
               <Text style={[styles.scopeText, scope === key && styles.scopeTextActive]}>
-                {label}
+                {t(labelKey)}
               </Text>
             </Pressable>
           ))}
         </View>
       </View>
 
-      <Text style={styles.subtitle}>Cette semaine</Text>
+      <Text style={styles.subtitle}>{t('lb_this_week')}</Text>
 
       {loading && entries.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand} size="large" />
-          <Text style={styles.loadingText}>YUMIA charge le classement…</Text>
+          <Text style={styles.loadingText}>{t('lb_loading')}</Text>
         </View>
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Réessayer</Text>
+            <Text style={styles.retryText}>{t('lb_retry')}</Text>
           </Pressable>
         </View>
       ) : entries.length === 0 ? (
@@ -145,8 +148,8 @@ export default function LeaderboardScreen() {
           <Text style={styles.emptyEmoji}>🏆</Text>
           <Text style={styles.emptyText}>
             {scope === 'local'
-              ? 'Personne n\'a exploré dans ta ville cette semaine. Sois le premier !'
-              : 'Aucune activité cette semaine. Lance-toi !'}
+              ? t('lb_empty_local')
+              : t('lb_empty_global')}
           </Text>
         </View>
       ) : (
