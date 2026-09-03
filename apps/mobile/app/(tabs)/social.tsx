@@ -15,6 +15,7 @@ import { YumiaLogo } from '../../components/YumiaLogo';
 import { PostVideo } from '../../components/PostVideo';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 
 const API = API_BASE_URL;
@@ -67,14 +68,14 @@ interface Encounter {
   place: { id: string; name: string; universe: string; city?: string } | null;
 }
 
-function formatAgo(iso: string) {
+function formatAgo(iso: string, t: (key: TranslationKey) => string) {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'À l\'instant';
-  if (m < 60) return `${m} min`;
+  if (m < 1) return t('social_time_now');
+  if (m < 60) return `${m} ${t('social_time_min')}`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}j`;
+  if (h < 24) return `${h}${t('social_time_hour')}`;
+  return `${Math.floor(h / 24)}${t('social_time_day')}`;
 }
 
 // ── Barre de stories (façon Instagram) ───────────────────────────────────────
@@ -217,19 +218,22 @@ function PostCard({
 }) {
   const isOwner = !!currentUserId && item.userId === currentUserId;
   const router = useRouter();
+  // Alias `tr` : le paramètre `goFullscreen` ci-dessous s'appelle déjà `t`
+  // (un nombre de secondes), ce qui masquerait le `t` de useI18n.
+  const { t: tr } = useI18n();
   const goFullscreen = (t: number) => router.push(`/reels?postId=${item.id}&t=${Math.floor(t)}` as never);
 
   const handleMenu = () => {
-    Alert.alert('Publication', undefined, [
+    Alert.alert(tr('social_post_menu_title'), undefined, [
       {
-        text: 'Supprimer',
+        text: tr('social_delete'),
         style: 'destructive',
-        onPress: () => Alert.alert('Supprimer ?', 'Cette action est irréversible.', [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Supprimer', style: 'destructive', onPress: () => onDelete?.(item.id) },
+        onPress: () => Alert.alert(tr('social_delete_confirm_title'), tr('social_delete_confirm_body'), [
+          { text: tr('social_cancel'), style: 'cancel' },
+          { text: tr('social_delete'), style: 'destructive', onPress: () => onDelete?.(item.id) },
         ]),
       },
-      { text: 'Annuler', style: 'cancel' },
+      { text: tr('social_cancel'), style: 'cancel' },
     ]);
   };
 
@@ -250,7 +254,7 @@ function PostCard({
           </View>
           {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
         </View>
-        <Text style={styles.postAgo}>{formatAgo(item.createdAt)}</Text>
+        <Text style={styles.postAgo}>{formatAgo(item.createdAt, tr)}</Text>
         {isOwner && (
           <Pressable onPress={handleMenu} hitSlop={12} style={{ marginLeft: 'auto', paddingHorizontal: 6 }}>
             <Text style={{ color: colors.textMuted, fontSize: 18, letterSpacing: 1 }}>···</Text>
@@ -655,7 +659,7 @@ export default function SocialTab() {
     await fetch(`${API}/chat/conversations/${convId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ content: '📤 A partagé une publication', type: 'post_share', postId: sharePost.id }),
+      body: JSON.stringify({ content: t('social_shared_post_message'), type: 'post_share', postId: sharePost.id }),
     }).catch(() => {});
     setShareSending(null);
     setSharePost(null);
@@ -717,7 +721,7 @@ export default function SocialTab() {
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
           <Text style={styles.emptyText}>{emptyText}</Text>
           <Pressable style={styles.emptyBtn} onPress={() => router.push('/post/create' as never)}>
-            <Text style={styles.emptyBtnText}>📷 Photo · 🎬 Vidéo</Text>
+            <Text style={styles.emptyBtnText}>{t('social_empty_photo_video')}</Text>
           </Pressable>
         </View>
       )}
@@ -803,7 +807,7 @@ export default function SocialTab() {
                 </View>
                 {!isMe && (
                   <Pressable style={[styles.followBtn, isFollowed && styles.followBtnActive]} onPress={() => void toggleFollow(item.id)}>
-                    <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>{isFollowed ? 'Abonné' : 'Suivre'}</Text>
+                    <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>{isFollowed ? t('social_followed') : t('social_follow')}</Text>
                   </Pressable>
                 )}
               </Pressable>
@@ -842,7 +846,7 @@ export default function SocialTab() {
                     </View>
                   )}
                   <View style={styles.feedBody}>
-                    <Text style={styles.feedUser}>{item.user.displayName} · {formatAgo(item.visitedAt)}</Text>
+                    <Text style={styles.feedUser}>{item.user.displayName} · {formatAgo(item.visitedAt, t)}</Text>
                     <Text style={styles.feedPlace}>{item.place.name}</Text>
                     <Text style={styles.feedCity}>{item.place.city ?? ''}</Text>
                   </View>
@@ -879,9 +883,9 @@ export default function SocialTab() {
                       <PlanBadgeIcon plan={item.otherUser?.plan} size={32} />
                     </View>
                     <Text style={styles.encounterPlace}>📍 {item.place?.name ?? '?'}</Text>
-                    <Text style={styles.encounterTime}>⚡ Croisé il y a {formatAgo(item.seenAt)}</Text>
+                    <Text style={styles.encounterTime}>{t('social_encounter_crossed')} {formatAgo(item.seenAt, t)}</Text>
                   </View>
-                  <Text style={styles.encounterLevel}>Niv. {item.otherUser?.level}</Text>
+                  <Text style={styles.encounterLevel}>{t('social_level_prefix')} {item.otherUser?.level}</Text>
                 </Pressable>
               )}
               ListEmptyComponent={emptyOrLoading(
@@ -926,7 +930,7 @@ export default function SocialTab() {
                     </View>
                     {!isMe && (
                       <Pressable style={[styles.followBtn, isFollowed && styles.followBtnActive]} onPress={() => void toggleFollow(item.id)}>
-                        <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>{isFollowed ? 'Abonné ✓' : 'Suivre'}</Text>
+                        <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>{isFollowed ? t('social_followed_check') : t('social_follow')}</Text>
                       </Pressable>
                     )}
                   </Pressable>
@@ -948,7 +952,7 @@ export default function SocialTab() {
       <Modal visible={sharePost !== null} transparent animationType="slide" onRequestClose={() => setSharePost(null)}>
         <Pressable style={styles.shareOverlay} onPress={() => setSharePost(null)}>
           <View style={styles.shareSheet}>
-            <Text style={styles.shareTitle}>✈️ Envoyer à...</Text>
+            <Text style={styles.shareTitle}>{t('social_send_to')}</Text>
             <FlatList
               data={shareConvs}
               keyExtractor={(c) => c.id}
