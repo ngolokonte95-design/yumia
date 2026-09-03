@@ -24,6 +24,8 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { socialApi, type DiscoveredUser, type IntentType, type SocialEvent, type SocialIntent } from '../lib/social-api';
 import { UNIVERSE_META } from '@yumia/shared';
 import { API_BASE_URL } from '../lib/config';
+import { universeLabel } from '../lib/universeMeta';
+import { useI18n } from '../lib/useI18n';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BROADCAST_INTERVAL = 30_000;
@@ -80,13 +82,14 @@ function Avatar({ name, photoUrl, size = 44, color }: { name: string; photoUrl?:
 // ─── Intent badge ────────────────────────────────────────────────────────────
 
 function IntentBadge({ intent }: { intent: SocialIntent }) {
+  const { t } = useI18n();
   const col = INTENT_COLORS[intent.intent];
   const label = INTENT_LABELS[intent.intent];
   const univMeta = intent.universe ? UNIVERSE_META[intent.universe as keyof typeof UNIVERSE_META] : null;
   return (
     <View style={[styles.intentBadge, { borderColor: col + '55', backgroundColor: col + '18' }]}>
       <Text style={[styles.intentBadgeText, { color: col }]}>
-        {label}{univMeta ? `  ${univMeta.emoji} ${univMeta.labelFr}` : ''}
+        {label}{univMeta && intent.universe ? `  ${univMeta.emoji} ${universeLabel(t, intent.universe)}` : ''}
       </Text>
       {intent.note ? <Text style={styles.intentNote} numberOfLines={1}>{intent.note}</Text> : null}
     </View>
@@ -126,6 +129,7 @@ function EventCard({ event, myId, onJoin, onLeave, onPress }: {
   onLeave: () => void;
   onPress: () => void;
 }) {
+  const { t } = useI18n();
   const univMeta = event.universe ? UNIVERSE_META[event.universe as keyof typeof UNIVERSE_META] : null;
   const isJoined = event.participants.includes(myId);
   const isFull = event.participants.length >= event.maxPeople;
@@ -139,7 +143,7 @@ function EventCard({ event, myId, onJoin, onLeave, onPress }: {
         <View style={{ flex: 1 }}>
           <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
           <Text style={styles.eventMeta}>
-            {univMeta?.labelFr ?? 'Événement'} · {dateStr} à {timeStr}
+            {event.universe ? universeLabel(t, event.universe) : 'Événement'} · {dateStr} à {timeStr}
           </Text>
         </View>
         {event.distanceKm !== undefined && (
@@ -167,6 +171,7 @@ function EventCard({ event, myId, onJoin, onLeave, onPress }: {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function NearbyUsersScreen() {
+  const { t } = useI18n();
   const { accessToken, user } = useAuth();
   const { coords, resolving } = useLocation();
   const router = useRouter();
@@ -590,7 +595,7 @@ export default function NearbyUsersScreen() {
                       style={[styles.univChip, isSelected && styles.univChipSelected]}
                       onPress={() => setIntentUniverse(isSelected ? undefined : u)}
                     >
-                      <Text style={styles.univChipText}>{meta.emoji}  {meta.labelFr}</Text>
+                      <Text style={styles.univChipText}>{meta.emoji}  {universeLabel(t, u)}</Text>
                     </Pressable>
                   );
                 })}
@@ -666,7 +671,7 @@ export default function NearbyUsersScreen() {
                       style={[styles.univChip, isSelected && styles.univChipSelected]}
                       onPress={() => setEventUniverse(isSelected ? undefined : u)}
                     >
-                      <Text style={styles.univChipText}>{meta.emoji}  {meta.labelFr}</Text>
+                      <Text style={styles.univChipText}>{meta.emoji}  {universeLabel(t, u)}</Text>
                     </Pressable>
                   );
                 })}

@@ -12,8 +12,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MOODS, MOOD_META, type Suggestion } from '@yumia/shared';
-import { safeMeta } from '../../lib/universeMeta';
+import { safeMeta, universeLabel } from '../../lib/universeMeta';
+import { moodLabel } from '../../lib/labelHelpers';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { useI18n } from '../../lib/useI18n';
 import { useLocation } from '../../lib/useLocation';
 import { useFeed } from '../../lib/useFeed';
 import { useWeather } from '../../lib/useWeather';
@@ -36,6 +38,7 @@ import type { VisitResult } from '../../lib/passport-api';
  */
 export default function ForYouScreen() {
   const { height } = useWindowDimensions();
+  const { t } = useI18n();
   const { coords, resolving } = useLocation();
   const weather = useWeather(coords.lat, coords.lng);
   const { user, accessToken } = useAuth();
@@ -132,7 +135,7 @@ export default function ForYouScreen() {
               onPress={() => setMood(active ? null : m)}
             >
               <Text style={styles.moodText}>
-                {MOOD_META[m].emoji} {MOOD_META[m].labelFr}
+                {MOOD_META[m].emoji} {moodLabel(t, m, MOOD_META[m].labelFr)}
               </Text>
             </Pressable>
           );
@@ -163,6 +166,7 @@ const FeedCard = memo(function FeedCard({
   onVisit?: (feedback?: VisitFeedback) => Promise<VisitResult>;
   onOpenDetail?: () => void;
 }) {
+  const { t } = useI18n();
   const { place, reason, compatibility } = suggestion;
   const meta = safeMeta(place.universe);
   const [saved, setSaved] = useState(isSaved);
@@ -267,7 +271,7 @@ const FeedCard = memo(function FeedCard({
       <View style={styles.info}>
         <Text style={styles.infoName}>{place.name}</Text>
         <Text style={styles.infoMeta}>
-          {meta.labelFr} · ⭐ {place.rating.toFixed(1)} · {'€'.repeat(place.priceTier)} · ❤️ {compatibility}%
+          {universeLabel(t, place.universe)} · ⭐ {place.rating.toFixed(1)} · {'€'.repeat(place.priceTier)} · ❤️ {compatibility}%
         </Text>
         <Text style={styles.infoReason}>🤖 {reason}</Text>
       </View>

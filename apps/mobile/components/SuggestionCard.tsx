@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import type { Suggestion } from '@yumia/shared';
-import { safeMeta } from '../lib/universeMeta';
+import { safeMeta, universeLabel } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
 import { haptics } from '../lib/useHaptics';
 import type { VisitFeedback, VisitResult } from '../lib/passport-api';
 import { XpToast } from './XpToast';
@@ -29,6 +30,7 @@ const FEEDBACK_OPTS: { key: VisitFeedback; emoji: string; label: string }[] = [
 
 /** Carte de suggestion : photo (placeholder), nom, méta, compatibilité, explication IA. */
 export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved = false }: Props) {
+  const { t } = useI18n();
   const { place, compatibility, distanceMeters, reason } = suggestion;
   const meta = safeMeta(place.universe);
   const compatColor = compatibility >= 85 ? colors.compatHigh : colors.compatMid;
@@ -108,7 +110,7 @@ export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved =
         </View>
 
         <Text style={styles.metaLine}>
-          {meta.labelFr} · {'€'.repeat(place.priceTier)}
+          {universeLabel(t, place.universe)} · {'€'.repeat(place.priceTier)}
           {distanceMeters != null ? ` · ${formatDistance(distanceMeters)}` : ''}
           {place.openNow ? ' · Ouvert' : ''}
         </Text>

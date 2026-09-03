@@ -18,8 +18,9 @@ import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type M
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META, type Universe } from '@yumia/shared';
-import { safeMeta, placeEmoji } from '../../lib/universeMeta';
+import { safeMeta, placeEmoji, universeLabel } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { useI18n } from '../../lib/useI18n';
 import { useLocation } from '../../lib/useLocation';
 import { useNearby } from '../../lib/useNearby';
 import { placeStore } from '../../lib/place-store';
@@ -54,6 +55,7 @@ export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const router = useRouter();
+  const { t } = useI18n();
   const { coords, resolving } = useLocation();
   const [universe, setUniverse] = useState<Universe | null>(null);
   const { radiusKm, setRadiusKm } = useSearchRadius();
@@ -338,7 +340,7 @@ export default function MapScreen() {
       },
       compatibility: 0,
       distanceMeters: place.distanceMeters,
-      reason: `${safeMeta(place.universe).labelFr} à ${formatDistance(place.distanceMeters)}.`,
+      reason: `${universeLabel(t, place.universe)} à ${formatDistance(place.distanceMeters)}.`,
       engine: 'mood' as const,
     });
     router.push('/place');
@@ -452,7 +454,7 @@ export default function MapScreen() {
               </>
             ) : (
               <Text style={styles.filterButtonText} numberOfLines={1}>
-                {universe === null ? '🗂️  Tous les univers' : `${UNIVERSE_META[universe].emoji}  ${UNIVERSE_META[universe].labelFr}`}
+                {universe === null ? '🗂️  Tous les univers' : `${UNIVERSE_META[universe].emoji}  ${universeLabel(t, universe)}`}
               </Text>
             )}
             <Text style={styles.filterButtonChevron}>{filterPanelOpen ? '▲' : '▾'}</Text>
@@ -479,7 +481,7 @@ export default function MapScreen() {
               {SORTED_UNIVERSES.map((u) => (
                 <FilterTile
                   key={u}
-                  label={UNIVERSE_META[u].labelFr}
+                  label={universeLabel(t, u)}
                   emoji={UNIVERSE_META[u].emoji}
                   icon={u === 'cannabis' ? <CannabisIcon size={14} /> : undefined}
                   active={universe === u}
@@ -539,7 +541,7 @@ export default function MapScreen() {
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}
               title={place.name}
-              description={`${safeMeta(place.universe).labelFr || place.universe} · ⭐ ${place.rating.toFixed(1)}`}
+              description={`${universeLabel(t, place.universe) || place.universe} · ⭐ ${place.rating.toFixed(1)}`}
               tracksViewChanges={trackingIds.has(place.id)}
               onPress={() => openDetail(place)}
               // Android uniquement : notre bulle est ronde (pas une épingle
@@ -677,6 +679,7 @@ function PlaceRow({
   onDetail: () => void;
   hideDist?: boolean;
 }) {
+  const { t } = useI18n();
   const meta = safeMeta(place.universe);
   const closingTime = getClosingTime(place.openingHours);
   return (
@@ -702,7 +705,7 @@ function PlaceRow({
       <View style={{ flex: 1 }}>
         <Text style={styles.rowName} numberOfLines={1}>{place.name}</Text>
         <Text style={styles.rowMeta}>
-          {meta.labelFr} · ⭐ {place.rating.toFixed(1)}
+          {universeLabel(t, place.universe)} · ⭐ {place.rating.toFixed(1)}
           {!hideDist && place.distanceMeters > 0 ? ` · ${formatDistance(place.distanceMeters)}` : ''}
         </Text>
         {closingTime ? (

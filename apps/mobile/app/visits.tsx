@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { safeMeta } from '../lib/universeMeta';
+import { safeMeta, universeLabel } from '../lib/universeMeta';
+import { useI18n } from '../lib/useI18n';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { getVisitHistory, type VisitHistoryItem } from '../lib/passport-api';
@@ -137,6 +138,7 @@ export default function VisitsScreen() {
 }
 
 function VisitRow({ item, onPress }: { item: VisitHistoryItem; onPress: () => void }) {
+  const { t } = useI18n();
   const meta = safeMeta(item.place.universe);
   const date = new Date(item.visitedAt);
   const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -149,7 +151,7 @@ function VisitRow({ item, onPress }: { item: VisitHistoryItem; onPress: () => vo
       <View style={styles.rowBody}>
         <Text style={styles.placeName} numberOfLines={1}>{item.place.name}</Text>
         <Text style={styles.placeMeta} numberOfLines={1}>
-          {meta?.labelFr ?? item.place.universe}
+          {universeLabel(t, item.place.universe)}
           {item.place.city ? ` · ${item.place.city}` : ''}
           {item.place.countryCode ? ` · ${item.place.countryCode.toUpperCase()}` : ''}
         </Text>

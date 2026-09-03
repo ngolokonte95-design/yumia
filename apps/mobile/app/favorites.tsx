@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard, PressableScale, Reveal } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
-import { safeMeta } from '../lib/universeMeta';
+import { safeMeta, universeLabel } from '../lib/universeMeta';
+import { useI18n } from '../lib/useI18n';
 import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import {
   favoritesApi,
@@ -281,6 +282,7 @@ function FavoriteRow({
 }: {
   item: FavoriteItem; onPress: () => void; onOrganize: () => void;
 }) {
+  const { t } = useI18n();
   const meta = item.universe ? safeMeta(item.universe) : null;
 
   return (
@@ -300,7 +302,7 @@ function FavoriteRow({
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle} numberOfLines={1}>{item.title}</Text>
             <Text style={styles.rowMeta} numberOfLines={1}>
-              {item.kind === 'post' ? 'Publication' : meta?.labelFr ?? 'Lieu'}
+              {item.kind === 'post' ? 'Publication' : (item.universe ? universeLabel(t, item.universe) : 'Lieu')}
               {item.subtitle ? ` · ${item.subtitle}` : ''}
             </Text>
           </View>

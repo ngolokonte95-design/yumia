@@ -14,6 +14,8 @@ import { MODE_META, UNIVERSE_META } from '@yumia/shared';
 import type { Mode, Universe, Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
+import { universeLabel } from '../../lib/universeMeta';
+import { modeLabel } from '../../lib/labelHelpers';
 import { useLocation } from '../../lib/useLocation';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { socialApi } from '../../lib/social-api';
@@ -128,7 +130,7 @@ export default function ExplorerScreen() {
   );
 
   const sectionTitle = isItinerary
-    ? `${MODE_META[selectedMode!].emoji} ${MODE_META[selectedMode!].labelFr}`
+    ? `${MODE_META[selectedMode!].emoji} ${modeLabel(t, selectedMode!, MODE_META[selectedMode!].labelFr)}`
     : t('top3_title');
 
   useEffect(() => {
@@ -240,7 +242,7 @@ export default function ExplorerScreen() {
               },
               compatibility: 0,
               distanceMeters: Math.round(p.distanceMeters),
-              reason: `${UNIVERSE_META[p.universe]?.emoji ?? '📍'} ${UNIVERSE_META[p.universe]?.labelFr ?? p.universe}`,
+              reason: `${UNIVERSE_META[p.universe]?.emoji ?? '📍'} ${universeLabel(t, p.universe)}`,
               engine: 'mood',
             });
             router.push('/place');
@@ -369,13 +371,14 @@ function UniverseRow({
   onSeeAll: () => void;
   onCardPress: (p: NearbyPlace) => void;
 }) {
+  const { t } = useI18n();
   const { places, loading } = useNearbyUniverse({ lat, lng, universe, radius: universeSearchRadius(universe), limit: 8, enabled });
   const meta = UNIVERSE_META[universe];
   if (!loading && places.length === 0) return null;
   return (
     <View style={styles.section}>
       <View style={styles.rowHeader}>
-        <Text style={styles.sectionTitle}>{meta.emoji}  {meta.labelFr}</Text>
+        <Text style={styles.sectionTitle}>{meta.emoji}  {universeLabel(t, universe)}</Text>
         <Pressable onPress={onSeeAll}><Text style={styles.rowSeeAll}>Voir tout →</Text></Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>

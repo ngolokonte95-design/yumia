@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
+import { universeLabel } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
@@ -147,7 +148,7 @@ export default function SearchScreen() {
                 }}
               >
                 <Text style={styles.filterChipText}>
-                  {meta.emoji} {meta.labelFr}
+                  {meta.emoji} {universeLabel(t, u)}
                 </Text>
               </Pressable>
             );

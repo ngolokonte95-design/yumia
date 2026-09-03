@@ -23,7 +23,8 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { useNearbyUniverse } from '../lib/useNearbyUniverse';
 import { placeStore } from '../lib/place-store';
-import { placeEmoji } from '../lib/universeMeta';
+import { placeEmoji, universeLabel } from '../lib/universeMeta';
+import { useI18n } from '../lib/useI18n';
 import { apiBase } from '../lib/api';
 import type { NearbyPlace } from '../lib/places-api';
 
@@ -54,6 +55,7 @@ interface SwipeCardProps {
 }
 
 function SwipeCard({ place, onLike, onDislike, onTap, isTop }: SwipeCardProps) {
+  const { t } = useI18n();
   const position = useRef(new Animated.ValueXY()).current;
   const meta = UNIVERSE_META[place.universe as keyof typeof UNIVERSE_META];
 
@@ -142,7 +144,7 @@ function SwipeCard({ place, onLike, onDislike, onTap, isTop }: SwipeCardProps) {
         <View style={styles.cardInfo}>
           <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
           <Text style={styles.cardMeta}>
-            {meta?.emoji ?? '📍'} {meta?.labelFr ?? place.universe} · ⭐ {place.rating.toFixed(1)} · {'€'.repeat(place.priceTier)}
+            {meta?.emoji ?? '📍'} {universeLabel(t, place.universe)} · ⭐ {place.rating.toFixed(1)} · {'€'.repeat(place.priceTier)}
           </Text>
           {place.city ? <Text style={styles.cardCity}>{place.city}</Text> : null}
         </View>

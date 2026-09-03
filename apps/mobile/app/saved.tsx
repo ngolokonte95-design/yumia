@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { safeMeta } from '../lib/universeMeta';
+import { safeMeta, universeLabel } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
@@ -109,7 +109,7 @@ export default function SavedScreen() {
                 onPress={() => setActiveUniverse(item)}
               >
                 <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                  {meta ? `${meta.emoji} ${meta.labelFr}` : 'Tous'}
+                  {meta && item !== ALL ? `${meta.emoji} ${universeLabel(t, item)}` : 'Tous'}
                 </Text>
               </Pressable>
             );
@@ -161,7 +161,7 @@ export default function SavedScreen() {
                 <View style={styles.cardBody}>
                   <Text style={styles.cardName} numberOfLines={1}>{item.place.name}</Text>
                   <Text style={styles.cardMeta}>
-                    {meta?.labelFr ?? item.place.universe}
+                    {universeLabel(t, item.place.universe)}
                     {' · '}⭐ {item.place.rating.toFixed(1)}
                     {item.place.city ? ` · ${item.place.city}` : ''}
                     {' · '}{date}

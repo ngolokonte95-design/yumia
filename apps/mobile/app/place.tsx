@@ -21,7 +21,7 @@ import type { VisitFeedback } from '../lib/passport-api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { UNIVERSE_META } from '@yumia/shared';
-import { safeMeta, placeEmoji } from '../lib/universeMeta';
+import { safeMeta, placeEmoji, universeLabel } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
@@ -330,7 +330,7 @@ export default function PlaceScreen() {
         <View style={styles.body}>
           <Text style={styles.name}>{place.name}</Text>
           <Text style={styles.meta}>
-            {meta.labelFr}
+            {universeLabel(t, place.universe)}
             {' · '}{'€'.repeat(place.priceTier)}
             {distanceMeters != null ? ` · ${formatDistance(distanceMeters)}` : ''}
             {place.openNow !== undefined ? (
@@ -597,7 +597,7 @@ export default function PlaceScreen() {
                 },
                 compatibility: 0,
                 distanceMeters: np.distanceMeters,
-                reason: `${safeMeta(np.universe).emoji} ${safeMeta(np.universe).labelFr} · ⭐ ${np.rating.toFixed(1)}`,
+                reason: `${safeMeta(np.universe).emoji} ${universeLabel(t, np.universe)} · ⭐ ${np.rating.toFixed(1)}`,
                 engine: 'mood',
               });
               router.push('/place');
@@ -639,7 +639,7 @@ export default function PlaceScreen() {
           ) : (
             /* Suggestions rapides quand le chat est vide */
             <View style={styles.suggestions}>
-              {buildSuggestions(place.name, meta.labelFr).map((q) => (
+              {buildSuggestions(place.name, universeLabel(t, place.universe)).map((q) => (
                 <Pressable
                   key={q}
                   style={styles.suggestionChip}

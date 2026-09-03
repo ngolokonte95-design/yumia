@@ -10,6 +10,8 @@ import { freezeStreak } from '../../lib/passport-api';
 import { ActivityHeatmap } from '../../components/ActivityHeatmap';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { usePlanLimits } from '../../lib/usePlanLimits';
+import { useI18n } from '../../lib/useI18n';
+import { badgeName } from '../../lib/labelHelpers';
 import type { UniverseCount } from '../../lib/passport-api';
 
 /**
@@ -20,6 +22,7 @@ export default function PassportScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken, user } = useAuth();
+  const { t } = useI18n();
   const { stats, passport, heatmap, universeBreakdown, loading, error, reload } = usePassport();
   const { getLimit } = usePlanLimits();
   const [freezing, setFreezing] = useState(false);
@@ -202,7 +205,7 @@ export default function PassportScreen() {
                   {BADGE_META[b].emoji}
                 </Text>
                 <Text style={styles.badgeName} numberOfLines={1}>
-                  {BADGE_META[b].nameFr}
+                  {badgeName(t, b, BADGE_META[b].nameFr)}
                 </Text>
               </View>
             );

@@ -14,7 +14,7 @@ import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
 import { useSaved } from '../lib/useSaved';
 import { useNearbyUniverse } from '../lib/useNearbyUniverse';
-import { placeEmoji } from '../lib/universeMeta';
+import { placeEmoji, universeLabel } from '../lib/universeMeta';
 import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
 import type { NearbyPlace } from '../lib/places-api';
@@ -70,7 +70,7 @@ export default function UniverseScreen() {
       },
       compatibility: 0,
       distanceMeters: p.distanceMeters,
-      reason: `Lieu ${meta?.labelFr ?? universe} à ${formatDistance(p.distanceMeters)}.`,
+      reason: `Lieu ${universe ? universeLabel(t, universe) : universe} à ${formatDistance(p.distanceMeters)}.`,
       engine: 'mood' as const,
     });
     router.push('/place');
@@ -97,7 +97,7 @@ export default function UniverseScreen() {
         <View style={styles.headerTitle}>
           <Text style={styles.headerEmoji}>{meta.emoji}</Text>
           <View>
-            <Text style={styles.headerLabel}>{meta.labelFr}</Text>
+            <Text style={styles.headerLabel}>{universeLabel(t, universe)}</Text>
             {placeParam ? <Text style={styles.headerSubLabel} numberOfLines={1}>à {placeParam}</Text> : null}
           </View>
         </View>

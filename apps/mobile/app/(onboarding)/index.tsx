@@ -20,6 +20,7 @@ import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
+import { universeLabel } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 
 // Restriction tags stay in French — they're used as keys by the AI engine.
@@ -152,7 +153,7 @@ function UniverseStep({
                   >
                     <Text style={styles.universeEmoji}>{meta.emoji}</Text>
                     <Text style={[styles.universeLabel, active && styles.universeLabelActive]}>
-                      {meta.labelFr}
+                      {universeLabel(t, key)}
                     </Text>
                     {active && <View style={styles.checkDot} />}
                   </Pressable>

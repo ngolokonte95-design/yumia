@@ -16,7 +16,8 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchNearbyDeals, type DealPlace } from '../lib/affiliates-api';
 import { affiliateProviderLabel } from '../lib/affiliate-labels';
-import { safeMeta, placeEmoji } from '../lib/universeMeta';
+import { safeMeta, placeEmoji, universeLabel } from '../lib/universeMeta';
+import { useI18n } from '../lib/useI18n';
 import { placeStore } from '../lib/place-store';
 
 function toSuggestion(place: DealPlace): Suggestion {
@@ -45,6 +46,7 @@ function fmtDistance(m: number) {
 }
 
 function DealCard({ place, onPress }: { place: DealPlace; onPress: () => void }) {
+  const { t } = useI18n();
   const meta = safeMeta(place.universe);
   const photo = place.photoUrls?.[0];
 
@@ -59,7 +61,7 @@ function DealCard({ place, onPress }: { place: DealPlace; onPress: () => void })
       )}
       <View style={styles.cardBody}>
         <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.cardMeta}>{meta.labelFr} · {fmtDistance(place.distanceMeters)}</Text>
+        <Text style={styles.cardMeta}>{universeLabel(t, place.universe)} · {fmtDistance(place.distanceMeters)}</Text>
         <View style={styles.badgeRow}>
           {place.affiliateProviders.map((key) => (
             <View key={key} style={styles.badge}>

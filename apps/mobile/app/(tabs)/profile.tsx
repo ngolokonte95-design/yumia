@@ -3,7 +3,7 @@ import { ScrollView, View, Text, StyleSheet, Pressable, Animated, Share, Image }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { PLUS_PRICE_EUR } from '@yumia/shared';
-import { safeMeta } from '../../lib/universeMeta';
+import { safeMeta, universeLabel } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useAuth } from '../../lib/auth-context';
 import { API_BASE_URL } from '../../lib/config';
@@ -256,7 +256,7 @@ export default function ProfileScreen() {
               const meta = safeMeta(u);
               return (
                 <View key={u} style={styles.chip}>
-                  <Text style={styles.chipText}>{meta?.emoji} {meta?.labelFr}</Text>
+                  <Text style={styles.chipText}>{meta?.emoji} {universeLabel(t, u)}</Text>
                 </View>
               );
             })}

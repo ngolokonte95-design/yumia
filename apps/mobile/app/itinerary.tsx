@@ -17,6 +17,8 @@ import { placeStore } from '../lib/place-store';
 import { saveItinerary } from '../lib/itinerary-api';
 import { MOOD_META, MOODS, type Mood } from '../lib/itinerary-meta';
 import { useCitySearch } from '../lib/useCitySearch';
+import { useI18n } from '../lib/useI18n';
+import { itineraryMoodLabel, itineraryMoodSub } from '../lib/labelHelpers';
 import type { CitySuggestion } from '../lib/services/weather';
 
 const API = API_BASE_URL;
@@ -59,6 +61,9 @@ const BUDGETS: Array<{ key: Budget; emoji: string; label: string; desc: string }
 
 export default function ItineraryScreen() {
   const { accessToken } = useAuth();
+  // Alias `tr` : ce fichier a déjà une variable locale `t` (handle de
+  // setTimeout) plus bas, qui masquerait le `t` de useI18n.
+  const { t: tr } = useI18n();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ mood?: string }>();
@@ -125,7 +130,7 @@ export default function ItineraryScreen() {
   const shareItinerary = async () => {
     if (!result) return;
     const text = [
-      `${meta.emoji} Itinéraire ${meta.label} — ${city || 'Paris'}`,
+      `${meta.emoji} Itinéraire ${itineraryMoodLabel(tr, mood, meta.label)} — ${city || 'Paris'}`,
       '',
       result.itinerary,
       '',
@@ -169,7 +174,7 @@ export default function ItineraryScreen() {
       },
       compatibility: 0,
       distanceMeters: 0,
-      reason: `${step.emoji} Étape de votre itinéraire ${meta.label}`,
+      reason: `${step.emoji} Étape de votre itinéraire ${itineraryMoodLabel(tr, mood, meta.label)}`,
       engine: 'mood',
     });
     router.push('/place');
@@ -185,8 +190,8 @@ export default function ItineraryScreen() {
         <View style={styles.headerCenter}>
           <Text style={styles.headerEmoji}>{meta.emoji}</Text>
           <View>
-            <Text style={styles.headerTitle}>{meta.label}</Text>
-            <Text style={styles.headerSub}>{meta.sub}</Text>
+            <Text style={styles.headerTitle}>{itineraryMoodLabel(tr, mood, meta.label)}</Text>
+            <Text style={styles.headerSub}>{itineraryMoodSub(tr, mood, meta.sub)}</Text>
           </View>
         </View>
         <Pressable onPress={() => router.push('/saved-itineraries' as never)} style={styles.shareBtn}>
@@ -219,7 +224,7 @@ export default function ItineraryScreen() {
                 }}
               >
                 <Text style={styles.moodEmoji}>{mm.emoji}</Text>
-                <Text style={[styles.moodLabel, mood === m && styles.moodLabelActive]}>{mm.label.split(' ')[0]}</Text>
+                <Text style={[styles.moodLabel, mood === m && styles.moodLabelActive]}>{itineraryMoodLabel(tr, m, mm.label).split(' ')[0]}</Text>
               </Pressable>
             );
           })}

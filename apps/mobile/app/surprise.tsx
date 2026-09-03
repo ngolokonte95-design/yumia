@@ -19,8 +19,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSE_CATEGORIES, UNIVERSE_META } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
-import { safeMeta } from '../lib/universeMeta';
+import { safeMeta, universeLabel } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchTop3 } from '../lib/api';
@@ -32,6 +33,7 @@ import type { Suggestion } from '@yumia/shared';
 export default function SurpriseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useI18n();
   const { accessToken, user } = useAuth();
   const { coords, city } = useLocation();
 
@@ -145,7 +147,7 @@ export default function SurpriseScreen() {
             que de laisser un résultat de l'ancien univers affiché. */}
         <Pressable style={styles.universePicker} onPress={() => setPickerOpen(true)}>
           <Text style={styles.universePickerText}>
-            {universeFilter ? `${UNIVERSE_META[universeFilter].emoji} ${UNIVERSE_META[universeFilter].labelFr}` : '🎲 Tous les univers'}
+            {universeFilter ? `${UNIVERSE_META[universeFilter].emoji} ${universeLabel(t, universeFilter)}` : '🎲 Tous les univers'}
           </Text>
           <Text style={styles.universePickerChevron}>▾</Text>
         </Pressable>
@@ -177,7 +179,7 @@ export default function SurpriseScreen() {
             <Text style={styles.cardEmoji}>{meta.emoji}</Text>
             <Text style={styles.cardName}>{result.place.name}</Text>
             <Text style={styles.cardMeta}>
-              {meta.labelFr} · ⭐ {result.place.rating.toFixed(1)} · {'€'.repeat(result.place.priceTier)}
+              {universeLabel(t, result.place.universe)} · ⭐ {result.place.rating.toFixed(1)} · {'€'.repeat(result.place.priceTier)}
               {result.place.city ? ` · ${result.place.city}` : ''}
             </Text>
             <Text style={styles.cardReason}>🤖 {result.reason}</Text>
@@ -232,7 +234,7 @@ export default function SurpriseScreen() {
                       onPress={() => selectUniverse(u)}
                     >
                       <Text style={styles.universeRowEmoji}>{UNIVERSE_META[u].emoji}</Text>
-                      <Text style={styles.universeRowLabel}>{UNIVERSE_META[u].labelFr}</Text>
+                      <Text style={styles.universeRowLabel}>{universeLabel(t, u)}</Text>
                       {universeFilter === u && <Text style={styles.universeRowCheck}>✓</Text>}
                     </Pressable>
                   ))}

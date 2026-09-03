@@ -5,6 +5,8 @@
 import { Modal, View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { BADGES, BADGE_META } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useI18n } from '../lib/useI18n';
+import { badgeName, badgeCondition } from '../lib/labelHelpers';
 
 interface Props {
   visible: boolean;
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export function BadgesModal({ visible, onClose, earned }: Props) {
+  const { t } = useI18n();
   const earnedSet = new Set(earned);
   const earnedBadges = BADGES.filter((b) => earnedSet.has(b));
   const lockedBadges = BADGES.filter((b) => !earnedSet.has(b));
@@ -37,8 +40,8 @@ export function BadgesModal({ visible, onClose, earned }: Props) {
                   return (
                     <View key={b} style={[styles.badge, styles.badgeEarned]}>
                       <Text style={styles.badgeEmoji}>{meta.emoji}</Text>
-                      <Text style={styles.badgeName}>{meta.nameFr}</Text>
-                      <Text style={styles.badgeCond}>{meta.conditionFr}</Text>
+                      <Text style={styles.badgeName}>{badgeName(t, b, meta.nameFr)}</Text>
+                      <Text style={styles.badgeCond}>{badgeCondition(t, b, meta.conditionFr)}</Text>
                     </View>
                   );
                 })}
@@ -55,8 +58,8 @@ export function BadgesModal({ visible, onClose, earned }: Props) {
                   return (
                     <View key={b} style={[styles.badge, styles.badgeLocked]}>
                       <Text style={[styles.badgeEmoji, styles.lockedEmoji]}>{meta.emoji}</Text>
-                      <Text style={[styles.badgeName, styles.lockedText]}>{meta.nameFr}</Text>
-                      <Text style={[styles.badgeCond, styles.lockedCond]}>{meta.conditionFr}</Text>
+                      <Text style={[styles.badgeName, styles.lockedText]}>{badgeName(t, b, meta.nameFr)}</Text>
+                      <Text style={[styles.badgeCond, styles.lockedCond]}>{badgeCondition(t, b, meta.conditionFr)}</Text>
                     </View>
                   );
                 })}

@@ -8,6 +8,8 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-nati
 import { Image } from 'expo-image';
 import { UNIVERSE_META } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
+import { universeLabel } from '../lib/universeMeta';
+import { useI18n } from '../lib/useI18n';
 import type { ExperienceResult, ExperienceStep } from '../lib/api';
 import type { VisitFeedback, VisitResult } from '../lib/passport-api';
 import { XpToast } from './XpToast';
@@ -77,6 +79,7 @@ function StepCard({
   onVisit?: Props['onVisit'];
   onPress?: () => void;
 }) {
+  const { t } = useI18n();
   const [saved, setSaved] = useState(isSaved);
   const [saveLoading, setSaveLoading] = useState(false);
   const [visitState, setVisitState] = useState<'idle' | 'feedback' | 'loading' | 'done'>('idle');
@@ -116,7 +119,7 @@ function StepCard({
       ) : null}
       <View style={styles.stepHeader}>
         <Text style={styles.stepLabel}>{step.labelFr}</Text>
-        <Text style={styles.stepUniverse}>{meta?.emoji} {meta?.labelFr}</Text>
+        <Text style={styles.stepUniverse}>{meta?.emoji} {universeLabel(t, step.place.universe)}</Text>
       </View>
       <Text style={styles.placeName}>{step.place.name}</Text>
       <Text style={styles.placeRating}>

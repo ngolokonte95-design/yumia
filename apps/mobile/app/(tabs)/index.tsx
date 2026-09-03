@@ -6,6 +6,7 @@ import type { Mode } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PlanBadgeIcon } from '../../components/Avatar';
+import { universeLabel } from '../../lib/universeMeta';
 import { useLocation } from '../../lib/useLocation';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
@@ -154,7 +155,7 @@ export default function HomeScreen() {
             {cat.universes.map((u) => (
               <Pressable key={u} style={styles.universeCard} onPress={() => router.push(universeRoute(u) as never)}>
                 <UniverseIcon u={u} />
-                <Text style={styles.universeLabel}>{UNIVERSE_META[u].labelFr}</Text>
+                <Text style={styles.universeLabel}>{universeLabel(t, u)}</Text>
               </Pressable>
             ))}
           </View>
