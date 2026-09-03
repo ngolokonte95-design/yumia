@@ -20,11 +20,13 @@ import { useAuth } from '../lib/auth-context';
 import { resetPasswordRequest, deleteAccountRequest, exportDataRequest, updateProfileRequest } from '../lib/auth-api';
 import { API_BASE_URL } from '../lib/config';
 import { PRIVACY_URL, TERMS_URL } from '../lib/legal';
+import { useI18n } from '../lib/useI18n';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout, accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [notifDigest, setNotifDigest] = useState(user?.preferences?.notifDigest ?? true);
   const [notifStreak, setNotifStreak] = useState(user?.preferences?.notifStreak ?? true);
@@ -43,12 +45,12 @@ export default function SettingsScreen() {
 
   function handleDeleteAccount() {
     Alert.alert(
-      'Supprimer mon compte',
-      'Cette action est irréversible. Toutes tes données (visites, badges, adresses) seront effacées.',
+      t('settings_delete_account_title'),
+      t('settings_delete_account_body'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('settings_cancel'), style: 'cancel' },
         {
-          text: 'Supprimer définitivement',
+          text: t('settings_delete_permanently'),
           style: 'destructive',
           onPress: confirmDeleteAccount,
         },
@@ -63,7 +65,7 @@ export default function SettingsScreen() {
       await deleteAccountRequest(accessToken);
       await logout();
     } catch {
-      Alert.alert('Erreur', 'Impossible de supprimer le compte. Réessaie plus tard.');
+      Alert.alert(t('settings_error'), t('settings_delete_account_error'));
     } finally {
       setDeletingAccount(false);
     }
@@ -75,20 +77,20 @@ export default function SettingsScreen() {
     try {
       await exportDataRequest(accessToken);
       Alert.alert(
-        'Export réussi',
-        'Tes données ont été préparées. En production, elles seront envoyées à ton adresse email.',
+        t('settings_export_success_title'),
+        t('settings_export_success_body'),
       );
     } catch {
-      Alert.alert('Erreur', "L'export a échoué. Réessaie plus tard.");
+      Alert.alert(t('settings_error'), t('settings_export_error'));
     } finally {
       setExporting(false);
     }
   }
 
   function handleLogout() {
-    Alert.alert('Se déconnecter ?', '', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Se déconnecter', style: 'destructive', onPress: () => void logout() },
+    Alert.alert(t('settings_logout_confirm'), '', [
+      { text: t('settings_cancel'), style: 'cancel' },
+      { text: t('settings_logout'), style: 'destructive', onPress: () => void logout() },
     ]);
   }
 
@@ -99,7 +101,7 @@ export default function SettingsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Paramètres</Text>
+        <Text style={styles.title}>{t('settings_title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -108,57 +110,57 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Compte */}
-        <SectionTitle label="Compte" />
+        <SectionTitle label={t('settings_section_account')} />
         <SettingRow
           icon="✏️"
-          label="Modifier le profil"
+          label={t('settings_edit_profile')}
           onPress={() => router.push('/edit-profile')}
         />
         {user?.authProvider === 'password' ? (
           <SettingRow
             icon="🔑"
-            label="Changer le mot de passe"
+            label={t('settings_change_password')}
             onPress={handleChangePassword}
           />
         ) : null}
         <SettingRow
           icon="🌍"
-          label="Langue"
+          label={t('settings_language')}
           value={user?.locale?.toUpperCase() ?? 'FR'}
           onPress={() => router.push('/edit-profile')}
         />
 
         {/* Notifications */}
-        <SectionTitle label="Notifications" />
+        <SectionTitle label={t('settings_section_notifications')} />
         <SettingToggle
           icon="🌅"
-          label="Digest du soir"
-          sublabel="Une suggestion inspirante chaque soir entre 18h et 23h"
+          label={t('settings_digest_label')}
+          sublabel={t('settings_digest_sub')}
           value={notifDigest}
           onValueChange={(v) => { setNotifDigest(v); void saveNotifPref('notifDigest', v); }}
         />
         <SettingToggle
           icon="🔥"
-          label="Rappels de streak"
-          sublabel="YUMIA te rappelle d'explorer avant minuit"
+          label={t('settings_streak_label')}
+          sublabel={t('settings_streak_sub')}
           value={notifStreak}
           onValueChange={(v) => { setNotifStreak(v); void saveNotifPref('notifStreak', v); }}
         />
 
         {/* YUMIA Plus */}
-        <SectionTitle label="Abonnement" />
+        <SectionTitle label={t('settings_section_subscription')} />
         <Pressable
           style={styles.plusCard}
           onPress={() => router.push('/plus')}
         >
           <View>
             <Text style={styles.plusTitle}>
-              {user?.plan === 'plus' ? '✨ YUMIA Plus — Actif' : '✨ Passer à YUMIA Plus'}
+              {user?.plan === 'plus' ? t('settings_plus_active') : t('settings_plus_upgrade')}
             </Text>
             <Text style={styles.plusSub}>
               {user?.plan === 'plus'
-                ? 'Merci pour ton soutien !'
-                : 'Streak freeze, historique illimité, accès prioritaire aux nouvelles villes.'}
+                ? t('settings_plus_thanks')
+                : t('settings_plus_pitch')}
             </Text>
           </View>
           {user?.plan !== 'plus' ? (
@@ -167,26 +169,26 @@ export default function SettingsScreen() {
         </Pressable>
 
         {/* Données & confidentialité */}
-        <SectionTitle label="Données & confidentialité" />
+        <SectionTitle label={t('settings_section_privacy')} />
         <SettingRow
           icon="📥"
-          label="Exporter mes données"
+          label={t('settings_export_data')}
           loading={exporting}
           onPress={handleExportData}
         />
         <SettingRow
           icon="🔒"
-          label="Politique de confidentialité"
+          label={t('settings_privacy_policy')}
           onPress={() => void Linking.openURL(PRIVACY_URL)}
         />
         <SettingRow
           icon="📄"
-          label="Conditions d'utilisation"
+          label={t('settings_terms')}
           onPress={() => void Linking.openURL(TERMS_URL)}
         />
         <SettingRow
           icon="🗑️"
-          label="Supprimer mon compte"
+          label={t('settings_delete_account')}
           danger
           onPress={handleDeleteAccount}
           loading={deletingAccount}
@@ -196,10 +198,10 @@ export default function SettingsScreen() {
         <AdminSection />
 
         {/* Déconnexion */}
-        <SectionTitle label="Session" />
+        <SectionTitle label={t('settings_section_session')} />
         <SettingRow
           icon="🚪"
-          label="Se déconnecter"
+          label={t('settings_logout')}
           danger
           onPress={handleLogout}
         />
@@ -216,6 +218,7 @@ const API = API_BASE_URL;
 function AdminSection() {
   const { accessToken } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -230,10 +233,10 @@ function AdminSection() {
 
   return (
     <>
-      <SectionTitle label="Administration" />
+      <SectionTitle label={t('settings_section_admin')} />
       <SettingRow
         icon="🛡️"
-        label="Dashboard Admin"
+        label={t('settings_admin_dashboard')}
         onPress={() => router.push('/admin')}
       />
     </>
