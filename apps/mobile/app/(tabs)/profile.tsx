@@ -16,13 +16,14 @@ import { YumiaLogo } from '../../components/YumiaLogo';
 import { StreakModal } from '../../components/StreakModal';
 import { BadgesModal } from '../../components/BadgesModal';
 import { CountriesModal } from '../../components/CountriesModal';
+import { levelName } from '../../lib/labelHelpers';
 
 /** PROFIL — niveau XP animé, stats, visites récentes, préférences, paramètres. */
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout, accessToken, updateProfile } = useAuth();
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { stats, passport, loading } = usePassportStats(accessToken);
   const unreadCount = useUnreadNotificationsCount();
   const [showLocalePicker, setShowLocalePicker] = useState(false);
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
       .catch(() => {});
   }, [accessToken]);
 
-  const displayName = user?.displayName ?? 'Toi';
+  const displayName = user?.displayName ?? t('profile_you_fallback');
   const initial = displayName.charAt(0).toUpperCase();
   const isPlus = user?.plan === 'plus';
   const photoUrl = user?.photoUrl
@@ -91,7 +92,7 @@ export default function ProfileScreen() {
           </View>
           {stats ? (
             <Text style={styles.handle}>
-              {stats.level.current.emoji} {stats.level.current.titleFr}
+              {stats.level.current.emoji} {levelName(t, stats.level.current.value, stats.level.current.titleFr)}
             </Text>
           ) : null}
           {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
@@ -139,7 +140,7 @@ export default function ProfileScreen() {
             </View>
             {stats.level.next ? (
               <Text style={styles.xpNext}>
-                {t('profile_next_level')} {stats.level.next.emoji} {stats.level.next.titleFr}
+                {t('profile_next_level')} {stats.level.next.emoji} {levelName(t, stats.level.next.value, stats.level.next.titleFr)}
               </Text>
             ) : (
               <Text style={styles.xpNext}>{t('profile_max_level')}</Text>
@@ -163,13 +164,13 @@ export default function ProfileScreen() {
             onPress={stats ? () => setShowStreakModal(true) : undefined}
           />
           <StatBox
-            label="Pays"
+            label={t('profile_countries_label')}
             value={passport?.distinctCountries ?? (loading ? '…' : '-')}
             emoji="🌍"
             onPress={passport && passport.visits.length > 0 ? () => setShowCountriesModal(true) : undefined}
           />
           <StatBox
-            label="Badges"
+            label={t('profile_badges_label')}
             value={stats ? `${stats.badges.earned.length}/${stats.badges.total}` : (loading ? '…' : '-')}
             emoji="🏅"
             onPress={stats ? () => setShowBadgesModal(true) : undefined}
@@ -211,7 +212,10 @@ export default function ProfileScreen() {
             {passport.visits.slice(0, 8).map((v) => {
               const meta = safeMeta(v.place.universe);
               const date = new Date(v.visitedAt);
-              const label = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+              const label = date.toLocaleDateString(
+                { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' }[locale] ?? 'fr-FR',
+                { day: 'numeric', month: 'short' },
+              );
               return (
                 <View key={v.id} style={styles.timelineItem}>
                   <View style={styles.timelineDot} />
@@ -236,7 +240,7 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.planTitle}>{isPlus ? 'YUMIA Plus' : 'YUMIA Free'}</Text>
             <Text style={styles.planSub}>
-              {isPlus ? 'Merci de soutenir YUMIA 🧡' : '90 % des fonctionnalités, sans frustration.'}
+              {isPlus ? t('profile_plan_plus_sub') : t('profile_plan_free_sub')}
             </Text>
           </View>
           {!isPlus ? (
@@ -283,10 +287,13 @@ export default function ProfileScreen() {
             key: 'share',
             label: t('profile_setting_share'),
             onPress: () => {
-              const levelLabel = stats ? `${stats.level.current.emoji} ${stats.level.current.titleFr}` : '';
-              const visitsLabel = passport ? `${passport.totalVisits} visites` : '';
+              const levelLabel = stats ? `${stats.level.current.emoji} ${levelName(t, stats.level.current.value, stats.level.current.titleFr)}` : '';
+              const visitsLabel = passport ? `${passport.totalVisits} ${t('profile_share_visits')}` : '';
               void Share.share({
-                message: `Je suis ${displayName} sur YUMIA !\n${levelLabel}${visitsLabel ? ' · ' + visitsLabel : ''}\nRejoins-moi et découvre les meilleures expériences autour de toi.`,
+                message: t('profile_share_message')
+                  .replace('{name}', displayName)
+                  .replace('{level}', levelLabel)
+                  .replace('{visits}', visitsLabel ? ' · ' + visitsLabel : ''),
               });
             },
           },

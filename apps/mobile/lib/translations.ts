@@ -1461,6 +1461,13 @@ const FR = {
   social_menu_meetups: '🌃 Meetups',
   social_group_fallback: 'Groupe',
   social_error_title: 'Erreur',
+  profile_you_fallback: 'Toi',
+  profile_countries_label: 'Pays',
+  profile_badges_label: 'Badges',
+  profile_plan_plus_sub: 'Merci de soutenir YUMIA 🧡',
+  profile_plan_free_sub: '90 % des fonctionnalités, sans frustration.',
+  profile_share_visits: 'visites',
+  profile_share_message: 'Je suis {name} sur YUMIA !\n{level}{visits}\nRejoins-moi et découvre les meilleures expériences autour de toi.',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -2909,6 +2916,13 @@ const EN: Record<TranslationKey, string> = {
   social_menu_meetups: '🌃 Meetups',
   social_group_fallback: 'Group',
   social_error_title: 'Error',
+  profile_you_fallback: 'You',
+  profile_countries_label: 'Countries',
+  profile_badges_label: 'Badges',
+  profile_plan_plus_sub: 'Thanks for supporting YUMIA 🧡',
+  profile_plan_free_sub: '90% of the features, no frustration.',
+  profile_share_visits: 'visits',
+  profile_share_message: 'I\'m {name} on YUMIA!\n{level}{visits}\nJoin me and discover the best experiences around you.',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4357,6 +4371,13 @@ const ES: Record<TranslationKey, string> = {
   social_menu_meetups: '🌃 Meetups',
   social_group_fallback: 'Grupo',
   social_error_title: 'Error',
+  profile_you_fallback: 'Tú',
+  profile_countries_label: 'Países',
+  profile_badges_label: 'Insignias',
+  profile_plan_plus_sub: 'Gracias por apoyar a YUMIA 🧡',
+  profile_plan_free_sub: '90 % de las funciones, sin frustración.',
+  profile_share_visits: 'visitas',
+  profile_share_message: '¡Soy {name} en YUMIA!\n{level}{visits}\nÚnete a mí y descubre las mejores experiencias cerca de ti.',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -5805,6 +5826,13 @@ const PT: Record<TranslationKey, string> = {
   social_menu_meetups: '🌃 Meetups',
   social_group_fallback: 'Grupo',
   social_error_title: 'Erro',
+  profile_you_fallback: 'Você',
+  profile_countries_label: 'Países',
+  profile_badges_label: 'Emblemas',
+  profile_plan_plus_sub: 'Obrigado por apoiar o YUMIA 🧡',
+  profile_plan_free_sub: '90% dos recursos, sem frustração.',
+  profile_share_visits: 'visitas',
+  profile_share_message: 'Eu sou {name} no YUMIA!\n{level}{visits}\nJunte-se a mim e descubra as melhores experiências ao seu redor.',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -7253,6 +7281,13 @@ const AR: Record<TranslationKey, string> = {
   social_menu_meetups: '🌃 لقاءات',
   social_group_fallback: 'مجموعة',
   social_error_title: 'خطأ',
+  profile_you_fallback: 'أنت',
+  profile_countries_label: 'الدول',
+  profile_badges_label: 'الأوسمة',
+  profile_plan_plus_sub: 'شكرًا لدعمك YUMIA 🧡',
+  profile_plan_free_sub: '90٪ من الميزات، بدون إحباط.',
+  profile_share_visits: 'زيارة',
+  profile_share_message: 'أنا {name} على YUMIA!\n{level}{visits}\nانضم إلي واكتشف أفضل التجارب من حولك.',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {
