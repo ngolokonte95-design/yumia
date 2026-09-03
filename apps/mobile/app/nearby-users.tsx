@@ -26,6 +26,7 @@ import { UNIVERSE_META } from '@yumia/shared';
 import { API_BASE_URL } from '../lib/config';
 import { universeLabel } from '../lib/universeMeta';
 import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BROADCAST_INTERVAL = 30_000;
@@ -37,11 +38,14 @@ const INTENT_COLORS: Record<IntentType, string> = {
   event:   colors.success,
 };
 
-const INTENT_LABELS: Record<IntentType, string> = {
-  dispo:   '🍹 Dispo',
-  explore: '🗺️ Explorer',
-  event:   '🎉 Événement',
+const INTENT_LABEL_KEYS: Record<IntentType, TranslationKey> = {
+  dispo:   'nu_intent_dispo',
+  explore: 'nu_intent_explore',
+  event:   'nu_intent_event',
 };
+function intentLabel(t: (key: TranslationKey) => string, intent: IntentType): string {
+  return t(INTENT_LABEL_KEYS[intent]);
+}
 
 const POPULAR_UNIVERSES = [
   'restaurant', 'bar', 'nightclub', 'cafe', 'museum', 'park',
@@ -56,16 +60,18 @@ const DURATION_OPTIONS = [
   { label: '8h', hours: 8 },
 ];
 
-const SCHEDULE_OPTIONS = [
-  { label: 'Dans 30min', hours: 0.5 },
-  { label: 'Dans 1h',    hours: 1   },
-  { label: 'Dans 2h',    hours: 2   },
-  { label: 'Dans 4h',    hours: 4   },
-  { label: 'Ce soir',    hours: 8   },
-  { label: 'Demain',     hours: 24  },
+const SCHEDULE_OPTIONS: Array<{ labelKey: TranslationKey; hours: number }> = [
+  { labelKey: 'nu_schedule_30min', hours: 0.5 },
+  { labelKey: 'nu_schedule_1h',    hours: 1   },
+  { labelKey: 'nu_schedule_2h',    hours: 2   },
+  { labelKey: 'nu_schedule_4h',    hours: 4   },
+  { labelKey: 'nu_schedule_tonight', hours: 8 },
+  { labelKey: 'nu_schedule_tomorrow', hours: 24 },
 ];
 
 type Tab = 'map' | 'people' | 'events';
+
+const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
 
 // ─── Avatar letters ─────────────────────────────────────────────────────────
 
@@ -84,7 +90,7 @@ function Avatar({ name, photoUrl, size = 44, color }: { name: string; photoUrl?:
 function IntentBadge({ intent }: { intent: SocialIntent }) {
   const { t } = useI18n();
   const col = INTENT_COLORS[intent.intent];
-  const label = INTENT_LABELS[intent.intent];
+  const label = intentLabel(t, intent.intent);
   const univMeta = intent.universe ? UNIVERSE_META[intent.universe as keyof typeof UNIVERSE_META] : null;
   return (
     <View style={[styles.intentBadge, { borderColor: col + '55', backgroundColor: col + '18' }]}>
@@ -99,6 +105,7 @@ function IntentBadge({ intent }: { intent: SocialIntent }) {
 // ─── People list card ────────────────────────────────────────────────────────
 
 function PersonCard({ item, onFollow, onPress }: { item: DiscoveredUser; onFollow: () => void; onPress: () => void }) {
+  const { t } = useI18n();
   const u = item.user;
   const intentCol = item.intent ? INTENT_COLORS[item.intent.intent] : colors.textMuted;
   return (
@@ -106,15 +113,15 @@ function PersonCard({ item, onFollow, onPress }: { item: DiscoveredUser; onFollo
       <Avatar name={u?.displayName ?? '?'} photoUrl={u?.photoUrl} size={48} color={intentCol} />
       <View style={styles.personInfo}>
         <View style={styles.personRow}>
-          <Text style={styles.personName} numberOfLines={1}>{u?.displayName ?? 'Utilisateur'}</Text>
-          <View style={styles.levelBadge}><Text style={styles.levelBadgeText}>Niv.{u?.level ?? 1}</Text></View>
+          <Text style={styles.personName} numberOfLines={1}>{u?.displayName ?? t('nu_user_fallback')}</Text>
+          <View style={styles.levelBadge}><Text style={styles.levelBadgeText}>{t('nu_level_prefix')}{u?.level ?? 1}</Text></View>
         </View>
-        <Text style={styles.personDist}>À {item.distanceKm} km</Text>
+        <Text style={styles.personDist}>{t('nu_at_distance').replace('{km}', String(item.distanceKm))}</Text>
         {item.intent && <IntentBadge intent={item.intent} />}
         {!item.intent && u?.bio ? <Text style={styles.personBio} numberOfLines={1}>{u.bio}</Text> : null}
       </View>
       <Pressable style={styles.followBtn} onPress={onFollow}>
-        <Text style={styles.followBtnText}>Suivre</Text>
+        <Text style={styles.followBtnText}>{t('nu_follow')}</Text>
       </Pressable>
     </Pressable>
   );
@@ -129,13 +136,14 @@ function EventCard({ event, myId, onJoin, onLeave, onPress }: {
   onLeave: () => void;
   onPress: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const univMeta = event.universe ? UNIVERSE_META[event.universe as keyof typeof UNIVERSE_META] : null;
   const isJoined = event.participants.includes(myId);
   const isFull = event.participants.length >= event.maxPeople;
   const scheduled = new Date(event.scheduledAt);
-  const timeStr = scheduled.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const dateStr = scheduled.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const intlLocale = INTL_LOCALE[locale] ?? 'fr-FR';
+  const timeStr = scheduled.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' });
+  const dateStr = scheduled.toLocaleDateString(intlLocale, { weekday: 'short', day: 'numeric', month: 'short' });
   return (
     <Pressable style={styles.eventCard} onPress={onPress}>
       <View style={styles.eventHeader}>
@@ -143,7 +151,7 @@ function EventCard({ event, myId, onJoin, onLeave, onPress }: {
         <View style={{ flex: 1 }}>
           <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
           <Text style={styles.eventMeta}>
-            {event.universe ? universeLabel(t, event.universe) : 'Événement'} · {dateStr} à {timeStr}
+            {event.universe ? universeLabel(t, event.universe) : t('nu_event_fallback')} · {dateStr} {t('nu_event_at_time')} {timeStr}
           </Text>
         </View>
         {event.distanceKm !== undefined && (
@@ -152,7 +160,7 @@ function EventCard({ event, myId, onJoin, onLeave, onPress }: {
       </View>
       {event.note ? <Text style={styles.eventNote} numberOfLines={2}>{event.note}</Text> : null}
       <View style={styles.eventFooter}>
-        <Text style={styles.eventCreator}>Par {event.creatorName}</Text>
+        <Text style={styles.eventCreator}>{t('nu_by_creator').replace('{name}', event.creatorName)}</Text>
         <Text style={styles.eventCount}>
           {event.participants.length}/{event.maxPeople} 👥
         </Text>
@@ -161,7 +169,7 @@ function EventCard({ event, myId, onJoin, onLeave, onPress }: {
           onPress={isJoined ? onLeave : onJoin}
           disabled={isFull && !isJoined}
         >
-          <Text style={styles.joinBtnText}>{isJoined ? 'Quitter' : isFull ? 'Complet' : 'Rejoindre'}</Text>
+          <Text style={styles.joinBtnText}>{isJoined ? t('nu_leave') : isFull ? t('nu_full') : t('nu_join')}</Text>
         </Pressable>
       </View>
     </Pressable>
@@ -346,7 +354,7 @@ export default function NearbyUsersScreen() {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.brand} size="large" />
-        <Text style={styles.loadingText}>Localisation en cours…</Text>
+        <Text style={styles.loadingText}>{t('map_locating')}</Text>
       </View>
     );
   }
@@ -366,7 +374,7 @@ export default function NearbyUsersScreen() {
         <Pressable onPress={() => router.back()} style={styles.headerBtn}>
           <Text style={styles.headerBtnText}>←</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Mode Social</Text>
+        <Text style={styles.headerTitle}>{t('nu_header_title')}</Text>
         <Pressable onPress={fetchAll} style={styles.headerBtn}>
           {loading ? <ActivityIndicator size="small" color={colors.brand} /> : <Text style={styles.headerBtnText}>↻</Text>}
         </Pressable>
@@ -374,13 +382,13 @@ export default function NearbyUsersScreen() {
 
       {/* ── Tab bar ── */}
       <View style={styles.tabBar}>
-        {(['map', 'people', 'events'] as Tab[]).map((t) => {
-          const labels: Record<Tab, string> = { map: '🗺️  Carte', people: '👥  Personnes', events: '🎉  Événements' };
+        {(['map', 'people', 'events'] as Tab[]).map((tabKey) => {
+          const labelKeys: Record<Tab, TranslationKey> = { map: 'nu_tab_map', people: 'nu_tab_people', events: 'nu_tab_events' };
           return (
-            <Pressable key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
-              <Text style={[styles.tabBtnText, tab === t && styles.tabBtnTextActive]}>{labels[t]}</Text>
-              {t === 'people' && nearby.length > 0 && <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{nearby.length}</Text></View>}
-              {t === 'events' && events.length > 0 && <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{events.length}</Text></View>}
+            <Pressable key={tabKey} style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]} onPress={() => setTab(tabKey)}>
+              <Text style={[styles.tabBtnText, tab === tabKey && styles.tabBtnTextActive]}>{t(labelKeys[tabKey])}</Text>
+              {tabKey === 'people' && nearby.length > 0 && <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{nearby.length}</Text></View>}
+              {tabKey === 'events' && events.length > 0 && <View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{events.length}</Text></View>}
             </Pressable>
           );
         })}
@@ -424,16 +432,16 @@ export default function NearbyUsersScreen() {
                   </View>
                   <Callout onPress={() => router.push(`/user/${u.userId}` as never)}>
                     <View style={styles.callout}>
-                      <Text style={styles.calloutName}>{u.user?.displayName ?? 'Utilisateur'}</Text>
-                      <Text style={styles.calloutSub}>Niveau {u.user?.level ?? 1} · {u.distanceKm} km</Text>
+                      <Text style={styles.calloutName}>{u.user?.displayName ?? t('nu_user_fallback')}</Text>
+                      <Text style={styles.calloutSub}>{t('nu_callout_level').replace('{lvl}', String(u.user?.level ?? 1)).replace('{km}', String(u.distanceKm))}</Text>
                       {u.intent && (
                         <Text style={[styles.calloutIntent, { color: col }]}>
-                          {INTENT_LABELS[u.intent.intent]}
+                          {intentLabel(t, u.intent.intent)}
                           {u.intent.universe ? `  ${UNIVERSE_META[u.intent.universe as keyof typeof UNIVERSE_META]?.emoji ?? ''}` : ''}
                         </Text>
                       )}
                       {u.intent?.note && <Text style={styles.calloutNote}>"{u.intent.note}"</Text>}
-                      <Text style={styles.calloutAction}>Voir le profil →</Text>
+                      <Text style={styles.calloutAction}>{t('nu_callout_action')}</Text>
                     </View>
                   </Callout>
                 </Marker>
@@ -447,10 +455,10 @@ export default function NearbyUsersScreen() {
             {myIntent ? (
               <View style={[styles.myIntentBar, { borderColor: INTENT_COLORS[myIntent.intent] + '55' }]}>
                 <Text style={[styles.myIntentLabel, { color: INTENT_COLORS[myIntent.intent] }]}>
-                  {INTENT_LABELS[myIntent.intent]}
+                  {intentLabel(t, myIntent.intent)}
                   {myIntent.universe ? `  ${UNIVERSE_META[myIntent.universe as keyof typeof UNIVERSE_META]?.emoji ?? ''}` : ''}
                 </Text>
-                <Text style={styles.myIntentTime}>encore {intentMinutes}min</Text>
+                <Text style={styles.myIntentTime}>{t('nu_intent_remaining').replace('{min}', String(intentMinutes))}</Text>
                 <Pressable onPress={cancelIntent} style={styles.cancelIntentBtn}>
                   <Text style={styles.cancelIntentText}>✕</Text>
                 </Pressable>
@@ -464,7 +472,7 @@ export default function NearbyUsersScreen() {
               >
                 <Text style={styles.broadcastIcon}>{broadcasting ? '🟢' : '⚫'}</Text>
                 <Text style={styles.broadcastBtnText}>
-                  {broadcasting ? 'Visible' : 'Invisible'}
+                  {broadcasting ? t('nu_visible') : t('nu_invisible')}
                 </Text>
               </Pressable>
 
@@ -473,15 +481,15 @@ export default function NearbyUsersScreen() {
                 onPress={myIntent ? cancelIntent : openSheet}
               >
                 <Text style={styles.signalBtnText}>
-                  {myIntent ? `${INTENT_LABELS[myIntent.intent]}  ✕` : '✨  Signal'}
+                  {myIntent ? `${intentLabel(t, myIntent.intent)}  ✕` : t('nu_signal_btn')}
                 </Text>
               </Pressable>
             </View>
 
             <Text style={styles.mapHint}>
               {broadcasting
-                ? `${nearby.length} personne${nearby.length !== 1 ? 's' : ''} visible${nearby.length !== 1 ? 's' : ''} dans un rayon de 5 km`
-                : 'Active ta position pour être visible et rencontrer des gens'}
+                ? t('nu_hint_visible').replace('{n}', String(nearby.length)).replace('{s2}', nearby.length !== 1 ? 's' : '').replace('{s}', nearby.length !== 1 ? 's' : '')
+                : t('nu_hint_invisible')}
             </Text>
           </View>
         </View>
@@ -493,11 +501,11 @@ export default function NearbyUsersScreen() {
           {nearby.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>👥</Text>
-              <Text style={styles.emptyTitle}>Personne à proximité</Text>
+              <Text style={styles.emptyTitle}>{t('nu_empty_people_title')}</Text>
               <Text style={styles.emptySub}>
                 {broadcasting
-                  ? 'Les utilisateurs qui activent leur position apparaîtront ici.'
-                  : 'Active ta position sur la carte pour découvrir les gens autour de toi.'}
+                  ? t('nu_empty_people_broadcasting')
+                  : t('nu_empty_people_off')}
               </Text>
             </View>
           ) : (
@@ -524,8 +532,8 @@ export default function NearbyUsersScreen() {
           {events.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>🎉</Text>
-              <Text style={styles.emptyTitle}>Aucun événement proche</Text>
-              <Text style={styles.emptySub}>Crée le premier événement spontané de ta zone !</Text>
+              <Text style={styles.emptyTitle}>{t('nu_empty_events_title')}</Text>
+              <Text style={styles.emptySub}>{t('nu_empty_events_sub')}</Text>
             </View>
           ) : (
             <FlatList
@@ -550,7 +558,7 @@ export default function NearbyUsersScreen() {
             style={[styles.fab, { bottom: insets.bottom + 20 }]}
             onPress={() => setShowEventSheet(true)}
           >
-            <Text style={styles.fabText}>+ Créer un événement</Text>
+            <Text style={styles.fabText}>{t('nu_fab_create_event')}</Text>
           </Pressable>
         </View>
       )}
@@ -564,11 +572,11 @@ export default function NearbyUsersScreen() {
           <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={styles.sheetHandle} />
-              <Text style={styles.sheetTitle}>Envoie un signal 📡</Text>
-              <Text style={styles.sheetSub}>Indique aux autres ce que tu cherches maintenant</Text>
+              <Text style={styles.sheetTitle}>{t('nu_sheet_title')}</Text>
+              <Text style={styles.sheetSub}>{t('nu_sheet_sub')}</Text>
 
               {/* Intent type */}
-              <Text style={styles.sheetLabel}>Je suis…</Text>
+              <Text style={styles.sheetLabel}>{t('nu_sheet_i_am')}</Text>
               <View style={styles.intentTypeRow}>
                 {(['dispo', 'explore', 'event'] as IntentType[]).map((type) => (
                   <Pressable
@@ -577,14 +585,14 @@ export default function NearbyUsersScreen() {
                     onPress={() => setIntentType(type)}
                   >
                     <Text style={[styles.intentTypeBtnText, intentType === type && { color: INTENT_COLORS[type], fontWeight: '700' }]}>
-                      {INTENT_LABELS[type]}
+                      {intentLabel(t, type)}
                     </Text>
                   </Pressable>
                 ))}
               </View>
 
               {/* Universe picker */}
-              <Text style={styles.sheetLabel}>Univers (optionnel)</Text>
+              <Text style={styles.sheetLabel}>{t('nu_sheet_universe_optional')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.univScroll}>
                 {POPULAR_UNIVERSES.map((u) => {
                   const meta = UNIVERSE_META[u];
@@ -602,20 +610,20 @@ export default function NearbyUsersScreen() {
               </ScrollView>
 
               {/* Note */}
-              <Text style={styles.sheetLabel}>Message (optionnel)</Text>
+              <Text style={styles.sheetLabel}>{t('nu_sheet_message_optional')}</Text>
               <TextInput
                 style={styles.noteInput}
-                placeholder="Ex: Cherche quelqu'un pour un verre ce soir…"
+                placeholder={t('nu_sheet_note_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={intentNote}
-                onChangeText={(t) => setIntentNote(t.slice(0, 100))}
+                onChangeText={(v) => setIntentNote(v.slice(0, 100))}
                 maxLength={100}
                 multiline
               />
               <Text style={styles.noteCounter}>{intentNote.length}/100</Text>
 
               {/* Duration */}
-              <Text style={styles.sheetLabel}>Durée du signal</Text>
+              <Text style={styles.sheetLabel}>{t('nu_sheet_duration')}</Text>
               <View style={styles.durationRow}>
                 {DURATION_OPTIONS.map((d) => (
                   <Pressable
@@ -631,7 +639,7 @@ export default function NearbyUsersScreen() {
               <Pressable style={[styles.submitBtn, savingIntent && { opacity: 0.6 }]} onPress={submitIntent} disabled={savingIntent}>
                 {savingIntent
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.submitBtnText}>✨  Activer mon signal</Text>
+                  : <Text style={styles.submitBtnText}>{t('nu_sheet_activate')}</Text>
                 }
               </Pressable>
             </KeyboardAvoidingView>
@@ -648,19 +656,19 @@ export default function NearbyUsersScreen() {
           <View style={[styles.sheet, styles.sheetTall]}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={styles.sheetHandle} />
-              <Text style={styles.sheetTitle}>Créer un événement 🎉</Text>
+              <Text style={styles.sheetTitle}>{t('nu_event_sheet_title')}</Text>
 
-              <Text style={styles.sheetLabel}>Titre *</Text>
+              <Text style={styles.sheetLabel}>{t('nu_event_title_label')}</Text>
               <TextInput
                 style={styles.noteInput}
-                placeholder="Ex: Afterwork au rooftop, blind test…"
+                placeholder={t('nu_event_title_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={eventTitle}
-                onChangeText={(t) => setEventTitle(t.slice(0, 80))}
+                onChangeText={(v) => setEventTitle(v.slice(0, 80))}
                 maxLength={80}
               />
 
-              <Text style={styles.sheetLabel}>Univers (optionnel)</Text>
+              <Text style={styles.sheetLabel}>{t('nu_sheet_universe_optional')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.univScroll}>
                 {POPULAR_UNIVERSES.map((u) => {
                   const meta = UNIVERSE_META[u];
@@ -677,18 +685,18 @@ export default function NearbyUsersScreen() {
                 })}
               </ScrollView>
 
-              <Text style={styles.sheetLabel}>Description (optionnel)</Text>
+              <Text style={styles.sheetLabel}>{t('nu_event_desc_label')}</Text>
               <TextInput
                 style={styles.noteInput}
-                placeholder="Quelques détails…"
+                placeholder={t('nu_event_desc_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={eventNote}
-                onChangeText={(t) => setEventNote(t.slice(0, 200))}
+                onChangeText={(v) => setEventNote(v.slice(0, 200))}
                 maxLength={200}
                 multiline
               />
 
-              <Text style={styles.sheetLabel}>Quand ?</Text>
+              <Text style={styles.sheetLabel}>{t('nu_event_when')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }}>
                 {SCHEDULE_OPTIONS.map((opt) => (
                   <Pressable
@@ -696,12 +704,12 @@ export default function NearbyUsersScreen() {
                     style={[styles.durationBtn, eventInHours === opt.hours && styles.durationBtnActive, { marginRight: 8 }]}
                     onPress={() => setEventInHours(opt.hours)}
                   >
-                    <Text style={[styles.durationBtnText, eventInHours === opt.hours && { color: colors.brand, fontWeight: '700' }]}>{opt.label}</Text>
+                    <Text style={[styles.durationBtnText, eventInHours === opt.hours && { color: colors.brand, fontWeight: '700' }]}>{t(opt.labelKey)}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
 
-              <Text style={styles.sheetLabel}>Nombre max de participants : {eventMaxPeople}</Text>
+              <Text style={styles.sheetLabel}>{t('nu_event_max_people').replace('{n}', String(eventMaxPeople))}</Text>
               <View style={styles.durationRow}>
                 {[5, 10, 20, 50].map((n) => (
                   <Pressable
@@ -721,7 +729,7 @@ export default function NearbyUsersScreen() {
               >
                 {savingEvent
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.submitBtnText}>🎉  Publier l'événement</Text>
+                  : <Text style={styles.submitBtnText}>{t('nu_event_publish')}</Text>
                 }
               </Pressable>
             </KeyboardAvoidingView>
