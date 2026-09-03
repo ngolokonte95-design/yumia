@@ -14,6 +14,7 @@ import { feedApi, type FeedPost, type StoryGroup, type Plan } from '../../lib/fe
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PostVideo } from '../../components/PostVideo';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
+import { useI18n } from '../../lib/useI18n';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 
 const API = API_BASE_URL;
@@ -88,6 +89,7 @@ function StoriesBar({
   onCreate: () => void;
   onOpen: (userId: string) => void;
 }) {
+  const { t } = useI18n();
   const myGroup = groups.find((g) => g.user?.id === myId);
   const others = groups.filter((g) => g.user?.id !== myId);
 
@@ -114,7 +116,7 @@ function StoriesBar({
             <Text style={styles.storyPlusTxt}>+</Text>
           </Pressable>
         </View>
-        <Text style={styles.storyName} numberOfLines={1}>Votre story</Text>
+        <Text style={styles.storyName} numberOfLines={1}>{t('social_your_story')}</Text>
       </Pressable>
 
       {/* Stories des autres utilisateurs Yumia */}
@@ -386,6 +388,7 @@ function PostCard({
 // ── Écran principal ──────────────────────────────────────────────────────────
 
 export default function SocialTab() {
+  const { t } = useI18n();
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -728,11 +731,11 @@ export default function SocialTab() {
         <View style={styles.leftBtns}>
           <Pressable style={styles.reelsBtn} onPress={() => router.push('/reels' as never)}>
             <Text style={styles.reelsBtnIcon}>▶</Text>
-            <Text style={styles.reelsBtnLabel}>Reels</Text>
+            <Text style={styles.reelsBtnLabel}>{t('social_menu_reels')}</Text>
           </Pressable>
           <Pressable style={styles.memoriesBtn} onPress={() => router.push('/memories' as never)}>
             <Text style={styles.memoriesBtnIcon}>📁</Text>
-            <Text style={styles.memoriesBtnLabel}>Souvenirs</Text>
+            <Text style={styles.memoriesBtnLabel}>{t('social_menu_memories')}</Text>
           </Pressable>
         </View>
         <YumiaLogo height={88} />
@@ -754,7 +757,7 @@ export default function SocialTab() {
           </Pressable>
           <Pressable onPress={() => router.push('/discover-people')} style={[styles.headerBtn, styles.headerBtnRow]}>
             <LollipopIcon size={14} />
-            <Text style={styles.headerBtnText}>Tind</Text>
+            <Text style={styles.headerBtnText}>{t('social_menu_tind')}</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/nearby-users')} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>🗺️ Carte</Text>
@@ -769,7 +772,7 @@ export default function SocialTab() {
       <View style={styles.searchWrap}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher des utilisateurs..."
+          placeholder={t('social_search_placeholder')}
           placeholderTextColor={colors.textMuted}
           value={search}
           onChangeText={setSearch}
@@ -812,18 +815,18 @@ export default function SocialTab() {
         <>
           {/* Onglets */}
           <View style={styles.tabs}>
-            {(['foryou', 'following', 'activity', 'encounters', 'people'] as Tab[]).map((t) => (
-              <Pressable key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
-                <Text style={[styles.tabBtnText, tab === t && styles.tabBtnTextActive]}>
-                  {t === 'foryou' ? '✨ Pour vous' : t === 'following' ? '📸 Abonnements' : t === 'activity' ? '🏃 Activité' : t === 'encounters' ? '⚡ Rencontres' : '👥 Personnes'}
+            {(['foryou', 'following', 'activity', 'encounters', 'people'] as Tab[]).map((tabKey) => (
+              <Pressable key={tabKey} style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]} onPress={() => setTab(tabKey)}>
+                <Text style={[styles.tabBtnText, tab === tabKey && styles.tabBtnTextActive]}>
+                  {t(`social_tab_${tabKey}` as never)}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          {tab === 'foryou' && renderPostList(globalPosts, '✨', 'Le feed Yumia démarre ici', 'Sois le premier à publier une photo ou vidéo pour toute la communauté Yumia !', true)}
+          {tab === 'foryou' && renderPostList(globalPosts, '✨', t('social_empty_foryou_title'), t('social_empty_foryou_text'), true)}
 
-          {tab === 'following' && renderPostList(followingPosts, '📸', 'Aucune publication', 'Suis des gens pour voir leurs publications ici, ou publie ta première photo !', true)}
+          {tab === 'following' && renderPostList(followingPosts, '📸', t('social_empty_following_title'), t('social_empty_following_text'), true)}
 
           {tab === 'activity' && (
             <FlatList
@@ -850,8 +853,8 @@ export default function SocialTab() {
               ListEmptyComponent={emptyOrLoading(
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>🏃</Text>
-                  <Text style={styles.emptyTitle}>Pas d'activité</Text>
-                  <Text style={styles.emptyText}>Suis des utilisateurs pour voir ce qu'ils font.</Text>
+                  <Text style={styles.emptyTitle}>{t('social_empty_activity_title')}</Text>
+                  <Text style={styles.emptyText}>{t('social_empty_activity_text')}</Text>
                 </View>
               )}
             />
@@ -884,8 +887,8 @@ export default function SocialTab() {
               ListEmptyComponent={emptyOrLoading(
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>⚡</Text>
-                  <Text style={styles.emptyTitle}>Aucune rencontre</Text>
-                  <Text style={styles.emptyText}>Rends-toi dans des lieux pour croiser d'autres utilisateurs Yumia !</Text>
+                  <Text style={styles.emptyTitle}>{t('social_empty_encounters_title')}</Text>
+                  <Text style={styles.emptyText}>{t('social_empty_encounters_text')}</Text>
                 </View>
               )}
             />
@@ -899,8 +902,8 @@ export default function SocialTab() {
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
               ListHeaderComponent={
                 <View style={styles.peopleHeader}>
-                  <Text style={styles.peopleTitle}>Personnes à suivre</Text>
-                  <Text style={styles.peopleSubtitle}>Découvre la communauté Yumia</Text>
+                  <Text style={styles.peopleTitle}>{t('social_people_title')}</Text>
+                  <Text style={styles.peopleSubtitle}>{t('social_people_sub')}</Text>
                 </View>
               }
               renderItem={({ item }) => {
@@ -932,8 +935,8 @@ export default function SocialTab() {
               ListEmptyComponent={emptyOrLoading(
                 <View style={styles.empty}>
                   <Text style={styles.emptyEmoji}>👥</Text>
-                  <Text style={styles.emptyTitle}>Aucune suggestion</Text>
-                  <Text style={styles.emptyText}>Utilise la barre de recherche pour trouver des utilisateurs à suivre.</Text>
+                  <Text style={styles.emptyTitle}>{t('social_empty_people_title')}</Text>
+                  <Text style={styles.emptyText}>{t('social_empty_people_text')}</Text>
                 </View>
               )}
             />
@@ -950,7 +953,7 @@ export default function SocialTab() {
               data={shareConvs}
               keyExtractor={(c) => c.id}
               style={{ maxHeight: 320 }}
-              ListEmptyComponent={<Text style={styles.shareEmpty}>Aucune conversation. Va sur un profil pour en démarrer une !</Text>}
+              ListEmptyComponent={<Text style={styles.shareEmpty}>{t('social_no_conversations')}</Text>}
               renderItem={({ item: conv }) => {
                 const name = conv.isGroup ? (conv.title ?? 'Groupe') : (conv.otherUser?.displayName ?? '?');
                 return (
@@ -965,7 +968,7 @@ export default function SocialTab() {
                     <Text style={styles.shareName}>{name}</Text>
                     {shareSending === conv.id
                       ? <ActivityIndicator color={colors.brand} size="small" />
-                      : <Text style={styles.shareSendTxt}>Envoyer</Text>}
+                      : <Text style={styles.shareSendTxt}>{t('social_send')}</Text>}
                   </Pressable>
                 );
               }}
