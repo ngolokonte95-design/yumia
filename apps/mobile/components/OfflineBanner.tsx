@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../theme/tokens';
 import { useNetworkStatus } from '../lib/useNetworkStatus';
+import { useI18n } from '../lib/useI18n';
 
 export function OfflineBanner() {
+  const { t } = useI18n();
   const { isOnline, wasOffline } = useNetworkStatus();
   const { top } = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-80)).current;
@@ -37,7 +39,7 @@ export function OfflineBanner() {
 
   const bgColor = isReconnected ? colors.success : '#D32F2F';
   const icon = isReconnected ? '✓' : '✕';
-  const label = isReconnected ? 'Connexion rétablie' : 'Pas de connexion internet';
+  const label = isReconnected ? t('ob_reconnected') : t('ob_offline');
 
   return (
     <Animated.View

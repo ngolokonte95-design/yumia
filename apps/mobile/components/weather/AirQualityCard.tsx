@@ -2,6 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 import type { AirQuality } from '../../lib/services/weather';
 
 /**
@@ -9,27 +11,12 @@ import type { AirQuality } from '../../lib/services/weather';
  * suivent la norme officielle : on ne réinvente pas une échelle maison sur un
  * sujet de santé publique.
  */
-const LEVELS: Record<AirQuality['level'], { label: string; color: string; advice: string }> = {
-  good: {
-    label: 'Bonne', color: '#2BB673',
-    advice: 'Idéal pour toutes les activités extérieures.',
-  },
-  fair: {
-    label: 'Correcte', color: '#A8CF45',
-    advice: 'Aucune restriction pour la plupart des gens.',
-  },
-  moderate: {
-    label: 'Moyenne', color: '#F2B705',
-    advice: 'Les personnes sensibles peuvent limiter les efforts prolongés.',
-  },
-  poor: {
-    label: 'Mauvaise', color: '#E5484D',
-    advice: 'Réduis les activités intenses en extérieur.',
-  },
-  very_poor: {
-    label: 'Très mauvaise', color: '#8B4FD6',
-    advice: 'Privilégie les activités en intérieur.',
-  },
+const LEVELS: Record<AirQuality['level'], { labelKey: TranslationKey; color: string; adviceKey: TranslationKey }> = {
+  good: { labelKey: 'aqi_good_label', color: '#2BB673', adviceKey: 'aqi_good_advice' },
+  fair: { labelKey: 'aqi_fair_label', color: '#A8CF45', adviceKey: 'aqi_fair_advice' },
+  moderate: { labelKey: 'aqi_moderate_label', color: '#F2B705', adviceKey: 'aqi_moderate_advice' },
+  poor: { labelKey: 'aqi_poor_label', color: '#E5484D', adviceKey: 'aqi_poor_advice' },
+  very_poor: { labelKey: 'aqi_very_poor_label', color: '#8B4FD6', adviceKey: 'aqi_very_poor_advice' },
 };
 
 function Pollutant({ label, value, unit }: { label: string; value: number; unit: string }) {
@@ -44,6 +31,7 @@ function Pollutant({ label, value, unit }: { label: string; value: number; unit:
 }
 
 export function AirQualityCard({ air }: { air: AirQuality }) {
+  const { t } = useI18n();
   const level = LEVELS[air.level];
   // L'échelle sature à 100 : au-delà, la jauge reste pleine.
   const ratio = Math.min(air.index / 100, 1);
@@ -51,13 +39,13 @@ export function AirQualityCard({ air }: { air: AirQuality }) {
   return (
     <GlassCard style={styles.card} rounded={radius.lg}>
       <View style={styles.inner}>
-        <Text style={styles.title}>Qualité de l'air</Text>
+        <Text style={styles.title}>{t('aqi_title')}</Text>
 
         <View style={styles.headline}>
           <Text style={[styles.index, { color: level.color }]}>{Math.round(air.index)}</Text>
           <View style={styles.headlineText}>
-            <Text style={styles.level}>{level.label}</Text>
-            <Text style={styles.scale}>Indice européen</Text>
+            <Text style={styles.level}>{t(level.labelKey)}</Text>
+            <Text style={styles.scale}>{t('aqi_scale')}</Text>
           </View>
         </View>
 
@@ -71,7 +59,7 @@ export function AirQualityCard({ air }: { air: AirQuality }) {
           <View style={[styles.cursor, { left: `${ratio * 100}%` }]} />
         </View>
 
-        <Text style={styles.advice}>{level.advice}</Text>
+        <Text style={styles.advice}>{t(level.adviceKey)}</Text>
 
         <View style={styles.pollutants}>
           <Pollutant label="PM2.5" value={air.pm25} unit="µg/m³" />

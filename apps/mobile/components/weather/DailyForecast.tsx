@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard, Reveal } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { formatLocalWeekday, kindEmoji, type DayPoint } from '../../lib/services/weather';
+import { useI18n } from '../../lib/useI18n';
 
 /**
  * Prévisions sur 10 jours.
@@ -18,6 +19,7 @@ export function DailyForecast({
   days: DayPoint[];
   utcOffsetSeconds: number;
 }) {
+  const { t, locale } = useI18n();
   if (days.length === 0) return null;
 
   const globalMin = Math.min(...days.map((d) => d.minC));
@@ -26,7 +28,7 @@ export function DailyForecast({
 
   return (
     <GlassCard style={styles.card} rounded={radius.lg}>
-      <Text style={styles.title}>Prévisions sur 10 jours</Text>
+      <Text style={styles.title}>{t('wx_10day_title')}</Text>
 
       {days.map((day, i) => {
         const left = ((day.minC - globalMin) / span) * 100;
@@ -36,7 +38,7 @@ export function DailyForecast({
           <Reveal key={day.date} index={i} from="fade">
             <View style={styles.row}>
               <Text style={styles.day}>
-                {i === 0 ? "Auj." : formatLocalWeekday(day.date, utcOffsetSeconds)}
+                {i === 0 ? t('wx_today_short') : formatLocalWeekday(day.date, utcOffsetSeconds, locale)}
               </Text>
 
               <View style={styles.iconCol}>

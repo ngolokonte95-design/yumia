@@ -25,11 +25,17 @@ export function formatLocalHour(iso: string, utcOffsetSeconds: number): string {
   return `${pad(localParts(iso, utcOffsetSeconds).getUTCHours())}h`;
 }
 
-const WEEKDAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+const WEEKDAYS: Record<string, string[]> = {
+  fr: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  es: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+  pt: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+  ar: ['أحد', 'اثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت'],
+};
 
 /** Jour de la semaine abrégé, dans le fuseau du lieu. */
-export function formatLocalWeekday(iso: string, utcOffsetSeconds: number): string {
-  return WEEKDAYS[localParts(iso, utcOffsetSeconds).getUTCDay()];
+export function formatLocalWeekday(iso: string, utcOffsetSeconds: number, locale = 'fr'): string {
+  return (WEEKDAYS[locale] ?? WEEKDAYS.fr)[localParts(iso, utcOffsetSeconds).getUTCDay()];
 }
 
 /**
