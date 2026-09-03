@@ -25,6 +25,7 @@ import { safeMeta, placeEmoji, universeLabel } from '../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 import { useSaved } from '../lib/useSaved';
 import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
@@ -112,7 +113,7 @@ export default function PlaceScreen() {
           },
           compatibility: 0,
           distanceMeters: 0,
-          reason: '📍 Ouvert via un lien',
+          reason: t('place_opened_via_link'),
           engine: 'mood',
         };
         setDeepLinkSuggestion(s);
@@ -137,9 +138,9 @@ export default function PlaceScreen() {
     return (
       <View style={[styles.screen, { paddingTop: insets.top + spacing.lg }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Retour</Text>
+          <Text style={styles.backText}>{t('place_back')}</Text>
         </Pressable>
-        <Text style={styles.error}>Lieu introuvable.</Text>
+        <Text style={styles.error}>{t('place_not_found')}</Text>
       </View>
     );
   }
@@ -253,7 +254,7 @@ export default function PlaceScreen() {
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: 'ai', text: 'Désolé, je ne peux pas répondre pour l\'instant.' },
+        { role: 'ai', text: t('place_chat_error') },
       ]);
     } finally {
       setChatLoading(false);
@@ -359,7 +360,7 @@ export default function PlaceScreen() {
           {place.openingHours && place.openingHours.length > 0 ? (
             <View style={hoursStyles.box}>
               <Pressable style={hoursStyles.header} onPress={() => setHoursExpanded((v) => !v)}>
-                <Text style={hoursStyles.title}>🕐 Horaires d'ouverture</Text>
+                <Text style={hoursStyles.title}>{t('place_hours_title')}</Text>
                 <Text style={hoursStyles.toggle}>{hoursExpanded ? '▲' : '▼'}</Text>
               </Pressable>
               {hoursExpanded ? (
@@ -371,7 +372,7 @@ export default function PlaceScreen() {
                   return (
                     <View key={i} style={[hoursStyles.row, isToday && hoursStyles.rowToday]}>
                       <Text style={[hoursStyles.day, isToday && hoursStyles.dayToday]}>{dayName}</Text>
-                      <Text style={[hoursStyles.time, isToday && hoursStyles.timeToday]}>{formatHoursLine(timeRange)}</Text>
+                      <Text style={[hoursStyles.time, isToday && hoursStyles.timeToday]}>{formatHoursLine(timeRange, t('place_closed_word'))}</Text>
                     </View>
                   );
                 })
@@ -383,7 +384,7 @@ export default function PlaceScreen() {
                   const colonIdx = entry.indexOf(': ');
                   return (
                     <Text style={hoursStyles.todayLine}>
-                      Aujourd'hui : {formatHoursLine(colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry)}
+                      {t('place_hours_today')} {formatHoursLine(colonIdx >= 0 ? entry.slice(colonIdx + 2) : entry, t('place_closed_word'))}
                     </Text>
                   );
                 })()
@@ -399,7 +400,7 @@ export default function PlaceScreen() {
           {accessToken ? (
             <View style={reviewFormStyles.section}>
               <View style={reviewFormStyles.header}>
-                <Text style={reviewFormStyles.title}>⭐ Laisser un avis</Text>
+                <Text style={reviewFormStyles.title}>{t('place_leave_review')}</Text>
               </View>
               {reviewModal ? (
                 <View style={reviewFormStyles.form}>
@@ -413,7 +414,7 @@ export default function PlaceScreen() {
                   </View>
                   <TextInput
                     style={reviewFormStyles.input}
-                    placeholder="Décris ton expérience (optionnel)…"
+                    placeholder={t('place_review_placeholder')}
                     placeholderTextColor={colors.textMuted}
                     value={reviewBody}
                     onChangeText={setReviewBody}
@@ -422,7 +423,7 @@ export default function PlaceScreen() {
                   />
                   <View style={reviewFormStyles.formBtns}>
                     <Pressable style={reviewFormStyles.cancelBtn} onPress={() => setReviewModal(false)}>
-                      <Text style={reviewFormStyles.cancelText}>Annuler</Text>
+                      <Text style={reviewFormStyles.cancelText}>{t('place_cancel')}</Text>
                     </Pressable>
                     <Pressable
                       style={[reviewFormStyles.submitBtn, (reviewRating === 0 || reviewSubmitting) && reviewFormStyles.submitDisabled]}
@@ -444,13 +445,13 @@ export default function PlaceScreen() {
                         }
                       }}
                     >
-                      <Text style={reviewFormStyles.submitText}>{reviewSubmitting ? '…' : 'Publier'}</Text>
+                      <Text style={reviewFormStyles.submitText}>{reviewSubmitting ? '…' : t('place_publish')}</Text>
                     </Pressable>
                   </View>
                 </View>
               ) : (
                 <Pressable style={reviewFormStyles.openBtn} onPress={() => setReviewModal(true)}>
-                  <Text style={reviewFormStyles.openBtnText}>✏️ Écrire un avis</Text>
+                  <Text style={reviewFormStyles.openBtnText}>{t('place_write_review')}</Text>
                 </Pressable>
               )}
             </View>
@@ -464,13 +465,13 @@ export default function PlaceScreen() {
               style={[styles.actionBtn, isSaved && styles.actionBtnActive]}
               onPress={handleSave}
             >
-              <Text style={styles.actionText}>{isSaved ? '❤️ Sauvegardé' : '🤍 Sauvegarder'}</Text>
+              <Text style={styles.actionText}>{isSaved ? t('place_saved_btn') : t('place_save_btn')}</Text>
             </Pressable>
             <Pressable style={styles.actionBtn} onPress={handleShare}>
               <Text style={styles.actionText}>{t('place_share_btn')}</Text>
             </Pressable>
             <Pressable style={styles.actionBtn} onPress={handleOpenMaps}>
-              <Text style={styles.actionText}>🗺️ Maps</Text>
+              <Text style={styles.actionText}>{t('place_maps_btn')}</Text>
             </Pressable>
             {/* Le calendrier récupère nom, adresse et catégorie du lieu : plus
                 rien à ressaisir. La catégorie retenue dépend de l'univers. */}
@@ -484,7 +485,7 @@ export default function PlaceScreen() {
                 + `&category=${calendarCategoryFor(place.universe)}` as never,
               )}
             >
-              <Text style={styles.actionText}>🗓️ Agenda</Text>
+              <Text style={styles.actionText}>{t('place_calendar_btn')}</Text>
             </Pressable>
           </View>
 
@@ -498,7 +499,7 @@ export default function PlaceScreen() {
               onPress={() => router.push(`/guides${place.city ? `?city=${encodeURIComponent(place.city)}` : ''}` as never)}
             >
               <Text style={bizStyles.emoji}>🧭</Text>
-              <Text style={bizStyles.label}>Un guide ici</Text>
+              <Text style={bizStyles.label}>{t('place_guide_here')}</Text>
             </Pressable>
           </View>
 
@@ -508,19 +509,19 @@ export default function PlaceScreen() {
             <Pressable style={bizStyles.bookingBtn} onPress={handleBooking} disabled={bookingLoading}>
               {bookingLoading
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={bizStyles.bookingLabel}>Réserver sur {affiliateProviderLabel(affiliateProvider)}</Text>}
+                : <Text style={bizStyles.bookingLabel}>{t('place_book_on').replace('{provider}', affiliateProviderLabel(affiliateProvider))}</Text>}
             </Pressable>
           )}
 
           {accessToken ? (
             visitState === 'feedback' || visitState === 'submitting' ? (
               <View style={styles.feedbackBox}>
-                <Text style={styles.feedbackPrompt}>C'était comment ?</Text>
+                <Text style={styles.feedbackPrompt}>{t('place_feedback_prompt')}</Text>
                 <View style={styles.feedbackRow}>
                   {([
-                    { key: 'loved' as VisitFeedback, emoji: '❤️', label: 'Adoré' },
-                    { key: 'neutral' as VisitFeedback, emoji: '😐', label: 'Correct' },
-                    { key: 'disliked' as VisitFeedback, emoji: '👎', label: 'Déçu' },
+                    { key: 'loved' as VisitFeedback, emoji: '❤️', label: t('place_feedback_loved') },
+                    { key: 'neutral' as VisitFeedback, emoji: '😐', label: t('place_feedback_neutral') },
+                    { key: 'disliked' as VisitFeedback, emoji: '👎', label: t('place_feedback_disliked') },
                   ]).map((opt) => (
                     <Pressable
                       key={opt.key}
@@ -534,7 +535,7 @@ export default function PlaceScreen() {
                 </View>
                 <TextInput
                   style={styles.notesInput}
-                  placeholder="Une note personnelle… (facultatif)"
+                  placeholder={t('place_notes_placeholder')}
                   placeholderTextColor={colors.textMuted}
                   value={visitNotes}
                   onChangeText={setVisitNotes}
@@ -549,7 +550,7 @@ export default function PlaceScreen() {
                 >
                   {visitState === 'submitting'
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={styles.confirmVisitText}>✓ Enregistrer ma visite</Text>
+                    : <Text style={styles.confirmVisitText}>{t('place_confirm_visit')}</Text>
                   }
                 </Pressable>
               </View>
@@ -576,7 +577,7 @@ export default function PlaceScreen() {
                 <ActivityIndicator color={colors.brand} size="small" />
               ) : (
                 <Text style={styles.photoUploadText}>
-                  {uploadSuccess ? '✅ Photo ajoutée !' : '📷 Ajouter une photo'}
+                  {uploadSuccess ? t('place_photo_added') : t('place_add_photo')}
                 </Text>
               )}
             </Pressable>
@@ -639,7 +640,7 @@ export default function PlaceScreen() {
           ) : (
             /* Suggestions rapides quand le chat est vide */
             <View style={styles.suggestions}>
-              {buildSuggestions(place.name, universeLabel(t, place.universe)).map((q) => (
+              {buildSuggestions(t, place.name, universeLabel(t, place.universe)).map((q) => (
                 <Pressable
                   key={q}
                   style={styles.suggestionChip}
@@ -677,15 +678,16 @@ export default function PlaceScreen() {
 }
 
 function CommunityReviews({ stats }: { stats: { loved: number; neutral: number; disliked: number; total: number } }) {
+  const { t } = useI18n();
   const pct = (n: number) => Math.round((n / stats.total) * 100);
   return (
     <View style={reviewStyles.box}>
-      <Text style={reviewStyles.title}>👥 Avis de la communauté</Text>
-      <Text style={reviewStyles.count}>{stats.total} avis</Text>
+      <Text style={reviewStyles.title}>{t('place_community_reviews')}</Text>
+      <Text style={reviewStyles.count}>{t('place_reviews_count').replace('{n}', String(stats.total))}</Text>
       {([
-        { key: 'loved', emoji: '❤️', label: 'Adoré', value: stats.loved },
-        { key: 'neutral', emoji: '😐', label: 'Correct', value: stats.neutral },
-        { key: 'disliked', emoji: '👎', label: 'Déçu', value: stats.disliked },
+        { key: 'loved', emoji: '❤️', label: t('place_feedback_loved'), value: stats.loved },
+        { key: 'neutral', emoji: '😐', label: t('place_feedback_neutral'), value: stats.neutral },
+        { key: 'disliked', emoji: '👎', label: t('place_feedback_disliked'), value: stats.disliked },
       ] as const).map(({ emoji, label, value, key }) => (
         <View key={key} style={reviewStyles.row}>
           <Text style={reviewStyles.emoji}>{emoji}</Text>
@@ -744,6 +746,7 @@ function SimilarPlaces({
   universe: Universe;
   onOpen: (np: NearbyPlace) => void;
 }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<NearbyPlace[]>([]);
   useEffect(() => {
     let active = true;
@@ -756,7 +759,7 @@ function SimilarPlaces({
   if (items.length === 0) return null;
   return (
     <View style={similarStyles.wrap}>
-      <Text style={similarStyles.title}>Dans le même esprit</Text>
+      <Text style={similarStyles.title}>{t('place_similar_title')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={similarStyles.row}>
         {items.map((p) => (
           <Pressable key={p.id} style={similarStyles.card} onPress={() => onOpen(p)}>
@@ -827,8 +830,8 @@ function formatDistance(m: number): string {
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
 }
 
-function formatHoursLine(line: string): string {
-  if (/closed/i.test(line)) return line.replace(/closed/i, 'Fermé');
+function formatHoursLine(line: string, closedWord: string): string {
+  if (/closed/i.test(line)) return line.replace(/closed/i, closedWord);
   return line.replace(/(\d{1,2}):(\d{2})\s*(AM|PM)/gi, (_, h, min, period) => {
     let hour = parseInt(h, 10);
     if (period.toUpperCase() === 'PM' && hour !== 12) hour += 12;
@@ -837,11 +840,11 @@ function formatHoursLine(line: string): string {
   });
 }
 
-function buildSuggestions(name: string, universeLabel: string): string[] {
+function buildSuggestions(t: (key: TranslationKey) => string, name: string, universeLabel: string): string[] {
   return [
-    `C'est quoi l'ambiance à ${name} ?`,
-    `Quel est le meilleur moment pour y aller ?`,
-    `Des conseils pour ma visite ${universeLabel.toLowerCase()} ?`,
+    t('place_suggestion_vibe').replace('{name}', name),
+    t('place_suggestion_best_time'),
+    t('place_suggestion_tips').replace('{universe}', universeLabel.toLowerCase()),
   ];
 }
 
