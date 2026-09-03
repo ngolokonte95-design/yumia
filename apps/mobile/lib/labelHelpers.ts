@@ -60,3 +60,10 @@ export function weatherKindLabel(t: T, kind: string, fallbackFr: string): string
   const translated = t(key);
   return translated === key ? fallbackFr : translated;
 }
+
+/** Catégorie d'événement calendrier — libellé traduit. */
+export function calendarCategoryLabel(t: T, category: string, fallbackFr: string): string {
+  const key = `calendar_cat_${category}` as TranslationKey;
+  const translated = t(key);
+  return translated === key ? fallbackFr : translated;
+}

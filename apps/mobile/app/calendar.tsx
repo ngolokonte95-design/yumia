@@ -18,6 +18,8 @@ import {
   addMonths, dayKey, formatEventTime, formatLongDate, isForeignTimezone,
   isSameDay, monthRange, MONTHS,
 } from '../lib/calendar-format';
+import { useI18n } from '../lib/useI18n';
+import { calendarCategoryLabel } from '../lib/labelHelpers';
 
 /**
  * Calendrier Yumia.
@@ -32,6 +34,7 @@ export default function CalendarScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const params = useLocalSearchParams<{
     title?: string; placeId?: string; placeName?: string; address?: string; category?: string;
   }>();
@@ -101,17 +104,17 @@ export default function CalendarScreen() {
 
     // Sur une série, supprimer tout serait destructeur : on propose les deux.
     if (event.recurring) {
-      Alert.alert('Supprimer', 'Cet événement se répète.', [
-        { text: 'Annuler', style: 'cancel' },
+      Alert.alert(t('calendar_delete_series_title'), t('calendar_delete_series_body'), [
+        { text: t('calendar_cancel'), style: 'cancel' },
         {
-          text: 'Cette occurrence',
+          text: t('calendar_this_occurrence'),
           onPress: async () => {
             await calendarApi.removeOccurrence(accessToken, event.id, event.startAt);
             setEditorOpen(false); setEditing(null); void load();
           },
         },
         {
-          text: 'Toute la série',
+          text: t('calendar_whole_series'),
           style: 'destructive',
           onPress: async () => {
             await calendarApi.remove(accessToken, event.id);
@@ -122,10 +125,10 @@ export default function CalendarScreen() {
       return;
     }
 
-    Alert.alert('Supprimer l\'événement ?', event.title, [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('calendar_delete_event_title'), event.title, [
+      { text: t('calendar_cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('calendar_delete'),
         style: 'destructive',
         onPress: async () => {
           await calendarApi.remove(accessToken, event.id);
@@ -165,7 +168,7 @@ export default function CalendarScreen() {
         onPress={() => { const now = new Date(); setMonth(now); setSelected(now); }}
         style={styles.todayBtn}
       >
-        <Text style={styles.todayTxt}>Aujourd'hui</Text>
+        <Text style={styles.todayTxt}>{t('calendar_today')}</Text>
       </PressableScale>
 
       <MonthGrid
@@ -180,7 +183,7 @@ export default function CalendarScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.agendaTitle}>{formatLongDate(selected)}</Text>
             <Text style={styles.agendaCount}>
-              {dayEvents.length === 0 ? 'Rien de prévu' : `${dayEvents.length} événement${dayEvents.length > 1 ? 's' : ''}`}
+              {dayEvents.length === 0 ? t('calendar_nothing_planned') : t('calendar_events_count').replace('{n}', String(dayEvents.length)).replace('{s}', dayEvents.length > 1 ? 's' : '')}
             </Text>
           </View>
           {/* Passerelle vers le bloc-notes : les notes de la journée se
@@ -189,7 +192,7 @@ export default function CalendarScreen() {
             onPress={() => router.push(`/notebook?date=${dayKey(selected)}` as never)}
             style={styles.notesBtn}
           >
-            <Text style={styles.notesBtnTxt}>📝 Notes du jour</Text>
+            <Text style={styles.notesBtnTxt}>{t('calendar_notes_of_day')}</Text>
           </PressableScale>
         </View>
       </View>
@@ -206,7 +209,7 @@ export default function CalendarScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🗓️</Text>
               <Text style={styles.emptyTxt}>
-                Aucun événement ce jour-là.{'\n'}Appuie sur ＋ pour en ajouter un.
+                {t('calendar_empty_events')}
               </Text>
             </View>
           }
@@ -234,6 +237,7 @@ export default function CalendarScreen() {
 }
 
 function EventRow({ event, onPress }: { event: CalendarEvent; onPress: () => void }) {
+  const { t } = useI18n();
   const meta = CATEGORY_META[event.category as EventCategory] ?? CATEGORY_META.personal;
   const foreign = isForeignTimezone(event.timezone);
 
@@ -245,7 +249,7 @@ function EventRow({ event, onPress }: { event: CalendarEvent; onPress: () => voi
 
           <View style={styles.rowTime}>
             {event.allDay ? (
-              <Text style={styles.allDay}>Journée</Text>
+              <Text style={styles.allDay}>{t('calendar_all_day')}</Text>
             ) : (
               <>
                 <Text style={styles.startTime}>
@@ -263,14 +267,14 @@ function EventRow({ event, onPress }: { event: CalendarEvent; onPress: () => voi
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle} numberOfLines={1}>{event.title}</Text>
             <Text style={styles.rowMeta} numberOfLines={1}>
-              {meta.emoji} {meta.label}
+              {meta.emoji} {calendarCategoryLabel(t, event.category, meta.label)}
               {event.placeName ? ` · ${event.placeName}` : ''}
-              {event.recurring ? ' · ↻' : ''}
+              {event.recurring ? t('calendar_recurring_suffix') : ''}
             </Text>
             {/* Signalé explicitement : sinon l'heure affichée semblerait fausse
                 à qui consulte depuis un autre fuseau. */}
             {foreign && (
-              <Text style={styles.tz}>🌍 heure de {event.timezone.split('/').pop()}</Text>
+              <Text style={styles.tz}>{t('calendar_timezone_hour').replace('{tz}', event.timezone.split('/').pop() ?? '')}</Text>
             )}
           </View>
         </View>

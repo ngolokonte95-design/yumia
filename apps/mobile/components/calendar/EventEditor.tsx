@@ -9,21 +9,24 @@ import {
   type CalendarEvent, type EventCategory, type EventDraft,
 } from '../../lib/calendar-api';
 import { addDays, formatLongDate, MONTHS } from '../../lib/calendar-format';
+import { useI18n } from '../../lib/useI18n';
+import { calendarCategoryLabel } from '../../lib/labelHelpers';
+import type { TranslationKey } from '../../lib/translations';
 
 /** Récurrences proposées — le sous-ensemble réellement utilisé. */
-const REPEATS: { label: string; rrule: string | null }[] = [
-  { label: 'Jamais', rrule: null },
-  { label: 'Chaque jour', rrule: 'FREQ=DAILY' },
-  { label: 'Chaque semaine', rrule: 'FREQ=WEEKLY' },
-  { label: 'Chaque mois', rrule: 'FREQ=MONTHLY' },
-  { label: 'Chaque année', rrule: 'FREQ=YEARLY' },
+const REPEATS: { labelKey: TranslationKey; rrule: string | null }[] = [
+  { labelKey: 'ee_repeat_never', rrule: null },
+  { labelKey: 'ee_repeat_daily', rrule: 'FREQ=DAILY' },
+  { labelKey: 'ee_repeat_weekly', rrule: 'FREQ=WEEKLY' },
+  { labelKey: 'ee_repeat_monthly', rrule: 'FREQ=MONTHLY' },
+  { labelKey: 'ee_repeat_yearly', rrule: 'FREQ=YEARLY' },
 ];
 
-const REMINDERS: { label: string; minutes: number | null }[] = [
-  { label: 'Aucun', minutes: null },
-  { label: '15 min', minutes: 15 },
-  { label: '1 h', minutes: 60 },
-  { label: '1 jour', minutes: 1440 },
+const REMINDERS: { labelKey: TranslationKey; minutes: number | null }[] = [
+  { labelKey: 'ee_reminder_none', minutes: null },
+  { labelKey: 'ee_reminder_15min', minutes: 15 },
+  { labelKey: 'ee_reminder_1h', minutes: 60 },
+  { labelKey: 'ee_reminder_1day', minutes: 1440 },
 ];
 
 /**
@@ -99,6 +102,7 @@ export function EventEditor({
   onSave: (draft: EventDraft) => void;
   onDelete?: (event: CalendarEvent) => void;
 }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [category, setCategory] = useState<EventCategory>('personal');
@@ -168,10 +172,10 @@ export function EventEditor({
 
           <View style={styles.sheetHeader}>
             <PressableScale onPress={onClose} hitSlop={10}>
-              <Text style={styles.cancel}>Annuler</Text>
+              <Text style={styles.cancel}>{t('ee_cancel')}</Text>
             </PressableScale>
             <Text style={styles.sheetTitle}>
-              {initial ? 'Modifier' : 'Nouvel événement'}
+              {initial ? t('ee_modify') : t('ee_new_event')}
             </Text>
             <PressableScale onPress={submit} hitSlop={10} disabled={!title.trim()}>
               <Text style={[styles.save, !title.trim() && styles.saveDisabled]}>OK</Text>
@@ -181,7 +185,7 @@ export function EventEditor({
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <TextInput
               style={styles.titleInput}
-              placeholder="Titre"
+              placeholder={t('ee_title_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={title}
               onChangeText={setTitle}
@@ -204,7 +208,7 @@ export function EventEditor({
                       active && { backgroundColor: meta.color, borderColor: meta.color },
                     ]}>
                       <Text style={[styles.catTxt, active && styles.catTxtActive]}>
-                        {meta.emoji} {meta.label}
+                        {meta.emoji} {calendarCategoryLabel(t, c, meta.label)}
                       </Text>
                     </View>
                   </PressableScale>
@@ -212,12 +216,12 @@ export function EventEditor({
               })}
             </ScrollView>
 
-            <Field label="Date">
+            <Field label={t('ee_field_date')}>
               <DayPicker value={start} onChange={setStart} />
             </Field>
 
             <View style={styles.switchRow}>
-              <Text style={styles.fieldLabel}>Journée entière</Text>
+              <Text style={styles.fieldLabel}>{t('ee_all_day')}</Text>
               <Switch
                 value={allDay}
                 onValueChange={setAllDay}
@@ -227,16 +231,16 @@ export function EventEditor({
 
             {!allDay && (
               <>
-                <Field label="Début">
+                <Field label={t('ee_field_start')}>
                   <TimeStepper value={start} onChange={setStart} />
                 </Field>
-                <Field label="Durée">
+                <Field label={t('ee_field_duration')}>
                   <View style={styles.chipRow}>
                     {[30, 60, 120, 180].map((m) => (
                       <PressableScale key={m} scaleTo={0.94} onPress={() => setDurationMin(m)}>
                         <View style={[styles.chip, durationMin === m && styles.chipActive]}>
                           <Text style={[styles.chipTxt, durationMin === m && styles.chipTxtActive]}>
-                            {m < 60 ? `${m} min` : `${m / 60} h`}
+                            {m < 60 ? t('ee_min_short').replace('{n}', String(m)) : t('ee_hour_short').replace('{n}', String(m / 60))}
                           </Text>
                         </View>
                       </PressableScale>
@@ -246,13 +250,13 @@ export function EventEditor({
               </>
             )}
 
-            <Field label="Répéter">
+            <Field label={t('ee_field_repeat')}>
               <View style={styles.chipRow}>
                 {REPEATS.map((r) => (
-                  <PressableScale key={r.label} scaleTo={0.94} onPress={() => setRrule(r.rrule)}>
+                  <PressableScale key={r.labelKey} scaleTo={0.94} onPress={() => setRrule(r.rrule)}>
                     <View style={[styles.chip, rrule === r.rrule && styles.chipActive]}>
                       <Text style={[styles.chipTxt, rrule === r.rrule && styles.chipTxtActive]}>
-                        {r.label}
+                        {t(r.labelKey)}
                       </Text>
                     </View>
                   </PressableScale>
@@ -260,13 +264,13 @@ export function EventEditor({
               </View>
             </Field>
 
-            <Field label="Rappel">
+            <Field label={t('ee_field_reminder')}>
               <View style={styles.chipRow}>
                 {REMINDERS.map((r) => (
-                  <PressableScale key={r.label} scaleTo={0.94} onPress={() => setReminder(r.minutes)}>
+                  <PressableScale key={r.labelKey} scaleTo={0.94} onPress={() => setReminder(r.minutes)}>
                     <View style={[styles.chip, reminder === r.minutes && styles.chipActive]}>
                       <Text style={[styles.chipTxt, reminder === r.minutes && styles.chipTxtActive]}>
-                        {r.label}
+                        {t(r.labelKey)}
                       </Text>
                     </View>
                   </PressableScale>
@@ -274,10 +278,10 @@ export function EventEditor({
               </View>
             </Field>
 
-            <Field label="Notes">
+            <Field label={t('ee_field_notes')}>
               <TextInput
                 style={styles.notesInput}
-                placeholder="Ajouter une note…"
+                placeholder={t('ee_notes_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={notes}
                 onChangeText={setNotes}
@@ -288,7 +292,7 @@ export function EventEditor({
             {initial && onDelete && (
               <PressableScale onPress={() => onDelete(initial)} style={styles.deleteBtn}>
                 <Text style={styles.deleteTxt}>
-                  {initial.recurring ? 'Supprimer cette occurrence' : 'Supprimer l\'événement'}
+                  {initial.recurring ? t('ee_delete_occurrence') : t('ee_delete_event')}
                 </Text>
               </PressableScale>
             )}
