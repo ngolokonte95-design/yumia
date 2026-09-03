@@ -139,8 +139,8 @@ function UniverseStep({
         showsVerticalScrollIndicator={false}
       >
         {UNIVERSE_CATEGORIES.map((cat) => (
-          <View key={cat.label}>
-            <Text style={styles.catLabel}>{cat.emoji} {cat.label}</Text>
+          <View key={cat.key}>
+            <Text style={styles.catLabel}>{cat.emoji} {t(`category_${cat.key}` as never)}</Text>
             <View style={styles.grid}>
               {cat.universes.map((key) => {
                 const meta = UNIVERSE_META[key];

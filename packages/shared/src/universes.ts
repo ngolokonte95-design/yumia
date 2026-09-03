@@ -292,6 +292,8 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
 export const isUniverse = (v: string): v is Universe => (UNIVERSES as readonly string[]).includes(v);
 
 export interface UniverseCategory {
+  /** Clé stable pour la traduction (catégorie_<key> dans translations.ts) — indépendante du libellé FR. */
+  key: string;
   label: string;
   emoji: string;
   universes: Universe[];
@@ -299,56 +301,67 @@ export interface UniverseCategory {
 
 export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
   {
+    key: 'food',
     label: 'Manger & Boire',
     emoji: '🍽️',
     universes: ['restaurant', 'cafe', 'bakery', 'brunch', 'juice_bar', 'food_truck', 'dessert', 'ice_cream', 'chocolatier', 'wine_cellar', 'tea_house', 'butcher'],
   },
   {
+    key: 'nightlife',
     label: 'Bars & Soirées',
     emoji: '🍹',
     universes: ['bar', 'pub', 'nightclub', 'hookah', 'live_music', 'rooftop', 'karaoke', 'comedy_club'],
   },
   {
+    key: 'culture',
     label: 'Culture & Tourisme',
     emoji: '🎭',
     universes: ['cinema', 'museum', 'monument', 'tourist_activity', 'cultural_outing', 'amusement_park', 'zoo', 'photo_spot', 'place_of_worship', 'library', 'travel_agency', 'theater'],
   },
   {
+    key: 'sport',
     label: 'Sport & Loisirs',
     emoji: '🏃',
     universes: ['fitness', 'gym', 'aquatic', 'jetski', 'quad', 'escape_game', 'laser_game', 'karting', 'bowling', 'casino', 'skatepark', 'shooting'],
   },
   {
+    key: 'nature',
     label: 'Nature & Plein air',
     emoji: '🌿',
     universes: ['park', 'beach', 'hiking', 'natural_site', 'waterspot', 'camping', 'botanical_garden', 'picnic_area'],
   },
   {
+    key: 'wellness',
     label: 'Bien-être & Beauté',
     emoji: '🧖',
     universes: ['spa', 'massage', 'esthetics', 'yoga_studio', 'tanning_studio', 'makeup_studio', 'hair_salon', 'barber', 'nail_salon', 'lash_studio', 'tattoo', 'florist'],
   },
   {
+    key: 'shopping',
     label: 'Shopping & Commerce',
     emoji: '🛍️',
     universes: ['shopping', 'mall', 'supermarket', 'grocery_store', 'luxury_store', 'lingerie', 'vintage_store', 'bookstore', 'jewelry', 'perfume_cosmetics', 'pet_store', 'sporting_goods'],
   },
   {
+    key: 'health',
     label: 'Santé',
     emoji: '🩺',
     universes: ['pharmacy', 'doctor', 'hospital', 'mental_health', 'laboratory', 'alternative_medicine', 'vet', 'optician'],
   },
   {
+    key: 'transport',
     label: 'Transport & Hébergement',
     emoji: '🚕',
     universes: ['hotel', 'campground', 'port', 'airport', 'parking', 'taxi_vtc', 'gare', 'car_rental'],
   },
   {
+    key: 'services',
     label: 'Services du quotidien',
     emoji: '🏧',
     universes: ['atm', 'bank', 'currency_exchange', 'money_transfer', 'locksmith', 'phone_repair', 'post_office', 'fuel', 'laundry', 'coworking', 'tobacco', 'cannabis'],
   },
   {
+    key: 'auto',
     label: 'Automobile',
     emoji: '🔧',
     universes: ['garage', 'car_wash', 'car_dealership', 'tire_shop', 'motorcycle', 'ev_charging', 'auto_parts', 'car_inspection'],
@@ -356,6 +369,7 @@ export const UNIVERSE_CATEGORIES: UniverseCategory[] = [
   {
     // Les lieux de culte et bibliothèques sont passés dans « Culture & Tourisme » :
     // ce groupe ne porte plus que le reste, d'où le libellé et l'emoji neutres.
+    key: 'other',
     label: 'Autres',
     emoji: '📍',
     universes: ['police', 'event_venue', 'city_hall', 'fire_station'],

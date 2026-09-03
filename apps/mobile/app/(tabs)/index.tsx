@@ -123,7 +123,7 @@ export default function HomeScreen() {
           {FEATURE_SHORTCUTS.map((s) => (
             <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
               <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
-              <Text style={styles.shortcutLabel} numberOfLines={1}>{s.label}</Text>
+              <Text style={styles.shortcutLabel} numberOfLines={1}>{t(`home_shortcut_${s.key}` as never)}</Text>
             </Pressable>
           ))}
         </View>
@@ -141,7 +141,7 @@ export default function HomeScreen() {
               onPress={() => router.push(`/itinerary?mood=${m.mood}` as never)}
             >
               <Text style={styles.modeEmoji}>{m.emoji}</Text>
-              <Text style={styles.modeLabel} numberOfLines={1}>{m.label}</Text>
+              <Text style={styles.modeLabel} numberOfLines={1}>{t(`home_mode_${m.key}` as never)}</Text>
             </Pressable>
           ))}
         </View>
@@ -149,8 +149,8 @@ export default function HomeScreen() {
 
       {/* Tous les univers — groupés par catégorie */}
       {UNIVERSE_CATEGORIES.map((cat) => (
-        <View key={cat.label} style={styles.section}>
-          <Text style={styles.sectionTitle}>{cat.emoji} {cat.label}</Text>
+        <View key={cat.key} style={styles.section}>
+          <Text style={styles.sectionTitle}>{cat.emoji} {t(`category_${cat.key}` as never)}</Text>
           <View style={styles.universeGrid}>
             {cat.universes.map((u) => (
               <Pressable key={u} style={styles.universeCard} onPress={() => router.push(universeRoute(u) as never)}>

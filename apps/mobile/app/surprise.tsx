@@ -225,8 +225,8 @@ export default function SurpriseScreen() {
               </Pressable>
 
               {UNIVERSE_CATEGORIES.map((cat) => (
-                <View key={cat.label} style={styles.categoryBlock}>
-                  <Text style={styles.categoryLabel}>{cat.emoji} {cat.label}</Text>
+                <View key={cat.key} style={styles.categoryBlock}>
+                  <Text style={styles.categoryLabel}>{cat.emoji} {t(`category_${cat.key}` as never)}</Text>
                   {cat.universes.map((u) => (
                     <Pressable
                       key={u}

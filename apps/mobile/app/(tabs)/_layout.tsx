@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
+import { useI18n } from '../../lib/useI18n';
 
 const SOCIAL_TAB_ICON = require('../../assets/social-tab-icon.png');
 
@@ -57,6 +58,7 @@ function SocialTabIcon({ focused }: { focused: boolean }) {
 }
 
 export default function TabsLayout() {
+  const { t } = useI18n();
   const unreadCount = useUnreadNotificationsCount();
   const insets = useSafeAreaInsets();
 
@@ -93,32 +95,32 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Home', tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
+        options={{ title: t('tab_home'), tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
       />
       <Tabs.Screen
         name="map"
-        options={{ title: 'Carte', tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} /> }}
+        options={{ title: t('tab_map'), tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} /> }}
       />
       <Tabs.Screen
         name="explorer"
-        options={{ title: 'Explorer', tabBarIcon: ({ focused }) => <TabIcon emoji="🧭" focused={focused} /> }}
+        options={{ title: t('tab_explorer'), tabBarIcon: ({ focused }) => <TabIcon emoji="🧭" focused={focused} /> }}
       />
       <Tabs.Screen
         name="social"
-        options={{ title: 'Social', tabBarIcon: ({ focused }) => <SocialTabIcon focused={focused} /> }}
+        options={{ title: t('tab_social'), tabBarIcon: ({ focused }) => <SocialTabIcon focused={focused} /> }}
       />
       <Tabs.Screen
         name="foryou"
-        options={{ title: 'For You', tabBarIcon: ({ focused }) => <TabIcon emoji="✨" focused={focused} /> }}
+        options={{ title: t('tab_foryou'), tabBarIcon: ({ focused }) => <TabIcon emoji="✨" focused={focused} /> }}
       />
       <Tabs.Screen
         name="passport"
-        options={{ title: 'Passeport', tabBarIcon: ({ focused }) => <TabIcon emoji="🎒" focused={focused} /> }}
+        options={{ title: t('tab_passport'), tabBarIcon: ({ focused }) => <TabIcon emoji="🎒" focused={focused} /> }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
+          title: t('tab_profile'),
           tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} badge={unreadCount} />,
         }}
       />
