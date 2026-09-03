@@ -11,6 +11,7 @@ import { API_BASE_URL } from '../../lib/config';
 import { feedApi, type FeedPost, type StoryHighlight, type Plan } from '../../lib/feed-api';
 import { VideoThumb } from '../../components/VideoThumb';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
+import { useI18n } from '../../lib/useI18n';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
@@ -35,6 +36,7 @@ export default function UserProfileScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -72,20 +74,23 @@ export default function UserProfileScreen() {
     if (!accessToken || !id) return;
     await fetch(`${API}/social/${action}/${id}`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
     if (action === 'block') {
-      Alert.alert('Compte bloqué', 'Vous ne verrez plus ses contenus et il ne peut plus vous contacter.');
+      Alert.alert(t('up_blocked_title'), t('up_blocked_body'));
       router.back();
     } else if (action === 'restrict') {
-      Alert.alert('Compte restreint', 'Ses commentaires ne seront visibles que par lui.');
+      Alert.alert(t('up_restricted_title'), t('up_restricted_body'));
     } else {
-      Alert.alert('Compte masqué', 'Vous ne verrez plus ses posts ni ses stories.');
+      Alert.alert(t('up_muted_title'), t('up_muted_body'));
     }
   };
 
   const report = () => {
     setShowMenu(false);
     if (!accessToken || !id) return;
-    const reasons = ['Spam', 'Contenu inapproprié', 'Harcèlement', 'Fausse information', 'Autre'];
-    Alert.alert('Signaler ce compte', 'Pourquoi signalez-vous ce compte ?',
+    const reasons = [
+      t('up_report_spam'), t('up_report_inappropriate'), t('up_report_harassment'),
+      t('up_report_false_info'), t('up_report_other'),
+    ];
+    Alert.alert(t('up_report_title'), t('up_report_why'),
       [
         ...reasons.map((reason) => ({
           text: reason,
@@ -95,17 +100,17 @@ export default function UserProfileScreen() {
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
               body: JSON.stringify({ targetType: 'user', targetId: id, reason }),
             });
-            Alert.alert('Merci', 'Votre signalement a bien été envoyé.');
+            Alert.alert(t('up_report_thanks_title'), t('up_report_thanks_body'));
           },
         })),
-        { text: 'Annuler', style: 'cancel' as const },
+        { text: t('up_cancel'), style: 'cancel' as const },
       ],
     );
   };
 
   const copyProfileLink = () => {
     setShowMenu(false);
-    void Share.share({ message: `Découvre ${profile?.displayName ?? 'ce profil'} sur Yumia 🌍 yumia://user/${id}` });
+    void Share.share({ message: t('up_share_profile_message').replace('{name}', profile?.displayName ?? t('up_this_profile')).replace('{id}', String(id)) });
   };
 
   const toggleFollow = async () => {
@@ -143,7 +148,7 @@ export default function UserProfileScreen() {
   if (!profile) {
     return (
       <View style={[styles.center, { paddingTop: insets.top, backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.textMuted, fontSize: 15 }}>Utilisateur introuvable</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 15 }}>{t('up_user_not_found')}</Text>
       </View>
     );
   }
@@ -185,15 +190,15 @@ export default function UserProfileScreen() {
         <View style={styles.statsArea}>
           <Pressable style={styles.stat}>
             <Text style={styles.statNum}>{posts.filter((p) => !p.isReel).length}</Text>
-            <Text style={styles.statLabel}>Publications</Text>
+            <Text style={styles.statLabel}>{t('up_publications')}</Text>
           </Pressable>
           <Pressable style={styles.stat} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'followers' } } as never)}>
             <Text style={styles.statNum}>{profile.followersCount}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
+            <Text style={styles.statLabel}>{t('up_followers')}</Text>
           </Pressable>
           <Pressable style={styles.stat} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'following' } } as never)}>
             <Text style={styles.statNum}>{profile.followingCount}</Text>
-            <Text style={styles.statLabel}>Suivi(e)s</Text>
+            <Text style={styles.statLabel}>{t('up_following')}</Text>
           </Pressable>
         </View>
       </View>
@@ -205,7 +210,7 @@ export default function UserProfileScreen() {
           <PlanBadgeIcon plan={profile.plan} size={42} />
         </View>
         {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
-        <Text style={styles.levelBadge}>✨ Niv. {profile.level} · {profile.totalXp} XP</Text>
+        <Text style={styles.levelBadge}>{t('up_level_xp').replace('{level}', String(profile.level)).replace('{xp}', String(profile.totalXp))}</Text>
       </View>
 
       {/* ── Boutons d'action ──────────────────────────────────────────────── */}
@@ -213,10 +218,10 @@ export default function UserProfileScreen() {
         {isMe ? (
           <>
             <Pressable style={styles.actionBtn} onPress={() => router.push('/edit-social-profile' as never)}>
-              <Text style={styles.actionBtnTxt}>Modifier le profil</Text>
+              <Text style={styles.actionBtnTxt}>{t('up_edit_profile')}</Text>
             </Pressable>
             <Pressable style={styles.actionBtn} onPress={() => {}}>
-              <Text style={styles.actionBtnTxt}>Partager le profil</Text>
+              <Text style={styles.actionBtnTxt}>{t('up_share_profile')}</Text>
             </Pressable>
             <Pressable style={styles.actionIconBtn}>
               <Text style={styles.actionIconTxt}>👤</Text>
@@ -229,11 +234,11 @@ export default function UserProfileScreen() {
               onPress={toggleFollow}
             >
               <Text style={[styles.actionBtnTxt, following ? styles.actionBtnTxtSecondary : styles.actionBtnTxtPrimary]}>
-                {following ? 'Abonné(e)' : 'Suivre'}
+                {following ? t('up_followed') : t('up_follow')}
               </Text>
             </Pressable>
             <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={openChat}>
-              <Text style={[styles.actionBtnTxt, styles.actionBtnTxtSecondary]}>Message</Text>
+              <Text style={[styles.actionBtnTxt, styles.actionBtnTxtSecondary]}>{t('up_message')}</Text>
             </Pressable>
             <Pressable style={styles.actionIconBtn} onPress={() => setShowMenu(true)}>
               <Text style={styles.actionIconTxt}>⋯</Text>
@@ -250,7 +255,7 @@ export default function UserProfileScreen() {
               <View style={[styles.hlBubble, styles.hlBubbleAdd]}>
                 <Text style={styles.hlAddIcon}>+</Text>
               </View>
-              <Text style={styles.hlLabel} numberOfLines={1}>Nouveau</Text>
+              <Text style={styles.hlLabel} numberOfLines={1}>{t('up_new_highlight')}</Text>
             </Pressable>
           )}
           {highlights.map((hl) => (
@@ -268,10 +273,10 @@ export default function UserProfileScreen() {
 
       {/* ── Onglets ────────────────────────────────────────────────────────── */}
       <View style={styles.tabRow}>
-        {TABS.map((t) => (
-          <Pressable key={t.id} style={styles.tabBtn} onPress={() => setActiveTab(t.id)}>
-            <Text style={[styles.tabIcon, activeTab === t.id && styles.tabIconActive]}>{t.icon}</Text>
-            {activeTab === t.id && <View style={styles.tabUnderline} />}
+        {TABS.map((tabDef) => (
+          <Pressable key={tabDef.id} style={styles.tabBtn} onPress={() => setActiveTab(tabDef.id)}>
+            <Text style={[styles.tabIcon, activeTab === tabDef.id && styles.tabIconActive]}>{tabDef.icon}</Text>
+            {activeTab === tabDef.id && <View style={styles.tabUnderline} />}
           </Pressable>
         ))}
       </View>
@@ -334,10 +339,10 @@ export default function UserProfileScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>📷</Text>
-            <Text style={styles.emptyTitle}>Aucune publication</Text>
+            <Text style={styles.emptyTitle}>{t('up_empty_posts')}</Text>
             {isMe && (
               <Pressable style={styles.emptyBtn} onPress={() => router.push('/camera' as never)}>
-                <Text style={styles.emptyBtnTxt}>Publier une photo</Text>
+                <Text style={styles.emptyBtnTxt}>{t('up_publish_photo')}</Text>
               </Pressable>
             )}
           </View>
@@ -369,18 +374,18 @@ export default function UserProfileScreen() {
         <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
           <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 8 }]}>
             {[
-              { label: '🙈 Masquer ses posts/stories', onPress: () => void moderate('mute') },
-              { label: '🔕 Restreindre', onPress: () => void moderate('restrict') },
-              { label: '🚫 Bloquer', onPress: () => void moderate('block') },
-              { label: '⚠️ Signaler', onPress: report },
-              { label: '🔗 Partager le profil', onPress: copyProfileLink },
+              { label: t('up_menu_mute'), onPress: () => void moderate('mute') },
+              { label: t('up_menu_restrict'), onPress: () => void moderate('restrict') },
+              { label: t('up_menu_block'), onPress: () => void moderate('block') },
+              { label: t('up_menu_report'), onPress: report },
+              { label: t('up_menu_share'), onPress: copyProfileLink },
             ].map((item) => (
               <Pressable key={item.label} style={styles.menuItem} onPress={item.onPress}>
                 <Text style={styles.menuItemTxt}>{item.label}</Text>
               </Pressable>
             ))}
             <Pressable style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 }]} onPress={() => setShowMenu(false)}>
-              <Text style={[styles.menuItemTxt, { color: colors.textMuted }]}>Annuler</Text>
+              <Text style={[styles.menuItemTxt, { color: colors.textMuted }]}>{t('up_cancel')}</Text>
             </Pressable>
           </View>
         </Pressable>
