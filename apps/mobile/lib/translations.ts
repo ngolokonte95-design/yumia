@@ -1618,6 +1618,12 @@ const FR = {
   wxa_reason_hot_drink: 'Boisson chaude',
   wxa_title: 'À faire maintenant',
   wxa_subtitle: 'Sélectionné selon la météo actuelle',
+  wxm_title: 'Cartes',
+  wxm_rain_tab: '🌧️ Pluie',
+  wxm_air_tab: '🍃 Air',
+  wxm_legend_very_poor_short: 'Très mauv.',
+  wxm_attr_radar: 'Radar RainViewer',
+  wxm_attr_air: 'Qualité de l\'air Open-Meteo',
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -3223,6 +3229,12 @@ const EN: Record<TranslationKey, string> = {
   wxa_reason_hot_drink: 'Hot drink',
   wxa_title: 'To do now',
   wxa_subtitle: 'Selected based on current weather',
+  wxm_title: 'Maps',
+  wxm_rain_tab: '🌧️ Rain',
+  wxm_air_tab: '🍃 Air',
+  wxm_legend_very_poor_short: 'Very poor',
+  wxm_attr_radar: 'RainViewer radar',
+  wxm_attr_air: 'Open-Meteo air quality',
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -4828,6 +4840,12 @@ const ES: Record<TranslationKey, string> = {
   wxa_reason_hot_drink: 'Bebida caliente',
   wxa_title: 'Para hacer ahora',
   wxa_subtitle: 'Seleccionado según el clima actual',
+  wxm_title: 'Mapas',
+  wxm_rain_tab: '🌧️ Lluvia',
+  wxm_air_tab: '🍃 Aire',
+  wxm_legend_very_poor_short: 'Muy mala',
+  wxm_attr_radar: 'Radar RainViewer',
+  wxm_attr_air: 'Calidad del aire Open-Meteo',
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -6433,6 +6451,12 @@ const PT: Record<TranslationKey, string> = {
   wxa_reason_hot_drink: 'Bebida quente',
   wxa_title: 'Para fazer agora',
   wxa_subtitle: 'Selecionado com base no clima atual',
+  wxm_title: 'Mapas',
+  wxm_rain_tab: '🌧️ Chuva',
+  wxm_air_tab: '🍃 Ar',
+  wxm_legend_very_poor_short: 'Muito ruim',
+  wxm_attr_radar: 'Radar RainViewer',
+  wxm_attr_air: 'Qualidade do ar Open-Meteo',
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -8038,6 +8062,12 @@ const AR: Record<TranslationKey, string> = {
   wxa_reason_hot_drink: 'مشروب ساخن',
   wxa_title: 'للقيام به الآن',
   wxa_subtitle: 'مُختار بناءً على الطقس الحالي',
+  wxm_title: 'الخرائط',
+  wxm_rain_tab: '🌧️ مطر',
+  wxm_air_tab: '🍃 هواء',
+  wxm_legend_very_poor_short: 'سيئة جدًا',
+  wxm_attr_radar: 'رادار RainViewer',
+  wxm_attr_air: 'جودة الهواء من Open-Meteo',
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

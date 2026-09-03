@@ -6,6 +6,8 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { getRadarProvider, type RadarFrame } from '../../lib/services/weather/radar';
 import { formatLocalTime, getWeatherProvider } from '../../lib/services/weather';
 import type { AirGridPoint, Coordinates } from '../../lib/services/weather';
+import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 
 type Layer = 'rain' | 'air';
 
@@ -36,6 +38,14 @@ const AIR_COLORS: Record<AirGridPoint['level'], string> = {
   very_poor: '#8B4FD6',
 };
 
+const AIR_LEGEND_KEYS: Record<AirGridPoint['level'], TranslationKey> = {
+  good: 'aqi_good_label',
+  fair: 'aqi_fair_label',
+  moderate: 'aqi_moderate_label',
+  poor: 'aqi_poor_label',
+  very_poor: 'wxm_legend_very_poor_short',
+};
+
 /**
  * Cartes météo : radar de précipitations animé et qualité de l'air.
  *
@@ -50,6 +60,7 @@ export function WeatherMaps({
   /** Décalage du lieu observé — les heures radar s'affichent à son heure. */
   utcOffsetSeconds: number;
 }) {
+  const { t } = useI18n();
   const [layer, setLayer] = useState<Layer>('rain');
   const [frames, setFrames] = useState<RadarFrame[]>([]);
   const [frameIndex, setFrameIndex] = useState(0);
@@ -102,7 +113,7 @@ export function WeatherMaps({
   return (
     <GlassCard style={styles.card} rounded={radius.lg}>
       <View style={styles.header}>
-        <Text style={styles.title}>Cartes</Text>
+        <Text style={styles.title}>{t('wxm_title')}</Text>
         <View style={styles.segments}>
           {(['rain', 'air'] as Layer[]).map((l) => (
             <PressableScale
@@ -112,7 +123,7 @@ export function WeatherMaps({
               style={[styles.segment, layer === l && styles.segmentActive]}
             >
               <Text style={[styles.segmentText, layer === l && styles.segmentTextActive]}>
-                {l === 'rain' ? '🌧️ Pluie' : '🍃 Air'}
+                {l === 'rain' ? t('wxm_rain_tab') : t('wxm_air_tab')}
               </Text>
             </PressableScale>
           ))}
@@ -205,10 +216,7 @@ export function WeatherMaps({
             <View key={lvl} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: AIR_COLORS[lvl] }]} />
               <Text style={styles.legendText}>
-                {lvl === 'good' ? 'Bonne'
-                  : lvl === 'fair' ? 'Correcte'
-                  : lvl === 'moderate' ? 'Moyenne'
-                  : lvl === 'poor' ? 'Mauvaise' : 'Très mauv.'}
+                {t(AIR_LEGEND_KEYS[lvl])}
               </Text>
             </View>
           ))}
@@ -216,7 +224,7 @@ export function WeatherMaps({
       )}
 
       <Text style={styles.attribution}>
-        {layer === 'rain' ? 'Radar RainViewer' : 'Qualité de l\'air Open-Meteo'}
+        {layer === 'rain' ? t('wxm_attr_radar') : t('wxm_attr_air')}
       </Text>
     </GlassCard>
   );
