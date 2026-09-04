@@ -6,7 +6,7 @@
  * faux espoir affiché à l'utilisateur).
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -85,6 +85,10 @@ export default function DealsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 'all' ou une clé de provider — dérivé dynamiquement des lieux chargés,
+  // donc les chips s'adaptent automatiquement à chaque partenaire activé
+  // (aucun code à retoucher quand Booking.com, Fever, etc. rejoignent).
+  const [providerFilter, setProviderFilter] = useState<string>('all');
 
   const load = useCallback(async () => {
     if (!accessToken || resolving) return;
@@ -103,6 +107,18 @@ export default function DealsScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Réinitialise le filtre si le partenaire choisi n'a plus de résultats
+  // après un rechargement (ex. changement de position).
+  useEffect(() => {
+    if (providerFilter === 'all') return;
+    if (!deals.some((d) => d.affiliateProviders.includes(providerFilter))) setProviderFilter('all');
+  }, [deals, providerFilter]);
+
+  const availableProviders = Array.from(new Set(deals.flatMap((d) => d.affiliateProviders)));
+  const visibleDeals = providerFilter === 'all'
+    ? deals
+    : deals.filter((d) => d.affiliateProviders.includes(providerFilter));
+
   function openPlace(place: DealPlace) {
     placeStore.set(toSuggestion(place, t('deals_reason')));
     router.push('/place');
@@ -119,6 +135,36 @@ export default function DealsScreen() {
           <Text style={styles.subtitle}>{t('deals_subtitle')}</Text>
         </View>
       </View>
+
+      {/* Filtre par partenaire — n'apparaît que s'il y a au moins 2
+          partenaires actifs dans les résultats (inutile sinon). */}
+      {!loading && !error && availableProviders.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          <Pressable
+            style={[styles.filterChip, providerFilter === 'all' && styles.filterChipActive]}
+            onPress={() => setProviderFilter('all')}
+          >
+            <Text style={[styles.filterChipText, providerFilter === 'all' && styles.filterChipTextActive]}>
+              {t('fav_all')}
+            </Text>
+          </Pressable>
+          {availableProviders.map((provider) => (
+            <Pressable
+              key={provider}
+              style={[styles.filterChip, providerFilter === provider && styles.filterChipActive]}
+              onPress={() => setProviderFilter(provider)}
+            >
+              <Text style={[styles.filterChipText, providerFilter === provider && styles.filterChipTextActive]}>
+                {affiliateProviderLabel(provider)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
 
       {loading || resolving ? (
         <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
@@ -137,7 +183,7 @@ export default function DealsScreen() {
         </View>
       ) : (
         <FlatList
-          data={deals}
+          data={visibleDeals}
           keyExtractor={(d) => d.id}
           contentContainerStyle={styles.list}
           refreshControl={
@@ -164,6 +210,14 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 44 },
   emptyText: { ...typography.h3, color: colors.text, textAlign: 'center' },
   emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
+  filterRow: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.xs },
+  filterChip: {
+    borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 8,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  filterChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  filterChipTextActive: { color: '#fff' },
   list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
   card: {
     flexDirection: 'row', backgroundColor: colors.surface, borderRadius: radius.lg,
