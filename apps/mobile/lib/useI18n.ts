@@ -5,7 +5,7 @@
  * > 'fr' par défaut. RTL : l'arabe bascule automatiquement via I18nManager
  * au montage.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { I18nManager } from 'react-native';
 import { useAuth } from './auth-context';
 import { TRANSLATIONS, type TranslationKey } from './translations';
@@ -39,9 +39,13 @@ export function useI18n() {
     setRuntimeLocale(locale);
   }, [locale]);
 
-  function t(key: TranslationKey): string {
-    return dict[key] ?? key;
-  }
+  // Mémoïsé sur `dict` (donc sur `locale`), pas recréé à chaque rendu : sans
+  // ça, `t` change de référence à chaque render, et tout code qui le met
+  // dans un tableau de dépendances (ex. un useCallback de fetch) se
+  // redéclenche en boucle infinie à chaque nouveau rendu déclenché par sa
+  // propre réponse — vu en prod sur "Mes visites" (ThrottlerException:
+  // Too Many Requests, des dizaines d'appels en rafale).
+  const t = useCallback((key: TranslationKey): string => dict[key] ?? key, [dict]);
 
   return { t, locale };
 }
