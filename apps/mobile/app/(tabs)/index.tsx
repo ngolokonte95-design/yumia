@@ -46,9 +46,9 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   { key: 'itinerary', emoji: '✨', label: 'Itinéraire', route: '/itinerary' },
   { key: 'quests', emoji: '🎯', label: 'Quêtes', route: '/quests' },
   { key: 'chat', emoji: '💬', label: 'Messages', route: '/chat' },
-  { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
-  { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
   { key: 'saved', emoji: '🔖', label: 'Favoris', route: '/favorites' },
+  { key: 'leaderboard', emoji: '🏆', label: 'Classement', route: '/leaderboard' },
+  { key: 'surprise', emoji: '🎲', label: 'Surprise', route: '/surprise' },
   { key: 'calendar', emoji: '🗓️', label: 'Calendrier', route: '/calendar' },
   { key: 'notebook', emoji: '📝', label: 'Notes', route: '/notebook' },
 ];
