@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, I18nManager } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, ScrollView, I18nManager } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
 
@@ -58,32 +58,38 @@ export function LocalePicker({ visible, currentLocale, onSelect, onClose }: Prop
       <View style={styles.sheet}>
         <View style={styles.handle} />
         <Text style={styles.title}>{t('lp_title')}</Text>
-        {LOCALES.map((loc) => {
-          const active = loc.code === currentLocale;
-          const loading = pending === loc.code;
-          return (
-            <Pressable
-              key={loc.code}
-              style={[styles.row, active && styles.rowActive]}
-              onPress={() => void handleSelect(loc.code)}
-              disabled={!!pending}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowLabel, active && styles.rowLabelActive]}>
-                  {loc.nativeLabel}
-                </Text>
-                {loc.label !== loc.nativeLabel ? (
-                  <Text style={styles.rowSub}>{loc.label}</Text>
+        <ScrollView
+          style={styles.list}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+        >
+          {LOCALES.map((loc) => {
+            const active = loc.code === currentLocale;
+            const loading = pending === loc.code;
+            return (
+              <Pressable
+                key={loc.code}
+                style={[styles.row, active && styles.rowActive]}
+                onPress={() => void handleSelect(loc.code)}
+                disabled={!!pending}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rowLabel, active && styles.rowLabelActive]}>
+                    {loc.nativeLabel}
+                  </Text>
+                  {loc.label !== loc.nativeLabel ? (
+                    <Text style={styles.rowSub}>{loc.label}</Text>
+                  ) : null}
+                </View>
+                {loading ? (
+                  <Text style={styles.check}>…</Text>
+                ) : active ? (
+                  <Text style={styles.check}>✓</Text>
                 ) : null}
-              </View>
-              {loading ? (
-                <Text style={styles.check}>…</Text>
-              ) : active ? (
-                <Text style={styles.check}>✓</Text>
-              ) : null}
-            </Pressable>
-          );
-        })}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
         <Pressable style={styles.cancelBtn} onPress={onClose}>
           <Text style={styles.cancelText}>{t('cancel')}</Text>
         </Pressable>
@@ -94,6 +100,10 @@ export function LocalePicker({ visible, currentLocale, onSelect, onClose }: Prop
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  // maxHeight : avec 13 langues désormais listées, le sheet peut dépasser
+  // la hauteur d'écran. On le plafonne et on laisse la liste défiler dans
+  // l'espace restant (voir `list` ci-dessous) au lieu de déborder sans
+  // pouvoir scroller.
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
@@ -101,7 +111,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl,
     paddingTop: spacing.sm,
+    maxHeight: '80%',
   },
+  list: { flexShrink: 1 },
+  listContent: { paddingBottom: spacing.sm },
   handle: {
     width: 36,
     height: 4,
