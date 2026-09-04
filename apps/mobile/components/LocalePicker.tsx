@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, ScrollView, I18nManager } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
 import { SUPPORTED_LOCALES as LOCALES } from '../lib/locales';
@@ -36,38 +37,50 @@ export function LocalePicker({ visible, currentLocale, onSelect, onClose }: Prop
       <View style={styles.sheet}>
         <View style={styles.handle} />
         <Text style={styles.title}>{t('lp_title')}</Text>
-        <ScrollView
-          style={styles.list}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        >
-          {LOCALES.map((loc) => {
-            const active = loc.code === currentLocale;
-            const loading = pending === loc.code;
-            return (
-              <Pressable
-                key={loc.code}
-                style={[styles.row, active && styles.rowActive]}
-                onPress={() => void handleSelect(loc.code)}
-                disabled={!!pending}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.rowLabel, active && styles.rowLabelActive]}>
-                    {loc.nativeLabel}
-                  </Text>
-                  {loc.label !== loc.nativeLabel ? (
-                    <Text style={styles.rowSub}>{loc.label}</Text>
+        <View style={styles.listWrap}>
+          <ScrollView
+            style={styles.list}
+            showsVerticalScrollIndicator
+            indicatorStyle="white"
+            contentContainerStyle={styles.listContent}
+          >
+            {LOCALES.map((loc) => {
+              const active = loc.code === currentLocale;
+              const loading = pending === loc.code;
+              return (
+                <Pressable
+                  key={loc.code}
+                  style={[styles.row, active && styles.rowActive]}
+                  onPress={() => void handleSelect(loc.code)}
+                  disabled={!!pending}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rowLabel, active && styles.rowLabelActive]}>
+                      {loc.nativeLabel}
+                    </Text>
+                    {loc.label !== loc.nativeLabel ? (
+                      <Text style={styles.rowSub}>{loc.label}</Text>
+                    ) : null}
+                  </View>
+                  {loading ? (
+                    <Text style={styles.check}>…</Text>
+                  ) : active ? (
+                    <Text style={styles.check}>✓</Text>
                   ) : null}
-                </View>
-                {loading ? (
-                  <Text style={styles.check}>…</Text>
-                ) : active ? (
-                  <Text style={styles.check}>✓</Text>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {/* Dégradé de bas de liste : indique qu'il y a plus de langues en
+              dessous, plus fiable qu'une simple barre de défilement (fine et
+              peu visible sur certains Android). `pointerEvents="none"` pour
+              ne jamais intercepter les taps sur la dernière ligne visible. */}
+          <LinearGradient
+            colors={[`${colors.surface}00`, colors.surface]}
+            style={styles.scrollHintBottom}
+            pointerEvents="none"
+          />
+        </View>
         <Pressable style={styles.cancelBtn} onPress={onClose}>
           <Text style={styles.cancelText}>{t('cancel')}</Text>
         </Pressable>
@@ -81,18 +94,23 @@ const styles = StyleSheet.create({
   // maxHeight : avec 13 langues désormais listées, le sheet peut dépasser
   // la hauteur d'écran. On le plafonne et on laisse la liste défiler dans
   // l'espace restant (voir `list` ci-dessous) au lieu de déborder sans
-  // pouvoir scroller.
+  // pouvoir scroller. paddingBottom réduit (vs xxl) : ce padding rognait
+  // sur la hauteur dispo pour la liste elle-même, la rendant trop petite.
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.lg,
     paddingTop: spacing.sm,
-    maxHeight: '80%',
+    maxHeight: '90%',
   },
+  listWrap: { flexShrink: 1 },
   list: { flexShrink: 1 },
   listContent: { paddingBottom: spacing.sm },
+  scrollHintBottom: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, height: 28,
+  },
   handle: {
     width: 36,
     height: 4,
