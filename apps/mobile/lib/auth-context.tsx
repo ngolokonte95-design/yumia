@@ -22,6 +22,7 @@ import {
   type UserPreferences,
 } from './auth-api';
 import { clearTokens, loadTokens, saveTokens } from './token-storage';
+import { getCachedDeviceLocale } from './device-locale';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -168,6 +169,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (input: { email: string; password: string; displayName: string }) => {
       const res = await registerRequest(input);
       await applySession(res.user, res.tokens);
+      // Synchronise vers le profil fraîchement créé la langue choisie sur
+      // l'écran de sélection au premier lancement (device-locale.ts) — sans
+      // ça l'inscription retomberait sur le 'fr' par défaut du serveur
+      // malgré le choix explicite de l'utilisateur.
+      const chosenLocale = getCachedDeviceLocale();
+      if (chosenLocale && chosenLocale !== res.user.locale) {
+        try {
+          const updated = await updateProfileRequest(res.tokens.accessToken, { locale: chosenLocale });
+          setUser((prev) => (prev ? { ...prev, locale: updated.locale } : prev));
+        } catch {
+          // best-effort : pas grave si ça échoue, changeable plus tard dans les paramètres
+        }
+      }
     },
     [applySession],
   );

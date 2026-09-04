@@ -17,6 +17,7 @@ import { initPurchases } from '../lib/purchases';
 import { useDeepLinks } from '../lib/useDeepLinks';
 import { initSentry } from '../lib/sentry';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { getCachedDeviceLocale, loadDeviceLocale } from '../lib/device-locale';
 
 // Initialize Sentry and RevenueCat once before the first render.
 initSentry();
@@ -41,24 +42,41 @@ function AuthGate() {
   const segments = useSegments();
   const router = useRouter();
   const [routeReady, setRouteReady] = useState(false);
+  // 'undefined' tant que non résolu (bloque la garde, comme `status: 'loading'`) ;
+  // ensuite le code de langue déjà choisi, ou `null` si jamais choisi.
+  const [deviceLocale, setDeviceLocale] = useState<string | null | undefined>(undefined);
 
   usePushNotifications(accessToken);
   useDailyDigest();
   useDeepLinks();
 
+  useEffect(() => { void loadDeviceLocale().then(setDeviceLocale); }, []);
 
   useEffect(() => { void refreshUnreadCount(accessToken); }, [accessToken]);
   useEffect(() => startNotificationListener(accessToken), [accessToken]);
   useEffect(() => startNotificationResponseListener((path) => router.push(path as never)), [router]);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (status === 'loading' || deviceLocale === undefined) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
+    const inLanguageSelect = segments[0] === 'language-select';
 
     if (status === 'unauthenticated') {
-      if (!inAuthGroup) router.replace('/login');
+      // Tout premier lancement (aucune langue jamais choisie) : on demande la
+      // langue avant même login/register, pour que tout s'affiche déjà
+      // traduit. Une fois choisie une fois, on ne redemande plus.
+      // Relit le cache mémoire à chaque passage (pas seulement l'état chargé
+      // au montage) : language-select.tsx écrit dedans de façon synchrone
+      // juste avant de naviguer — sans ça, cet effet verrait encore l'ancien
+      // "jamais choisi" et renverrait en boucle vers /language-select.
+      const chosenLocale = getCachedDeviceLocale() ?? deviceLocale;
+      if (chosenLocale == null && !inLanguageSelect) {
+        router.replace('/language-select');
+      } else if (chosenLocale != null && !inAuthGroup && !inLanguageSelect) {
+        router.replace('/login');
+      }
       setRouteReady(true);
       return;
     }
@@ -112,6 +130,7 @@ function AuthGate() {
       <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
       <Stack.Screen name="(auth)" options={{ animation: 'none' }} />
       <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
+      <Stack.Screen name="language-select" options={{ animation: 'none' }} />
       <Stack.Screen name="(premium)" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group-session" options={{ animation: 'slide_from_bottom' }} />

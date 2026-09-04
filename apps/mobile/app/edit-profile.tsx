@@ -23,22 +23,7 @@ import { useAuth } from '../lib/auth-context';
 import { uploadAvatarRequest } from '../lib/auth-api';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
-
-const LOCALES = [
-  { code: 'fr', label: '🇫🇷 Français' },
-  { code: 'en', label: '🇬🇧 English' },
-  { code: 'es', label: '🇪🇸 Español' },
-  { code: 'pt', label: '🇵🇹 Português' },
-  { code: 'ar', label: '🇸🇦 العربية' },
-  { code: 'nl', label: '🇳🇱 Nederlands' },
-  { code: 'it', label: '🇮🇹 Italiano' },
-  { code: 'zh', label: '🇨🇳 中文' },
-  { code: 'ru', label: '🇷🇺 Русский' },
-  { code: 'hi', label: '🇮🇳 हिन्दी' },
-  { code: 'de', label: '🇩🇪 Deutsch' },
-  { code: 'pl', label: '🇵🇱 Polski' },
-  { code: 'sv', label: '🇸🇪 Svenska' },
-];
+import { SUPPORTED_LOCALES } from '../lib/locales';
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -213,13 +198,13 @@ export default function EditProfileScreen() {
           {/* Langue */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('ep_language')}</Text>
-            {LOCALES.map((l) => (
+            {SUPPORTED_LOCALES.map((l) => (
               <Pressable
                 key={l.code}
                 style={[styles.localeRow, locale === l.code && styles.localeRowActive]}
                 onPress={() => setLocale(l.code)}
               >
-                <Text style={styles.localeLabel}>{l.label}</Text>
+                <Text style={styles.localeLabel}>{l.flag} {l.nativeLabel}</Text>
                 {locale === l.code ? <Text style={styles.localeCheck}>✓</Text> : null}
               </Pressable>
             ))}

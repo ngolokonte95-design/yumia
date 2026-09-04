@@ -2,29 +2,7 @@ import { useState } from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, ScrollView, I18nManager } from 'react-native';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
-
-interface Locale {
-  code: string;
-  label: string;
-  nativeLabel: string;
-  rtl?: boolean;
-}
-
-const LOCALES: Locale[] = [
-  { code: 'fr', label: 'Français', nativeLabel: 'Français' },
-  { code: 'en', label: 'English', nativeLabel: 'English' },
-  { code: 'es', label: 'Español', nativeLabel: 'Español' },
-  { code: 'pt', label: 'Português', nativeLabel: 'Português' },
-  { code: 'ar', label: 'Arabic', nativeLabel: 'العربية', rtl: true },
-  { code: 'nl', label: 'Dutch', nativeLabel: 'Nederlands' },
-  { code: 'it', label: 'Italian', nativeLabel: 'Italiano' },
-  { code: 'zh', label: 'Chinese', nativeLabel: '中文' },
-  { code: 'ru', label: 'Russian', nativeLabel: 'Русский' },
-  { code: 'hi', label: 'Hindi', nativeLabel: 'हिन्दी' },
-  { code: 'de', label: 'German', nativeLabel: 'Deutsch' },
-  { code: 'pl', label: 'Polish', nativeLabel: 'Polski' },
-  { code: 'sv', label: 'Swedish', nativeLabel: 'Svenska' },
-];
+import { SUPPORTED_LOCALES as LOCALES } from '../lib/locales';
 
 interface Props {
   visible: boolean;
