@@ -77,6 +77,10 @@ services:
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://yumia.app}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Affiliation — Partner ID depuis le tableau de bord de chaque programme
+      GETYOURGUIDE_PARTNER_ID: ${GETYOURGUIDE_PARTNER_ID:-}
+      VIATOR_PARTNER_ID: ${VIATOR_PARTNER_ID:-}
+      BOOKING_AFFILIATE_ID: ${BOOKING_AFFILIATE_ID:-}
     volumes:
       - yumia_uploads:/app/apps/api/uploads
     ports:

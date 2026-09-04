@@ -353,6 +353,27 @@ export default function PlaceScreen() {
             <Text style={styles.rating}>⭐ {place.rating.toFixed(1)}</Text>
             {place.city ? <Text style={styles.city}>{place.city}</Text> : null}
           </View>
+
+          {/* Boutons de réservation partenaire — remontés tout en haut de la
+              fiche (juste sous la note) pour être visibles sans défiler, un
+              par partenaire configuré pour l'univers de ce lieu. */}
+          {affiliateProviders.length > 0 && (
+            <View style={bizStyles.bookingRow}>
+              {affiliateProviders.map((provider) => (
+                <Pressable
+                  key={provider}
+                  style={bizStyles.bookingBtn}
+                  onPress={() => handleBooking(provider)}
+                  disabled={bookingLoadingProvider === provider}
+                >
+                  {bookingLoadingProvider === provider
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={bizStyles.bookingLabel}>{t('place_book_on').replace('{provider}', affiliateProviderLabel(provider))}</Text>}
+                </Pressable>
+              ))}
+            </View>
+          )}
+
           {place.tags && place.tags.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsRow}>
               {place.tags.map((tag) => (
@@ -508,26 +529,6 @@ export default function PlaceScreen() {
               <Text style={bizStyles.label}>{t('place_guide_here')}</Text>
             </Pressable>
           </View>
-
-          {/* Boutons de réservation partenaire — un par partenaire configuré
-              pour l'univers de ce lieu (peut y en avoir plusieurs, ex.
-              GetYourGuide + Viator pour un musée). Rien affiché sinon. */}
-          {affiliateProviders.length > 0 && (
-            <View style={bizStyles.bookingRow}>
-              {affiliateProviders.map((provider) => (
-                <Pressable
-                  key={provider}
-                  style={bizStyles.bookingBtn}
-                  onPress={() => handleBooking(provider)}
-                  disabled={bookingLoadingProvider === provider}
-                >
-                  {bookingLoadingProvider === provider
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={bizStyles.bookingLabel}>{t('place_book_on').replace('{provider}', affiliateProviderLabel(provider))}</Text>}
-                </Pressable>
-              ))}
-            </View>
-          )}
 
           {accessToken ? (
             visitState === 'feedback' || visitState === 'submitting' ? (

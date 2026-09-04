@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../lib/auth-context';
 import { encryptMessage, decryptMessage, getLocalPublicKey, isE2EAvailable } from '../../lib/e2e-crypto';
 import { colors, radius, spacing } from '../../theme/tokens';
@@ -13,6 +15,9 @@ import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
+import { EmojiPicker } from '../../components/chat/EmojiPicker';
+import { PhotoViewer } from '../../components/PhotoViewer';
+import { translateMessage } from '../../lib/chat-translate-api';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -93,6 +98,28 @@ function VoiceBubble({ audioUrl, duration, isMe, onLongPress }: { audioUrl: stri
   );
 }
 
+// ── Bulle vidéo (lecture inline, tap pour play/pause) ──────────────────────────
+function VideoBubble({ url, onLongPress }: { url: string; onLongPress?: () => void }) {
+  const [playing, setPlaying] = useState(false);
+  const player = useVideoPlayer(url, (p) => { p.loop = true; });
+
+  const toggle = () => {
+    if (playing) { player.pause(); setPlaying(false); }
+    else { player.play(); setPlaying(true); }
+  };
+
+  return (
+    <Pressable onPress={toggle} onLongPress={onLongPress} style={styles.mediaBubble}>
+      <VideoView player={player} style={styles.mediaContent} contentFit="cover" nativeControls={false} />
+      {!playing && (
+        <View style={styles.mediaPlayOverlay} pointerEvents="none">
+          <Text style={{ fontSize: 28, color: '#fff' }}>▶</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 // ── Bulle d'événement d'appel ─────────────────────────────────────────────────
 function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => void }) {
   const { t, locale } = useI18n();
@@ -146,6 +173,13 @@ export default function ChatRoomScreen() {
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const [partner, setPartner] = useState<Partner | null>(null);
   const [e2eActive, setE2eActive] = useState(false);
+  // ── Clavier nouvelle génération : emojis, pièces jointes, traduction ──────
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showAttachSheet, setShowAttachSheet] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [translations, setTranslations] = useState<Map<string, string>>(new Map());
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
+  const [viewerPhotos, setViewerPhotos] = useState<string[] | null>(null);
 
   const listRef = useRef<FlatList>(null);
   const lastMsgDate = useRef<string>(new Date(0).toISOString());
@@ -261,6 +295,78 @@ export default function ChatRoomScreen() {
       }
     } finally {
       setSending(false);
+    }
+  };
+
+  // ─── Photo / vidéo depuis la galerie ───────────────────────────────────────
+  const pickAndSendMedia = async (kind: 'image' | 'video') => {
+    setShowAttachSheet(false);
+    if (!accessToken || !convId) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
+      quality: 0.85,
+      videoMaxDuration: 60,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+
+    setUploadingMedia(true);
+    try {
+      const form = new FormData();
+      form.append('file', {
+        uri: asset.uri,
+        type: kind === 'image' ? 'image/jpeg' : 'video/mp4',
+        name: kind === 'image' ? 'photo.jpg' : 'video.mp4',
+      } as never);
+      const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
+      if (!up.ok) { Alert.alert(t('chat_delete_error_title'), t('chat_upload_error')); return; }
+      const { url } = await up.json() as { url: string };
+
+      const res = await fetch(`${API}/chat/conversations/${convId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          content: kind === 'image' ? t('chat_image_message') : t('chat_video_message'),
+          type: kind,
+          mediaUrl: url,
+          replyToId: replyTo?.id,
+        }),
+      });
+      if (res.ok) {
+        const msg: Message = await res.json();
+        setMessages((prev) => [...prev, msg]);
+        lastMsgDate.current = msg.createdAt;
+        setReplyTo(null);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+      } else {
+        Alert.alert(t('chat_delete_error_title'), t('chat_upload_error'));
+      }
+    } catch {
+      Alert.alert(t('chat_delete_error_title'), t('chat_upload_error'));
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  // ─── Traduction à la demande ────────────────────────────────────────────
+  const handleTranslate = async (msg: Message) => {
+    setActionMsg(null);
+    if (!accessToken) return;
+    if (translations.has(msg.id)) {
+      // Toggle : si déjà traduit, on masque en effaçant l'entrée.
+      setTranslations((prev) => { const next = new Map(prev); next.delete(msg.id); return next; });
+      return;
+    }
+    setTranslatingId(msg.id);
+    try {
+      const { translated } = await translateMessage(accessToken, getDisplayContent(msg), locale);
+      setTranslations((prev) => new Map(prev).set(msg.id, translated));
+    } catch {
+      Alert.alert(t('chat_delete_error_title'), t('chat_translate_error'));
+    } finally {
+      setTranslatingId(null);
     }
   };
 
@@ -468,8 +574,11 @@ export default function ChatRoomScreen() {
             // présent que sur le message optimiste local) → tester les deux, sinon
             // le vocal qu'on vient d'envoyer s'affiche en bulle texte non lisible.
             const isAudio = item.type === 'audio' && (item.audioUrl || item.mediaUrl);
+            const isImage = item.type === 'image' && item.mediaUrl;
+            const isVideo = item.type === 'video' && item.mediaUrl;
             const isCall = item.type === 'call';
             const isEnc = item.type === 'encrypted';
+            const translation = translations.get(item.id);
 
             return (
               <>
@@ -492,6 +601,16 @@ export default function ChatRoomScreen() {
                         isMe={isMe}
                         onLongPress={() => setActionMsg(item)}
                       />
+                    ) : isImage ? (
+                      <Pressable
+                        style={styles.mediaBubble}
+                        onPress={() => setViewerPhotos([item.mediaUrl!])}
+                        onLongPress={() => setActionMsg(item)}
+                      >
+                        <Image source={{ uri: item.mediaUrl! }} style={styles.mediaContent} />
+                      </Pressable>
+                    ) : isVideo ? (
+                      <VideoBubble url={item.mediaUrl!} onLongPress={() => setActionMsg(item)} />
                     ) : (
                       <Pressable
                         onLongPress={() => setActionMsg(item)}
@@ -534,6 +653,20 @@ export default function ChatRoomScreen() {
                         <Text style={[styles.bubbleTxt, isMe && styles.bubbleTxtMe]}>
                           {getDisplayContent(item)}
                         </Text>
+                        {translatingId === item.id ? (
+                          <Text style={[styles.translationTxt, isMe && styles.translationTxtMe]}>
+                            {t('chat_translate_loading')}
+                          </Text>
+                        ) : translation ? (
+                          <View style={[styles.translationBox, isMe && styles.translationBoxMe]}>
+                            <Text style={[styles.translationLabel, isMe && { color: 'rgba(255,255,255,0.6)' }]}>
+                              {t('chat_translated_label')}
+                            </Text>
+                            <Text style={[styles.translationTxt, isMe && styles.translationTxtMe]}>
+                              {translation}
+                            </Text>
+                          </View>
+                        ) : null}
                         <View style={styles.bubbleFooter}>
                           {(isEnc) && <Text style={[styles.encIcon, isMe && { color: 'rgba(255,255,255,0.5)' }]}>🔐</Text>}
                           <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>{formatTime(item.createdAt, locale)}</Text>
@@ -594,7 +727,12 @@ export default function ChatRoomScreen() {
             {replyTo ? (
               <View style={styles.replyBanner}>
                 <Text style={styles.replyBannerTxt} numberOfLines={1}>
-                  {t('chat_reply_to_prefix')} {replyTo.type === 'audio' ? t('chat_voice_message') : getDisplayContent(replyTo)}
+                  {t('chat_reply_to_prefix')} {
+                    replyTo.type === 'audio' ? t('chat_voice_message')
+                    : replyTo.type === 'image' ? t('chat_image_message')
+                    : replyTo.type === 'video' ? t('chat_video_message')
+                    : getDisplayContent(replyTo)
+                  }
                 </Text>
                 <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
                   <Text style={{ color: colors.textMuted, fontSize: 15 }}>✕</Text>
@@ -602,18 +740,30 @@ export default function ChatRoomScreen() {
               </View>
             ) : null}
           <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
-            <Pressable style={styles.inputIconBtn} onPress={() => router.push('/camera' as never)}>
-              <Text style={{ fontSize: 22 }}>📷</Text>
+            <Pressable
+              style={styles.inputIconBtn}
+              onPress={() => { Keyboard.dismiss(); setShowEmoji(false); setShowAttachSheet(true); }}
+            >
+              {uploadingMedia ? <ActivityIndicator color={colors.brand} size="small" /> : <Text style={{ fontSize: 24 }}>➕</Text>}
             </Pressable>
-            <TextInput
-              style={styles.input}
-              value={input}
-              onChangeText={setInput}
-              placeholder={e2eActive ? t('chat_encrypted_placeholder') : t('chat_placeholder')}
-              placeholderTextColor={colors.textMuted}
-              multiline
-              maxLength={1000}
-            />
+            <View style={styles.inputPill}>
+              <TextInput
+                style={styles.input}
+                value={input}
+                onChangeText={setInput}
+                onFocus={() => setShowEmoji(false)}
+                placeholder={e2eActive ? t('chat_encrypted_placeholder') : t('chat_placeholder')}
+                placeholderTextColor={colors.textMuted}
+                multiline
+                maxLength={1000}
+              />
+              <Pressable
+                style={styles.emojiToggleBtn}
+                onPress={() => { Keyboard.dismiss(); setShowAttachSheet(false); setShowEmoji((v) => !v); }}
+              >
+                <Text style={{ fontSize: 20 }}>{showEmoji ? '⌨️' : '🙂'}</Text>
+              </Pressable>
+            </View>
             {input.trim() ? (
               <Pressable style={[styles.sendBtn, sending && styles.sendBtnDisabled]} onPress={send}>
                 <Text style={styles.sendIcon}>↑</Text>
@@ -624,9 +774,44 @@ export default function ChatRoomScreen() {
               </Pressable>
             )}
           </View>
+          {showEmoji ? (
+            <EmojiPicker onSelect={(emoji) => setInput((prev) => prev + emoji)} />
+          ) : null}
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* ── Photo/vidéo plein écran ─────────────────────────────────────────── */}
+      {viewerPhotos ? (
+        <PhotoViewer photos={viewerPhotos} visible onClose={() => setViewerPhotos(null)} />
+      ) : null}
+
+      {/* ── Feuille "+" : pièces jointes ────────────────────────────────────── */}
+      <Modal visible={showAttachSheet} transparent animationType="fade" onRequestClose={() => setShowAttachSheet(false)}>
+        <Pressable style={styles.actionOverlay} onPress={() => setShowAttachSheet(false)}>
+          <View style={styles.attachSheet}>
+            <Text style={styles.attachTitle}>{t('chat_attach_title')}</Text>
+            <Pressable
+              style={styles.attachRow}
+              onPress={() => { setShowAttachSheet(false); router.push('/camera' as never); }}
+            >
+              <View style={styles.attachIconBox}><Text style={{ fontSize: 20 }}>📷</Text></View>
+              <Text style={styles.attachRowTxt}>{t('chat_attach_camera')}</Text>
+            </Pressable>
+            <Pressable style={styles.attachRow} onPress={() => void pickAndSendMedia('image')}>
+              <View style={styles.attachIconBox}><Text style={{ fontSize: 20 }}>🖼️</Text></View>
+              <Text style={styles.attachRowTxt}>{t('chat_attach_photo')}</Text>
+            </Pressable>
+            <Pressable style={styles.attachRow} onPress={() => void pickAndSendMedia('video')}>
+              <View style={styles.attachIconBox}><Text style={{ fontSize: 20 }}>🎬</Text></View>
+              <Text style={styles.attachRowTxt}>{t('chat_attach_video')}</Text>
+            </Pressable>
+            <Pressable style={styles.attachCancelBtn} onPress={() => setShowAttachSheet(false)}>
+              <Text style={styles.attachCancelTxt}>{t('chat_cancel')}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* ── Menu appui long : réactions + répondre ─────────────────────────── */}
       <Modal visible={actionMsg !== null} transparent animationType="fade" onRequestClose={() => setActionMsg(null)}>
@@ -645,6 +830,16 @@ export default function ChatRoomScreen() {
             >
               <Text style={styles.actionRowTxt}>{t('chat_action_reply')}</Text>
             </Pressable>
+            {actionMsg && (actionMsg.type === 'text' || actionMsg.type === 'encrypted') ? (
+              <Pressable
+                style={styles.actionRow}
+                onPress={() => void handleTranslate(actionMsg)}
+              >
+                <Text style={styles.actionRowTxt}>
+                  {translations.has(actionMsg.id) ? t('chat_translate_hide') : t('chat_translate_action')}
+                </Text>
+              </Pressable>
+            ) : null}
             {actionMsg?.senderId === myId ? (
               <Pressable
                 style={styles.actionRow}
@@ -703,6 +898,21 @@ const styles = StyleSheet.create({
   bubbleTime: { fontSize: 10, color: colors.textMuted },
   bubbleTimeMe: { color: 'rgba(255,255,255,0.65)' },
 
+  // Traduction à la demande
+  translationBox: { marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)' },
+  translationBoxMe: { borderTopColor: 'rgba(255,255,255,0.25)' },
+  translationLabel: { fontSize: 10, fontWeight: '700', color: colors.brand, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.3 },
+  translationTxt: { fontSize: 14, color: colors.text, fontStyle: 'italic', lineHeight: 19 },
+  translationTxtMe: { color: 'rgba(255,255,255,0.92)' },
+
+  // Bulle média (photo / vidéo)
+  mediaBubble: { width: 220, height: 260, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceElevated, position: 'relative' },
+  mediaContent: { width: '100%', height: '100%' },
+  mediaPlayOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+
   // Call event
   callEvent: { maxWidth: '85%', borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 4 },
   callEventRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
@@ -715,14 +925,39 @@ const styles = StyleSheet.create({
   callbackBtn: { marginHorizontal: 12, marginBottom: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingVertical: 10, alignItems: 'center' },
   callbackBtnTxt: { fontWeight: '700', color: colors.text, fontSize: 14 },
 
-  // Input
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: spacing.md, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  inputIconBtn: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, maxHeight: 100, borderWidth: 1, borderColor: colors.border },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  // Input — style Apple : pill translucide, boutons circulaires flottants
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: spacing.md, paddingTop: 10, backgroundColor: colors.background },
+  inputIconBtn: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, marginBottom: 4,
+  },
+  inputPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'flex-end',
+    backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.border,
+    paddingLeft: 16, paddingRight: 6, minHeight: 44,
+  },
+  input: { flex: 1, color: colors.text, fontSize: 16, maxHeight: 110, paddingVertical: 11 },
+  emojiToggleBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  sendBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: colors.brand,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+    shadowColor: colors.brand, shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
   sendBtnDisabled: { opacity: 0.4 },
-  sendIcon: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  micBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  sendIcon: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  micBtn: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, marginBottom: 4,
+  },
+
+  // Feuille "+" pièces jointes
+  attachSheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, width: '82%', gap: 4 },
+  attachTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textAlign: 'center', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
+  attachRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 6 },
+  attachIconBox: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  attachRowTxt: { fontSize: 15, fontWeight: '600', color: colors.text },
+  attachCancelBtn: { marginTop: 8, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
+  attachCancelTxt: { fontSize: 15, fontWeight: '700', color: colors.danger },
 
   // Voice bar
   voiceBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background },

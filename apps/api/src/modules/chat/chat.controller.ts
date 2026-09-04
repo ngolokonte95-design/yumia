@@ -5,11 +5,40 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { ChatService } from './chat.service';
+import { AiService } from '../ai/ai.service';
+
+const LOCALE_NAMES: Record<string, string> = {
+  fr: 'French', en: 'English', es: 'Spanish', pt: 'Portuguese', ar: 'Arabic',
+  nl: 'Dutch', it: 'Italian', de: 'German', pl: 'Polish', sv: 'Swedish',
+  zh: 'Chinese', ru: 'Russian', hi: 'Hindi',
+};
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {
-  constructor(private readonly chat: ChatService) {}
+  constructor(
+    private readonly chat: ChatService,
+    private readonly ai: AiService,
+  ) {}
+
+  /**
+   * POST /api/chat/translate — traduit un texte à la demande (bouton "Traduire"
+   * sur un message, pas d'appel automatique) pour le clavier multilingue.
+   * 30 appels / 60s : traduction courte et peu coûteuse, mais fréquente.
+   */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post('translate')
+  @HttpCode(HttpStatus.OK)
+  async translate(@Body() dto: { text: string; targetLocale: string }): Promise<{ translated: string }> {
+    const targetName = LOCALE_NAMES[dto.targetLocale] ?? dto.targetLocale;
+    const system = [
+      `Translate the user's message into ${targetName}.`,
+      'Output ONLY the translation, nothing else — no quotes, no explanation, no original text.',
+      'If the message is already in that language, return it unchanged.',
+    ].join(' ');
+    const translated = await this.ai.freeChat(system, dto.text, 'fast');
+    return { translated: translated.trim() };
+  }
 
   /** GET /api/chat/conversations — liste des conversations */
   @Get('conversations')
