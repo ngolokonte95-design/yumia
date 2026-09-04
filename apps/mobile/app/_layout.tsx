@@ -183,8 +183,8 @@ export default function RootLayout() {
           <StatusBar style="light" />
           <AuthProvider>
             <AuthGate />
+            <OfflineBanner />
           </AuthProvider>
-          <OfflineBanner />
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
