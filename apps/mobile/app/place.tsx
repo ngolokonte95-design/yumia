@@ -79,17 +79,20 @@ export default function PlaceScreen() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewBody, setReviewBody] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [affiliateProvider, setAffiliateProvider] = useState<string | null>(null);
-  const [bookingLoading, setBookingLoading] = useState(false);
+  // Tous les partenaires configurés pour l'univers de ce lieu (pas juste le
+  // premier) — un musée par ex. peut avoir GetYourGuide ET Viator, on montre
+  // les deux plutôt que d'arbitrairement en cacher un.
+  const [affiliateProviders, setAffiliateProviders] = useState<string[]>([]);
+  const [bookingLoadingProvider, setBookingLoadingProvider] = useState<string | null>(null);
 
-  // Partenaire de réservation dispo pour ce lieu (silencieux si aucun — la
+  // Partenaires de réservation dispo pour ce lieu (silencieux si aucun — la
   // plupart des univers n'en ont pas, ce n'est pas une erreur).
   useEffect(() => {
     const placeId = suggestion?.place.id;
     if (!accessToken || !placeId) return;
     fetchAffiliateProviders(placeId, accessToken)
-      .then((providers) => setAffiliateProvider(providers.find((p) => p.configured)?.key ?? null))
-      .catch(() => setAffiliateProvider(null));
+      .then((providers) => setAffiliateProviders(providers.filter((p) => p.configured).map((p) => p.key)))
+      .catch(() => setAffiliateProviders([]));
   }, [accessToken, suggestion?.place.id]);
 
   // Deep link : charge le lieu depuis l'API quand ouvert via yumia://place?id=
@@ -149,17 +152,17 @@ export default function PlaceScreen() {
   const meta = safeMeta(place.universe);
   const isSaved = savedIds.has(place.id);
 
-  async function handleBooking() {
-    if (!affiliateProvider || !accessToken || bookingLoading) return;
-    setBookingLoading(true);
+  async function handleBooking(provider: string) {
+    if (!accessToken || bookingLoadingProvider) return;
+    setBookingLoadingProvider(provider);
     try {
-      const url = await fetchBookingLink(place.id, affiliateProvider, accessToken);
+      const url = await fetchBookingLink(place.id, provider, accessToken);
       void Linking.openURL(url);
     } catch {
       // Silencieux : pas grave si un lien échoue à se générer, l'utilisateur
       // n'a juste pas de bouton qui répond, pas de crash.
     } finally {
-      setBookingLoading(false);
+      setBookingLoadingProvider(null);
     }
   }
 
@@ -506,14 +509,24 @@ export default function PlaceScreen() {
             </Pressable>
           </View>
 
-          {/* Bouton de réservation partenaire — visible seulement si un
-              provider d'affiliation est configuré pour l'univers de ce lieu. */}
-          {affiliateProvider && (
-            <Pressable style={bizStyles.bookingBtn} onPress={handleBooking} disabled={bookingLoading}>
-              {bookingLoading
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={bizStyles.bookingLabel}>{t('place_book_on').replace('{provider}', affiliateProviderLabel(affiliateProvider))}</Text>}
-            </Pressable>
+          {/* Boutons de réservation partenaire — un par partenaire configuré
+              pour l'univers de ce lieu (peut y en avoir plusieurs, ex.
+              GetYourGuide + Viator pour un musée). Rien affiché sinon. */}
+          {affiliateProviders.length > 0 && (
+            <View style={bizStyles.bookingRow}>
+              {affiliateProviders.map((provider) => (
+                <Pressable
+                  key={provider}
+                  style={bizStyles.bookingBtn}
+                  onPress={() => handleBooking(provider)}
+                  disabled={bookingLoadingProvider === provider}
+                >
+                  {bookingLoadingProvider === provider
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={bizStyles.bookingLabel}>{t('place_book_on').replace('{provider}', affiliateProviderLabel(provider))}</Text>}
+                </Pressable>
+              ))}
+            </View>
           )}
 
           {accessToken ? (
@@ -791,8 +804,9 @@ const bizStyles = StyleSheet.create({
   },
   emoji: { fontSize: 16 },
   label: { ...typography.caption, color: colors.brandSoft, fontWeight: '600' },
+  bookingRow: { marginTop: spacing.sm, gap: spacing.xs },
   bookingBtn: {
-    marginTop: spacing.sm, backgroundColor: colors.brand, borderRadius: radius.pill,
+    backgroundColor: colors.brand, borderRadius: radius.pill,
     paddingVertical: spacing.sm, alignItems: 'center', justifyContent: 'center',
   },
   bookingLabel: { ...typography.caption, color: '#fff', fontWeight: '700' },
