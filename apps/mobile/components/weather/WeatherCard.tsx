@@ -98,16 +98,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingHorizontal: spacing.md, paddingVertical: 10,
   },
-  icon: { fontSize: 22 },
-  // flexShrink + minWidth:0 : sans ça, Android laisse ce bloc dicter sa
-  // largeur au contenu du texte et déborde de l'écran au lieu de tronquer
-  // (bug de mesure Yoga spécifique à Android sur les flex items texte).
-  meta: { gap: 0, flexShrink: 1, minWidth: 0 },
-  temp: { ...typography.body, color: '#fff', fontWeight: '700' },
-  minmax: { ...typography.label, color: 'rgba(255,255,255,0.78)' },
+  icon: { fontSize: 20 },
+  // flexShrink + minWidth:0 ne suffisent pas toujours sur Android (Yoga y
+  // mesure parfois le contenu texte comme s'il était non contraint) : on
+  // plafonne donc aussi chaque bloc en % de la largeur de la carte, pour une
+  // garantie mécanique contre le débordement quelle que soit la langue.
+  meta: { gap: 0, flexShrink: 1, minWidth: 0, maxWidth: '54%' },
+  temp: { ...typography.body, fontSize: 14, color: '#fff', fontWeight: '700' },
+  minmax: { ...typography.label, fontSize: 10, color: 'rgba(255,255,255,0.78)' },
   suggestion: {
-    flex: 1, flexShrink: 1, minWidth: 0, textAlign: 'right',
-    ...typography.caption, color: 'rgba(255,255,255,0.9)', fontWeight: '600',
+    flex: 1, flexShrink: 1, minWidth: 0, maxWidth: '38%', textAlign: 'right',
+    ...typography.caption, fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: '600',
   },
-  chevron: { fontSize: 20, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
+  chevron: { fontSize: 18, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
 });

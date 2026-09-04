@@ -93,18 +93,20 @@ export default function HomeScreen() {
         <YumiaLogo height={150} />
       </View>
 
-      {/* Greeting contextuel */}
+      {/* Greeting contextuel — le badge est un enfant inline du Text (pas une
+          Row séparée) : il suit ainsi le dernier mot du texte quel que soit
+          l'endroit où celui-ci s'enroule, et le texte reste correctement
+          borné en largeur (évite tout débordement, notamment sur Android). */}
       <View style={styles.section}>
-        <View style={styles.greetingRow}>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.greeting}>{greetTitle}</Text>
-              <PlanBadgeIcon plan={user?.plan} size={30} />
-            </View>
-            <Text style={styles.subGreeting}>
-              {city ? `📍 ${city} · ` : ''}{greetSub}
-            </Text>
-          </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.greeting}>
+            {greetTitle}
+            {user?.plan ? '  ' : ''}
+            <PlanBadgeIcon plan={user?.plan} size={24} />
+          </Text>
+          <Text style={styles.subGreeting}>
+            {city ? `📍 ${city} · ` : ''}{greetSub}
+          </Text>
         </View>
       </View>
 
@@ -168,7 +170,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
-  greetingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   greeting: { ...typography.display, color: colors.textPrimary },
   subGreeting: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
   search: {
