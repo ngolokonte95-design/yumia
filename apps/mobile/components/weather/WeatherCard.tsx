@@ -69,11 +69,13 @@ export function WeatherCard({ lat, lng }: { lat: number; lng: number }) {
         <Text style={styles.icon}>{kindEmoji(current.kind, current.isDay)}</Text>
 
         <View style={styles.meta}>
-          <Text style={styles.temp} numberOfLines={1}>
+          <Text style={styles.temp} numberOfLines={1} ellipsizeMode="tail">
             {current.tempC}° · {weatherKindLabel(t, current.kind, KIND_LABEL[current.kind])}
           </Text>
           {today && (
-            <Text style={styles.minmax}>↑{today.maxC}° ↓{today.minC}°</Text>
+            <Text style={styles.minmax} numberOfLines={1}>
+              ↑{today.maxC}° ↓{today.minC}°
+            </Text>
           )}
         </View>
 
@@ -90,18 +92,21 @@ export function WeatherCard({ lat, lng }: { lat: number; lng: number }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { ...elevation.medium, borderRadius: radius.lg },
+  wrap: { ...elevation.medium, borderRadius: radius.lg, alignSelf: 'stretch' },
   card: {
     borderRadius: radius.lg, overflow: 'hidden',
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingHorizontal: spacing.md, paddingVertical: 10,
   },
   icon: { fontSize: 22 },
-  meta: { gap: 0 },
+  // flexShrink + minWidth:0 : sans ça, Android laisse ce bloc dicter sa
+  // largeur au contenu du texte et déborde de l'écran au lieu de tronquer
+  // (bug de mesure Yoga spécifique à Android sur les flex items texte).
+  meta: { gap: 0, flexShrink: 1, minWidth: 0 },
   temp: { ...typography.body, color: '#fff', fontWeight: '700' },
   minmax: { ...typography.label, color: 'rgba(255,255,255,0.78)' },
   suggestion: {
-    flex: 1, textAlign: 'right',
+    flex: 1, flexShrink: 1, minWidth: 0, textAlign: 'right',
     ...typography.caption, color: 'rgba(255,255,255,0.9)', fontWeight: '600',
   },
   chevron: { fontSize: 20, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
