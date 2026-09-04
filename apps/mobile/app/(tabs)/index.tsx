@@ -93,17 +93,17 @@ export default function HomeScreen() {
         <YumiaLogo height={150} />
       </View>
 
-      {/* Greeting contextuel — le badge est un enfant inline du Text (pas une
-          Row séparée) : il suit ainsi le dernier mot du texte quel que soit
-          l'endroit où celui-ci s'enroule, et le texte reste correctement
-          borné en largeur (évite tout débordement, notamment sur Android). */}
+      {/* Greeting contextuel — badge en Row séparée (pas un enfant inline du
+          Text) : mélanger une image dans le flux d'un Text bidirectionnel
+          casse le rendu en arabe (le badge finit par chevaucher une lettre).
+          flex:1 sur le Text le borne correctement en largeur et fait
+          automatiquement suivre le sens RTL/LTR du système. */}
       <View style={styles.section}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.greeting}>
-            {greetTitle}
-            {user?.plan ? '  ' : ''}
+          <View style={styles.greetingRow}>
+            <Text style={styles.greeting} numberOfLines={2}>{greetTitle}</Text>
             <PlanBadgeIcon plan={user?.plan} size={24} />
-          </Text>
+          </View>
           <Text style={styles.subGreeting}>
             {city ? `📍 ${city} · ` : ''}{greetSub}
           </Text>
@@ -170,7 +170,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
-  greeting: { ...typography.display, color: colors.textPrimary },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // flex:1 (= flexBasis:0 + flexShrink) borne le texte à la largeur
+  // restante après le badge, quel que soit le sens RTL/LTR — sans ça
+  // il déborde de l'écran sur Android sur les textes un peu longs.
+  greeting: { ...typography.display, color: colors.textPrimary, flex: 1, minWidth: 0 },
   subGreeting: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
   search: {
     backgroundColor: colors.surface,
