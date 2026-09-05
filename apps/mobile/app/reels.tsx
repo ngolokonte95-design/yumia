@@ -4,7 +4,7 @@ import {
   Share, StyleSheet, Text, View, ViewToken,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -179,8 +179,8 @@ function ReelCard({
   const [paused, setPaused] = useState(false);
   const [showPlayIcon, setShowPlayIcon] = useState(false);
   const playIconOpacity = useRef(new Animated.Value(0)).current;
-  const musicSoundRef = useRef<Audio.Sound | null>(null);
-  const voiceSoundRef = useRef<Audio.Sound | null>(null);
+  const musicSoundRef = useRef<AudioPlayer | null>(null);
+  const voiceSoundRef = useRef<AudioPlayer | null>(null);
   const diskAnim = useRef(new Animated.Value(0)).current;
   const diskLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -201,39 +201,39 @@ function ReelCard({
 
   // Lecture de la piste musicale synchronisée avec l'activité du reel
   useEffect(() => {
-    // Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-av : on ignore
+    // Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-audio : on ignore
     // les anciennes pistes qui pointent encore vers ces CDN (sinon « Unable to open URL »).
     const playable = musicMeta?.previewUrl && !/dzcdn\.net|itunes\.apple\.com|mzstatic\.com/i.test(musicMeta.previewUrl);
     if (!playable) return;
-    let sound: Audio.Sound | null = null;
+    let created: AudioPlayer | null = null;
     if (active) {
       const load = async () => {
         try {
-          await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-          const { sound: s } = await Audio.Sound.createAsync(
-            { uri: musicMeta.previewUrl! },
-            { shouldPlay: true, positionMillis: musicMeta.startMs ?? 0, isLooping: true },
-          );
-          sound = s;
-          musicSoundRef.current = s;
+          await setAudioModeAsync({ playsInSilentMode: true });
+          const p = createAudioPlayer(musicMeta.previewUrl!);
+          p.loop = true;
+          created = p;
+          musicSoundRef.current = p;
           // Gère les erreurs async (URL AAC protégée, réseau, etc.)
-          s.setOnPlaybackStatusUpdate((st) => {
-            if (!st.isLoaded && st.error) {
-              s.unloadAsync().catch(() => null);
-              if (musicSoundRef.current === s) musicSoundRef.current = null;
+          p.addListener('playbackStatusUpdate', (st) => {
+            if (st.error) {
+              p.remove();
+              if (musicSoundRef.current === p) musicSoundRef.current = null;
             }
           });
+          if (musicMeta.startMs) await p.seekTo(musicMeta.startMs / 1000);
+          p.play();
         } catch {}
       };
       void load();
     } else {
-      musicSoundRef.current?.stopAsync().catch(() => null);
-      musicSoundRef.current?.unloadAsync().catch(() => null);
+      musicSoundRef.current?.pause();
+      musicSoundRef.current?.remove();
       musicSoundRef.current = null;
     }
     return () => {
-      sound?.stopAsync().catch(() => null);
-      sound?.unloadAsync().catch(() => null);
+      created?.pause();
+      created?.remove();
       musicSoundRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,8 +243,8 @@ function ReelCard({
   // pause manuellement (sans recharger le son, contrairement au montage/
   // démontage ci-dessus qui suit le scroll).
   useEffect(() => {
-    if (paused) musicSoundRef.current?.pauseAsync().catch(() => null);
-    else if (active) musicSoundRef.current?.playAsync().catch(() => null);
+    if (paused) musicSoundRef.current?.pause();
+    else if (active) musicSoundRef.current?.play();
   }, [paused, active]);
 
   // Voix off enregistrée à la publication — même mécanisme que la musique,
@@ -252,36 +252,35 @@ function ReelCard({
   // audio de vidéo).
   useEffect(() => {
     if (!item.voiceTrackUrl) return;
-    let sound: Audio.Sound | null = null;
+    let created: AudioPlayer | null = null;
     if (active) {
       const load = async () => {
         try {
-          await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-          const { sound: s } = await Audio.Sound.createAsync(
-            { uri: item.voiceTrackUrl! },
-            { shouldPlay: true, isLooping: true },
-          );
-          sound = s;
-          voiceSoundRef.current = s;
+          await setAudioModeAsync({ playsInSilentMode: true });
+          const p = createAudioPlayer(item.voiceTrackUrl!);
+          p.loop = true;
+          created = p;
+          voiceSoundRef.current = p;
+          p.play();
         } catch {}
       };
       void load();
     } else {
-      voiceSoundRef.current?.stopAsync().catch(() => null);
-      voiceSoundRef.current?.unloadAsync().catch(() => null);
+      voiceSoundRef.current?.pause();
+      voiceSoundRef.current?.remove();
       voiceSoundRef.current = null;
     }
     return () => {
-      sound?.stopAsync().catch(() => null);
-      sound?.unloadAsync().catch(() => null);
+      created?.pause();
+      created?.remove();
       voiceSoundRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, item.voiceTrackUrl]);
 
   useEffect(() => {
-    if (paused) voiceSoundRef.current?.pauseAsync().catch(() => null);
-    else if (active) voiceSoundRef.current?.playAsync().catch(() => null);
+    if (paused) voiceSoundRef.current?.pause();
+    else if (active) voiceSoundRef.current?.play();
   }, [paused, active]);
 
   // Rotation du disque vinyle
@@ -334,8 +333,8 @@ function ReelCard({
             startAtSec={startAtSec}
             overlays={item.overlays}
             onLoop={() => {
-              musicSoundRef.current?.setPositionAsync(0).catch(() => null);
-              voiceSoundRef.current?.setPositionAsync(0).catch(() => null);
+              void musicSoundRef.current?.seekTo(0).catch(() => null);
+              void voiceSoundRef.current?.seekTo(0).catch(() => null);
             }}
             posterUri={item.coverUrl}
           />
@@ -455,8 +454,8 @@ function ReelCard({
           setMuted((v) => {
             const next = !v;
             if (musicSoundRef.current) {
-              if (next) { musicSoundRef.current.pauseAsync().catch(() => null); }
-              else { musicSoundRef.current.playAsync().catch(() => null); }
+              if (next) { musicSoundRef.current.pause(); }
+              else { musicSoundRef.current.play(); }
             }
             return next;
           });

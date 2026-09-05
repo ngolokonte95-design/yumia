@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
@@ -97,12 +97,12 @@ export default function PostDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
-  const musicSoundRef = useRef<Audio.Sound | null>(null);
+  const musicSoundRef = useRef<AudioPlayer | null>(null);
 
   const stopMusic = useCallback(async () => {
     if (musicSoundRef.current) {
-      await musicSoundRef.current.stopAsync().catch(() => null);
-      await musicSoundRef.current.unloadAsync().catch(() => null);
+      musicSoundRef.current.pause();
+      musicSoundRef.current.remove();
       musicSoundRef.current = null;
     }
   }, []);
@@ -113,15 +113,17 @@ export default function PostDetailScreen() {
   const startMusic = useCallback(async (previewUrl: string) => {
     await stopMusic();
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const sound = createAudioPlayer(previewUrl);
+      sound.loop = true;
       musicSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((st) => {
-        if (!st.isLoaded && st.error) {
-          sound.unloadAsync().catch(() => null);
+      sound.addListener('playbackStatusUpdate', (st) => {
+        if (st.error) {
+          sound.remove();
           if (musicSoundRef.current === sound) musicSoundRef.current = null;
         }
       });
+      sound.play();
     } catch { /* pas de musique, tant pis pour la musique — pas pour le post */ }
   }, [stopMusic]);
 
@@ -139,14 +141,14 @@ export default function PostDetailScreen() {
 
   // Tap pause/lecture sur la vidéo → musique en pause/reprise avec elle.
   const onVideoPlayingChange = useCallback((playing: boolean) => {
-    if (playing) musicSoundRef.current?.playAsync().catch(() => null);
-    else musicSoundRef.current?.pauseAsync().catch(() => null);
+    if (playing) musicSoundRef.current?.play();
+    else musicSoundRef.current?.pause();
   }, []);
 
   // Vidéo qui boucle → musique resynchronisée au même instant (sinon elle
   // dérive sur son propre cycle, indépendant de la vidéo).
   const onVideoLoop = useCallback(() => {
-    musicSoundRef.current?.setPositionAsync(0).catch(() => null);
+    void musicSoundRef.current?.seekTo(0).catch(() => null);
   }, []);
 
   const load = useCallback(async () => {

@@ -6,7 +6,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import * as MediaLibrary from 'expo-media-library';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useAuth } from '../lib/auth-context';
@@ -82,7 +82,7 @@ export default function StoryViewerScreen() {
   const [viewers, setViewers] = useState<Array<{ viewedAt: string; user: { id: string; displayName: string; photoUrl?: string } }>>([]);
   const progress = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef<Animated.CompositeAnimation | null>(null);
-  const musicSoundRef = useRef<Audio.Sound | null>(null);
+  const musicSoundRef = useRef<AudioPlayer | null>(null);
   const diskRotation = useRef(new Animated.Value(0)).current;
   const diskAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -106,27 +106,27 @@ export default function StoryViewerScreen() {
   // Charge/décharge la piste musicale à chaque changement de story
   useEffect(() => {
     if (!musicMeta?.previewUrl) {
-      musicSoundRef.current?.stopAsync().catch(() => null);
-      musicSoundRef.current?.unloadAsync().catch(() => null);
+      musicSoundRef.current?.pause();
+      musicSoundRef.current?.remove();
       musicSoundRef.current = null;
       return;
     }
-    let sound: Audio.Sound | null = null;
+    let created: AudioPlayer | null = null;
     const load = async () => {
       try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const { sound: s } = await Audio.Sound.createAsync(
-          { uri: musicMeta.previewUrl },
-          { shouldPlay: true, positionMillis: musicMeta.startMs ?? 0, isLooping: true },
-        );
-        sound = s;
-        musicSoundRef.current = s;
+        await setAudioModeAsync({ playsInSilentMode: true });
+        const p = createAudioPlayer(musicMeta.previewUrl);
+        p.loop = true;
+        created = p;
+        musicSoundRef.current = p;
+        if (musicMeta.startMs) await p.seekTo(musicMeta.startMs / 1000);
+        p.play();
       } catch {}
     };
     void load();
     return () => {
-      sound?.stopAsync().catch(() => null);
-      sound?.unloadAsync().catch(() => null);
+      created?.pause();
+      created?.remove();
       musicSoundRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,9 +136,9 @@ export default function StoryViewerScreen() {
   useEffect(() => {
     if (!musicSoundRef.current) return;
     if (paused || viewersOpen) {
-      musicSoundRef.current.pauseAsync().catch(() => null);
+      musicSoundRef.current.pause();
     } else {
-      musicSoundRef.current.playAsync().catch(() => null);
+      musicSoundRef.current.play();
     }
   }, [paused, viewersOpen]);
 

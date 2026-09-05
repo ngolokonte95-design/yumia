@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Image } from 'expo-image';
 import { Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { PostOverlays } from './PostOverlays';
 import type { PostOverlay } from '../lib/feed-api';
 
@@ -56,7 +56,7 @@ export function PostVideo({
   // Opacité du poster : fondu doux vers la vidéo au lieu d'un changement
   // brutal (qui se voyait comme un "saut" une fois le flash noir supprimé).
   const posterOpacity = useRef(new Animated.Value(1)).current;
-  const voiceSoundRef = useRef<Audio.Sound | null>(null);
+  const voiceSoundRef = useRef<AudioPlayer | null>(null);
 
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -121,7 +121,7 @@ export function PostVideo({
   // ensemble, façon Story/Reel : la musique "dure" alors le temps de la vidéo.
   useEffect(() => {
     const sub = player.addListener('playToEnd', () => {
-      voiceSoundRef.current?.setPositionAsync(0).catch(() => null);
+      void voiceSoundRef.current?.seekTo(0).catch(() => null);
       onLoop?.();
     });
     return () => sub.remove();
@@ -130,8 +130,8 @@ export function PostVideo({
   // La voix off suit aussi la pause manuelle (tap) — même son chargé, juste
   // suspendu, pas de rechargement contrairement à l'effet actif/inactif ci-dessous.
   useEffect(() => {
-    if (playing) voiceSoundRef.current?.playAsync().catch(() => null);
-    else voiceSoundRef.current?.pauseAsync().catch(() => null);
+    if (playing) voiceSoundRef.current?.play();
+    else voiceSoundRef.current?.pause();
   }, [playing]);
 
   useEffect(() => {
@@ -143,32 +143,31 @@ export function PostVideo({
   // passage actif/inactif, comme la musique des reels (lib/reels.tsx).
   useEffect(() => {
     if (!voiceTrackUrl) return;
-    let sound: Audio.Sound | null = null;
+    let created: AudioPlayer | null = null;
 
     if (active) {
       const load = async () => {
         try {
-          await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-          const { sound: s } = await Audio.Sound.createAsync(
-            { uri: voiceTrackUrl },
-            { shouldPlay: true, isLooping: true },
-          );
-          sound = s;
-          voiceSoundRef.current = s;
+          await setAudioModeAsync({ playsInSilentMode: true });
+          const p = createAudioPlayer(voiceTrackUrl);
+          p.loop = true;
+          p.play();
+          created = p;
+          voiceSoundRef.current = p;
         } catch {
           // best-effort — une voix off manquante ne doit pas casser la vidéo
         }
       };
       void load();
     } else {
-      voiceSoundRef.current?.stopAsync().catch(() => null);
-      voiceSoundRef.current?.unloadAsync().catch(() => null);
+      voiceSoundRef.current?.pause();
+      voiceSoundRef.current?.remove();
       voiceSoundRef.current = null;
     }
 
     return () => {
-      sound?.stopAsync().catch(() => null);
-      sound?.unloadAsync().catch(() => null);
+      created?.pause();
+      created?.remove();
       voiceSoundRef.current = null;
     };
   }, [active, voiceTrackUrl]);

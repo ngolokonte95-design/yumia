@@ -5,7 +5,10 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+import {
+  useAudioPlayer, useAudioPlayerStatus, useAudioRecorder, RecordingPresets,
+  requestRecordingPermissionsAsync, setAudioModeAsync, createAudioPlayer, type AudioPlayer,
+} from 'expo-audio';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../lib/auth-context';
@@ -62,28 +65,24 @@ function fmtDuration(s: number) {
 
 // ── Bulle vocale ──────────────────────────────────────────────────────────────
 function VoiceBubble({ audioUrl, duration, isMe, onLongPress }: { audioUrl: string; duration?: number; isMe: boolean; onLongPress?: () => void }) {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [pos, setPos] = useState(0);
-  const [total, setTotal] = useState(duration ?? 0);
+  // `useAudioPlayer` charge la source et libère le lecteur tout seul au
+  // démontage (plus besoin d'unloadAsync manuel comme avec expo-av).
+  const player = useAudioPlayer(audioUrl);
+  const status = useAudioPlayerStatus(player);
+  const playing = status.playing;
+  const pos = Math.floor(status.currentTime ?? 0);
+  const total = Math.floor(status.duration || duration || 0);
 
-  const toggle = async () => {
-    if (!sound) {
-      const { sound: s } = await Audio.Sound.createAsync({ uri: audioUrl }, { shouldPlay: true });
-      s.setOnPlaybackStatusUpdate((st) => {
-        if (!st.isLoaded) return;
-        setPos(Math.floor((st.positionMillis ?? 0) / 1000));
-        setTotal(Math.floor((st.durationMillis ?? 0) / 1000));
-        if (st.didJustFinish) { setPlaying(false); setPos(0); }
-      });
-      setSound(s); setPlaying(true);
-    } else if (playing) {
-      await sound.pauseAsync(); setPlaying(false);
-    } else {
-      await sound.playAsync(); setPlaying(true);
-    }
+  // Revient au début une fois la lecture terminée, pour pouvoir la relancer.
+  useEffect(() => {
+    if (status.didJustFinish) void player.seekTo(0);
+  }, [status.didJustFinish, player]);
+
+  const toggle = () => {
+    if (playing) { player.pause(); return; }
+    if (status.didJustFinish) void player.seekTo(0);
+    player.play();
   };
-  useEffect(() => () => { sound?.unloadAsync(); }, [sound]);
   const progress = total > 0 ? pos / total : 0;
 
   return (
@@ -187,12 +186,15 @@ export default function ChatRoomScreen() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [translatingInput, setTranslatingInput] = useState(false);
 
+  // Le recorder doit être un hook au niveau du composant (pas créé à la
+  // demande comme avec expo-av) — voir startVoice/stopVoiceToPreview.
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
   const listRef = useRef<FlatList>(null);
   const lastMsgDate = useRef<string>(new Date(0).toISOString());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
   const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const previewSoundRef = useRef<Audio.Sound | null>(null);
+  const previewSoundRef = useRef<AudioPlayer | null>(null);
 
   // ─── Chargement du partenaire ────────────────────────────────────────────
   const loadPartner = useCallback(async () => {
@@ -263,7 +265,7 @@ export default function ChatRoomScreen() {
   }, [loadHistory, loadPartner, poll]);
 
   // Coupe l'écoute de l'extrait vocal en attente si on quitte l'écran.
-  useEffect(() => () => { void previewSoundRef.current?.unloadAsync().catch(() => null); }, []);
+  useEffect(() => () => { previewSoundRef.current?.remove(); }, []);
 
   // ── Hauteur réellement occupée par le clavier ───────────────────────────────
   // La fenêtre de l'app ne se redimensionne pas sur cet appareil (mode
@@ -428,11 +430,11 @@ export default function ChatRoomScreen() {
 
   // ─── Vocal ────────────────────────────────────────────────────────────────
   const startVoice = async () => {
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') return;
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-    recordingRef.current = recording;
+    const { granted } = await requestRecordingPermissionsAsync();
+    if (!granted) return;
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
+    recorder.record();
     setIsRecordingVoice(true);
     setRecordingSeconds(0);
     recTimerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
@@ -440,21 +442,19 @@ export default function ChatRoomScreen() {
 
   /** Arrête l'enregistrement et passe en écran de prévisualisation (pas d'envoi direct). */
   const stopVoiceToPreview = async () => {
-    if (!recordingRef.current) return;
+    if (!recorder.isRecording) return;
     if (recTimerRef.current) clearInterval(recTimerRef.current);
     setIsRecordingVoice(false);
     const dur = recordingSeconds;
     setRecordingSeconds(0);
-    await recordingRef.current.stopAndUnloadAsync();
-    const uri = recordingRef.current.getURI();
-    recordingRef.current = null;
+    await recorder.stop();
+    const uri = recorder.uri;
     if (uri) setVoicePreview({ uri, duration: dur });
   };
 
   const cancelVoice = async () => {
     if (recTimerRef.current) clearInterval(recTimerRef.current);
-    await recordingRef.current?.stopAndUnloadAsync();
-    recordingRef.current = null;
+    if (recorder.isRecording) await recorder.stop();
     setIsRecordingVoice(false);
     setRecordingSeconds(0);
   };
@@ -464,29 +464,29 @@ export default function ChatRoomScreen() {
     if (!voicePreview) return;
     if (previewSoundRef.current) {
       if (previewPlaying) {
-        await previewSoundRef.current.pauseAsync();
+        previewSoundRef.current.pause();
         setPreviewPlaying(false);
       } else {
-        await previewSoundRef.current.playFromPositionAsync(0);
+        await previewSoundRef.current.seekTo(0);
+        previewSoundRef.current.play();
         setPreviewPlaying(true);
       }
       return;
     }
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-    const { sound } = await Audio.Sound.createAsync({ uri: voicePreview.uri }, { shouldPlay: true });
-    previewSoundRef.current = sound;
-    sound.setOnPlaybackStatusUpdate((st) => {
-      if (st.isLoaded && !st.isPlaying && st.positionMillis > 0 && st.positionMillis === st.durationMillis) {
-        setPreviewPlaying(false);
-      }
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    const player = createAudioPlayer(voicePreview.uri);
+    previewSoundRef.current = player;
+    player.addListener('playbackStatusUpdate', (st) => {
+      if (st.didJustFinish) setPreviewPlaying(false);
     });
+    player.play();
     setPreviewPlaying(true);
   };
 
   const stopPreviewSound = async () => {
     if (previewSoundRef.current) {
-      await previewSoundRef.current.stopAsync().catch(() => null);
-      await previewSoundRef.current.unloadAsync().catch(() => null);
+      previewSoundRef.current.pause();
+      previewSoundRef.current.remove();
       previewSoundRef.current = null;
     }
     setPreviewPlaying(false);

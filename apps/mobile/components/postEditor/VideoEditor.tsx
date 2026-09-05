@@ -14,7 +14,10 @@ import {
   type GestureResponderEvent, type PanResponderGestureState,
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync,
+  createAudioPlayer, type AudioPlayer,
+} from 'expo-audio';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -61,9 +64,9 @@ export function VideoEditor({
 
   const [isRecording, setIsRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const voiceSoundRef = useRef<Audio.Sound | null>(null);
+  const voiceSoundRef = useRef<AudioPlayer | null>(null);
 
   const size = useRef({ width: 1, height: 1 });
 
@@ -144,34 +147,34 @@ export function VideoEditor({
 
   // ── Voix off ─────────────────────────────────────────────────────────────
   const startVoice = async () => {
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') return;
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-    recordingRef.current = recording;
+    const { granted } = await requestRecordingPermissionsAsync();
+    if (!granted) return;
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
+    recorder.record();
     setIsRecording(true);
     setRecSeconds(0);
     recTimerRef.current = setInterval(() => setRecSeconds((s) => s + 1), 1000);
   };
 
   const stopVoice = async () => {
-    if (!recordingRef.current) return;
+    if (!recorder.isRecording) return;
     if (recTimerRef.current) clearInterval(recTimerRef.current);
     setIsRecording(false);
-    await recordingRef.current.stopAndUnloadAsync();
-    const rec = recordingRef.current.getURI();
-    recordingRef.current = null;
+    await recorder.stop();
+    const rec = recorder.uri;
     if (rec) setVoiceUri(rec);
   };
 
   const previewVoice = async () => {
     if (!voiceUri) return;
     try {
-      const { sound } = await Audio.Sound.createAsync({ uri: voiceUri }, { shouldPlay: true });
+      const sound = createAudioPlayer(voiceUri);
       voiceSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((st) => {
-        if ('didJustFinish' in st && st.didJustFinish) void sound.unloadAsync();
+      sound.addListener('playbackStatusUpdate', (st) => {
+        if (st.didJustFinish) sound.remove();
       });
+      sound.play();
     } catch {}
   };
 

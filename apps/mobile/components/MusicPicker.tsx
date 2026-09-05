@@ -8,7 +8,7 @@ import {
   ActivityIndicator, Alert, Animated, Easing, FlatList, Image, Modal,
   PanResponder, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
@@ -129,7 +129,7 @@ function ClipSelector({
   const [leftX, setLeftX] = useState(0);
   const [rightX, setRightX] = useState((15 / PREVIEW_S) * WAVEFORM_W);
   const [isPlaying, setIsPlaying] = useState(false);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioPlayer | null>(null);
   const bars = useMemo(() => generateBars(track.id), [track.id]);
 
   // Refs à jour à chaque rendu — lues depuis les callbacks de PanResponder
@@ -175,13 +175,13 @@ function ClipSelector({
       // continuerait à jouer au-delà de l'extrait pendant que le curseur,
       // lui, resterait figé au bord droit — incohérent avec ce qu'on montre.
       if (finished) {
-        soundRef.current?.pauseAsync().catch(() => null);
+        soundRef.current?.pause();
         setIsPlaying(false);
       }
     });
   };
 
-  const seekIfLoaded = (sec: number) => { if (soundRef.current) void soundRef.current.setPositionAsync(sec * 1000); };
+  const seekIfLoaded = (sec: number) => { if (soundRef.current) void soundRef.current.seekTo(sec); };
   const reseekPlayhead = () => { if (isPlayingRef.current) animatePlayheadFrom(leftXRef.current); };
 
   // Glisser le corps de la fenêtre : déplace les deux bords ensemble, largeur inchangée.
@@ -236,8 +236,8 @@ function ClipSelector({
 
   const stopSound = useCallback(async () => {
     if (soundRef.current) {
-      await soundRef.current.stopAsync().catch(() => null);
-      await soundRef.current.unloadAsync().catch(() => null);
+      soundRef.current.pause();
+      soundRef.current.remove();
       soundRef.current = null;
     }
     stopPlayheadAnim();
@@ -246,26 +246,26 @@ function ClipSelector({
 
   const togglePlay = useCallback(async () => {
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      await setAudioModeAsync({ playsInSilentMode: true });
       if (isPlaying) {
-        await soundRef.current?.pauseAsync();
+        soundRef.current?.pause();
         stopPlayheadAnim();
         setIsPlaying(false);
         return;
       }
       if (soundRef.current) {
-        await soundRef.current.playFromPositionAsync(startSecRef.current * 1000);
+        await soundRef.current.seekTo(startSecRef.current);
+        soundRef.current.play();
         animatePlayheadFrom(leftXRef.current);
         setIsPlaying(true);
         return;
       }
       if (!track.previewUrl) return;
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: track.previewUrl },
-        { shouldPlay: true, positionMillis: startSecRef.current * 1000 },
-      );
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((st) => { if (st.isLoaded && !st.isPlaying) setIsPlaying(false); });
+      const player = createAudioPlayer(track.previewUrl);
+      soundRef.current = player;
+      player.addListener('playbackStatusUpdate', (st) => { if (st.isLoaded && !st.playing && !st.isBuffering) setIsPlaying(false); });
+      await player.seekTo(startSecRef.current);
+      player.play();
       animatePlayheadFrom(leftXRef.current);
       setIsPlaying(true);
     } catch { setIsPlaying(false); }
@@ -396,12 +396,12 @@ export function MusicPickerModal({
   // Pressable dédié par ligne (bouton ▶/⏸), séparé du tap sur la ligne qui
   // sélectionne le morceau.
   const [previewingId, setPreviewingId] = useState<string | null>(null);
-  const previewSoundRef = useRef<Audio.Sound | null>(null);
+  const previewSoundRef = useRef<AudioPlayer | null>(null);
 
   const stopPreview = useCallback(async () => {
     if (previewSoundRef.current) {
-      await previewSoundRef.current.stopAsync().catch(() => null);
-      await previewSoundRef.current.unloadAsync().catch(() => null);
+      previewSoundRef.current.pause();
+      previewSoundRef.current.remove();
       previewSoundRef.current = null;
     }
     setPreviewingId(null);
@@ -412,13 +412,14 @@ export function MusicPickerModal({
     await stopPreview();
     if (!item.previewUrl) return;
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: item.previewUrl }, { shouldPlay: true });
-      previewSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((st) => {
-        if (!st.isLoaded) { if (st.error) setPreviewingId(null); return; }
-        if (!st.isPlaying && !st.isBuffering) setPreviewingId(null);
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const player = createAudioPlayer(item.previewUrl);
+      previewSoundRef.current = player;
+      player.addListener('playbackStatusUpdate', (st) => {
+        if (!st.isLoaded) return;
+        if (!st.playing && !st.isBuffering) setPreviewingId(null);
       });
+      player.play();
       setPreviewingId(item.id);
     } catch { setPreviewingId(null); }
   }, [previewingId, stopPreview]);

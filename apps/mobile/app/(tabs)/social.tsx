@@ -4,7 +4,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
@@ -428,7 +428,7 @@ export default function SocialTab() {
     setScreenFocused(true);
     return () => setScreenFocused(false);
   }, []));
-  const musicSoundRef = useRef<Audio.Sound | null>(null);
+  const musicSoundRef = useRef<AudioPlayer | null>(null);
   // Jeton de génération : incrémenté à chaque tentative de lecture. Si une
   // tentative plus récente démarre avant que la précédente ait fini de charger
   // (scroll rapide), la précédente se voit "périmée" à son retour et se décharge
@@ -439,8 +439,8 @@ export default function SocialTab() {
   const stopMusic = useCallback(async () => {
     playGenRef.current += 1;
     if (musicSoundRef.current) {
-      await musicSoundRef.current.stopAsync().catch(() => null);
-      await musicSoundRef.current.unloadAsync().catch(() => null);
+      musicSoundRef.current.pause();
+      musicSoundRef.current.remove();
       musicSoundRef.current = null;
     }
     setPlayingMusicId(null);
@@ -451,9 +451,9 @@ export default function SocialTab() {
   // sur la vidéo) déclenche exactement le même signal qu'un arrêt réel, et
   // effacer `playingMusicId` à ce moment-là empêchait la reprise — au tap
   // play suivant, plus rien ne rattachait le son chargé à ce post.
-  const makeStatusCb = useCallback((snd: Audio.Sound) => (st: { isLoaded: boolean; error?: string }) => {
-    if (!st.isLoaded && st.error) {
-      snd.unloadAsync().catch(() => null);
+  const makeStatusCb = useCallback((snd: AudioPlayer) => (st: { error: string | null }) => {
+    if (st.error) {
+      snd.remove();
       if (musicSoundRef.current === snd) { musicSoundRef.current = null; setPlayingMusicId(null); }
     }
   }, []);
@@ -461,22 +461,24 @@ export default function SocialTab() {
   const startTrack = useCallback(async (postId: string, previewUrl: string) => {
     const myGen = ++playGenRef.current;
     if (musicSoundRef.current) {
-      await musicSoundRef.current.stopAsync().catch(() => null);
-      await musicSoundRef.current.unloadAsync().catch(() => null);
+      musicSoundRef.current.pause();
+      musicSoundRef.current.remove();
       musicSoundRef.current = null;
     }
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri: previewUrl }, { shouldPlay: true, isLooping: true });
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const sound = createAudioPlayer(previewUrl);
+      sound.loop = true;
       if (myGen !== playGenRef.current) {
         // Une tentative plus récente a démarré pendant le chargement : on
         // décharge ce son orphelin sans jamais l'assigner à la ref.
-        await sound.stopAsync().catch(() => null);
-        await sound.unloadAsync().catch(() => null);
+        sound.pause();
+        sound.remove();
         return;
       }
       musicSoundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate(makeStatusCb(sound));
+      sound.addListener('playbackStatusUpdate', makeStatusCb(sound));
+      sound.play();
       setPlayingMusicId(postId);
     } catch {
       if (myGen === playGenRef.current) setPlayingMusicId(null);
@@ -495,8 +497,8 @@ export default function SocialTab() {
   // mettre la vidéo en pause laissait la musique tourner toute seule.
   const onVideoPlayingChange = useCallback((postId: string, playing: boolean) => {
     if (playingMusicId !== postId) return;
-    if (playing) musicSoundRef.current?.playAsync().catch(() => null);
-    else musicSoundRef.current?.pauseAsync().catch(() => null);
+    if (playing) musicSoundRef.current?.play();
+    else musicSoundRef.current?.pause();
   }, [playingMusicId]);
 
   // La vidéo boucle sur elle-même ; sans resynchronisation, la musique
@@ -505,7 +507,7 @@ export default function SocialTab() {
   // — elle "dure" ainsi le temps de la vidéo, comme demandé.
   const onVideoLoop = useCallback((postId: string) => {
     if (playingMusicId !== postId) return;
-    musicSoundRef.current?.setPositionAsync(0).catch(() => null);
+    void musicSoundRef.current?.seekTo(0).catch(() => null);
   }, [playingMusicId]);
 
   // Refs stables pour le callback viewability (évite de recréer la fonction)
