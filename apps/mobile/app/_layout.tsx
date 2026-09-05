@@ -157,7 +157,9 @@ function AuthGate() {
       <Stack.Screen name="nightclub" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="visits" />
       <Stack.Screen name="story-viewer" options={{ animation: 'fade', presentation: 'fullScreenModal' }} />
-      <Stack.Screen name="story" options={{ animation: 'slide_from_bottom' }} />
+      {/* La route réelle est "story/create" (app/story/create.tsx) : il n'y a
+          pas de groupe "story" (pas de app/story/_layout.tsx). */}
+      <Stack.Screen name="story/create" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="join" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="admin" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="social-profile" />
