@@ -8,15 +8,26 @@
  * rafraîchir le badge à la réception, et naviguer au bon endroit au tap.
  */
 import * as Notifications from 'expo-notifications';
+import { isRunningInExpoGo } from 'expo';
+import { Platform } from 'react-native';
 import { notificationTarget } from './notificationRouting';
 import { refreshUnreadCount } from './useNotifications';
 
+// Voir usePushNotifications.ts : Expo Go sur Android (SDK 53+) ne supporte
+// plus du tout les notifications push distantes.
+const pushUnsupported = Platform.OS === 'android' && isRunningInExpoGo();
+
 /** À appeler une seule fois (_layout.tsx) — recrée l'écoute si `accessToken` change. */
 export function startNotificationListener(accessToken: string | null): () => void {
-  const sub = Notifications.addNotificationReceivedListener(() => {
-    void refreshUnreadCount(accessToken);
-  });
-  return () => sub.remove();
+  if (pushUnsupported) return () => {};
+  try {
+    const sub = Notifications.addNotificationReceivedListener(() => {
+      void refreshUnreadCount(accessToken);
+    });
+    return () => sub.remove();
+  } catch {
+    return () => {};
+  }
 }
 
 /**
@@ -26,11 +37,16 @@ export function startNotificationListener(accessToken: string | null): () => voi
 export function startNotificationResponseListener(
   navigate: (path: string) => void,
 ): () => void {
-  const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    const data = response.notification.request.content.data as
-      | ({ type?: string } & Record<string, unknown>)
-      | undefined;
-    navigate(notificationTarget({ type: data?.type ?? 'generic', data }));
-  });
-  return () => sub.remove();
+  if (pushUnsupported) return () => {};
+  try {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as
+        | ({ type?: string } & Record<string, unknown>)
+        | undefined;
+      navigate(notificationTarget({ type: data?.type ?? 'generic', data }));
+    });
+    return () => sub.remove();
+  } catch {
+    return () => {};
+  }
 }
