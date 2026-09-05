@@ -62,6 +62,11 @@ function AuthGate() {
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
     const inLanguageSelect = segments[0] === 'language-select';
+    // Écrans accessibles sans être connecté, mais qui vivent à la racine de
+    // app/ (hors groupe "(auth)") : sans ça, le renvoi automatique vers
+    // /login ci-dessous les fermait instantanément à l'ouverture — le bouton
+    // « Mot de passe oublié ? » semblait ne rien faire.
+    const inPublicRoute = segments[0] === 'forgot-password' || segments[0] === 'reset-password';
 
     if (status === 'unauthenticated') {
       // Tout premier lancement (aucune langue jamais choisie) : on demande la
@@ -72,9 +77,9 @@ function AuthGate() {
       // juste avant de naviguer — sans ça, cet effet verrait encore l'ancien
       // "jamais choisi" et renverrait en boucle vers /language-select.
       const chosenLocale = getCachedDeviceLocale() ?? deviceLocale;
-      if (chosenLocale == null && !inLanguageSelect) {
+      if (chosenLocale == null && !inLanguageSelect && !inPublicRoute) {
         router.replace('/language-select');
-      } else if (chosenLocale != null && !inAuthGroup && !inLanguageSelect) {
+      } else if (chosenLocale != null && !inAuthGroup && !inLanguageSelect && !inPublicRoute) {
         router.replace('/login');
       }
       setRouteReady(true);
