@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Image, Keyboard, Modal, Platform, Pressable,
-  StyleSheet, Text, TextInput, useWindowDimensions, View,
+  StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -265,35 +265,26 @@ export default function ChatRoomScreen() {
   // Coupe l'écoute de l'extrait vocal en attente si on quitte l'écran.
   useEffect(() => () => { void previewSoundRef.current?.unloadAsync().catch(() => null); }, []);
 
-  // ── Hauteur réellement occupée par le clavier (mesurée en continu) ─────────
-  // Un événement "keyboardDidShow" ne se déclenche qu'à l'OUVERTURE du
-  // clavier — si un clavier tiers change ensuite de hauteur en interne SANS
-  // se fermer/rouvrir (ex. le panneau de traduction de SwiftKey, plus haut
-  // que le clavier normal), cet événement ne se redéclenche pas et une
-  // hauteur figée au moment de l'ouverture laisserait le nouveau panneau
-  // cacher notre barre de saisie. On mesure donc à la place la fenêtre
-  // visible réelle (`useWindowDimensions`, mise à jour par le système à
-  // chaque redimensionnement, y compris ces changements internes) et on la
-  // compare à sa hauteur de référence (capturée avant toute apparition de
-  // clavier) : la différence est TOUJOURS la hauteur exacte actuellement
-  // occupée, quel que soit le clavier ou son panneau du moment.
-  const { height: windowHeight } = useWindowDimensions();
-  const baselineHeightRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (baselineHeightRef.current === null) baselineHeightRef.current = windowHeight;
-  }, [windowHeight]);
-  const keyboardHeight = baselineHeightRef.current != null
-    ? Math.max(0, baselineHeightRef.current - windowHeight)
-    : 0;
-
-  // Fait défiler l'historique en bas à l'ouverture du clavier (confort — la
-  // hauteur elle-même est gérée en continu ci-dessus, pas par cet événement).
+  // ── Hauteur réellement occupée par le clavier ───────────────────────────────
+  // La fenêtre de l'app ne se redimensionne pas sur cet appareil (mode
+  // "pan", pas "resize") — `useWindowDimensions` ne bouge donc jamais avec le
+  // clavier, inutile ici. On revient à la mesure par événement, la seule qui
+  // fonctionne réellement dans ce mode, en écoutant EN PLUS
+  // "keyboardDidChangeFrame" (pas seulement "...Show") pour capter aussi un
+  // clavier tiers qui change de hauteur en interne sans se refermer (ex. le
+  // panneau de traduction de SwiftKey, plus haut que le clavier normal).
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const showSub = Keyboard.addListener(showEvt, () => {
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const applyHeight = (e: { endCoordinates?: { height?: number } }) => {
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
-    });
-    return () => showSub.remove();
+    };
+    const showSub = Keyboard.addListener(showEvt, applyHeight);
+    const frameSub = Keyboard.addListener('keyboardDidChangeFrame', applyHeight);
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); frameSub.remove(); hideSub.remove(); };
   }, []);
 
   // ─── Envoi de message (chiffré si possible) ───────────────────────────────
