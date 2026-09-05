@@ -128,6 +128,12 @@ export class AuthController {
       locale: dto.locale,
       photoUrl: dto.photoUrl,
       preferences: dto.preferences,
+      // Champs du profil social : valides par le DTO et geres par le service,
+      // ils etaient simplement oublies ici — donc silencieusement jetes. Sans
+      // `gender`, le filtre homme/femme du mode social ne pouvait rien trouver.
+      gender: dto.gender,
+      birthYear: dto.birthYear,
+      interestedIn: dto.interestedIn,
     });
   }
 
