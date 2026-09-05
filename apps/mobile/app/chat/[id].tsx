@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ActivityIndicator, Alert, FlatList, Image, Keyboard, Modal, Platform, Pressable,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -264,6 +264,26 @@ export default function ChatRoomScreen() {
 
   // Coupe l'écoute de l'extrait vocal en attente si on quitte l'écran.
   useEffect(() => () => { void previewSoundRef.current?.unloadAsync().catch(() => null); }, []);
+
+  // ── Hauteur réelle du clavier (mesurée par événement, pas devinée) ─────────
+  // Sur Android, `KeyboardAvoidingView behavior="height"` s'appuie sur cette
+  // même mesure en interne — mais certains claviers tiers avec un panneau
+  // additionnel (ex. l'outil de traduction intégré à SwiftKey) rapportent leur
+  // hauteur avec un léger retard ou une valeur incomplète à ce mécanisme
+  // interne. En la mesurant nous-mêmes et en poussant la barre de saisie avec
+  // un padding explicite, elle reste visible au-dessus de N'IMPORTE QUEL
+  // clavier/panneau, quelle que soit sa hauteur réelle.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   // ─── Envoi de message (chiffré si possible) ───────────────────────────────
   const send = async () => {
@@ -594,7 +614,11 @@ export default function ChatRoomScreen() {
       </View>
 
       {/* ── Messages ────────────────────────────────────────────────────────── */}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      {/* Padding mesuré par événement plutôt que KeyboardAvoidingView natif —
+          plus fiable avec les claviers tiers munis d'un panneau additionnel
+          (voir commentaire sur keyboardHeight). Fonctionne identiquement sur
+          les deux plateformes puisqu'on mesure nous-mêmes la hauteur réelle. */}
+      <View style={{ flex: 1, paddingBottom: keyboardHeight }}>
         <FlatList
           ref={listRef}
           data={messages}
@@ -829,7 +853,7 @@ export default function ChatRoomScreen() {
           ) : null}
           </View>
         )}
-      </KeyboardAvoidingView>
+      </View>
 
       {/* ── Photo/vidéo plein écran ─────────────────────────────────────────── */}
       {viewerPhotos ? (
