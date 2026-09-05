@@ -5,6 +5,7 @@ import {
   Image,
   TextInput,
   Pressable,
+  ScrollView,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -57,7 +58,19 @@ export default function RegisterScreen() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.container, { paddingTop: insets.top + spacing.xxl }]}>
+      {/* ScrollView (et non une View fixe) : avec les boutons Google + Apple
+          affichés, le contenu dépasse la hauteur de l'écran sur beaucoup de
+          téléphones — le texte légal et le lien « Se connecter » sortaient de
+          l'écran sans aucun moyen d'y accéder. */}
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[
+          styles.container,
+          { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.lg },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Image
           source={require('../../assets/logo.png')}
           style={styles.logo}
@@ -166,15 +179,17 @@ export default function RegisterScreen() {
             {t('sign_in')}
           </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, paddingHorizontal: spacing.lg },
-  logo: { width: 140, height: 140, alignSelf: 'center', marginBottom: spacing.lg },
+  // flexGrow (pas flex) : c'est un contentContainerStyle de ScrollView — le
+  // contenu remplit l'écran quand il est court, et peut le dépasser sinon.
+  container: { flexGrow: 1, paddingHorizontal: spacing.lg },
+  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: spacing.md },
   title: { ...typography.display, color: colors.textPrimary },
   subtitle: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
   form: { marginTop: spacing.xl, gap: spacing.md },

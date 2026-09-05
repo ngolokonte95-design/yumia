@@ -5,6 +5,7 @@ import {
   Image,
   TextInput,
   Pressable,
+  ScrollView,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -51,7 +52,17 @@ export default function LoginScreen() {
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.container, { paddingTop: insets.top + spacing.xxl }]}>
+      {/* ScrollView : même raison que sur l'écran d'inscription — avec les
+          boutons Google + Apple, le bas de l'écran devenait inaccessible. */}
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[
+          styles.container,
+          { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.lg },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Image
           source={require('../../assets/logo.png')}
           style={styles.logo}
@@ -142,15 +153,16 @@ export default function LoginScreen() {
             {t('create_account')}
           </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, paddingHorizontal: spacing.lg },
-  logo: { width: 140, height: 140, alignSelf: 'center', marginBottom: spacing.lg },
+  // flexGrow (pas flex) : contentContainerStyle de ScrollView.
+  container: { flexGrow: 1, paddingHorizontal: spacing.lg },
+  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: spacing.md },
   title: { ...typography.display, color: colors.textPrimary },
   subtitle: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
   form: { marginTop: spacing.xl, gap: spacing.md },
