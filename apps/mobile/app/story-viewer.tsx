@@ -7,7 +7,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import * as MediaLibrary from 'expo-media-library';
+// Chargé à la demande (pas d'import statique) : la nouvelle implémentation
+// native ("ExpoMediaLibraryNext") lève une exception dès l'import si elle
+// n'est pas présente dans le client — c'est le cas d'Expo Go sur Android à
+// ce jour. Un import statique planterait donc tout l'écran (et l'app) au
+// chargement du bundle, avant même qu'on ait besoin de "Enregistrer".
 import { Directory, File, Paths } from 'expo-file-system';
 import { useAuth } from '../lib/auth-context';
 import { feedApi, type StoryGroup, type StorySticker } from '../lib/feed-api';
@@ -207,6 +211,7 @@ export default function StoryViewerScreen() {
     setSaving(true);
     setPaused(true);
     try {
+      const MediaLibrary = await import('expo-media-library');
       const perm = await MediaLibrary.requestPermissionsAsync();
       if (!perm.granted) { Alert.alert(t('sv_perm_denied_title'), t('sv_perm_denied_body')); return; }
       const dest = new Directory(Paths.cache, `story-${story.id}-${Date.now()}`);
