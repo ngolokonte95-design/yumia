@@ -1,8 +1,9 @@
 /**
  * Onboarding « Aha moment < 90 s ».
- * Deux étapes :
- *   1. Sélection des univers favoris (multi-sélection, grille 2 colonnes)
- *   2. Restrictions alimentaires (tags courants)
+ * Trois étapes :
+ *   1. Genre (obligatoire — cf. commentaire sur GENDERS plus bas)
+ *   2. Sélection des univers favoris (multi-sélection, grille 2 colonnes)
+ *   3. Restrictions alimentaires (tags courants)
  * → PATCH /auth/me → preferences.onboardingComplete = true → redirect /
  */
 import { useState } from 'react';
@@ -20,6 +21,7 @@ import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 import { universeLabel } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 
@@ -35,13 +37,25 @@ const RESTRICTION_TAGS = [
   'Sans noix',
 ];
 
-type Step = 'universes' | 'restrictions';
+// Le genre est demandé ICI (et non sur l'écran d'inscription) car les
+// créations de compte via Google et Apple ne passent jamais par cet écran :
+// l'onboarding est le seul point de passage commun à TOUS les nouveaux
+// comptes. Sans cette donnée, le filtre homme/femme du mode social ne peut
+// renvoyer aucun profil.
+const GENDERS: { value: string; labelKey: TranslationKey }[] = [
+  { value: 'male', labelKey: 'esp_gender_male' },
+  { value: 'female', labelKey: 'esp_gender_female' },
+  { value: 'other', labelKey: 'esp_gender_other' },
+];
+
+type Step = 'gender' | 'universes' | 'restrictions';
 
 export default function OnboardingScreen() {
   const { updateProfile, user } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
-  const [step, setStep] = useState<Step>('universes');
+  const [step, setStep] = useState<Step>('gender');
+  const [gender, setGender] = useState<string | null>(user?.gender ?? null);
   const [selectedUniverses, setSelectedUniverses] = useState<Universe[]>([]);
   const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,6 +78,7 @@ export default function OnboardingScreen() {
     setError(null);
     try {
       await updateProfile({
+        ...(gender ? { gender } : {}),
         preferences: {
           favoriteUniverses: selectedUniverses,
           restrictions: selectedRestrictions,
@@ -83,11 +98,20 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {step === 'universes' ? (
+      {step === 'gender' ? (
+        <GenderStep
+          firstName={firstName}
+          selected={gender}
+          onSelect={setGender}
+          onNext={() => setStep('universes')}
+          t={t}
+        />
+      ) : step === 'universes' ? (
         <UniverseStep
           firstName={firstName}
           selected={selectedUniverses}
           onToggle={toggleUniverse}
+          onBack={() => setStep('gender')}
           onNext={() => setStep('restrictions')}
           t={t}
         />
@@ -106,20 +130,20 @@ export default function OnboardingScreen() {
   );
 }
 
-// ─── Step 1 : universes ───────────────────────────────────────────────────────
-
 type TFn = ReturnType<typeof useI18n>['t'];
 
-function UniverseStep({
+// ─── Step 1 : genre ───────────────────────────────────────────────────────────
+
+function GenderStep({
   firstName,
   selected,
-  onToggle,
+  onSelect,
   onNext,
   t,
 }: {
   firstName: string;
-  selected: Universe[];
-  onToggle: (k: Universe) => void;
+  selected: string | null;
+  onSelect: (g: string) => void;
   onNext: () => void;
   t: TFn;
 }) {
@@ -130,6 +154,67 @@ function UniverseStep({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <Text style={styles.title}>{greeting}</Text>
+        <Text style={styles.subtitle}>{t('onboarding_gender_title')}</Text>
+      </View>
+
+      <View style={styles.tagWrap}>
+        {GENDERS.map((g) => {
+          const active = selected === g.value;
+          return (
+            <Pressable
+              key={g.value}
+              style={[styles.tag, active && styles.tagActive]}
+              onPress={() => onSelect(g.value)}
+            >
+              <Text style={[styles.tagText, active && styles.tagTextActive]}>{t(g.labelKey)}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={styles.genderHint}>{t('onboarding_gender_sub')}</Text>
+
+      <View style={styles.footer}>
+        <Pressable
+          style={[styles.btn, !selected && styles.btnDisabled]}
+          onPress={onNext}
+          disabled={!selected}
+        >
+          <Text style={styles.btnText}>{t('continue_btn')}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ─── Step 2 : universes ───────────────────────────────────────────────────────
+
+function UniverseStep({
+  firstName,
+  selected,
+  onToggle,
+  onBack,
+  onNext,
+  t,
+}: {
+  firstName: string;
+  selected: Universe[];
+  onToggle: (k: Universe) => void;
+  onBack: () => void;
+  onNext: () => void;
+  t: TFn;
+}) {
+  const greeting = firstName
+    ? `${t('onboarding_welcome')}, ${firstName} !`
+    : `${t('onboarding_welcome')} !`;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Pressable onPress={onBack} style={styles.backBtn}>
+          <Text style={styles.backText}>{t('back')}</Text>
+        </Pressable>
         <Text style={styles.title}>{greeting}</Text>
         <Text style={styles.subtitle}>{t('onboarding_universes_sub')}</Text>
       </View>
@@ -180,7 +265,7 @@ function UniverseStep({
   );
 }
 
-// ─── Step 2 : restrictions ────────────────────────────────────────────────────
+// ─── Step 3 : restrictions ────────────────────────────────────────────────────
 
 function RestrictionsStep({
   selected,
@@ -285,6 +370,7 @@ const styles = StyleSheet.create({
   },
 
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  genderHint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.md, lineHeight: 18 },
   tag: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
