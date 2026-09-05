@@ -7,18 +7,12 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "newArchEnabled": true,
     "updates": {
       "enabled": false
     },
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yumia.app",
@@ -180,12 +174,32 @@
       ],
       "expo-video",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "YUMIA utilise ta caméra pour prendre des photos et vidéos.",
+          "microphonePermission": "YUMIA utilise ton microphone pour enregistrer des vidéos avec du son."
+        }
+      ],
+      [
         "@config-plugins/react-native-webrtc",
         {
           "cameraPermission": "YUMIA utilise ta caméra pour les appels vidéo.",
           "microphonePermission": "YUMIA utilise ton microphone pour les appels vocaux et vidéo."
         }
-      ]
+      ],
+      "@sentry/react-native",
+      "expo-image",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ],
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

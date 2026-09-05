@@ -604,7 +604,7 @@ export function MusicPickerModal({
 const cs = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   // Voile sombre entre le média de fond et les contrôles, pour la lisibilité.
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)' },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.md, paddingTop: 54, paddingBottom: 14,

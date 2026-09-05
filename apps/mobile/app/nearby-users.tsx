@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   // Bottom sheets
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)' },
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,

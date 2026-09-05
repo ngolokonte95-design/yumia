@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   retryText: { ...typography.caption, color: '#fff' },
   card: { width: '100%', justifyContent: 'flex-end' },
   media: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',

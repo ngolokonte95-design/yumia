@@ -47,7 +47,7 @@ export function PlacePhoto({ photoUrls, emoji, emojiSize = 56, scrim = false }: 
 
 const styles = StyleSheet.create({
   fallback: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceElevated,

@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { ...typography.display, color: colors.brand, fontSize: 28 },
   avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 40,
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',

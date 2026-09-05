@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
   radiusChipText: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
   radiusChipTextActive: { color: '#fff' },
   filterBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 9,
     backgroundColor: 'rgba(0,0,0,0.12)',
   },

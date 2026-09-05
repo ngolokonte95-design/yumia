@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   // brutal visuellement qu'un flash de noir pur pendant le scroll.
   fallbackBg: { backgroundColor: '#1c1c1e' },
   iconWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center', justifyContent: 'center',
   },
   iconCircle: {

@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   empty: { color: '#fff', fontSize: 16 },
   closeFallback: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.surface, borderRadius: 999 },
   closeTxt: { color: '#fff', fontWeight: '700' },
-  media: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  media: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
   progressRow: { position: 'absolute', left: spacing.sm, right: spacing.sm, flexDirection: 'row', gap: 4, zIndex: 5 },
   progressTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: 3, backgroundColor: '#fff' },

@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
 
   // Icône pause/lecture (tap au milieu)
   pauseIconWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center', justifyContent: 'center',
   },
   pauseIconCircle: {

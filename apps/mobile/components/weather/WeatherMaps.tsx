@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   mapWrap: { height: 240, marginHorizontal: spacing.sm, borderRadius: radius.md, overflow: 'hidden' },
   map: { flex: 1 },
   mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(14,14,18,0.35)',
   },
