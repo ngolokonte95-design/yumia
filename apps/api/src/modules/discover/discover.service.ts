@@ -117,10 +117,20 @@ export class DiscoverService {
     const users = await this.prisma.user.findMany({ where, select: USER_SOCIAL_SELECT });
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
-    return candidates
+    const nearby = candidates
       .filter((c) => userMap[c.userId])
       .slice(0, limit)
       .map((c) => ({ ...userMap[c.userId], distanceKm: Math.round(c.dist * 10) / 10 }));
+
+    // Des profils étaient proches, mais aucun ne correspond au genre demandé :
+    // on élargit à toute la base plutôt que de renvoyer une liste vide. Sans
+    // ce repli, filtrer sur « Homme » ou « Femme » ne donnait aucun résultat
+    // dès qu'un profil correspondant n'avait pas partagé sa position.
+    if (!nearby.length) {
+      return this.getRandomProfiles(viewerId, seenSet, limit, interestedIn);
+    }
+
+    return nearby;
   }
 
   async markSeen(viewerId: string, targetId: string) {
