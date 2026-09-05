@@ -755,7 +755,7 @@ export default function ChatRoomScreen() {
 
         {/* ── Barre d'enregistrement vocal ────────────────────────────────── */}
         {isRecordingVoice ? (
-          <View style={[styles.voiceBar, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={[styles.voiceBar, { paddingBottom: keyboardHeight > 0 ? 8 : insets.bottom + 8 }]}>
             <Pressable style={styles.voiceCancelBtn} onPress={cancelVoice}>
               <Text style={styles.voiceCancelTxt}>✕</Text>
             </Pressable>
@@ -771,7 +771,7 @@ export default function ChatRoomScreen() {
           </View>
         ) : voicePreview ? (
           /* ── Prévisualisation avant envoi (façon Snapchat) ────────────────── */
-          <View style={[styles.voiceBar, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={[styles.voiceBar, { paddingBottom: keyboardHeight > 0 ? 8 : insets.bottom + 8 }]}>
             <Pressable style={styles.voiceCancelBtn} onPress={() => void discardVoicePreview()}>
               <Text style={styles.voiceCancelTxt}>🗑️</Text>
             </Pressable>
@@ -802,7 +802,7 @@ export default function ChatRoomScreen() {
                 </Pressable>
               </View>
             ) : null}
-          <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={[styles.inputRow, { paddingBottom: keyboardHeight > 0 ? 8 : insets.bottom + 8 }]}>
             <Pressable
               style={styles.inputIconBtn}
               onPress={() => { Keyboard.dismiss(); setShowEmoji(false); setShowAttachSheet(true); }}
