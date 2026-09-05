@@ -49,16 +49,31 @@ export default function DiscoverPeopleScreen() {
   const [idx, setIdx] = useState(0);
   const [filter, setFilter] = useState<FilterValue>('everyone');
   const pan = useRef(new Animated.ValueXY()).current;
+  // Position mémorisée pour la durée de l'écran : sans ça, chaque changement
+  // de filtre relançait une acquisition GPS complète (plusieurs secondes
+  // d'attente), alors que la position n'a évidemment pas bougé entre deux
+  // clics sur « Homme » / « Femme ».
+  const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const load = useCallback(async (interestedIn: FilterValue = 'everyone') => {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
       let url = `${API}/discover/swipe?limit=15&interestedIn=${interestedIn}`;
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        url += `&lat=${loc.coords.latitude}&lng=${loc.coords.longitude}`;
+
+      if (!coordsRef.current) {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          // Dernière position connue d'abord : quasi instantanée, et
+          // largement assez précise pour un rayon de recherche de 50 km.
+          const last = await Location.getLastKnownPositionAsync();
+          const loc = last ?? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          coordsRef.current = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        }
+      }
+
+      if (coordsRef.current) {
+        url += `&lat=${coordsRef.current.lat}&lng=${coordsRef.current.lng}`;
       }
       const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (res.ok) { const data = await res.json(); setProfiles(Array.isArray(data) ? data : []); setIdx(0); }
