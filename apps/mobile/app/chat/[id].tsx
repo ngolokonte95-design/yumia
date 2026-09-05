@@ -820,22 +820,20 @@ export default function ChatRoomScreen() {
                 multiline
                 maxLength={1000}
               />
-              {input.trim() ? (
-                <Pressable
-                  style={styles.emojiToggleBtn}
-                  onPress={handleTranslateInput}
-                  onLongPress={() => { Keyboard.dismiss(); setShowEmoji(false); setShowLangPicker(true); }}
-                  disabled={translatingInput}
-                >
-                  {translatingInput ? (
-                    <ActivityIndicator color={colors.brand} size="small" />
-                  ) : (
-                    <Text style={{ fontSize: 18 }}>
-                      {translateTarget ? (SUPPORTED_LOCALES.find((l) => l.code === translateTarget)?.flag ?? '🌐') : '🌐'}
-                    </Text>
-                  )}
-                </Pressable>
-              ) : null}
+              <Pressable
+                style={styles.emojiToggleBtn}
+                onPress={handleTranslateInput}
+                onLongPress={() => { Keyboard.dismiss(); setShowEmoji(false); setShowLangPicker(true); }}
+                disabled={translatingInput}
+              >
+                {translatingInput ? (
+                  <ActivityIndicator color={colors.brand} size="small" />
+                ) : (
+                  <Text style={{ fontSize: 18 }}>
+                    {translateTarget ? (SUPPORTED_LOCALES.find((l) => l.code === translateTarget)?.flag ?? '🌐') : '🌐'}
+                  </Text>
+                )}
+              </Pressable>
               <Pressable
                 style={styles.emojiToggleBtn}
                 onPress={() => { Keyboard.dismiss(); setShowAttachSheet(false); setShowEmoji((v) => !v); }}
