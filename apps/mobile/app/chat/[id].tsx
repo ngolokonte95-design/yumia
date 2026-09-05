@@ -270,11 +270,14 @@ export default function ChatRoomScreen() {
   // ── Hauteur réellement occupée par le clavier ───────────────────────────────
   // La fenêtre de l'app ne se redimensionne pas sur cet appareil (mode
   // "pan", pas "resize") — `useWindowDimensions` ne bouge donc jamais avec le
-  // clavier, inutile ici. On revient à la mesure par événement, la seule qui
-  // fonctionne réellement dans ce mode, en écoutant EN PLUS
-  // "keyboardDidChangeFrame" (pas seulement "...Show") pour capter aussi un
-  // clavier tiers qui change de hauteur en interne sans se refermer (ex. le
-  // panneau de traduction de SwiftKey, plus haut que le clavier normal).
+  // clavier, inutile ici. On mesure donc par événement.
+  //
+  // Sur iOS, une fermeture du clavier par GESTE (glisser vers le bas,
+  // fermeture "interactive") ne déclenche pas forcément "keyboardWillHide" de
+  // façon fiable — la barre restait alors coincée en position haute. On
+  // écoute donc EN PLUS "keyboardWillChangeFrame" (iOS uniquement : Android
+  // n'a que Show/Hide), qui suit la hauteur en continu pendant TOUTE
+  // animation du clavier, geste inclus, et retombe donc bien à 0 à la fin.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -284,9 +287,9 @@ export default function ChatRoomScreen() {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     };
     const showSub = Keyboard.addListener(showEvt, applyHeight);
-    const frameSub = Keyboard.addListener('keyboardDidChangeFrame', applyHeight);
     const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
-    return () => { showSub.remove(); frameSub.remove(); hideSub.remove(); };
+    const frameSub = Platform.OS === 'ios' ? Keyboard.addListener('keyboardWillChangeFrame', applyHeight) : null;
+    return () => { showSub.remove(); hideSub.remove(); frameSub?.remove(); };
   }, []);
 
   // ─── Envoi de message (chiffré si possible) ───────────────────────────────
