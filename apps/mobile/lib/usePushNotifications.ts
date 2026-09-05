@@ -8,22 +8,35 @@
  */
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import { API_BASE_URL } from './config';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Depuis SDK 53, Expo Go sur Android ne supporte plus du tout les
+// notifications push distantes — même appeler setNotificationHandler()
+// lève une exception non rattrapable (pas seulement getExpoPushTokenAsync,
+// qui elle était déjà protégée plus bas). Il faut un vrai build de
+// développement pour tester cette fonctionnalité sur Android ; en attendant,
+// on désactive proprement tout le module dans Expo Go plutôt que de planter
+// l'app entière au démarrage.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+const pushUnsupported = Platform.OS === 'android' && isExpoGo;
+
+if (!pushUnsupported) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 async function registerPushToken(accessToken: string): Promise<void> {
-  // Web n'a pas de push natif via Expo
-  if (Platform.OS === 'web') return;
+  // Web n'a pas de push natif via Expo ; idem Expo Go sur Android (SDK 53+).
+  if (Platform.OS === 'web' || pushUnsupported) return;
 
   // expo-notifications v56 types extend PermissionResponse from 'expo' which
   // lacks .d.ts exports in this build — cast to extract the shape we need.
