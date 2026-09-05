@@ -5,8 +5,13 @@
  */
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
+// Chargé à la demande : un import statique d'expo-notifications plante
+// l'app au démarrage sur Expo Go / Android (voir pushAvailability.ts).
+// `import type` est en revanche sans risque : effacé à la compilation, il
+// ne déclenche aucun chargement du module à l'exécution.
+import type * as NotificationsTypes from 'expo-notifications';
+import { loadNotifications } from './pushAvailability';
 
 const STORE_KEY = 'yumia_digest_last_date';
 
@@ -47,9 +52,11 @@ async function scheduleEveningNotification(): Promise<void> {
   const msg = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
 
   try {
+    const Notifications = await loadNotifications();
+    if (!Notifications) return;
     await Notifications.scheduleNotificationAsync({
       content: { title: msg.title, body: msg.body, sound: true },
-      trigger: { seconds: 60, repeats: false } as Notifications.TimeIntervalTriggerInput,
+      trigger: { seconds: 60, repeats: false } as NotificationsTypes.TimeIntervalTriggerInput,
     });
     await markFiredToday();
   } catch { /* best-effort */ }

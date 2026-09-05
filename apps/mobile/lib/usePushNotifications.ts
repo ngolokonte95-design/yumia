@@ -7,40 +7,34 @@
  * silencieusement pour ne pas bloquer l'UX.
  */
 import { useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
-import { isRunningInExpoGo } from 'expo';
 import { Platform } from 'react-native';
 import { API_BASE_URL } from './config';
-
-// Depuis SDK 53, Expo Go sur Android ne supporte plus du tout les
-// notifications push distantes — plusieurs fonctions du module (jusqu'à
-// setNotificationHandler lui-même selon la version) peuvent lever une
-// exception synchrone à ce sujet. `isRunningInExpoGo()` est le même test
-// que celui utilisé en interne par expo-notifications pour décider s'il
-// faut lever cette exception — on l'utilise pour désactiver tout le module
-// proprement dans ce cas précis, plutôt que de risquer un plantage complet
-// de l'app au démarrage.
-const pushUnsupported = Platform.OS === 'android' && isRunningInExpoGo();
+import { pushUnsupported, loadNotifications } from './pushAvailability';
 
 if (!pushUnsupported) {
-  try {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
-  } catch {
-    // best-effort — ne jamais empêcher l'app de démarrer pour ça
-  }
+  void (async () => {
+    try {
+      const Notifications = await loadNotifications();
+      Notifications?.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+    } catch {
+      // best-effort — ne jamais empêcher l'app de démarrer pour ça
+    }
+  })();
 }
 
 async function registerPushToken(accessToken: string): Promise<void> {
   // Web n'a pas de push natif via Expo ; idem Expo Go sur Android (SDK 53+).
   if (Platform.OS === 'web' || pushUnsupported) return;
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
 
   // expo-notifications v56 types extend PermissionResponse from 'expo' which
   // lacks .d.ts exports in this build — cast to extract the shape we need.

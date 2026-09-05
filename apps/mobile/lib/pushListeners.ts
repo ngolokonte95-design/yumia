@@ -6,28 +6,43 @@
  * par NotificationsService à chaque envoi (voir lib/notifications-api.ts,
  * app/notifications.tsx). Ce fichier ne garde que la plomberie native :
  * rafraîchir le badge à la réception, et naviguer au bon endroit au tap.
+ *
+ * expo-notifications est chargé à la demande (voir pushAvailability.ts) : un
+ * import statique planterait l'app au démarrage sur Expo Go / Android.
  */
-import * as Notifications from 'expo-notifications';
-import { isRunningInExpoGo } from 'expo';
-import { Platform } from 'react-native';
 import { notificationTarget } from './notificationRouting';
 import { refreshUnreadCount } from './useNotifications';
+import { loadNotifications } from './pushAvailability';
 
-// Voir usePushNotifications.ts : Expo Go sur Android (SDK 53+) ne supporte
-// plus du tout les notifications push distantes.
-const pushUnsupported = Platform.OS === 'android' && isRunningInExpoGo();
+/** Abonnement résolu de façon asynchrone ; la fonction de nettoyage le retire dès qu'il existe. */
+function lazySubscribe(
+  subscribe: (n: NonNullable<Awaited<ReturnType<typeof loadNotifications>>>) => { remove: () => void },
+): () => void {
+  let sub: { remove: () => void } | null = null;
+  let cancelled = false;
+
+  void (async () => {
+    try {
+      const Notifications = await loadNotifications();
+      if (!Notifications || cancelled) return;
+      sub = subscribe(Notifications);
+      // L'écran a pu être démonté pendant le chargement du module.
+      if (cancelled) { sub.remove(); sub = null; }
+    } catch {
+      // best-effort — l'absence de notifications ne doit jamais bloquer l'app
+    }
+  })();
+
+  return () => { cancelled = true; sub?.remove(); sub = null; };
+}
 
 /** À appeler une seule fois (_layout.tsx) — recrée l'écoute si `accessToken` change. */
 export function startNotificationListener(accessToken: string | null): () => void {
-  if (pushUnsupported) return () => {};
-  try {
-    const sub = Notifications.addNotificationReceivedListener(() => {
+  return lazySubscribe((Notifications) =>
+    Notifications.addNotificationReceivedListener(() => {
       void refreshUnreadCount(accessToken);
-    });
-    return () => sub.remove();
-  } catch {
-    return () => {};
-  }
+    }),
+  );
 }
 
 /**
@@ -37,16 +52,12 @@ export function startNotificationListener(accessToken: string | null): () => voi
 export function startNotificationResponseListener(
   navigate: (path: string) => void,
 ): () => void {
-  if (pushUnsupported) return () => {};
-  try {
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+  return lazySubscribe((Notifications) =>
+    Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as
         | ({ type?: string } & Record<string, unknown>)
         | undefined;
       navigate(notificationTarget({ type: data?.type ?? 'generic', data }));
-    });
-    return () => sub.remove();
-  } catch {
-    return () => {};
-  }
+    }),
+  );
 }
