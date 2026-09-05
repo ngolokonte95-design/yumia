@@ -125,14 +125,29 @@ export default function DiscoverPeopleScreen() {
       </View>
 
       {!current ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🎉</Text>
-          <Text style={styles.emptyTitle}>{t('dp_empty_title')}</Text>
-          <Text style={styles.emptyText}>{t('dp_empty_text')}</Text>
-          <Pressable style={styles.reloadBtn} onPress={() => load(filter)}>
-            <Text style={styles.reloadBtnText}>{t('dp_reload')}</Text>
-          </Pressable>
-        </View>
+        /* Distingue « tu as tout vu » (🎉) de « ce filtre ne renvoie rien » :
+           le genre est optionnel et rarement renseigné, donc filtrer dessus
+           donne souvent zéro résultat — afficher 🎉 laissait croire à tort
+           qu'on avait parcouru tous les profils. */
+        filter !== 'everyone' ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>🔍</Text>
+            <Text style={styles.emptyTitle}>{t('dp_empty_filtered_title')}</Text>
+            <Text style={styles.emptyText}>{t('dp_empty_filtered_text')}</Text>
+            <Pressable style={styles.reloadBtn} onPress={() => { setFilter('everyone'); void load('everyone'); }}>
+              <Text style={styles.reloadBtnText}>{t('dp_filter_everyone')}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>🎉</Text>
+            <Text style={styles.emptyTitle}>{t('dp_empty_title')}</Text>
+            <Text style={styles.emptyText}>{t('dp_empty_text')}</Text>
+            <Pressable style={styles.reloadBtn} onPress={() => load(filter)}>
+              <Text style={styles.reloadBtnText}>{t('dp_reload')}</Text>
+            </Pressable>
+          </View>
+        )
       ) : (
         <View style={styles.deck}>
           {/* Next card (static behind) */}
