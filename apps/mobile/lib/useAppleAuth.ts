@@ -19,7 +19,21 @@ export function useAppleAuth(
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
-    AppleAuthentication.isAvailableAsync().then(setAvailable).catch(() => setAvailable(false));
+    AppleAuthentication.isAvailableAsync()
+      .then((ok) => {
+        setAvailable(ok);
+        // Sur iOS, `false` signifie presque toujours que le module natif Apple
+        // n'est pas embarqué dans l'app hôte (cas d'Expo Go), pas que
+        // l'appareil ne le supporte pas — le bouton est alors masqué sans
+        // aucune erreur visible, ce qui est très déroutant au test.
+        if (!ok && __DEV__) {
+          console.warn(
+            '[useAppleAuth] Sign in with Apple indisponible sur cet appareil iOS. '
+            + "Attendu dans Expo Go (module natif non embarqué) ; le bouton s'affichera dans un vrai build.",
+          );
+        }
+      })
+      .catch(() => setAvailable(false));
   }, []);
 
   async function signIn() {
