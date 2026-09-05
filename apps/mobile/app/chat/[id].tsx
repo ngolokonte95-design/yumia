@@ -18,6 +18,7 @@ import { useI18n } from '../../lib/useI18n';
 import { EmojiPicker } from '../../components/chat/EmojiPicker';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { translateMessage } from '../../lib/chat-translate-api';
+import { SUPPORTED_LOCALES } from '../../lib/locales';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -180,6 +181,11 @@ export default function ChatRoomScreen() {
   const [translations, setTranslations] = useState<Map<string, string>>(new Map());
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const [viewerPhotos, setViewerPhotos] = useState<string[] | null>(null);
+  // Traduction de CE QUE J'ÉCRIS avant envoi : langue cible choisie une fois,
+  // réutilisée tant qu'on ne la change pas (appui long pour la changer).
+  const [translateTarget, setTranslateTarget] = useState<string | null>(null);
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const [translatingInput, setTranslatingInput] = useState(false);
 
   const listRef = useRef<FlatList>(null);
   const lastMsgDate = useRef<string>(new Date(0).toISOString());
@@ -368,6 +374,34 @@ export default function ChatRoomScreen() {
     } finally {
       setTranslatingId(null);
     }
+  };
+
+  // ─── Traduction de ce que J'ÉCRIS, avant envoi ─────────────────────────────
+  const translateInputTo = async (code: string) => {
+    if (!input.trim() || !accessToken) return;
+    setTranslatingInput(true);
+    try {
+      const { translated } = await translateMessage(accessToken, input, code);
+      setInput(translated);
+    } catch {
+      Alert.alert(t('chat_delete_error_title'), t('chat_translate_error'));
+    } finally {
+      setTranslatingInput(false);
+    }
+  };
+
+  /** Tap sur le bouton 🌐 : traduit avec la langue déjà choisie, ou ouvre le choix si aucune. */
+  const handleTranslateInput = () => {
+    if (!input.trim()) return;
+    if (!translateTarget) { setShowLangPicker(true); return; }
+    void translateInputTo(translateTarget);
+  };
+
+  /** Choix (ou changement, via appui long sur 🌐) de la langue cible. */
+  const chooseTranslateTarget = (code: string) => {
+    setTranslateTarget(code);
+    setShowLangPicker(false);
+    if (input.trim()) void translateInputTo(code);
   };
 
   // ─── Vocal ────────────────────────────────────────────────────────────────
@@ -757,6 +791,22 @@ export default function ChatRoomScreen() {
                 multiline
                 maxLength={1000}
               />
+              {input.trim() ? (
+                <Pressable
+                  style={styles.emojiToggleBtn}
+                  onPress={handleTranslateInput}
+                  onLongPress={() => { Keyboard.dismiss(); setShowEmoji(false); setShowLangPicker(true); }}
+                  disabled={translatingInput}
+                >
+                  {translatingInput ? (
+                    <ActivityIndicator color={colors.brand} size="small" />
+                  ) : (
+                    <Text style={{ fontSize: 18 }}>
+                      {translateTarget ? (SUPPORTED_LOCALES.find((l) => l.code === translateTarget)?.flag ?? '🌐') : '🌐'}
+                    </Text>
+                  )}
+                </Pressable>
+              ) : null}
               <Pressable
                 style={styles.emojiToggleBtn}
                 onPress={() => { Keyboard.dismiss(); setShowAttachSheet(false); setShowEmoji((v) => !v); }}
@@ -807,6 +857,30 @@ export default function ChatRoomScreen() {
               <Text style={styles.attachRowTxt}>{t('chat_attach_video')}</Text>
             </Pressable>
             <Pressable style={styles.attachCancelBtn} onPress={() => setShowAttachSheet(false)}>
+              <Text style={styles.attachCancelTxt}>{t('chat_cancel')}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* ── Choix de la langue de traduction (bouton 🌐) ─────────────────────── */}
+      <Modal visible={showLangPicker} transparent animationType="fade" onRequestClose={() => setShowLangPicker(false)}>
+        <Pressable style={styles.actionOverlay} onPress={() => setShowLangPicker(false)}>
+          <View style={styles.attachSheet}>
+            <Text style={styles.attachTitle}>{t('chat_translate_action')}</Text>
+            <View style={styles.langGrid}>
+              {SUPPORTED_LOCALES.map((loc) => (
+                <Pressable
+                  key={loc.code}
+                  style={[styles.langTile, translateTarget === loc.code && styles.langTileActive]}
+                  onPress={() => chooseTranslateTarget(loc.code)}
+                >
+                  <Text style={{ fontSize: 22 }}>{loc.flag}</Text>
+                  <Text style={styles.langTileLabel} numberOfLines={1}>{loc.nativeLabel}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable style={styles.attachCancelBtn} onPress={() => setShowLangPicker(false)}>
               <Text style={styles.attachCancelTxt}>{t('chat_cancel')}</Text>
             </Pressable>
           </View>
@@ -958,6 +1032,15 @@ const styles = StyleSheet.create({
   attachRowTxt: { fontSize: 15, fontWeight: '600', color: colors.text },
   attachCancelBtn: { marginTop: 8, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
   attachCancelTxt: { fontSize: 15, fontWeight: '700', color: colors.danger },
+
+  // Choix de langue de traduction
+  langGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, maxHeight: 320 },
+  langTile: {
+    width: '31%', aspectRatio: 1.3, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 4,
+  },
+  langTileActive: { borderColor: colors.brand, backgroundColor: `${colors.brand}14` },
+  langTileLabel: { fontSize: 11, fontWeight: '600', color: colors.text, textAlign: 'center' },
 
   // Voice bar
   voiceBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background },
