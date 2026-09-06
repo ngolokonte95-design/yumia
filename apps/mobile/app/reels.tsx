@@ -491,7 +491,13 @@ export default function ReelsScreen() {
     return () => setScreenFocused(false);
   }, []));
 
-  const screenH = H; // Hauteur totale
+  // Hauteur RÉELLEMENT disponible pour la liste, mesurée via onLayout — pas
+  // `Dimensions.get('window')` (figée à l'import). Sur Android, cette valeur
+  // peut légèrement différer de l'espace effectivement rendu (barres système,
+  // affichage edge-to-edge) : chaque page de la liste se retrouvait alors
+  // décalée de quelques pixels par rapport à l'écran réel, laissant la
+  // publication suivante déborder en bas de l'écran après un swipe.
+  const [screenH, setScreenH] = useState(H);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -561,7 +567,13 @@ export default function ReelsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#000' }]}>
+    <View
+      style={[styles.container, { backgroundColor: '#000' }]}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0 && Math.abs(h - screenH) > 0.5) setScreenH(h);
+      }}
+    >
       {/* Header flottant */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
