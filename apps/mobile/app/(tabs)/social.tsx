@@ -761,7 +761,7 @@ export default function SocialTab() {
         </View>
       </View>
 
-      {/* Raccourcis (profil, découvrir, carte, meetups) */}
+      {/* Raccourcis (profil, découvrir, carte, meetups, sortie en groupe) */}
       <View style={styles.header}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.headerActions}>
           <Pressable onPress={() => router.push('/social-profile')} style={styles.headerBtn}>
@@ -776,6 +776,10 @@ export default function SocialTab() {
           </Pressable>
           <Pressable onPress={() => router.push('/meetup')} style={styles.headerBtn}>
             <Text style={styles.headerBtnText}>{t('social_menu_meetups')}</Text>
+          </Pressable>
+          {/* Déménagé depuis Explorer — voir app/(tabs)/explorer.tsx */}
+          <Pressable onPress={() => router.push('/group')} style={styles.headerBtn}>
+            <Text style={styles.headerBtnText}>👥 {t('explorer_action_group_label')}</Text>
           </Pressable>
         </ScrollView>
       </View>
