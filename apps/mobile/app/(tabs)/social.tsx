@@ -17,6 +17,7 @@ import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
+import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useUnreadMessages';
 
 const API = API_BASE_URL;
 
@@ -396,6 +397,7 @@ export default function SocialTab() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const hasUnreadMessages = useHasUnreadMessages(accessToken);
   const [tab, setTab] = useState<Tab>('foryou');
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [globalPosts, setGlobalPosts] = useState<FeedPost[]>([]);
@@ -749,8 +751,12 @@ export default function SocialTab() {
           <Pressable style={styles.iconBtn} onPress={() => router.push('/camera' as never)}>
             <Text style={styles.iconBtnTxt}>➕</Text>
           </Pressable>
-          <Pressable style={styles.iconBtn} onPress={() => router.push('/chat' as never)}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => { clearUnreadMessagesLocally(); router.push('/chat' as never); }}
+          >
             <Text style={styles.iconBtnTxt}>✉️</Text>
+            {hasUnreadMessages && <View style={styles.unreadDot} />}
           </Pressable>
         </View>
       </View>
@@ -998,8 +1004,9 @@ const styles = StyleSheet.create({
   memoriesBtn: { alignItems: 'center', gap: 2 },
   memoriesBtnIcon: { fontSize: 20 },
   memoriesBtnLabel: { fontSize: 10, color: colors.textMuted, fontWeight: '700' },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
   iconBtnTxt: { fontSize: 18 },
+  unreadDot: { position: 'absolute', top: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
   header: { paddingBottom: 6 },
   headerActions: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md },
   headerBtn: { backgroundColor: colors.surface, borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
