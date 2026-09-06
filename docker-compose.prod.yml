@@ -80,6 +80,10 @@ services:
       # Affiliation — Partner ID depuis le tableau de bord de chaque programme
       GETYOURGUIDE_PARTNER_ID: ${GETYOURGUIDE_PARTNER_ID:-}
       VIATOR_PARTNER_ID: ${VIATOR_PARTNER_ID:-}
+      # Clé API de production (exp-api-key, "Accès de base") — distincte du pid
+      # ci-dessus, utilisée par ViatorProvider.verifyListing() pour confirmer
+      # qu'un lieu a vraiment une fiche Viator avant de l'afficher dans Bons Plans.
+      VIATOR_API_KEY: ${VIATOR_API_KEY:-}
       BOOKING_AFFILIATE_ID: ${BOOKING_AFFILIATE_ID:-}
     volumes:
       - yumia_uploads:/app/apps/api/uploads
