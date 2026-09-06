@@ -57,8 +57,8 @@ const QUICK_ACTIONS: { key: string; emoji: string; labelKey: TranslationKey; sub
 // Onglets génériques (liens trackés vers la page d'accueil/recherche d'un
 // partenaire — pas de lieu précis, l'utilisateur cherche lui-même une fois
 // sur place). `category` doit correspondre exactement à une clé de
-// GENERIC_CATEGORIES côté API (affiliates.service.ts). Chips compactes
-// (voir style genericChip) pour ne pas prendre de place — scroll horizontal.
+// GENERIC_CATEGORIES côté API (affiliates.service.ts). Rendues en grille
+// compacte façon Home (voir styles genericGrid/genericTile).
 const GENERIC_DEAL_TABS: { category: string; emoji: string; labelKey: TranslationKey }[] = [
   { category: 'activities', emoji: '🎟️', labelKey: 'explorer_generic_activities' },
   { category: 'skip_the_line', emoji: '🎫', labelKey: 'explorer_generic_skip_the_line' },
@@ -221,28 +221,29 @@ export default function ExplorerScreen() {
         </View>
       </View>
 
-      {/* Réservations partenaires — chips compactes, défilement horizontal
-          (pas de grandes cartes ici : 7 catégories, ça prendrait trop de
-          place verticalement). Lien tracké générique, pas de lieu précis —
-          voir GENERIC_DEAL_TABS et affiliates.service.ts côté API. */}
-      <View style={[styles.section, { marginBottom: spacing.lg }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.genericRow}>
+      {/* Réservations partenaires — même grille compacte que les raccourcis
+          de Home (Swipe/Assistant/Itinéraire...) : petites tuiles carrées,
+          5 par ligne. Lien tracké générique, pas de lieu précis — voir
+          GENERIC_DEAL_TABS et affiliates.service.ts côté API. */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('explorer_action_deals_sub')}</Text>
+        <View style={styles.genericGrid}>
           {GENERIC_DEAL_TABS.map((d) => (
             <Pressable
               key={d.category}
-              style={styles.genericChip}
+              style={styles.genericTile}
               onPress={() => void openGenericDeal(d.category)}
               disabled={genericLinkLoading === d.category}
             >
               {genericLinkLoading === d.category ? (
                 <ActivityIndicator size="small" color={colors.brand} />
               ) : (
-                <Text style={styles.genericChipEmoji}>{d.emoji}</Text>
+                <Text style={styles.genericTileEmoji}>{d.emoji}</Text>
               )}
-              <Text style={styles.genericChipText} numberOfLines={1}>{t(d.labelKey)}</Text>
+              <Text style={styles.genericTileLabel} numberOfLines={1}>{t(d.labelKey)}</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       {/* "Sorties à la une" retiré temporairement avec le reste de la
@@ -542,14 +543,15 @@ const styles = StyleSheet.create({
   actionLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', marginTop: 4 },
   actionSub: { ...typography.label, color: colors.textMuted, fontSize: 10 },
 
-  genericRow: { flexDirection: 'row', gap: 8 },
-  genericChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8,
+  // Même gabarit que les raccourcis de Home (Swipe/Assistant/Itinéraire...) —
+  // grille 5 colonnes, tuiles carrées compactes, cf. app/(tabs)/index.tsx.
+  genericGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  genericTile: {
+    width: '18%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, paddingVertical: 7, alignItems: 'center', gap: 3,
   },
-  genericChipEmoji: { fontSize: 14 },
-  genericChipText: { ...typography.label, color: colors.textPrimary, fontWeight: '600', fontSize: 11 },
+  genericTileEmoji: { fontSize: 20 },
+  genericTileLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },
