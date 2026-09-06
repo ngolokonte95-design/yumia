@@ -61,7 +61,7 @@ const MODE_CHIPS: { key: Mode | 'groupOuting'; emoji: string; label: string; moo
   { key: 'date', emoji: '❤️', label: 'Date', mood: 'date' },
   { key: 'group', emoji: '👫', label: 'Amis', mood: 'amis' },
   { key: 'travel', emoji: '✈️', label: 'Voyage', mood: 'touriste' },
-  { key: 'groupOuting', emoji: '👥', label: 'Sortie en groupe', route: '/group' },
+  { key: 'groupOuting', emoji: '👥', label: 'Sortie', route: '/group' },
 ];
 
 /** Route spéciale par univers (remplace /universe?u= pour certains) */
@@ -151,7 +151,7 @@ export default function HomeScreen() {
             >
               <Text style={styles.modeEmoji}>{m.emoji}</Text>
               <Text style={styles.modeLabel} numberOfLines={1}>
-                {m.key === 'groupOuting' ? t('explorer_action_group_label') : t(`home_mode_${m.key}` as never)}
+                {t(`home_mode_${m.key === 'groupOuting' ? 'group_outing' : m.key}` as never)}
               </Text>
             </Pressable>
           ))}
