@@ -38,7 +38,7 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
 import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 import { universeSearchRadius } from '../../lib/universeRadius';
-import { fetchGenericAffiliateLink } from '../../lib/affiliates-api';
+import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/affiliates-api';
 
 type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null };
 
@@ -67,7 +67,22 @@ const GENERIC_DEAL_TABS: { category: string; emoji: string; labelKey: Translatio
   { category: 'airport_transfer', emoji: '🚕', labelKey: 'explorer_generic_airport_transfer' },
   { category: 'adventure', emoji: '🏔️', labelKey: 'explorer_generic_adventure' },
   { category: 'shows', emoji: '🌙', labelKey: 'explorer_generic_shows' },
+  // Booking.com — prêtes côté code, restent masquées tant que le serveur ne
+  // les renvoie pas comme "configured" (voir fetchGenericCategories plus
+  // bas) : AID déjà présent en config mais inscription encore en attente
+  // côté CJ Affiliate. Rien à changer ici le jour de l'activation.
+  { category: 'hotel', emoji: '🏨', labelKey: 'explorer_generic_hotel' },
+  { category: 'car_rental', emoji: '🚗', labelKey: 'explorer_generic_car_rental' },
+  { category: 'flights', emoji: '✈️', labelKey: 'explorer_generic_flights' },
 ];
+
+// Catégories déjà actives aujourd'hui — affichées par défaut sans attendre la
+// réponse serveur (évite un flash "vide" à l'ouverture d'Explorer). Les
+// nouvelles catégories gated par un flag (hotel/car_rental/flights) restent
+// masquées tant que fetchGenericCategories() n'a pas confirmé leur activation.
+const DEFAULT_ENABLED_CATEGORIES = new Set([
+  'activities', 'skip_the_line', 'food_tours', 'hop_on_hop_off', 'airport_transfer', 'adventure', 'shows',
+]);
 
 const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];
 
@@ -88,6 +103,18 @@ export default function ExplorerScreen() {
   const { checkLimit, recordUsage } = usePlanLimits();
 
   const [genericLinkLoading, setGenericLinkLoading] = useState<string | null>(null);
+  const [enabledGenericCategories, setEnabledGenericCategories] = useState<Set<string>>(DEFAULT_ENABLED_CATEGORIES);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    fetchGenericCategories(accessToken)
+      .then((cats) => {
+        if (!cancelled) setEnabledGenericCategories(new Set(cats.filter((c) => c.configured).map((c) => c.category)));
+      })
+      .catch(() => { /* garde les catégories par défaut si l'appel échoue */ });
+    return () => { cancelled = true; };
+  }, [accessToken]);
 
   async function openGenericDeal(category: string) {
     if (!accessToken || genericLinkLoading) return;
@@ -228,7 +255,7 @@ export default function ExplorerScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('explorer_action_deals_sub')}</Text>
         <View style={styles.genericGrid}>
-          {GENERIC_DEAL_TABS.map((d) => (
+          {GENERIC_DEAL_TABS.filter((d) => enabledGenericCategories.has(d.category)).map((d) => (
             <Pressable
               key={d.category}
               style={styles.genericTile}

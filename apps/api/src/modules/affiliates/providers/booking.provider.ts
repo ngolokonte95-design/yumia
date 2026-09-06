@@ -41,10 +41,21 @@ export class BookingProvider implements AffiliateProvider {
     return `https://www.booking.com/searchresults.html?${params.toString()}`;
   }
 
-  /** Lien générique (page d'accueil, l'utilisateur choisit sa destination) — pas de terme de recherche pertinent ici. */
-  generateGenericLink(trackingId: string): string | null {
+  // Booking.com regroupe hôtels, voitures et vols sous un même compte
+  // affilié — un seul provider suffit pour les 3 onglets génériques
+  // correspondants. `vertical` sélectionne la page d'accueil du bon produit
+  // (pas de terme de recherche libre pertinent ici, contrairement à
+  // GetYourGuide/Viator — Booking n'a pas de recherche par mot-clé générique).
+  private static readonly GENERIC_PATHS: Record<string, string> = {
+    cars: 'cars/index.html',
+    flights: 'flights/index.html',
+  };
+
+  /** Lien générique (page d'accueil hôtels/voitures/vols selon `vertical`, l'utilisateur choisit sa destination). */
+  generateGenericLink(trackingId: string, vertical?: string): string | null {
     if (!this.isConfigured()) return null;
     const params = new URLSearchParams({ aid: this.aid!, label: trackingId });
-    return `https://www.booking.com/index.html?${params.toString()}`;
+    const path = (vertical && BookingProvider.GENERIC_PATHS[vertical]) || 'index.html';
+    return `https://www.booking.com/${path}?${params.toString()}`;
   }
 }

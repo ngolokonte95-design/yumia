@@ -12,12 +12,18 @@ import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-p
 /**
  * Onglets génériques d'Explorer ("Réserver une activité", "Transfert
  * aéroport"...) — pas de lieu ciblé, juste un lien tracké vers le partenaire
- * (page d'accueil, ou recherche pré-remplie par thème). Répartis entre les
- * deux seuls partenaires réellement actifs (GetYourGuide, Viator) ; à
- * réévaluer si un partenaire par catégorie plus pertinent rejoint un jour
- * (ex. Booking.com pour la location de voiture).
+ * (page d'accueil, ou recherche pré-remplie par thème).
+ *
+ * `requiresEnvFlag` : interrupteur additionnel, indépendant de
+ * `provider.isConfigured()` (qui ne vérifie que la présence de la clé/AID).
+ * Utile pour Booking.com : l'AID est déjà configuré dans `.env.prod` mais
+ * l'inscription est encore "en attente" côté CJ Affiliate — tant que ce flag
+ * n'est pas à 'true', ces catégories restent invisibles (createGenericLink
+ * renvoie null, comme si le provider n'était pas configuré), même si l'AID
+ * est déjà présent. Pas d'impact sur Bons Plans/booking-link (place.tsx),
+ * qui continuent de suivre uniquement isConfigured() comme avant.
  */
-const GENERIC_CATEGORIES: Record<string, { provider: AffiliateProviderKey; searchTerm?: string }> = {
+const GENERIC_CATEGORIES: Record<string, { provider: AffiliateProviderKey; searchTerm?: string; requiresEnvFlag?: string }> = {
   activities: { provider: 'getyourguide' },
   skip_the_line: { provider: 'viator', searchTerm: 'skip the line' },
   food_tours: { provider: 'getyourguide', searchTerm: 'food tour' },
@@ -25,8 +31,18 @@ const GENERIC_CATEGORIES: Record<string, { provider: AffiliateProviderKey; searc
   airport_transfer: { provider: 'viator', searchTerm: 'airport transfer' },
   adventure: { provider: 'getyourguide', searchTerm: 'outdoor adventure' },
   shows: { provider: 'getyourguide', searchTerm: 'show' },
+  // Prêts côté code, masqués tant que Booking.com n'est pas approuvé par CJ —
+  // activer en mettant BOOKING_GENERIC_TABS_ENABLED=true dans .env.prod le
+  // jour de l'approbation (aucun redéploiement de code nécessaire).
+  hotel: { provider: 'booking', requiresEnvFlag: 'BOOKING_GENERIC_TABS_ENABLED' },
+  car_rental: { provider: 'booking', searchTerm: 'cars', requiresEnvFlag: 'BOOKING_GENERIC_TABS_ENABLED' },
+  flights: { provider: 'booking', searchTerm: 'flights', requiresEnvFlag: 'BOOKING_GENERIC_TABS_ENABLED' },
 };
 export type GenericDealCategory = keyof typeof GENERIC_CATEGORIES;
+
+function categoryEnabled(spec: { requiresEnvFlag?: string }): boolean {
+  return !spec.requiresEnvFlag || process.env[spec.requiresEnvFlag] === 'true';
+}
 
 @Injectable()
 export class AffiliatesService {
@@ -127,12 +143,12 @@ export class AffiliatesService {
     return link;
   }
 
-  /** La liste des catégories génériques disponibles, avec leur disponibilité réelle (provider configuré ou non). */
+  /** La liste des catégories génériques disponibles, avec leur disponibilité réelle (provider configuré + flag d'activation le cas échéant). */
   genericCategories() {
-    return Object.entries(GENERIC_CATEGORIES).map(([category, { provider }]) => ({
+    return Object.entries(GENERIC_CATEGORIES).map(([category, spec]) => ({
       category,
-      provider,
-      configured: this.providers.get(provider)?.isConfigured() ?? false,
+      provider: spec.provider,
+      configured: (this.providers.get(spec.provider)?.isConfigured() ?? false) && categoryEnabled(spec),
     }));
   }
 
@@ -143,7 +159,7 @@ export class AffiliatesService {
    */
   async createGenericLink(category: string, userId: string | undefined): Promise<string | null> {
     const spec = GENERIC_CATEGORIES[category];
-    if (!spec) return null;
+    if (!spec || !categoryEnabled(spec)) return null;
     const provider = this.providers.get(spec.provider);
     if (!provider) return null;
 

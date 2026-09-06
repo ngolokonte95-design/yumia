@@ -43,6 +43,18 @@ export async function fetchGenericAffiliateLink(category: string, accessToken: s
   return data.url;
 }
 
+export interface GenericCategoryAvailability {
+  category: string;
+  provider: string;
+  configured: boolean;
+}
+
+/** Catégories génériques réellement disponibles (provider configuré + activé) — permet de masquer une tuile prête côté code mais pas encore activée (ex. Booking.com en attente d'approbation). */
+export async function fetchGenericCategories(accessToken: string): Promise<GenericCategoryAvailability[]> {
+  const data = await request<{ categories: GenericCategoryAvailability[] }>('/affiliates/generic-categories', { token: accessToken });
+  return data.categories;
+}
+
 /** Lieux proches avec au moins un partenaire de réservation configuré — alimente l'onglet "Bons plans". */
 export async function fetchNearbyDeals(params: { lat: number; lng: number; radius?: number }, accessToken: string): Promise<DealPlace[]> {
   const q = new URLSearchParams();
