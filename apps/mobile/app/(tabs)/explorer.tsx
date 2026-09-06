@@ -6,7 +6,7 @@
  * qui ne montre plus que la grille d'univers).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Image as RNImage, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { Image as RNImage, Linking, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +38,7 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
 import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 import { universeSearchRadius } from '../../lib/universeRadius';
+import { fetchGenericAffiliateLink } from '../../lib/affiliates-api';
 
 type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null };
 
@@ -51,6 +52,21 @@ type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?:
 const QUICK_ACTIONS: { key: string; emoji: string; labelKey: TranslationKey; subKey: TranslationKey; route: string }[] = [
   { key: 'guides', emoji: '🧭', labelKey: 'explorer_action_guides_label', subKey: 'explorer_action_guides_sub', route: '/guides' },
   { key: 'deals', emoji: '💰', labelKey: 'explorer_action_deals_label', subKey: 'explorer_action_deals_sub', route: '/deals' },
+];
+
+// Onglets génériques (liens trackés vers la page d'accueil/recherche d'un
+// partenaire — pas de lieu précis, l'utilisateur cherche lui-même une fois
+// sur place). `category` doit correspondre exactement à une clé de
+// GENERIC_CATEGORIES côté API (affiliates.service.ts). Chips compactes
+// (voir style genericChip) pour ne pas prendre de place — scroll horizontal.
+const GENERIC_DEAL_TABS: { category: string; emoji: string; labelKey: TranslationKey }[] = [
+  { category: 'activities', emoji: '🎟️', labelKey: 'explorer_generic_activities' },
+  { category: 'skip_the_line', emoji: '🎫', labelKey: 'explorer_generic_skip_the_line' },
+  { category: 'food_tours', emoji: '🍽️', labelKey: 'explorer_generic_food_tours' },
+  { category: 'hop_on_hop_off', emoji: '🚌', labelKey: 'explorer_generic_hop_on_hop_off' },
+  { category: 'airport_transfer', emoji: '🚕', labelKey: 'explorer_generic_airport_transfer' },
+  { category: 'adventure', emoji: '🏔️', labelKey: 'explorer_generic_adventure' },
+  { category: 'shows', emoji: '🌙', labelKey: 'explorer_generic_shows' },
 ];
 
 const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];
@@ -70,6 +86,22 @@ export default function ExplorerScreen() {
   const [upsell, setUpsell] = useState<string | null>(null);
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
   const { checkLimit, recordUsage } = usePlanLimits();
+
+  const [genericLinkLoading, setGenericLinkLoading] = useState<string | null>(null);
+
+  async function openGenericDeal(category: string) {
+    if (!accessToken || genericLinkLoading) return;
+    setGenericLinkLoading(category);
+    try {
+      const url = await fetchGenericAffiliateLink(category, accessToken);
+      void Linking.openURL(url);
+    } catch {
+      // Catégorie pas encore configurée côté serveur (provider sans clé) —
+      // échec silencieux, pas de bouton visiblement cassé pour autant.
+    } finally {
+      setGenericLinkLoading(null);
+    }
+  }
 
   const isItinerary = selectedMode !== null && ITINERARY_MODES.includes(selectedMode);
   const prefs = {
@@ -187,6 +219,30 @@ export default function ExplorerScreen() {
             </Pressable>
           ))}
         </View>
+      </View>
+
+      {/* Réservations partenaires — chips compactes, défilement horizontal
+          (pas de grandes cartes ici : 7 catégories, ça prendrait trop de
+          place verticalement). Lien tracké générique, pas de lieu précis —
+          voir GENERIC_DEAL_TABS et affiliates.service.ts côté API. */}
+      <View style={[styles.section, { marginBottom: spacing.lg }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.genericRow}>
+          {GENERIC_DEAL_TABS.map((d) => (
+            <Pressable
+              key={d.category}
+              style={styles.genericChip}
+              onPress={() => void openGenericDeal(d.category)}
+              disabled={genericLinkLoading === d.category}
+            >
+              {genericLinkLoading === d.category ? (
+                <ActivityIndicator size="small" color={colors.brand} />
+              ) : (
+                <Text style={styles.genericChipEmoji}>{d.emoji}</Text>
+              )}
+              <Text style={styles.genericChipText} numberOfLines={1}>{t(d.labelKey)}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
       {/* "Sorties à la une" retiré temporairement avec le reste de la
@@ -485,6 +541,15 @@ const styles = StyleSheet.create({
   actionEmoji: { fontSize: 26 },
   actionLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', marginTop: 4 },
   actionSub: { ...typography.label, color: colors.textMuted, fontSize: 10 },
+
+  genericRow: { flexDirection: 'row', gap: 8 },
+  genericChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8,
+  },
+  genericChipEmoji: { fontSize: 14 },
+  genericChipText: { ...typography.label, color: colors.textPrimary, fontWeight: '600', fontSize: 11 },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },

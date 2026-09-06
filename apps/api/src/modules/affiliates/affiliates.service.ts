@@ -9,6 +9,25 @@ import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { ViatorProvider } from './providers/viator.provider';
 import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-provider-map';
 
+/**
+ * Onglets génériques d'Explorer ("Réserver une activité", "Transfert
+ * aéroport"...) — pas de lieu ciblé, juste un lien tracké vers le partenaire
+ * (page d'accueil, ou recherche pré-remplie par thème). Répartis entre les
+ * deux seuls partenaires réellement actifs (GetYourGuide, Viator) ; à
+ * réévaluer si un partenaire par catégorie plus pertinent rejoint un jour
+ * (ex. Booking.com pour la location de voiture).
+ */
+const GENERIC_CATEGORIES: Record<string, { provider: AffiliateProviderKey; searchTerm?: string }> = {
+  activities: { provider: 'getyourguide' },
+  skip_the_line: { provider: 'viator', searchTerm: 'skip the line' },
+  food_tours: { provider: 'getyourguide', searchTerm: 'food tour' },
+  hop_on_hop_off: { provider: 'viator', searchTerm: 'hop-on hop-off' },
+  airport_transfer: { provider: 'viator', searchTerm: 'airport transfer' },
+  adventure: { provider: 'getyourguide', searchTerm: 'outdoor adventure' },
+  shows: { provider: 'getyourguide', searchTerm: 'show' },
+};
+export type GenericDealCategory = keyof typeof GENERIC_CATEGORIES;
+
 @Injectable()
 export class AffiliatesService {
   private readonly providers: Map<AffiliateProviderKey, AffiliateProvider>;
@@ -103,6 +122,37 @@ export class AffiliatesService {
         universe: place.universe,
         provider: providerKey,
       },
+    });
+
+    return link;
+  }
+
+  /** La liste des catégories génériques disponibles, avec leur disponibilité réelle (provider configuré ou non). */
+  genericCategories() {
+    return Object.entries(GENERIC_CATEGORIES).map(([category, { provider }]) => ({
+      category,
+      provider,
+      configured: this.providers.get(provider)?.isConfigured() ?? false,
+    }));
+  }
+
+  /**
+   * Lien tracké générique pour un onglet Explorer ("activities",
+   * "airport_transfer"...) — voir GENERIC_CATEGORIES. Même mécanique de
+   * tracking que createBookingLink, mais sans lieu (placeId/universe null).
+   */
+  async createGenericLink(category: string, userId: string | undefined): Promise<string | null> {
+    const spec = GENERIC_CATEGORIES[category];
+    if (!spec) return null;
+    const provider = this.providers.get(spec.provider);
+    if (!provider) return null;
+
+    const trackingId = randomUUID();
+    const link = provider.generateGenericLink(trackingId, spec.searchTerm);
+    if (!link) return null;
+
+    await this.prisma.affiliateClick.create({
+      data: { id: trackingId, userId, provider: spec.provider },
     });
 
     return link;

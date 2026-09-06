@@ -76,4 +76,20 @@ export class ViatorProvider implements AffiliateProvider {
     });
     return `https://www.viator.com/searchResults/all?${params.toString()}`;
   }
+
+  /** Lien générique (onglets Explorer type "Transfert aéroport") — pas de lieu, juste un mot-clé optionnel. */
+  generateGenericLink(trackingId: string, searchTerm?: string): string | null {
+    if (!this.isConfigured()) return null;
+    const params = new URLSearchParams({
+      pid: this.partnerId!,
+      mcid: '42383',
+      medium: 'link',
+      campaign: trackingId,
+    });
+    if (searchTerm) {
+      params.set('text', searchTerm);
+      return `https://www.viator.com/searchResults/all?${params.toString()}`;
+    }
+    return `https://www.viator.com/?${params.toString()}`;
+  }
 }

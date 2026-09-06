@@ -40,4 +40,11 @@ export class BookingProvider implements AffiliateProvider {
     });
     return `https://www.booking.com/searchresults.html?${params.toString()}`;
   }
+
+  /** Lien générique (page d'accueil, l'utilisateur choisit sa destination) — pas de terme de recherche pertinent ici. */
+  generateGenericLink(trackingId: string): string | null {
+    if (!this.isConfigured()) return null;
+    const params = new URLSearchParams({ aid: this.aid!, label: trackingId });
+    return `https://www.booking.com/index.html?${params.toString()}`;
+  }
 }

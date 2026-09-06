@@ -40,6 +40,22 @@ export class AffiliatesController {
     return { url: link };
   }
 
+  /** GET /api/affiliates/generic-categories — catégories disponibles pour les onglets Explorer (activités, transfert aéroport...). */
+  @Get('affiliates/generic-categories')
+  @UseGuards(JwtAuthGuard)
+  genericCategories() {
+    return { categories: this.affiliates.genericCategories() };
+  }
+
+  /** GET /api/affiliates/generic-link?category=airport_transfer — lien tracké générique (pas de lieu précis). */
+  @Get('affiliates/generic-link')
+  @UseGuards(JwtAuthGuard)
+  async genericLink(@CurrentUser() user: JwtPayload, @Query('category') category: string) {
+    const link = await this.affiliates.createGenericLink(category, user.sub);
+    if (!link) throw new NotFoundException('Aucun lien disponible pour cette catégorie.');
+    return { url: link };
+  }
+
   /** POST /api/affiliates/webhook/:provider — conversion rapportée par un partenaire (public, pas d'auth utilisateur). */
   @Post('affiliates/webhook/:provider')
   @HttpCode(HttpStatus.OK)

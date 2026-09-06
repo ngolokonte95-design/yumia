@@ -24,6 +24,17 @@ export interface AffiliateProvider {
   universes: readonly string[];
   isConfigured(): boolean;
   generateBookingLink(place: Pick<Place, 'id' | 'name' | 'city' | 'lat' | 'lng'>, trackingId: string): string | null;
+  /**
+   * Lien tracké générique vers le partenaire (page d'accueil/recherche),
+   * sans lieu précis — pour les onglets "Réserver une activité/excursion..."
+   * d'Explorer : on ne prétend pas avoir trouvé LE lieu exact, l'utilisateur
+   * fait sa propre recherche une fois sur place. Le tracking (`trackingId`)
+   * fonctionne identiquement : toute réservation dans la fenêtre d'attribution
+   * du partenaire est rémunérée, pas seulement sur ce qui était affiché.
+   * `searchTerm` pré-remplit la recherche (ex. "food tour", "airport transfer")
+   * pour orienter vers une catégorie sans avoir à l'implémenter côté partenaire.
+   */
+  generateGenericLink(trackingId: string, searchTerm?: string): string | null;
   /** Extrait un montant (centimes) + devise d'un payload de webhook, si le format le permet. */
   parseConversion?(payload: unknown): { amountCents?: number; currency?: string; clickTrackingId?: string } | null;
   /**

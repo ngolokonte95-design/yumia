@@ -76,4 +76,12 @@ export class GetYourGuideProvider implements AffiliateProvider {
     });
     return `https://www.getyourguide.com/s/?${params.toString()}`;
   }
+
+  /** Lien générique (onglets Explorer type "Gastronomie", "Aventure"...) — pas de lieu, juste un mot-clé optionnel. */
+  generateGenericLink(trackingId: string, searchTerm?: string): string | null {
+    if (!this.isConfigured()) return null;
+    const params = new URLSearchParams({ partner_id: this.partnerId!, cmp: trackingId });
+    if (searchTerm) params.set('q', searchTerm);
+    return `https://www.getyourguide.com/s/?${params.toString()}`;
+  }
 }

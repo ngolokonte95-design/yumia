@@ -37,6 +37,12 @@ export async function fetchBookingLink(placeId: string, provider: string, access
   return data.url;
 }
 
+/** Lien tracké générique (pas de lieu précis) pour un onglet Explorer type "Transfert aéroport". */
+export async function fetchGenericAffiliateLink(category: string, accessToken: string): Promise<string> {
+  const data = await request<{ url: string }>(`/affiliates/generic-link?category=${encodeURIComponent(category)}`, { token: accessToken });
+  return data.url;
+}
+
 /** Lieux proches avec au moins un partenaire de réservation configuré — alimente l'onglet "Bons plans". */
 export async function fetchNearbyDeals(params: { lat: number; lng: number; radius?: number }, accessToken: string): Promise<DealPlace[]> {
   const q = new URLSearchParams();
