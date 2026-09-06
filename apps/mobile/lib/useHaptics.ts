@@ -26,4 +26,29 @@ export const haptics = {
 
   /** Sélection — changement d'onglet, chip activé. */
   select: () => safe(() => Haptics.selectionAsync()),
+
+  /**
+   * Démarre la vibration répétée d'appel (deux pulsations rapprochées puis
+   * pause, en boucle) — tient lieu de sonnerie en l'absence de fichier audio
+   * dédié. Idempotent : un seul minuteur actif à la fois. À appeler dès que
+   * l'écran d'appel passe en 'calling'/'ringing', et `stopRing()` dès que
+   * l'état change (décroché/raccroché/refusé/terminé).
+   */
+  startRing: () => {
+    if (ringTimer) return;
+    playRingPulse();
+    ringTimer = setInterval(playRingPulse, 1500);
+  },
+
+  /** Stoppe la vibration d'appel démarrée par `startRing()`. */
+  stopRing: () => {
+    if (ringTimer) { clearInterval(ringTimer); ringTimer = null; }
+  },
 };
+
+let ringTimer: ReturnType<typeof setInterval> | null = null;
+
+function playRingPulse() {
+  safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
+  setTimeout(() => safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)), 200);
+}

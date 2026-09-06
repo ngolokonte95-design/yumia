@@ -22,6 +22,7 @@ import { EmojiPicker } from '../../components/chat/EmojiPicker';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { translateMessage } from '../../lib/chat-translate-api';
 import { SUPPORTED_LOCALES } from '../../lib/locales';
+import { haptics } from '../../lib/useHaptics';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -253,9 +254,12 @@ export default function ChatRoomScreen() {
         lastMsgDate.current = newMsgs[newMsgs.length - 1].createdAt;
         void decryptBatch(newMsgs);
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
+        // Vibration légère à la réception — uniquement pour les messages du
+        // partenaire (pas les nôtres, déjà affichés en optimiste ailleurs).
+        if (newMsgs.some((m) => m.senderId !== user?.id)) haptics.light();
       }
     }
-  }, [accessToken, convId, decryptBatch]);
+  }, [accessToken, convId, decryptBatch, user?.id]);
 
   useEffect(() => {
     void loadPartner();

@@ -11,6 +11,7 @@ import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL, TURN_SERVER } from '../lib/config';
 import { isE2EAvailable } from '../lib/e2e-crypto';
 import { useI18n } from '../lib/useI18n';
+import { haptics } from '../lib/useHaptics';
 
 // Import lazy — react-native-webrtc nécessite un build natif (pas Expo Go)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,8 +118,20 @@ export default function CallScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [callState]);
 
+  // ── Vibration d'appel (pas de fichier son dédié — voir useHaptics.startRing) ─
+  // Sonne tant que l'appel n'est ni décroché ni terminé ; s'arrête immédiatement
+  // sur 'connected'/'ended' et au démontage de l'écran (voir cleanup ci-dessous).
+  useEffect(() => {
+    if (callState === 'calling' || callState === 'ringing') {
+      haptics.startRing();
+    } else {
+      haptics.stopRing();
+    }
+  }, [callState]);
+
   // ── Nettoyage ──────────────────────────────────────────────────────────────
   const cleanup = useCallback(() => {
+    haptics.stopRing();
     if (pollRef.current)    clearInterval(pollRef.current);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (timerRef.current)   clearInterval(timerRef.current);
