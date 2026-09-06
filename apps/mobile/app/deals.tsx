@@ -142,6 +142,7 @@ export default function DealsScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
           contentContainerStyle={styles.filterRow}
         >
           <Pressable
@@ -210,13 +211,18 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 44 },
   emptyText: { ...typography.h3, color: colors.text, textAlign: 'center' },
   emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
-  filterRow: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.xs },
+  // Hauteur explicite sur le ScrollView lui-même (pas juste sur son contenu) —
+  // sans ça, sur Android, le texte des pastilles se retrouve parfois rogné en
+  // haut (le ScrollView horizontal se mesure mal quand seule sa contentContainerStyle
+  // porte le padding vertical).
+  filterScroll: { height: 44 },
+  filterRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.xs, alignItems: 'center' },
   filterChip: {
     borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 8,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
   },
   filterChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted, lineHeight: 16 },
   filterChipTextActive: { color: '#fff' },
   list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
   card: {
