@@ -6,7 +6,7 @@
  * faux espoir affiché à l'utilisateur).
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -139,12 +139,7 @@ export default function DealsScreen() {
       {/* Filtre par partenaire — n'apparaît que s'il y a au moins 2
           partenaires actifs dans les résultats (inutile sinon). */}
       {!loading && !error && availableProviders.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={styles.filterRow}
-        >
+        <View style={styles.filterRow}>
           <Pressable
             style={[styles.filterChip, providerFilter === 'all' && styles.filterChipActive]}
             onPress={() => setProviderFilter('all')}
@@ -164,7 +159,7 @@ export default function DealsScreen() {
               </Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
       )}
 
       {loading || resolving ? (
@@ -211,18 +206,16 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 44 },
   emptyText: { ...typography.h3, color: colors.text, textAlign: 'center' },
   emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
-  // Hauteur explicite sur le ScrollView lui-même (pas juste sur son contenu) —
-  // sans ça, sur Android, le texte des pastilles se retrouve parfois rogné en
-  // haut (le ScrollView horizontal se mesure mal quand seule sa contentContainerStyle
-  // porte le padding vertical).
-  filterScroll: { height: 44 },
-  filterRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.xs, alignItems: 'center' },
+  // View simple (pas de ScrollView) : même schéma que badgeRow plus bas, qui
+  // affiche exactement le même texte emoji+libellé sans aucun souci — le
+  // ScrollView horizontal rognait le haut du texte sur cet écran.
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.xs },
   filterChip: {
     borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 8,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
   },
   filterChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted, lineHeight: 16 },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   filterChipTextActive: { color: '#fff' },
   list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
   card: {
