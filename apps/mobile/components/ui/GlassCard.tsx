@@ -1,6 +1,6 @@
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ReactNode } from 'react';
 import { elevation, glass, gradients, radius } from '../../theme/tokens';
 
@@ -10,9 +10,12 @@ type Variant = keyof typeof glass;
  * Surface vitrée (glassmorphism) : flou réel + liseré lumineux + éclat subtil
  * en haut. C'est la brique de base de toutes les cartes premium de Yumia.
  *
- * Sur Android, le flou natif doit être activé explicitement (`dimezisBlurView`) ;
- * sans ça `BlurView` rend un simple aplat. Le `backgroundColor` semi-opaque des
- * tokens sert de filet de sécurité si le flou n'est pas disponible.
+ * Sur Android, le flou natif (`dimezisBlurView`) exige désormais une réf vers
+ * la vue à flouter (`blurTarget`, un `BlurTargetView` dédié à placer derrière
+ * le contenu) — que ce composant générique, utilisé partout sans connaître
+ * son arrière-plan, ne peut pas fournir. Sans cette réf, l'activer ne fait
+ * que produire un avertissement à chaque rendu sans rien flouter. On reste
+ * donc sur l'aplat semi-opaque des tokens `glass`, qui rend déjà très bien.
  */
 export function GlassCard({
   children,
@@ -44,7 +47,6 @@ export function GlassCard({
         <BlurView
           intensity={preset.intensity}
           tint={preset.tint}
-          experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
           style={StyleSheet.absoluteFill}
         />
         {sheen && (
