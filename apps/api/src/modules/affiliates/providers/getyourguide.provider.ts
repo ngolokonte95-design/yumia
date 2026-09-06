@@ -1,12 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Place } from '@prisma/client';
 import type { AffiliateProvider } from './affiliate-provider.interface';
-
-/** Compare sans accents/casse — les titres GetYourGuide et nos noms de lieux
- * (Google Places) ne partagent pas forcément la même normalisation Unicode. */
-function normalize(s: string): string {
-  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
-}
+import { titleMatchesPlace } from './title-match.util';
 
 /**
  * GetYourGuide Partner Program.
@@ -26,8 +21,7 @@ export class GetYourGuideProvider implements AffiliateProvider {
 
   // Clé de la GetYourGuide Partner API (code.getyourguide.com/partner-api-spec),
   // distincte du partner_id utilisé dans les liens — à demander sur
-  // partner.getyourguide.com. Tant qu'elle n'est pas configurée, verifyListing()
-  // ne filtre rien (comportement par défaut du contrat AffiliateProvider).
+  // partner.getyourguide.com.
   private get apiKey(): string | undefined {
     return process.env.GETYOURGUIDE_API_KEY;
   }
@@ -40,13 +34,23 @@ export class GetYourGuideProvider implements AffiliateProvider {
    * Interroge GET /1/tours?q=<ville> (spec publique : le paramètre `q` filtre
    * par LIEU/ville, pas par mot-clé libre sur le titre — il n'y a pas de
    * recherche texte sur les activités elles-mêmes côté GetYourGuide). On
-   * récupère donc les activités de la ville, puis on vérifie qu'au moins l'une
+   * récupère donc les activités de la ville, puis on vérifie qu'au moins une
    * a un titre correspondant au nom du lieu — approximatif par nature (comme
    * pour Viator), mais bien mieux que de ne jamais vérifier.
-   * Best-effort : toute erreur laisse passer le lieu plutôt que de le masquer à tort.
+   *
+   * Sans clé API (pas encore obtenue), on masque plutôt que de tout laisser
+   * passer : Bons Plans n'affiche un lieu que si AU MOINS UN partenaire le
+   * confirme réellement (voir AffiliatesService.verifiedProviders) — laisser
+   * passer par défaut ici revenait à neutraliser complètement la vérification
+   * Viator (tout finissait "vérifié" via GetYourGuide de toute façon). Le
+   * badge GetYourGuide réapparaîtra automatiquement dès que la clé sera
+   * configurée, avec la vraie vérification par titre ci-dessous.
+   * Best-effort : une erreur réseau (pas l'absence de clé) laisse passer le
+   * lieu plutôt que de le masquer à tort.
    */
   async verifyListing(place: Pick<Place, 'name' | 'city'>): Promise<boolean> {
-    if (!this.apiKey || !place.city) return true;
+    if (!this.apiKey) return false;
+    if (!place.city) return true;
     try {
       const params = new URLSearchParams({ q: place.city, cnt_language: 'fr', limit: '100' });
       const res = await fetch(`https://api.getyourguide.com/1/tours?${params.toString()}`, {
@@ -55,11 +59,7 @@ export class GetYourGuideProvider implements AffiliateProvider {
       if (!res.ok) return true;
       const data = (await res.json()) as { data?: { tours?: { title?: string }[] } };
       const tours = data.data?.tours ?? [];
-      const target = normalize(place.name);
-      return tours.some((t) => {
-        const title = normalize(t.title ?? '');
-        return title.includes(target) || target.includes(title);
-      });
+      return tours.some((t) => titleMatchesPlace(t.title ?? '', place.name));
     } catch (e) {
       this.logger.warn(`verifyListing indisponible (${(e as Error).message}) — lieu laissé visible.`);
       return true;

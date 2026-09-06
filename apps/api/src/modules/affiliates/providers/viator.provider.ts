@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Place } from '@prisma/client';
 import type { AffiliateProvider } from './affiliate-provider.interface';
+import { titleMatchesPlace } from './title-match.util';
 
 /**
  * Viator (TripAdvisor) Partner Program.
@@ -36,6 +37,14 @@ export class ViatorProvider implements AffiliateProvider {
    * Interroge la recherche de produits Viator pour confirmer qu'une activité
    * correspondant au nom du lieu existe réellement — sinon le lien de
    * recherche générique renvoie une page sans rapport avec ce lieu.
+   *
+   * `totalCount > 0` seul ne suffit PAS : la recherche est floue et
+   * "{lieu} {ville}" remonte souvent des activités de la ville entière sans
+   * rapport avec ce lieu précis (une ville avec une seule activité Viator
+   * faisait "passer" n'importe quel lieu qui s'y trouve). On récupère donc
+   * plusieurs résultats et on vérifie qu'un titre réel correspond au lieu —
+   * même logique que GetYourGuideProvider.
+   *
    * Best-effort : toute erreur (réseau, clé absente, quota) laisse passer le
    * lieu plutôt que de le masquer à tort.
    */
@@ -52,12 +61,18 @@ export class ViatorProvider implements AffiliateProvider {
         },
         body: JSON.stringify({
           searchTerm: place.city ? `${place.name} ${place.city}` : place.name,
-          searchTypes: [{ searchType: 'PRODUCTS', pagination: { start: 1, count: 1 } }],
+          searchTypes: [{ searchType: 'PRODUCTS', pagination: { start: 1, count: 20 } }],
         }),
       });
       if (!res.ok) return true;
-      const data = (await res.json()) as { products?: { totalCount?: number } };
-      return (data.products?.totalCount ?? 0) > 0;
+      const data = (await res.json()) as { products?: { results?: { title?: string; productName?: string }[]; totalCount?: number } };
+      const results = data.products?.results;
+      if (!results) {
+        // Forme de réponse imprévue — on retombe sur le comptage brut plutôt
+        // que de tout masquer à cause d'un champ manquant.
+        return (data.products?.totalCount ?? 0) > 0;
+      }
+      return results.some((r) => titleMatchesPlace(r.title ?? r.productName ?? '', place.name));
     } catch (e) {
       this.logger.warn(`verifyListing indisponible (${(e as Error).message}) — lieu laissé visible.`);
       return true;
