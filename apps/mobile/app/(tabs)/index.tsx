@@ -37,9 +37,11 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
   return { title: `${t('greeting_night')}, ${first}`, sub: t('greeting_sub_night') };
 }
 
-// Sorties, Guides et Groupe vivent déjà dans Explorer (QUICK_ACTIONS) ;
-// Nearby existe dans l'onglet social sous « 🗺️ Carte ». Classement a été
-// déplacé ici depuis Explorer (retiré là-bas) — plus de doublon.
+// Sorties et Guides vivent déjà dans Explorer (QUICK_ACTIONS) ; Nearby existe
+// dans l'onglet social sous « 🗺️ Carte ». Classement a été déplacé ici depuis
+// Explorer (retiré là-bas) — plus de doublon. "Sortie en groupe" a fait le
+// même trajet mais atterrit dans MODE_CHIPS ci-dessous (à côté de Date/Amis/
+// Voyage, sur demande explicite), pas ici.
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
   { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
   { key: 'chatbot', emoji: '🤖', label: 'Assistant', route: '/chatbot' },
@@ -53,10 +55,13 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   { key: 'notebook', emoji: '📝', label: 'Notes', route: '/notebook' },
 ];
 
-const MODE_CHIPS: { key: Mode; emoji: string; label: string; mood: string }[] = [
+// `route` (sortie en groupe → l'écran /group dédié) prime sur `mood`
+// (itinéraire IA filtré par humeur) quand les deux sont possibles.
+const MODE_CHIPS: { key: Mode | 'groupOuting'; emoji: string; label: string; mood?: string; route?: string }[] = [
   { key: 'date', emoji: '❤️', label: 'Date', mood: 'date' },
   { key: 'group', emoji: '👫', label: 'Amis', mood: 'amis' },
   { key: 'travel', emoji: '✈️', label: 'Voyage', mood: 'touriste' },
+  { key: 'groupOuting', emoji: '👥', label: 'Sortie en groupe', route: '/group' },
 ];
 
 /** Route spéciale par univers (remplace /universe?u= pour certains) */
@@ -131,19 +136,23 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Modes IA — toggle humeur. Fixes (pas de ScrollView) : seulement 3
-          chips, elles tiennent toujours sur une ligne — un ScrollView pour ça
-          ne faisait que "rebondir" au toucher sans rien à faire défiler. */}
+      {/* Modes IA — toggle humeur + sortie en groupe. Fixes (pas de
+          ScrollView) : chaque chip a flex:1, donc les 4 se partagent
+          toujours la largeur de l'écran sur une seule ligne, quelle que soit
+          sa largeur — un ScrollView pour ça ne faisait que "rebondir" au
+          toucher sans rien à faire défiler. */}
       <View style={styles.section}>
         <View style={styles.modesRow}>
           {MODE_CHIPS.map((m) => (
             <Pressable
               key={m.key}
               style={styles.modeChip}
-              onPress={() => router.push(`/itinerary?mood=${m.mood}` as never)}
+              onPress={() => router.push((m.route ?? `/itinerary?mood=${m.mood}`) as never)}
             >
               <Text style={styles.modeEmoji}>{m.emoji}</Text>
-              <Text style={styles.modeLabel} numberOfLines={1}>{t(`home_mode_${m.key}` as never)}</Text>
+              <Text style={styles.modeLabel} numberOfLines={1}>
+                {m.key === 'groupOuting' ? t('explorer_action_group_label') : t(`home_mode_${m.key}` as never)}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -198,17 +207,19 @@ const styles = StyleSheet.create({
   },
   shortcutEmoji: { fontSize: 20 },
   shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
-  modesRow: { flexDirection: 'row', gap: spacing.sm },
+  modesRow: { flexDirection: 'row', gap: spacing.xs },
   modeChip: {
     flex: 1,
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
+    // Réduit (vs spacing.sm) : 4 chips sur une ligne au lieu de 3 depuis
+    // l'ajout de "Sortie en groupe" — laisse plus de place au texte.
+    paddingHorizontal: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
