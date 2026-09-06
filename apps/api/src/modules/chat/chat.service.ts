@@ -2,6 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import type { MessageType } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { assertClean } from '../../common/moderation/moderation';
+import { NotificationsService } from '../notifications/notifications.service';
+
+/** Aperçu du contenu affiché dans la notification push, selon le type de message. */
+const PREVIEW_BY_TYPE: Partial<Record<MessageType, string>> = {
+  image: '📷 Photo',
+  video: '🎥 Vidéo',
+  audio: '🎤 Message vocal',
+};
 
 export interface SendMessageOptions {
   content: string;
@@ -17,7 +25,10 @@ export interface SendMessageOptions {
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async getOrCreateConversation(userAId: string, userBId: string) {
     // Blocage dans un sens ou l'autre → pas de conversation.
@@ -225,7 +236,41 @@ export class ChatService {
       }),
     ]);
     const [hydrated] = await this.hydrateMessages([message], senderId);
+    void this.notifyRecipients(conversationId, senderId, message.type);
     return hydrated;
+  }
+
+  /**
+   * Notifie (push) les autres participants de la conversation — c'est ce qui
+   * fait sonner/vibrer leur téléphone quand l'app est en arrière-plan ou
+   * fermée. Jusqu'ici aucune notification n'était envoyée pour un simple
+   * message de chat (contrairement aux appels), d'où l'absence totale de son.
+   * Best-effort : ne doit jamais faire échouer l'envoi du message lui-même.
+   */
+  private async notifyRecipients(conversationId: string, senderId: string, type: MessageType): Promise<void> {
+    try {
+      const [sender, recipients] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: senderId }, select: { displayName: true } }),
+        this.prisma.conversationParticipant.findMany({
+          where: { conversationId, userId: { not: senderId } },
+          select: { userId: true },
+        }),
+      ]);
+      const senderName = sender?.displayName ?? 'Quelqu\'un';
+      // Contenu chiffré de bout en bout côté client (voir e2e-crypto) — le
+      // serveur ne peut donc pas afficher le vrai texte, seul un aperçu
+      // générique selon le type de message.
+      const body = PREVIEW_BY_TYPE[type] ?? 'vous a envoyé un message';
+
+      await Promise.all(recipients.map((r) => this.notifications.sendToUser(
+        r.userId,
+        senderName,
+        body,
+        { path: `/chat/${conversationId}`, type: 'new_message', conversationId },
+      )));
+    } catch {
+      // best-effort — ne doit jamais impacter l'envoi du message
+    }
   }
 
   /** Réaction emoji sur un message (re-cliquer le même emoji la retire). */
