@@ -48,4 +48,15 @@ export interface AffiliateProvider {
    * inchangé tant que la clé n'est pas configurée.
    */
   verifyListing?(place: Pick<Place, 'name' | 'city'>): Promise<boolean>;
+  /**
+   * `true` si `verifyListing` peut effectuer une VRAIE vérification en ce
+   * moment (clé API de recherche présente) — par opposition à un
+   * `verifyListing` qui existe mais laisse tout passer faute de clé.
+   * Utilisé uniquement par Bons Plans (voir AffiliatesService.getNearbyDeals) :
+   * un partenaire sans vérification réelle disponible n'y contribue pas à
+   * faire apparaître un lieu, même si son `verifyListing` répondrait "oui"
+   * par défaut. Ailleurs (fiche lieu, onglets génériques), ce flag n'est pas
+   * utilisé — comportement inchangé, `isConfigured()` suffit.
+   */
+  hasWorkingVerification?(): boolean;
 }

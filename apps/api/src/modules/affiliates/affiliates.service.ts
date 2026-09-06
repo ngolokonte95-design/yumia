@@ -84,13 +84,24 @@ export class AffiliatesService {
    * pour CE lieu — évite d'afficher un bouton "Réserver" qui retombe sur une
    * recherche sans rapport. Un provider sans `verifyListing` (pas encore
    * d'accès à l'API de recherche du partenaire) reste inclus tel quel.
+   *
+   * `dealsOnly` : réservé à Bons Plans (getNearbyDeals) — un partenaire dont
+   * `hasWorkingVerification()` répond explicitement `false` (clé absente,
+   * donc `verifyListing` ne ferait que laisser passer par défaut) est exclu
+   * ici, même s'il resterait inclus ailleurs (fiche lieu, onglets génériques).
+   * Sans ce garde-fou, un seul partenaire réellement vérifié (ex. Viator)
+   * suffisait à valider un lieu, mais un partenaire non-vérifiable (GetYourGuide
+   * sans sa clé) validait TOUT par défaut et neutralisait la vérification —
+   * exactement le bug remonté sur Bons Plans.
    */
   private async verifiedProviders(
     place: { name: string; city: string; universe: string },
+    options?: { dealsOnly?: boolean },
   ): Promise<AffiliateProviderKey[]> {
     const candidates = this.availableProviders(place.universe).filter((p) => p.configured);
     const checks = await Promise.all(candidates.map(async (p) => {
       const provider = this.providers.get(p.key);
+      if (options?.dealsOnly && provider?.hasWorkingVerification?.() === false) return null;
       const ok = await provider?.verifyListing?.(place) ?? true;
       return ok ? p.key : null;
     }));
@@ -213,7 +224,7 @@ export class AffiliatesService {
         const places = await this.places.nearby({ ...params, universe, limit: 6 }).catch(() => []);
         const withProviders = await Promise.all(places.map(async (p) => ({
           ...p,
-          affiliateProviders: await this.verifiedProviders({ name: p.name, city: p.city, universe }),
+          affiliateProviders: await this.verifiedProviders({ name: p.name, city: p.city, universe }, { dealsOnly: true }),
         })));
         // Un lieu dont AUCUN provider ne survit à la vérification n'a plus sa
         // place dans "Bons plans" — c'était exactement le cas signalé

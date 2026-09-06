@@ -33,6 +33,11 @@ export class ViatorProvider implements AffiliateProvider {
     return !!this.partnerId;
   }
 
+  /** Voir AffiliateProvider.hasWorkingVerification — utilisé uniquement par Bons Plans. */
+  hasWorkingVerification(): boolean {
+    return !!this.apiKey;
+  }
+
   /**
    * Interroge la recherche de produits Viator pour confirmer qu'une activité
    * correspondant au nom du lieu existe réellement — sinon le lien de
