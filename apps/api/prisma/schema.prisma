@@ -964,6 +964,7 @@ enum MessageType {
   location_share
   post_share
   story_reply
+  call // événement d'appel (fin/manqué/refusé) — voir CallsService.recordCallEvent
 }
 
 model Message {
@@ -980,6 +981,11 @@ model Message {
   durationSec    Int?        // durée d'un message vocal
   oneTime        Boolean     @default(false) // vue unique (photo/vidéo éphémère)
   viewedOnceAt   DateTime?   // consommé (vue unique)
+  // Événement d'appel (type = 'call' uniquement) — nommés pour correspondre
+  // exactement aux champs attendus par CallEventBubble côté mobile.
+  callType       String?     // 'voice' | 'video'
+  callStatus     String?     // 'missed' | 'answered' | 'declined'
+  callDuration   Int?        // secondes, uniquement si callStatus = 'answered'
   createdAt      DateTime    @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   reactions      MessageReaction[]

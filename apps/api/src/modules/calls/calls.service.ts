@@ -72,6 +72,7 @@ export class CallsService {
       if (c && c.status === 'pending') {
         c.status = 'missed';
         c.endedAt = new Date();
+        void this.recordCallEvent(c, 'missed');
       }
     }, 60_000);
 
@@ -159,6 +160,7 @@ export class CallsService {
     if (call.recipientId !== userId) throw new NotFoundException('Non autorisé');
     call.status = 'rejected';
     call.endedAt = new Date();
+    void this.recordCallEvent(call, 'declined');
     return call;
   }
 
@@ -166,8 +168,56 @@ export class CallsService {
     const call = this.calls.get(callId);
     if (!call) throw new NotFoundException('Appel introuvable');
     if (call.callerId !== userId && call.recipientId !== userId) throw new NotFoundException('Non autorisé');
+    // Raccroché avant que l'appelé n'ait décroché (côté appelant) : c'est un
+    // appel manqué pour l'appelé, pas un appel "terminé" — même si c'est
+    // techniquement l'action `end` qui est appelée côté client.
+    const wasNeverAnswered = call.status === 'pending';
     call.status = 'ended';
     call.endedAt = new Date();
+    void this.recordCallEvent(call, wasNeverAnswered ? 'missed' : 'answered');
     return call;
+  }
+
+  /**
+   * Persiste l'événement d'appel comme message dans la conversation (fin,
+   * manqué ou refusé), pour qu'il apparaisse dans le fil ET dans l'aperçu de
+   * la liste des conversations — jusqu'ici les appels étaient entièrement
+   * éphémères (Map en mémoire) et ne laissaient aucune trace visible.
+   * Best-effort : un échec ne doit jamais faire planter l'appel WebRTC en cours.
+   */
+  private async recordCallEvent(
+    call: CallRecord,
+    status: 'missed' | 'answered' | 'declined',
+  ): Promise<void> {
+    if (!call.conversationId) return;
+    try {
+      const callDuration = status === 'answered' && call.answeredAt && call.endedAt
+        ? Math.max(0, Math.round((call.endedAt.getTime() - call.answeredAt.getTime()) / 1000))
+        : undefined;
+      const contentByStatus: Record<typeof status, string> = {
+        missed: 'Appel manqué',
+        declined: 'Appel refusé',
+        answered: 'Appel terminé',
+      };
+      await this.prisma.$transaction([
+        this.prisma.message.create({
+          data: {
+            conversationId: call.conversationId,
+            senderId: call.callerId,
+            content: contentByStatus[status],
+            type: 'call',
+            callType: call.type,
+            callStatus: status,
+            callDuration,
+          },
+        }),
+        this.prisma.conversation.update({
+          where: { id: call.conversationId },
+          data: { updatedAt: new Date() },
+        }),
+      ]);
+    } catch {
+      // best-effort — ne doit jamais impacter le déroulement de l'appel
+    }
   }
 }

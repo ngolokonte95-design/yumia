@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Image, Modal, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -22,7 +22,12 @@ interface Conversation {
   photoUrl?: string | null;
   participantsCount?: number;
   otherUser: { id: string; displayName: string; photoUrl?: string; plan?: Plan | null } | null;
-  lastMessage: { content: string; senderId: string; createdAt: string } | null;
+  lastMessage: {
+    content: string; senderId: string; createdAt: string;
+    type?: string; callStatus?: string | null;
+  } | null;
+  /** Dernière lecture de CETTE conversation par MOI — sert à calculer le non-lu. */
+  lastReadAt: string | null;
   updatedAt: string;
 }
 
@@ -66,7 +71,11 @@ export default function ChatListScreen() {
     setLoading(false);
   }, [accessToken]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Recharge à chaque retour sur cet écran (pas juste au montage) : lire une
+  // conversation marque sa lecture côté serveur (voir chat.service.ts), il
+  // faut donc rafraîchir la liste en revenant pour que le repère « non lu »
+  // disparaisse — un simple useEffect au montage ne le referait jamais.
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const myNote = notes.find((n) => n.userId === me?.id);
   const otherNotes = notes.filter((n) => n.userId !== me?.id);
@@ -149,30 +158,49 @@ export default function ChatListScreen() {
             const isGroup = item.isGroup;
             const name = isGroup ? (item.title ?? t('ci_group_default')) : (item.otherUser?.displayName ?? t('ci_unknown'));
             const photo = isGroup ? item.photoUrl : item.otherUser?.photoUrl;
+            const last = item.lastMessage;
+            // Non lu : un message existe, il ne vient pas de moi, et il est
+            // arrivé après ma dernière lecture de cette conversation (ou je ne
+            // l'ai encore jamais ouverte). `lastReadAt` est déjà mis à jour
+            // côté serveur à l'ouverture d'une conversation (chat.service.ts).
+            const isUnread = !!last && last.senderId !== me?.id
+              && (!item.lastReadAt || new Date(last.createdAt) > new Date(item.lastReadAt));
+            // Appel manqué/refusé/terminé : aperçu dédié (icône + libellé),
+            // traduit dans la langue de CELUI QUI REGARDE la liste — plutôt
+            // que le texte brut stocké côté serveur (fixé à la langue de
+            // l'appelant au moment de l'appel, comme pour les messages vocaux).
+            const previewText = last?.type === 'call'
+              ? last.callStatus === 'missed' ? t('ci_call_missed')
+                : last.callStatus === 'declined' ? t('ci_call_declined')
+                : t('ci_call_answered')
+              : last?.content ?? t('ci_new_conversation');
             return (
               <Pressable style={styles.convRow} onPress={() => router.push(`/chat/${item.id}`)}>
-                <Avatar
-                  uri={photo}
-                  size={52}
-                  placeholderColor={colors.brand}
-                  fallback={
-                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>
-                      {isGroup ? '👥' : name[0]}
-                    </Text>
-                  }
-                />
+                <View>
+                  <Avatar
+                    uri={photo}
+                    size={52}
+                    placeholderColor={colors.brand}
+                    fallback={
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>
+                        {isGroup ? '👥' : name[0]}
+                      </Text>
+                    }
+                  />
+                  {isUnread && <View style={styles.unreadDot} />}
+                </View>
                 <View style={styles.convBody}>
                   <View style={styles.convTop}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 }}>
-                      <Text style={styles.convName}>
+                      <Text style={[styles.convName, isUnread && styles.convNameUnread]}>
                         {name}{isGroup && item.participantsCount ? `  ·  ${item.participantsCount}` : ''}
                       </Text>
                       {!isGroup && <PlanBadgeIcon plan={item.otherUser?.plan} size={32} />}
                     </View>
-                    <Text style={styles.convTime}>{formatAgo(item.updatedAt, t)}</Text>
+                    <Text style={[styles.convTime, isUnread && styles.convTimeUnread]}>{formatAgo(item.updatedAt, t)}</Text>
                   </View>
-                  <Text style={styles.convLast} numberOfLines={1}>
-                    {item.lastMessage?.content ?? t('ci_new_conversation')}
+                  <Text style={[styles.convLast, isUnread && styles.convLastUnread]} numberOfLines={1}>
+                    {previewText}
                   </Text>
                 </View>
               </Pressable>
@@ -234,8 +262,18 @@ const styles = StyleSheet.create({
   convBody: { flex: 1 },
   convTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   convName: { fontWeight: '700', color: colors.text, fontSize: 15 },
+  convNameUnread: { color: colors.text }, // déjà en gras — la pastille + le texte ci-dessous suffisent à distinguer
   convTime: { fontSize: 12, color: colors.textMuted },
+  convTimeUnread: { color: colors.brand, fontWeight: '700' },
   convLast: { fontSize: 14, color: colors.textMuted },
+  convLastUnread: { color: colors.text, fontWeight: '600' },
+  // Petit repère plein sur l'avatar — façon Snapchat/WhatsApp — plutôt qu'un
+  // simple changement de graisse du texte, facile à manquer d'un coup d'œil
+  // dans une longue liste de conversations.
+  unreadDot: {
+    position: 'absolute', top: 0, right: 0, width: 14, height: 14, borderRadius: 7,
+    backgroundColor: colors.brand, borderWidth: 2, borderColor: colors.background,
+  },
   separator: { height: 1, backgroundColor: colors.border, marginLeft: 76 },
   empty: { alignItems: 'center', paddingTop: 80 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
