@@ -79,6 +79,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Affiliation — Partner ID depuis le tableau de bord de chaque programme
       GETYOURGUIDE_PARTNER_ID: ${GETYOURGUIDE_PARTNER_ID:-}
+      # Clé de la GetYourGuide Partner API (X-ACCESS-TOKEN) — distincte du
+      # partner_id ci-dessus, utilisée par GetYourGuideProvider.verifyListing().
+      GETYOURGUIDE_API_KEY: ${GETYOURGUIDE_API_KEY:-}
       VIATOR_PARTNER_ID: ${VIATOR_PARTNER_ID:-}
       # Clé API de production (exp-api-key, "Accès de base") — distincte du pid
       # ci-dessus, utilisée par ViatorProvider.verifyListing() pour confirmer
