@@ -22,6 +22,13 @@ export class BookingProvider implements AffiliateProvider {
     return !!this.aid;
   }
 
+  // Pas de verifyListing() prévu ici : la recherche géolocalisée en temps réel
+  // (Booking.com Demand API) est réservée aux gros partenaires à fort volume,
+  // hors de portée pour ce programme d'affiliation. Le lien reste une
+  // recherche par ville/coordonnées — l'hôtellerie a un taux de couverture
+  // Booking.com bien plus élevé que les petites activités locales (GYG/Viator),
+  // donc le faux-positif y est nettement plus rare.
+
   generateBookingLink(place: Pick<Place, 'id' | 'name' | 'city' | 'lat' | 'lng'>, trackingId: string): string | null {
     if (!this.isConfigured()) return null;
     const params = new URLSearchParams({

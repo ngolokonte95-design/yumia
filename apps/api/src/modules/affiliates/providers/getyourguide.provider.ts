@@ -20,6 +20,15 @@ export class GetYourGuideProvider implements AffiliateProvider {
     return !!this.partnerId;
   }
 
+  // TODO(affiliates): implémenter verifyListing() une fois l'accès à la
+  // GetYourGuide Partner API obtenu (clé distincte du partner_id actuel,
+  // à demander sur partner.getyourguide.com — l'endpoint exact de recherche
+  // est communiqué dans la doc fournie à l'approbation, pas de spec publique
+  // stable à deviner ici). Sans implémentation, verifyListing est absent :
+  // le contrat par défaut (AffiliateProvider.verifyListing) laisse passer
+  // tous les lieux, comportement actuel inchangé — voir viator.provider.ts
+  // pour le modèle à suivre une fois la clé en main.
+
   generateBookingLink(place: Pick<Place, 'id' | 'name' | 'city' | 'lat' | 'lng'>, trackingId: string): string | null {
     if (!this.isConfigured()) return null;
     const query = place.city ? `${place.name} ${place.city}` : place.name;

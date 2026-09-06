@@ -43,6 +43,39 @@ export class AffiliatesService {
     }));
   }
 
+  /**
+   * Comme `availableProviders`, mais ne garde que les providers dont
+   * `verifyListing` confirme (quand implémenté) qu'une fiche existe vraiment
+   * pour CE lieu — évite d'afficher un bouton "Réserver" qui retombe sur une
+   * recherche sans rapport. Un provider sans `verifyListing` (pas encore
+   * d'accès à l'API de recherche du partenaire) reste inclus tel quel.
+   */
+  private async verifiedProviders(
+    place: { name: string; city: string; universe: string },
+  ): Promise<AffiliateProviderKey[]> {
+    const candidates = this.availableProviders(place.universe).filter((p) => p.configured);
+    const checks = await Promise.all(candidates.map(async (p) => {
+      const provider = this.providers.get(p.key);
+      const ok = await provider?.verifyListing?.(place) ?? true;
+      return ok ? p.key : null;
+    }));
+    return checks.filter((k): k is AffiliateProviderKey => k !== null);
+  }
+
+  /** Pour la fiche d'un lieu — GET /places/:id/affiliate-providers. */
+  async availableProvidersForPlace(placeId: string) {
+    const place = await this.prisma.place.findUnique({
+      where: { id: placeId },
+      select: { name: true, city: true, universe: true },
+    });
+    if (!place) return { providers: [] };
+    const verifiedKeys = new Set(await this.verifiedProviders(place));
+    return {
+      providers: this.availableProviders(place.universe)
+        .map((p) => ({ ...p, configured: p.configured && verifiedKeys.has(p.key) })),
+    };
+  }
+
   /** Génère un lien tracké, enregistre le clic, renvoie l'URL — ou null si le provider n'est pas encore prêt. */
   async createBookingLink(
     providerKey: AffiliateProviderKey,
@@ -112,10 +145,14 @@ export class AffiliatesService {
     const perUniverse = await Promise.all(
       configuredUniverses.map(async (universe) => {
         const places = await this.places.nearby({ ...params, universe, limit: 6 }).catch(() => []);
-        return places.map((p) => ({
+        const withProviders = await Promise.all(places.map(async (p) => ({
           ...p,
-          affiliateProviders: this.availableProviders(universe).filter((pr) => pr.configured).map((pr) => pr.key),
-        }));
+          affiliateProviders: await this.verifiedProviders({ name: p.name, city: p.city, universe }),
+        })));
+        // Un lieu dont AUCUN provider ne survit à la vérification n'a plus sa
+        // place dans "Bons plans" — c'était exactement le cas signalé
+        // (lieux affichés sans fiche réelle chez le partenaire).
+        return withProviders.filter((p) => p.affiliateProviders.length > 0);
       }),
     );
 

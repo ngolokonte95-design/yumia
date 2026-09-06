@@ -26,4 +26,15 @@ export interface AffiliateProvider {
   generateBookingLink(place: Pick<Place, 'id' | 'name' | 'city' | 'lat' | 'lng'>, trackingId: string): string | null;
   /** Extrait un montant (centimes) + devise d'un payload de webhook, si le format le permet. */
   parseConversion?(payload: unknown): { amountCents?: number; currency?: string; clickTrackingId?: string } | null;
+  /**
+   * Vérifie qu'une fiche correspondant réellement à ce lieu existe chez le
+   * partenaire (recherche par nom/ville) — évite d'afficher "Bons plans" un
+   * lieu qui n'a en fait aucune fiche réservable, le lien de recherche
+   * générique retombant alors sur une page sans rapport.
+   * Optionnel : un provider sans implémentation (pas encore d'accès à l'API
+   * de recherche du partenaire, distincte de l'ID d'affiliation utilisé pour
+   * les liens) est traité comme toujours vérifié — comportement actuel,
+   * inchangé tant que la clé n'est pas configurée.
+   */
+  verifyListing?(place: Pick<Place, 'name' | 'city'>): Promise<boolean>;
 }

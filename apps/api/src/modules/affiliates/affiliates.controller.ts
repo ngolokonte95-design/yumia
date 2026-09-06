@@ -20,13 +20,11 @@ export class AffiliatesController {
     return this.affiliates.getNearbyDeals({ lat, lng, radius: radius ? +radius : 10_000 });
   }
 
-  /** GET /api/places/:id/affiliate-providers — providers pertinents pour ce lieu (avec disponibilité réelle). */
+  /** GET /api/places/:id/affiliate-providers — providers pertinents pour ce lieu, vérifiés (fiche réelle chez le partenaire). */
   @Get('places/:id/affiliate-providers')
   @UseGuards(JwtAuthGuard)
   async listProviders(@Param('id', ParseUUIDPipe) id: string) {
-    // On ne charge que l'univers du lieu, pas besoin du reste ici.
-    const universe = await this.affiliates.universeOf(id);
-    return { providers: this.affiliates.availableProviders(universe) };
+    return this.affiliates.availableProvidersForPlace(id);
   }
 
   /** GET /api/places/:id/booking-link?provider=booking — génère (et trace) un lien de réservation. */

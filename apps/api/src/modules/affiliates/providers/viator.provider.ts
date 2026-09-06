@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Place } from '@prisma/client';
 import type { AffiliateProvider } from './affiliate-provider.interface';
 
@@ -11,6 +11,8 @@ import type { AffiliateProvider } from './affiliate-provider.interface';
  */
 @Injectable()
 export class ViatorProvider implements AffiliateProvider {
+  private readonly logger = new Logger(ViatorProvider.name);
+
   readonly key = 'viator' as const;
   readonly universes = ['tourist_activity', 'cultural_outing', 'museum', 'monument', 'zoo', 'amusement_park'] as const;
 
@@ -18,8 +20,48 @@ export class ViatorProvider implements AffiliateProvider {
     return process.env.VIATOR_PARTNER_ID;
   }
 
+  // Clé de la Viator Partner API (docs.viator.com) — distincte du `pid` utilisé
+  // dans les liens trackés. Demandée séparément sur le portail partenaire.
+  // Tant qu'elle n'est pas configurée, verifyListing() ne filtre rien (voir
+  // le contrat par défaut dans AffiliateProvider.verifyListing).
+  private get apiKey(): string | undefined {
+    return process.env.VIATOR_API_KEY;
+  }
+
   isConfigured(): boolean {
     return !!this.partnerId;
+  }
+
+  /**
+   * Interroge la recherche de produits Viator pour confirmer qu'une activité
+   * correspondant au nom du lieu existe réellement — sinon le lien de
+   * recherche générique renvoie une page sans rapport avec ce lieu.
+   * Best-effort : toute erreur (réseau, clé absente, quota) laisse passer le
+   * lieu plutôt que de le masquer à tort.
+   */
+  async verifyListing(place: Pick<Place, 'name' | 'city'>): Promise<boolean> {
+    if (!this.apiKey) return true;
+    try {
+      const res = await fetch('https://api.viator.com/partner/products/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json;version=2.0',
+          'Accept-Language': 'fr-FR',
+          'exp-api-key': this.apiKey,
+        },
+        body: JSON.stringify({
+          searchTerm: place.city ? `${place.name} ${place.city}` : place.name,
+          searchTypes: [{ searchType: 'PRODUCTS', pagination: { start: 1, count: 1 } }],
+        }),
+      });
+      if (!res.ok) return true;
+      const data = (await res.json()) as { products?: { totalCount?: number } };
+      return (data.products?.totalCount ?? 0) > 0;
+    } catch (e) {
+      this.logger.warn(`verifyListing indisponible (${(e as Error).message}) — lieu laissé visible.`);
+      return true;
+    }
   }
 
   generateBookingLink(place: Pick<Place, 'id' | 'name' | 'city' | 'lat' | 'lng'>, trackingId: string): string | null {
