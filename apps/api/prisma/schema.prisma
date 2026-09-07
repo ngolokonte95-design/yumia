@@ -79,6 +79,13 @@ model User {
   affiliateClicks     AffiliateClick[]
   savedItineraries    SavedItinerary[]
 
+  // Boutique
+  cart                Cart?
+  wishlist            WishlistItem[]
+  shippingAddresses   ShippingAddress[]
+  orders              Order[]
+  productReviews      ProductReview[]
+
   @@index([countryCode])
   @@index([expoPushToken])
   @@index([gender])
@@ -1225,4 +1232,258 @@ model SavedItinerary {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ----------------------------------------------------------------------------
+// Boutique — dropshipping AliExpress, encaissement Stripe
+//
+// Les biens physiques ne peuvent PAS passer par l'achat intégré Apple/Google
+// (App Store 3.1.5(a) : les biens consommés hors de l'app doivent utiliser un
+// autre moyen de paiement). RevenueCat reste donc réservé aux abonnements
+// (voir WebhooksService) et la boutique encaisse via Stripe.
+//
+// Tous les montants sont en CENTIMES (Int) : jamais de flottant sur de la
+// monnaie, les arrondis successifs (marge, quantités) dérivent sinon.
+// ----------------------------------------------------------------------------
+
+enum ProductStatus {
+  draft
+  active
+  out_of_stock
+  archived
+}
+
+enum OrderStatus {
+  /// Payment Intent créé, paiement pas encore confirmé par Stripe.
+  pending
+  paid
+  /// Commande transmise à AliExpress, en attente de leur confirmation.
+  fulfilling
+  shipped
+  delivered
+  cancelled
+  refunded
+}
+
+/// Rayon de la boutique. Arborescence à 2 niveaux (rayon → sous-rayon) via
+/// `parentId`. `universe` relie le rayon à un univers YUMIA pour recommander
+/// des produits en contexte (ex. univers `hiking` → rayon Randonnée).
+model ShopCategory {
+  id        String    @id @default(uuid())
+  slug      String    @unique
+  nameFr    String
+  emoji     String    @default("🛍️")
+  universe  Universe?
+  parentId  String?
+  parent    ShopCategory?  @relation("ShopCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  ShopCategory[] @relation("ShopCategoryTree")
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([parentId, sortOrder])
+  @@index([universe])
+}
+
+model Product {
+  id             String        @id @default(uuid())
+  slug           String        @unique
+  title          String
+  description    String?
+  brand          String?
+  priceCents     Int
+  /// Prix barré (prix de référence affiché rayé), toujours > priceCents.
+  compareAtCents Int?
+  currency       String        @default("EUR")
+  images         String[]      @default([])
+  videoUrl       String?
+  /// Tableau [{ name, value }] repris de la fiche AliExpress.
+  specifications Json          @default("[]")
+  tags           String[]      @default([])
+  status         ProductStatus @default(active)
+  featured       Boolean       @default(false)
+  /// Note/ventes dénormalisées (AliExpress à l'import, puis avis internes).
+  rating         Float?
+  reviewsCount   Int           @default(0)
+  salesCount     Int           @default(0)
+  deliveryDays   Int?
+
+  categoryId     String
+  category       ShopCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  /// Provenance AliExpress — `aliexpressProductId` déduplique les imports.
+  aliexpressProductId  String? @unique
+  aliexpressPriceCents Int?
+  aliexpressCategoryId Int?
+
+  variants    ProductVariant[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  wishlisted  WishlistItem[]
+  reviews     ProductReview[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId, status])
+  @@index([status, featured])
+  @@index([status, salesCount])
+}
+
+/// Déclinaison achetable (taille, couleur…). `skuAttr` est l'identifiant exact
+/// que réclame AliExpress au moment de passer la commande pour cette variante.
+model ProductVariant {
+  id         String  @id @default(uuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label      String
+  optionName String?
+  skuAttr    String?
+  priceCents Int?
+  stock      Int     @default(0)
+  imageUrl   String?
+
+  cartItems  CartItem[]
+
+  @@index([productId])
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String          @id @default(uuid())
+  cartId    String
+  cart      Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity  Int             @default(1)
+  createdAt DateTime        @default(now())
+
+  /// Un même produit+variante n'apparaît qu'une fois : on incrémente la quantité.
+  @@unique([cartId, productId, variantId])
+  @@index([cartId])
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId, createdAt])
+}
+
+model ShippingAddress {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName    String
+  line1       String
+  line2       String?
+  city        String
+  postalCode  String
+  countryCode String   @default("FR")
+  phone       String
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+
+  @@index([userId])
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  /// Référence courte lisible par le client (ex. YUM-8F3K2P).
+  reference     String      @unique
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        OrderStatus @default(pending)
+
+  subtotalCents Int
+  shippingCents Int         @default(0)
+  totalCents    Int
+  currency      String      @default("EUR")
+
+  stripePaymentIntentId String? @unique
+
+  addressId       String?
+  address         ShippingAddress? @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  /// Copie figée de l'adresse au moment de la commande — l'adresse source peut
+  /// être modifiée ou supprimée après coup, la commande ne doit pas bouger.
+  addressSnapshot Json
+
+  /// Suivi côté AliExpress une fois la commande transmise.
+  aliexpressOrderId String?
+  trackingNumber    String?
+  trackingUrl       String?
+
+  items      OrderItem[]
+  paidAt     DateTime?
+  shippedAt  DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+/// Ligne de commande. Titre/image/prix sont figés à l'achat : le catalogue
+/// évolue (prix AliExpress, produit retiré), la facture non.
+model OrderItem {
+  id             String   @id @default(uuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  titleSnapshot  String
+  imageSnapshot  String?
+  variantLabel   String?
+  skuAttr        String?
+  quantity       Int      @default(1)
+  unitPriceCents Int
+  /// Identifiant AliExpress figé, nécessaire pour passer la commande même si
+  /// le produit a été supprimé du catalogue entre-temps.
+  aliexpressProductId String?
+
+  @@index([orderId])
+}
+
+model ProductReview {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId])
+  @@index([productId, createdAt])
+}
+
+/// Jeton OAuth AliExpress Dropshipping (une seule ligne, rafraîchie).
+model AliExpressToken {
+  id           String    @id @default(uuid())
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
