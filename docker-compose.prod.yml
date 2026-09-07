@@ -98,6 +98,10 @@ services:
       ALIEXPRESS_APP_KEY: ${ALIEXPRESS_APP_KEY:-}
       ALIEXPRESS_APP_SECRET: ${ALIEXPRESS_APP_SECRET:-}
       ALIEXPRESS_CALLBACK_URL: ${ALIEXPRESS_CALLBACK_URL:-}
+      # 'true' quand le jeton est emprunté à une autre application (SPORTIA) :
+      # interdit le rafraîchissement, qui invaliderait le sien. À retirer une
+      # fois YUMIA doté de son propre compte AliExpress.
+      ALIEXPRESS_DISABLE_REFRESH: ${ALIEXPRESS_DISABLE_REFRESH:-}
       # Boutique — encaissement Stripe (biens physiques : l'achat intégré
       # Apple/Google est interdit pour ça, cf. App Store 3.1.5(a)).
       # STRIPE_WEBHOOK_SECRET est indispensable : sans lui, aucune commande ne

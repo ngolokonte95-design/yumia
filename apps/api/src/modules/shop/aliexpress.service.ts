@@ -150,12 +150,37 @@ export class AliExpressService {
     return true;
   }
 
+  /**
+   * Interdit tout rafraîchissement du jeton.
+   *
+   * À activer quand le jeton est EMPRUNTÉ à une autre application (ici
+   * SPORTIA : une seule app Drop Shipping autorisée par compte AliExpress).
+   * Le rafraîchissement fait TOURNER le refresh_token — vérifié en conditions
+   * réelles — donc rafraîchir ici invaliderait celui de SPORTIA et casserait
+   * sa boutique silencieusement. Avec ce drapeau, la fenêtre de validité est
+   * une limite matérielle et non une date à ne pas oublier.
+   */
+  private get refreshDisabled(): boolean {
+    return process.env.ALIEXPRESS_DISABLE_REFRESH === 'true';
+  }
+
   /** Jeton valide, rafraîchi automatiquement s'il approche de l'expiration. */
   private async getAccessToken(): Promise<string | null> {
     const row = await this.prisma.aliExpressToken.findFirst();
     if (!row) return null;
     const stillValid = row.expiresAt && row.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_MARGIN_MS;
     if (stillValid || !row.refreshToken) return row.accessToken;
+
+    if (this.refreshDisabled) {
+      // Échec bruyant plutôt que silencieux : mieux vaut un import qui
+      // s'arrête qu'une autre application cassée à notre insu.
+      this.logger.error(
+        'Jeton AliExpress expiré et rafraîchissement désactivé (ALIEXPRESS_DISABLE_REFRESH). '
+        + 'Le jeton est emprunté à une autre application : le renouveler ici la casserait. '
+        + 'Configurer un compte AliExpress propre à YUMIA, puis retirer ce drapeau.',
+      );
+      return row.accessToken;
+    }
 
     const data = await this.callRest('/auth/token/refresh', { refresh_token: row.refreshToken });
     if (data['access_token']) {
