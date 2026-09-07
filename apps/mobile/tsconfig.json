@@ -3,6 +3,13 @@
   "compilerOptions": {
     "strict": true,
     "types": ["jest", "node"],
+    // TypeScript 6 exige un rootDir explicite dès que les fichiers compilés
+    // n'ont pas de racine commune évidente — sans lui, ts-jest échoue avec
+    // TS5011 sur chaque suite (toute la suite de tests mobile était muette
+    // depuis la migration SDK 57 / TS 6).
+    // La racine est celle du monorepo, pas apps/mobile : les écrans importent
+    // @yumia/shared, qui vit dans packages/shared.
+    "rootDir": "../..",
     "paths": {
       "@/*": ["./*"],
       "@yumia/shared": ["../../packages/shared/src/index.ts"]

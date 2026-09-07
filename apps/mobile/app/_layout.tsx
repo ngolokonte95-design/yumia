@@ -156,6 +156,15 @@ function AuthGate() {
       <Stack.Screen name="settings" />
       <Stack.Screen name="plus" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="guides" options={{ animation: 'slide_from_bottom' }} />
+      {/* Boutique — chaque fichier de app/shop/ est une route à part entière
+          (pas de app/shop/_layout.tsx, donc pas de groupe "shop"). */}
+      <Stack.Screen name="shop/index" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="shop/search" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="shop/category/[slug]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="shop/product/[slug]" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="shop/cart" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="shop/checkout" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="shop/orders" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="sorties" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="saved-itineraries" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="saved-itinerary-detail" options={{ animation: 'slide_from_right' }} />

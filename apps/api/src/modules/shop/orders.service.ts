@@ -137,18 +137,46 @@ export class OrdersService {
       },
     });
 
-    const intent = await this.stripe.paymentIntents.create({
-      amount: order.totalCents,
-      currency: order.currency.toLowerCase(),
-      automatic_payment_methods: { enabled: true },
+    // Stripe Checkout (page hébergée) plutôt que PaymentIntent + Payment Sheet :
+    // la Payment Sheet impose @stripe/stripe-react-native, un module natif
+    // absent d'Expo Go. La page hébergée s'ouvre dans le navigateur et
+    // fonctionne partout, y compris en développement.
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        ...buyable.map((l) => ({
+          quantity: l.quantity,
+          price_data: {
+            currency: order.currency.toLowerCase(),
+            unit_amount: l.unitPriceCents,
+            product_data: {
+              name: [l.title, l.variantLabel].filter(Boolean).join(' — ').slice(0, 250),
+              ...(l.imageUrl ? { images: [l.imageUrl] } : {}),
+            },
+          },
+        })),
+        ...(order.shippingCents > 0
+          ? [{
+              quantity: 1,
+              price_data: {
+                currency: order.currency.toLowerCase(),
+                unit_amount: order.shippingCents,
+                product_data: { name: 'Frais de livraison' },
+              },
+            }]
+          : []),
+      ],
+      success_url: `${this.appUrl}/shop/order-success?order=${order.reference}`,
+      cancel_url: `${this.appUrl}/shop/order-cancelled?order=${order.reference}`,
       // `orderId` est ce qui relie le webhook à la commande : sans lui, un
       // paiement confirmé serait impossible à rattacher.
       metadata: { orderId: order.id, reference: order.reference, userId },
+      payment_intent_data: { metadata: { orderId: order.id, reference: order.reference, userId } },
     });
 
     await this.prisma.order.update({
       where: { id: order.id },
-      data: { stripePaymentIntentId: intent.id },
+      data: { stripePaymentIntentId: session.id },
     });
 
     return {
@@ -156,9 +184,13 @@ export class OrdersService {
       reference: order.reference,
       totalCents: order.totalCents,
       currency: order.currency,
-      clientSecret: intent.client_secret,
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? null,
+      checkoutUrl: session.url,
     };
+  }
+
+  /** Base des URL de retour après paiement (deep link vers l'app). */
+  private get appUrl(): string {
+    return process.env.SHOP_RETURN_URL_BASE ?? 'https://yumia.eu';
   }
 
   /**
@@ -177,18 +209,21 @@ export class OrdersService {
       throw new BadRequestException(`Signature Stripe invalide : ${(e as Error).message}`);
     }
 
-    if (event.type !== 'payment_intent.succeeded') return;
+    // On accepte les deux événements : `checkout.session.completed` (parcours
+    // page hébergée, utilisé par l'app) et `payment_intent.succeeded` (filet
+    // de sécurité, et parcours natif si la Payment Sheet est ajoutée un jour).
+    if (event.type !== 'checkout.session.completed' && event.type !== 'payment_intent.succeeded') return;
 
-    const intent = event.data.object as Stripe.PaymentIntent;
-    const orderId = intent.metadata?.['orderId'];
+    const object = event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent;
+    const orderId = object.metadata?.['orderId'];
     if (!orderId) {
-      this.logger.warn(`PaymentIntent ${intent.id} sans orderId dans les metadata — ignoré`);
+      this.logger.warn(`Événement ${event.type} (${object.id}) sans orderId dans les metadata — ignoré`);
       return;
     }
 
     const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
     if (!order) {
-      this.logger.error(`Commande ${orderId} introuvable pour le PaymentIntent ${intent.id}`);
+      this.logger.error(`Commande ${orderId} introuvable pour l'événement Stripe ${object.id}`);
       return;
     }
     // Stripe peut rejouer un webhook : sans ce garde-fou, la commande serait

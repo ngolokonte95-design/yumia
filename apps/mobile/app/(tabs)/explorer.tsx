@@ -48,6 +48,7 @@ import { fetchGenericAffiliateLink } from '../../lib/affiliates-api';
 const QUICK_ACTIONS: { key: string; emoji: string; labelKey: TranslationKey; subKey: TranslationKey; route: string }[] = [
   { key: 'guides', emoji: '🧭', labelKey: 'explorer_action_guides_label', subKey: 'explorer_action_guides_sub', route: '/guides' },
   { key: 'deals', emoji: '💰', labelKey: 'explorer_action_deals_label', subKey: 'explorer_action_deals_sub', route: '/deals' },
+  { key: 'shop', emoji: '🛍️', labelKey: 'explorer_action_shop_label', subKey: 'explorer_action_shop_sub', route: '/shop' },
 ];
 
 // Onglets génériques (liens trackés vers la page d'accueil/recherche d'un
