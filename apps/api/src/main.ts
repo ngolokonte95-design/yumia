@@ -66,7 +66,15 @@ async function bootstrap() {
   assertEnv(isProd);
 
   // En production l'API est derrière un reverse-proxy (nginx/Caddy).
-  // trust proxy = 1 hop : req.ip = X-Forwarded-For[0] → ThrottlerGuard rate-limite par vrai IP client.
+  // trust proxy = 1 : Express ne fait confiance qu'au proxy le plus proche
+  // (Caddy) et retient l'adresse que CELUI-CI a ajoutée à X-Forwarded-For,
+  // c'est-à-dire la dernière — pas la première.
+  //
+  // La nuance est une frontière de sécurité, pas un détail : un client peut
+  // envoyer un X-Forwarded-For falsifié, Caddy y ajoute alors sa vraie adresse
+  // à la suite. Retenir la PREMIÈRE valeur laisserait donc contourner le
+  // rate-limiting en forgeant un en-tête. Augmenter ce nombre reviendrait
+  // exactement à ça : ne l'ajuster qu'en ajoutant un vrai proxy en amont.
   if (isProd) app.set('trust proxy', 1);
 
   // Corrélation d'ID : chaque requête reçoit un x-request-id unique propagé dans les logs.
