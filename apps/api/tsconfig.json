@@ -3,7 +3,12 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "noUnusedLocals": false
+    "noUnusedLocals": false,
+    // L'API est un exécutable, pas une bibliothèque : personne n'importe ses
+    // types. Émettre les .d.ts (hérité de tsconfig.base) obligeait TypeScript
+    // à résoudre entièrement les types de retour de chaque fonction exportée —
+    // coûteux avec le client Prisma, dont les types générés sont énormes.
+    "declaration": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
