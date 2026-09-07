@@ -88,6 +88,24 @@ services:
       # qu'un lieu a vraiment une fiche Viator avant de l'afficher dans Bons Plans.
       VIATOR_API_KEY: ${VIATOR_API_KEY:-}
       BOOKING_AFFILIATE_ID: ${BOOKING_AFFILIATE_ID:-}
+      # Onglets génériques Booking (Hôtel/Location de voiture/Billet d'avion) :
+      # visibles seulement quand ce drapeau vaut 'true'.
+      BOOKING_GENERIC_TABS_ENABLED: ${BOOKING_GENERIC_TABS_ENABLED:-}
+
+      # Boutique — dropshipping AliExpress. APP_KEY/APP_SECRET viennent de la
+      # console AliExpress Open Platform ; le jeton OAuth, lui, est stocké en
+      # base (table AliExpressToken) après le consentement admin, pas ici.
+      ALIEXPRESS_APP_KEY: ${ALIEXPRESS_APP_KEY:-}
+      ALIEXPRESS_APP_SECRET: ${ALIEXPRESS_APP_SECRET:-}
+      ALIEXPRESS_CALLBACK_URL: ${ALIEXPRESS_CALLBACK_URL:-}
+      # Boutique — encaissement Stripe (biens physiques : l'achat intégré
+      # Apple/Google est interdit pour ça, cf. App Store 3.1.5(a)).
+      # STRIPE_WEBHOOK_SECRET est indispensable : sans lui, aucune commande ne
+      # peut être confirmée (la signature du webhook n'est pas vérifiable).
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Base des URL de retour après paiement Stripe.
+      SHOP_RETURN_URL_BASE: ${SHOP_RETURN_URL_BASE:-}
     volumes:
       - yumia_uploads:/app/apps/api/uploads
     ports:
