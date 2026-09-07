@@ -180,23 +180,66 @@ export class AliExpressService {
     return !!this.tokenSourceUrl;
   }
 
+  // Temporisation entre deux tentatives infructueuses. Sans elle, un jeton
+  // expiré + une source indisponible feraient partir une requête à CHAQUE appel
+  // AliExpress : sous charge, cela martèlerait SPORTIA au pire moment, quand
+  // elle est déjà en difficulté.
+  private pullRetryAfter = 0;
+  private pullFailures = 0;
+
+  /** Un refus d'authentification ne se répare pas en réessayant : on attend longtemps. */
+  private static readonly REJECTED_COOLDOWN_MS = 60 * 60 * 1000;
+  private static readonly BACKOFF_BASE_MS = 60 * 1000;
+  private static readonly BACKOFF_MAX_MS = 60 * 60 * 1000;
+
+  private noteFailure(rejected: boolean): void {
+    this.pullFailures++;
+    const delay = rejected
+      ? AliExpressService.REJECTED_COOLDOWN_MS
+      : Math.min(
+          AliExpressService.BACKOFF_BASE_MS * 2 ** (this.pullFailures - 1),
+          AliExpressService.BACKOFF_MAX_MS,
+        );
+    this.pullRetryAfter = Date.now() + delay;
+  }
+
   /**
    * Récupère le jeton courant auprès de son propriétaire et le met en cache.
    * `null` si la source est injoignable — l'appelant garde alors sa copie.
    */
   private async pullFromOwner(): Promise<string | null> {
     if (!this.tokenSourceUrl) return null;
+    if (Date.now() < this.pullRetryAfter) return null;
+
     try {
       const res = await fetch(this.tokenSourceUrl, {
         headers: { 'X-Internal-Secret': this.tokenSourceSecret ?? '' },
         signal: AbortSignal.timeout(15_000),
       });
-      if (!res.ok) {
-        this.logger.warn(`Source du jeton AliExpress : HTTP ${res.status}`);
+
+      // 401/403 = secret invalide ou IP non autorisée. Ce n'est pas une panne :
+      // réessayer n'y changera rien, seule une correction de configuration le
+      // fera. D'où le niveau `error` (visible) et la longue temporisation.
+      if (res.status === 401 || res.status === 403) {
+        this.noteFailure(true);
+        this.logger.error(
+          `Source du jeton AliExpress : accès refusé (HTTP ${res.status}). `
+          + 'Secret partagé invalide ou IP non autorisée — vérifier '
+          + 'ALIEXPRESS_TOKEN_SOURCE_SECRET et la liste d\'IP autorisées côté SPORTIA.',
+        );
         return null;
       }
+      if (!res.ok) {
+        this.noteFailure(false);
+        this.logger.warn(`Source du jeton AliExpress : HTTP ${res.status} (nouvelle tentative différée)`);
+        return null;
+      }
+
       const data = (await res.json()) as { access_token?: string; expires_at?: string };
-      if (!data.access_token) return null;
+      if (!data.access_token) {
+        this.noteFailure(false);
+        return null;
+      }
 
       const expiresAt = data.expires_at ? new Date(data.expires_at) : null;
       const existing = await this.prisma.aliExpressToken.findFirst();
@@ -208,10 +251,14 @@ export class AliExpressService {
       } else {
         await this.prisma.aliExpressToken.create({ data: payload });
       }
+
+      this.pullFailures = 0;
+      this.pullRetryAfter = 0;
       this.logger.log('Jeton AliExpress récupéré auprès de son propriétaire.');
       return data.access_token;
     } catch (e) {
-      this.logger.warn(`Source du jeton AliExpress injoignable : ${(e as Error).message}`);
+      this.noteFailure(false);
+      this.logger.warn(`Source du jeton AliExpress injoignable : ${(e as Error).message} (nouvelle tentative différée)`);
       return null;
     }
   }
