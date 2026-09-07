@@ -92,7 +92,15 @@ async function bootstrap() {
   });
 
   // Limite de taille de corps : 1 Mo max pour prévenir les DoS par gros payload.
-  app.useBodyParser('json', { limit: '1mb' });
+  app.useBodyParser('json', {
+    limit: '1mb',
+    // Stripe signe le corps BRUT : il doit être conservé avant le parsing JSON,
+    // sinon la signature du webhook de paiement ne peut pas être vérifiée.
+    // Ciblé sur cette seule route — inutile de retenir un buffer ailleurs.
+    verify: (req: Request & { rawBody?: Buffer }, _res: Response, buf: Buffer) => {
+      if (req.originalUrl?.includes('/shop/stripe/webhook')) req.rawBody = buf;
+    },
+  });
   app.useBodyParser('urlencoded', { extended: true, limit: '1mb' });
 
   // Sécurité HTTP

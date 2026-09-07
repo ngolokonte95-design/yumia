@@ -1370,7 +1370,10 @@ model CartItem {
   quantity  Int             @default(1)
   createdAt DateTime        @default(now())
 
-  /// Un même produit+variante n'apparaît qu'une fois : on incrémente la quantité.
+  /// Garde-fou contre les doublons de déclinaisons. Attention : PostgreSQL
+  /// considère deux NULL comme distincts, donc cette contrainte ne couvre PAS
+  /// les produits sans variante — CartService.addItem cherche la ligne
+  /// existante explicitement plutôt que de s'y fier.
   @@unique([cartId, productId, variantId])
   @@index([cartId])
 }
