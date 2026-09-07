@@ -17,15 +17,21 @@ COPY packages/shared/package.json ./packages/shared/
 RUN npm install --workspace=apps/api --workspace=packages/shared --include-workspace-root \
     && npm cache clean --force
 
-# Copier les sources.
-COPY packages/shared ./packages/shared
-COPY apps/api ./apps/api
+# Ordre des copies calibré sur le cache de couches Docker : du moins au plus
+# souvent modifié. Copier `apps/api` en dernier évite de refaire la compilation
+# du package partagé (~25 s) et la génération Prisma (~30 s) à chaque
+# modification d'un fichier de l'API, alors qu'elles n'en dépendent pas.
 
-# Compiler le package partagé.
+# Package partagé — ne change que si packages/shared change.
+COPY packages/shared ./packages/shared
 RUN npm run build --workspace=packages/shared
 
-# Générer le client Prisma puis compiler l'API NestJS.
+# Client Prisma — ne change que si le schéma change.
+COPY apps/api/prisma ./apps/api/prisma
 RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+# Sources de l'API — l'étape la plus souvent invalidée, donc la dernière.
+COPY apps/api ./apps/api
 RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build --workspace=apps/api
 
 # ── Stage 2 : runner ─────────────────────────────────────────────────────────
