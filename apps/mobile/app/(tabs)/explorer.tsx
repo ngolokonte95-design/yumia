@@ -11,14 +11,12 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODE_META, UNIVERSE_META } from '@yumia/shared';
-import type { Mode, Universe, Plan } from '@yumia/shared';
+import type { Mode, Universe } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
-import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { universeLabel } from '../../lib/universeMeta';
 import { modeLabel } from '../../lib/labelHelpers';
 import { useLocation } from '../../lib/useLocation';
 import { YumiaLogo } from '../../components/YumiaLogo';
-import { socialApi } from '../../lib/social-api';
 import { useAuth } from '../../lib/auth-context';
 import { SuggestionCard } from '../../components/SuggestionCard';
 import { ExperienceCard } from '../../components/ExperienceCard';
@@ -39,8 +37,6 @@ import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
 import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 import { universeSearchRadius } from '../../lib/universeRadius';
 import { fetchGenericAffiliateLink } from '../../lib/affiliates-api';
-
-type SuggestedUser = { id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null };
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
 // (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
@@ -87,7 +83,6 @@ export default function ExplorerScreen() {
   const { t } = useI18n();
   const { coords, resolving, isFallback, city } = useLocation();
   const weather = useWeather(coords.lat, coords.lng);
-  const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   // Aucune sélection de mode dans Explorer (les boutons Date/Famille/Voyage
   // restent sur Home mais n'agissent plus sur cette section) : la section
   // Top 3 affiche donc toujours les suggestions générales, jamais l'itinéraire.
@@ -176,13 +171,6 @@ export default function ExplorerScreen() {
     ? `${MODE_META[selectedMode!].emoji} ${modeLabel(t, selectedMode!, MODE_META[selectedMode!].labelFr)}`
     : t('top3_title');
 
-  useEffect(() => {
-    if (!accessToken) return;
-    socialApi.searchUsers(accessToken, '', 10)
-      .then((users) => setSuggestedUsers(users.filter((u) => u.id !== user?.id).slice(0, 8)))
-      .catch(() => {});
-  }, [accessToken, user?.id]);
-
   return (
     <>
     <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
@@ -259,36 +247,8 @@ export default function ExplorerScreen() {
           fonctionnalité billetterie — voir sorties.tsx et le commentaire sur
           QUICK_ACTIONS plus haut. */}
 
-      {/* Personnes à suivre */}
-      {suggestedUsers.length > 0 ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>{t('explorer_people_to_follow')}</Text>
-            <Pressable onPress={() => router.push('/search' as never)}>
-              <Text style={styles.seeAll}>{t('explorer_see_more')}</Text>
-            </Pressable>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-            {suggestedUsers.map((u) => (
-              <Pressable key={u.id} style={styles.peopleCard} onPress={() => router.push(`/user/${u.id}` as never)}>
-                <Avatar
-                  uri={u.photoUrl}
-                  size={52}
-                  style={styles.peopleAvatar}
-                  placeholderColor={colors.brand}
-                  fallback={<Text style={styles.peopleAvatarTxt}>{u.displayName[0]}</Text>}
-                />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={styles.peopleName} numberOfLines={1}>{u.displayName}</Text>
-                  <PlanBadgeIcon plan={u.plan} size={28} />
-                </View>
-                {u.bio ? <Text style={styles.peopleBio} numberOfLines={2}>{u.bio}</Text> : null}
-                <Text style={styles.peopleLevel}>{t('explorer_level_prefix')} {u.level}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
+      {/* "Personnes à suivre" retiré — déjà présent dans le mode Social
+          (découverte de profils), doublon inutile ici. */}
 
       {/* Pipeline lieux : rangées horizontales par univers clé */}
       {(['restaurant', 'dessert', 'place_of_worship'] as Universe[]).map((u) => (
@@ -562,10 +522,7 @@ const styles = StyleSheet.create({
   genericTileEmoji: { fontSize: 20 },
   genericTileLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
 
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },
-  seeAll: { ...typography.caption, color: colors.brandSoft },
-  row: { gap: spacing.md, paddingRight: spacing.md },
   eventCard: {
     width: 180, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.md, padding: spacing.md, gap: 4,
@@ -576,16 +533,6 @@ const styles = StyleSheet.create({
   eventName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
   eventMeta: { ...typography.caption, color: colors.brandSoft, marginTop: 2 },
 
-  peopleCard: {
-    width: 120, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, padding: spacing.md, alignItems: 'center', gap: 4,
-  },
-  peopleAvatar: { width: 52, height: 52, borderRadius: 26, marginBottom: 4 },
-  peopleAvatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  peopleAvatarTxt: { color: '#fff', fontWeight: '800', fontSize: 20 },
-  peopleName: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', textAlign: 'center' },
-  peopleBio: { ...typography.label, color: colors.textMuted, fontSize: 10, textAlign: 'center' },
-  peopleLevel: { ...typography.label, color: colors.brandSoft, fontSize: 10, fontWeight: '700' },
 
   top3Reason: {
     ...typography.body,
