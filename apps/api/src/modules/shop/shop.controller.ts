@@ -218,9 +218,13 @@ export class ShopController {
   @Get('admin/status')
   @UseGuards(JwtAuthGuard, AdminGuard)
   async adminStatus() {
+    const token = await this.aliexpress.getTokenStatus();
     return {
       aliexpressConfigured: this.aliexpress.isConfigured(),
-      aliexpressLinked: await this.aliexpress.isLinked(),
+      aliexpressLinked: token.linked,
+      // Jeton partagé avec SPORTIA (une seule app Drop Shipping par compte) :
+      // à surveiller, cf. AliExpressService.getTokenStatus.
+      aliexpressToken: token,
       stripeConfigured: this.orders.isConfigured(),
     };
   }

@@ -171,6 +171,35 @@ export class AliExpressService {
     return (await this.prisma.aliExpressToken.count()) > 0;
   }
 
+  /**
+   * État du jeton, pour le diagnostic admin.
+   *
+   * Important ici : le compte AliExpress est partagé avec SPORTIA (une seule
+   * app Drop Shipping autorisée par compte). Les deux applications rafraîchissent
+   * donc le même jeton chacune de leur côté, et si AliExpress fait tourner le
+   * `refresh_token` au passage, celle qui rafraîchit en second peut se
+   * retrouver avec un jeton mort. Le repli est silencieux (on garde l'ancien
+   * access_token), d'où cet indicateur : sans lui, une boutique cassée ne se
+   * verrait qu'au moment où plus aucun produit ne remonte.
+   */
+  async getTokenStatus(): Promise<{
+    linked: boolean;
+    expiresAt: Date | null;
+    expiresInDays: number | null;
+    expired: boolean;
+  }> {
+    const row = await this.prisma.aliExpressToken.findFirst();
+    if (!row) return { linked: false, expiresAt: null, expiresInDays: null, expired: false };
+    const expiresAt = row.expiresAt;
+    const msLeft = expiresAt ? expiresAt.getTime() - Date.now() : null;
+    return {
+      linked: true,
+      expiresAt,
+      expiresInDays: msLeft === null ? null : Math.floor(msLeft / 86_400_000),
+      expired: msLeft !== null && msLeft <= 0,
+    };
+  }
+
   // ── Passerelle RPC ────────────────────────────────────────────────────────
 
   private sign(params: Record<string, string>): string {
