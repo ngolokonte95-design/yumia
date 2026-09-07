@@ -98,10 +98,13 @@ services:
       ALIEXPRESS_APP_KEY: ${ALIEXPRESS_APP_KEY:-}
       ALIEXPRESS_APP_SECRET: ${ALIEXPRESS_APP_SECRET:-}
       ALIEXPRESS_CALLBACK_URL: ${ALIEXPRESS_CALLBACK_URL:-}
-      # 'true' quand le jeton est emprunté à une autre application (SPORTIA) :
-      # interdit le rafraîchissement, qui invaliderait le sien. À retirer une
-      # fois YUMIA doté de son propre compte AliExpress.
-      ALIEXPRESS_DISABLE_REFRESH: ${ALIEXPRESS_DISABLE_REFRESH:-}
+      # Compte AliExpress partagé avec SPORTIA (une seule app Drop Shipping par
+      # compte, et un second compte à la même identité risque la suspension).
+      # SPORTIA détient et renouvelle le jeton ; YUMIA le lit ici et le met en
+      # cache — sans ces variables, YUMIA repasse en mode autonome (elle
+      # renouvelle elle-même), à utiliser le jour où elle aura son propre compte.
+      ALIEXPRESS_TOKEN_SOURCE_URL: ${ALIEXPRESS_TOKEN_SOURCE_URL:-}
+      ALIEXPRESS_TOKEN_SOURCE_SECRET: ${ALIEXPRESS_TOKEN_SOURCE_SECRET:-}
       # Boutique — encaissement Stripe (biens physiques : l'achat intégré
       # Apple/Google est interdit pour ça, cf. App Store 3.1.5(a)).
       # STRIPE_WEBHOOK_SECRET est indispensable : sans lui, aucune commande ne

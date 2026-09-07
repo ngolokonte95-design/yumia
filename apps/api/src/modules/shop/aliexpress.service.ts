@@ -9,6 +9,7 @@
  * fois via le consentement admin puis rafraîchi automatiquement.
  */
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHmac } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
@@ -151,36 +152,104 @@ export class AliExpressService {
   }
 
   /**
-   * Interdit tout rafraîchissement du jeton.
+   * URL du service qui DÉTIENT le jeton (SPORTIA), quand le compte AliExpress
+   * est partagé entre les deux applications.
    *
-   * À activer quand le jeton est EMPRUNTÉ à une autre application (ici
-   * SPORTIA : une seule app Drop Shipping autorisée par compte AliExpress).
-   * Le rafraîchissement fait TOURNER le refresh_token — vérifié en conditions
-   * réelles — donc rafraîchir ici invaliderait celui de SPORTIA et casserait
-   * sa boutique silencieusement. Avec ce drapeau, la fenêtre de validité est
-   * une limite matérielle et non une date à ne pas oublier.
+   * Un compte AliExpress ne peut avoir qu'une seule app Drop Shipping, et
+   * créer un second compte à la même identité expose à une suspension. Les
+   * deux boutiques partagent donc une clé unique — or le rafraîchissement fait
+   * TOURNER le refresh_token (vérifié en conditions réelles) : si les deux
+   * applications le renouvelaient chacune de leur côté, la seconde se
+   * retrouverait déconnectée, silencieusement, environ une fois par mois.
+   *
+   * D'où ce principe : UN SEUL propriétaire renouvelle (SPORTIA), YUMIA se
+   * contente de lire et de mettre en cache. Quand cette URL n'est pas
+   * configurée, YUMIA redevient autonome et renouvelle elle-même — c'est le
+   * mode à utiliser le jour où elle aura son propre compte AliExpress.
    */
-  private get refreshDisabled(): boolean {
-    return process.env.ALIEXPRESS_DISABLE_REFRESH === 'true';
+  private get tokenSourceUrl(): string | undefined {
+    return process.env.ALIEXPRESS_TOKEN_SOURCE_URL;
   }
 
-  /** Jeton valide, rafraîchi automatiquement s'il approche de l'expiration. */
+  private get tokenSourceSecret(): string | undefined {
+    return process.env.ALIEXPRESS_TOKEN_SOURCE_SECRET;
+  }
+
+  /** `true` quand le jeton appartient à une autre application. */
+  get isDelegated(): boolean {
+    return !!this.tokenSourceUrl;
+  }
+
+  /**
+   * Récupère le jeton courant auprès de son propriétaire et le met en cache.
+   * `null` si la source est injoignable — l'appelant garde alors sa copie.
+   */
+  private async pullFromOwner(): Promise<string | null> {
+    if (!this.tokenSourceUrl) return null;
+    try {
+      const res = await fetch(this.tokenSourceUrl, {
+        headers: { 'X-Internal-Secret': this.tokenSourceSecret ?? '' },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) {
+        this.logger.warn(`Source du jeton AliExpress : HTTP ${res.status}`);
+        return null;
+      }
+      const data = (await res.json()) as { access_token?: string; expires_at?: string };
+      if (!data.access_token) return null;
+
+      const expiresAt = data.expires_at ? new Date(data.expires_at) : null;
+      const existing = await this.prisma.aliExpressToken.findFirst();
+      // `refreshToken` reste NULL côté YUMIA : elle ne doit jamais pouvoir
+      // renouveler, même par erreur — c'est ce qui protège SPORTIA.
+      const payload = { accessToken: data.access_token, refreshToken: null, expiresAt };
+      if (existing) {
+        await this.prisma.aliExpressToken.update({ where: { id: existing.id }, data: payload });
+      } else {
+        await this.prisma.aliExpressToken.create({ data: payload });
+      }
+      this.logger.log('Jeton AliExpress récupéré auprès de son propriétaire.');
+      return data.access_token;
+    } catch (e) {
+      this.logger.warn(`Source du jeton AliExpress injoignable : ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Maintient le jeton en vie.
+   *
+   * Le `refresh_token` a lui-même une durée de vie (~30 jours) : si AUCUNE des
+   * deux applications ne s'en sert pendant ce laps de temps, il meurt et il
+   * faut refaire tout le consentement OAuth à la main. Cette vérification
+   * hebdomadaire déclenche le renouvellement côté propriétaire bien avant
+   * l'échéance — c'est ce qui rend le partage viable sur le long terme plutôt
+   * que jusqu'au premier mois creux.
+   */
+  @Cron(CronExpression.EVERY_WEEK)
+  async keepTokenAlive(): Promise<void> {
+    if (!this.isDelegated) return;
+    const row = await this.prisma.aliExpressToken.findFirst();
+    const daysLeft = row?.expiresAt ? (row.expiresAt.getTime() - Date.now()) / 86_400_000 : -1;
+    // On renouvelle avec une semaine d'avance : si la source est indisponible
+    // ce jour-là, il reste plusieurs tentatives hebdomadaires avant l'échéance.
+    if (daysLeft > 7) return;
+    await this.pullFromOwner();
+  }
+
+  /** Jeton valide, renouvelé (ou récupéré auprès du propriétaire) si besoin. */
   private async getAccessToken(): Promise<string | null> {
     const row = await this.prisma.aliExpressToken.findFirst();
-    if (!row) return null;
-    const stillValid = row.expiresAt && row.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_MARGIN_MS;
-    if (stillValid || !row.refreshToken) return row.accessToken;
+    const stillValid = row?.expiresAt && row.expiresAt.getTime() > Date.now() + TOKEN_REFRESH_MARGIN_MS;
+    if (stillValid) return row.accessToken;
 
-    if (this.refreshDisabled) {
-      // Échec bruyant plutôt que silencieux : mieux vaut un import qui
-      // s'arrête qu'une autre application cassée à notre insu.
-      this.logger.error(
-        'Jeton AliExpress expiré et rafraîchissement désactivé (ALIEXPRESS_DISABLE_REFRESH). '
-        + 'Le jeton est emprunté à une autre application : le renouveler ici la casserait. '
-        + 'Configurer un compte AliExpress propre à YUMIA, puis retirer ce drapeau.',
-      );
-      return row.accessToken;
+    // Jeton délégué : on le redemande à son propriétaire, jamais de renouvellement local.
+    if (this.isDelegated) {
+      return (await this.pullFromOwner()) ?? row?.accessToken ?? null;
     }
+
+    if (!row) return null;
+    if (!row.refreshToken) return row.accessToken;
 
     const data = await this.callRest('/auth/token/refresh', { refresh_token: row.refreshToken });
     if (data['access_token']) {
