@@ -12,6 +12,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
@@ -28,6 +29,8 @@ import { fetchByCity, fetchNearby } from '../../lib/places-api';
 import type { NearbyPlace } from '../../lib/places-api';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import { useSearchRadius, RADIUS_PRESETS_KM } from '../../lib/useSearchRadius';
+import { useCitySearch } from '../../lib/useCitySearch';
+import type { CitySuggestion } from '../../lib/services/weather';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { CannabisIcon } from '../../components/icons/CannabisIcon';
 
@@ -66,6 +69,10 @@ export default function MapScreen() {
   const [cityResults, setCityResults] = useState<NearbyPlace[] | null>(null);
   const [cityLoading, setCityLoading] = useState(false);
   const [citiesSearchedCount, setCitiesSearchedCount] = useState(0);
+  // Suggestions de villes pendant la frappe. Fermé dès qu'une recherche part,
+  // sinon la liste resterait ouverte par-dessus les résultats.
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const { results: citySuggestions } = useCitySearch(suggestOpen ? cityQuery : '');
   const [tapResults, setTapResults] = useState<NearbyPlace[] | null>(null);
   const [tapLoading, setTapLoading] = useState(false);
   const [tapPoint, setTapPoint] = useState<{ x: number; y: number } | null>(null);
@@ -199,9 +206,11 @@ export default function MapScreen() {
     }, 800);
   }, [universe, radiusKm]);
 
-  const handleCitySearch = useCallback(async () => {
-    const q = cityQuery.trim();
+  const runCitySearch = useCallback(async (raw: string) => {
+    const q = raw.trim();
     if (!q) return;
+    setSuggestOpen(false);
+    Keyboard.dismiss();
     const { allowed, message } = await checkLimit('travelCities', citiesSearchedCount);
     if (!allowed) { setUpsell(message); return; }
     setCityLoading(true);
@@ -221,13 +230,34 @@ export default function MapScreen() {
     } finally {
       setCityLoading(false);
     }
-  }, [cityQuery, citiesSearchedCount, universe, checkLimit, recordUsage]);
+  }, [citiesSearchedCount, universe, checkLimit, recordUsage]);
+
+  // `onSubmitEditing` passe un événement en argument : on ne le laisse pas
+  // arriver jusqu'à `runCitySearch`, qui attend une chaîne.
+  const handleCitySearch = useCallback(() => {
+    void runCitySearch(cityQuery);
+  }, [runCitySearch, cityQuery]);
+
+  /**
+   * Ville choisie dans les suggestions. On recentre la carte sur ses
+   * coordonnées AVANT d'interroger l'API : l'utilisateur a désigné un endroit
+   * précis, la carte doit y aller même si aucun lieu n'y est référencé.
+   */
+  const pickCity = useCallback((c: CitySuggestion) => {
+    setCityQuery(c.name);
+    mapRef.current?.animateToRegion(
+      { latitude: c.lat, longitude: c.lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
+      500,
+    );
+    void runCitySearch(c.name);
+  }, [runCitySearch]);
 
   function clearCitySearch() {
     setCityQuery('');
     setCityResults(null);
     setTapResults(null);
     setTapCoord(null);
+    setSuggestOpen(false);
   }
 
   // Recharge la liste actuellement affichée (point tapé, ville, ou zone visible par
@@ -423,7 +453,7 @@ export default function MapScreen() {
               placeholder={t('map_search_placeholder')}
               placeholderTextColor={colors.textMuted}
               value={cityQuery}
-              onChangeText={setCityQuery}
+              onChangeText={(v) => { setCityQuery(v); setSuggestOpen(true); }}
               returnKeyType="search"
               onSubmitEditing={handleCitySearch}
               autoCorrect={false}
@@ -440,6 +470,27 @@ export default function MapScreen() {
             <Text style={styles.searchGoText}>→</Text>
           </Pressable>
         </View>
+
+        {/* Suggestions pendant la frappe. Volontairement fermées seulement par
+            une action explicite (choix, validation, croix) : masquer au blur
+            ferait disparaître la liste avant que le doigt n'atteigne la ligne. */}
+        {suggestOpen && citySuggestions.length > 0 && (
+          <View style={styles.suggestBox}>
+            {citySuggestions.slice(0, 6).map((c) => (
+              <Pressable
+                key={c.id}
+                style={styles.suggestRow}
+                onPress={() => pickCity(c)}
+              >
+                <Text style={styles.suggestPin}>📍</Text>
+                <Text style={styles.suggestName} numberOfLines={1}>{c.name}</Text>
+                <Text style={styles.suggestMeta} numberOfLines={1}>
+                  {[c.admin1, c.country].filter(Boolean).join(', ')}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         {/* Univers + rayon de recherche, côte à côte */}
         <View style={styles.filterRow}>
@@ -770,6 +821,28 @@ const styles = StyleSheet.create({
     zIndex: 10,
     backgroundColor: 'transparent',
   },
+  suggestBox: {
+    marginTop: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  suggestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  suggestPin: { fontSize: 13 },
+  suggestName: { ...typography.body, color: colors.textPrimary, fontWeight: '700', flexShrink: 1 },
+  // La région/le pays occupe la place restante : deux « Springfield » ne se
+  // distinguent que par là.
+  suggestMeta: { fontSize: 12, color: colors.textMuted, flex: 1, textAlign: 'right' },
   searchRow: {
     flexDirection: 'row',
     gap: spacing.sm,
