@@ -12,6 +12,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHmac } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { envOr } from '../../common/env';
 
 const API_URL = 'https://api-sg.aliexpress.com/sync';
 const REST_URL = 'https://api-sg.aliexpress.com/rest';
@@ -115,7 +116,7 @@ export class AliExpressService {
   }
 
   private get callbackUrl(): string {
-    return process.env.ALIEXPRESS_CALLBACK_URL ?? 'https://api.yumia.eu/api/shop/aliexpress/callback';
+    return envOr('ALIEXPRESS_CALLBACK_URL', 'https://api.yumia.eu/api/shop/aliexpress/callback');
   }
 
   isConfigured(): boolean {

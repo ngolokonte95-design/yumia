@@ -15,6 +15,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { randomBytes } from 'crypto';
 import Stripe from 'stripe';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { envOr } from '../../common/env';
 import { AliExpressService } from './aliexpress.service';
 import { CartService } from './cart.service';
 
@@ -188,9 +189,15 @@ export class OrdersService {
     };
   }
 
-  /** Base des URL de retour après paiement (deep link vers l'app). */
+  /**
+   * Base des URL de retour après paiement.
+   *
+   * Doit rester en http(s) : Stripe refuse les schémas d'application
+   * (`exp://`, `yumia://`) dans `success_url`. Le retour vers l'app se fait
+   * donc par une page web qui redirige.
+   */
   private get appUrl(): string {
-    return process.env.SHOP_RETURN_URL_BASE ?? 'https://yumia.eu';
+    return envOr('SHOP_RETURN_URL_BASE', 'https://yumia.eu');
   }
 
   /**
