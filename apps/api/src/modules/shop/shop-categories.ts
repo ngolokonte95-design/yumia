@@ -21,9 +21,12 @@ export interface ShopCategorySeed {
   searchTerms: string[];
   keywords: string[];
   /**
-   * Rayon parent. Un sous-rayon n'est pas une tuile de plus sur l'accueil : il
-   * devient un filtre a l'interieur de son parent — « Vetements » se parcourt
-   * d'un bloc, avec Femme / Homme / Enfant en onglets.
+   * Rayon parent, quand un rayon mérite d'être subdivisé. Un sous-rayon n'est
+   * pas une tuile de plus sur l'accueil : il devient un onglet à l'intérieur de
+   * son parent, dont la liste agrège les produits de tous ses enfants.
+   *
+   * Aucun rayon n'en utilise aujourd'hui — le mécanisme reste en place, testé,
+   * parce qu'il coûte peu et qu'un rayon large finira par en avoir besoin.
    */
   parentSlug?: string;
 }
@@ -262,44 +265,6 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     sortOrder: 260,
     searchTerms: ['collier acier inoxydable femme', 'bracelet cuir homme', 'montre automatique homme', 'boucles oreilles argent', 'bague acier femme', 'montre femme bracelet maille', 'chaine cheville', 'coffret rangement bijoux', 'bracelet perles pierre naturelle', 'pendentif argent 925', 'montre digitale sport', 'broche vintage'],
     keywords: ['bijou', 'collier', 'bracelet', 'bague', 'montre', 'pendentif', 'chaine', 'boucle', 'argent', 'acier', 'perle', 'broche', 'cheville', 'coffret', 'boucle d oreille'],
-  },
-  {
-    slug: 'vetement',
-    nameFr: 'Vêtements',
-    emoji: '👕',
-    universe: 'shopping',
-    sortOrder: 270,
-    // Le parent ne cherche rien lui-même : ses produits viennent de ses trois
-    // sous-rayons, qui s'affichent en onglets Femme / Homme / Enfant.
-    searchTerms: [],
-    keywords: ['vetement', 'tee-shirt', 'tshirt', 'pull', 'robe', 'pantalon', 'veste', 'chemise', 'sweat', 'short', 'jupe', 'manteau', 'hoodie', 'jean', 'survetement', 'pyjama', 'chaussette', 'echarpe', 'bonnet', 'casquette'],
-  },
-  {
-    slug: 'vetement-femme',
-    nameFr: 'Femme',
-    emoji: '👗',
-    parentSlug: 'vetement',
-    sortOrder: 271,
-    searchTerms: ['robe ete femme', 'pull oversize femme', 'tee shirt coton femme', 'veste jean femme', 'pantalon taille haute femme', 'jupe plissee femme', 'sweat capuche femme', 'chemise blanche femme', 'manteau long femme', 'legging sport femme', 'top crop femme', 'ensemble jogging femme'],
-    keywords: ['tee shirt', 'robe', 'jupe', 'legging', 'top', 'blouse', 'chemisier', 'pull', 'veste', 'pantalon', 'sweat', 'manteau', 'tee-shirt', 'tshirt', 'ensemble', 'chemise'],
-  },
-  {
-    slug: 'vetement-homme',
-    nameFr: 'Homme',
-    emoji: '👔',
-    parentSlug: 'vetement',
-    sortOrder: 272,
-    searchTerms: ['tee shirt homme coton', 'sweat capuche homme', 'chemise homme manches longues', 'pantalon cargo homme', 'veste bomber homme', 'polo homme', 'short homme ete', 'pull col rond homme', 'jean homme slim', 'survetement homme', 'chaussettes homme lot', 'manteau homme hiver'],
-    keywords: ['tee shirt', 'tee-shirt', 'tshirt', 'polo', 'chemise', 'sweat', 'hoodie', 'pantalon', 'cargo', 'jean', 'short', 'pull', 'veste', 'bomber', 'survetement', 'chaussette', 'manteau'],
-  },
-  {
-    slug: 'vetement-enfant',
-    nameFr: 'Enfant',
-    emoji: '🧒',
-    parentSlug: 'vetement',
-    sortOrder: 273,
-    searchTerms: ['tee shirt enfant coton', 'ensemble bebe naissance', 'pyjama enfant hiver', 'sweat capuche enfant', 'robe fille ete', 'pantalon garcon', 'combinaison bebe', 'manteau enfant hiver', 'bonnet echarpe enfant', 'chaussettes enfant lot', 'body bebe coton', 'survetement enfant'],
-    keywords: ['enfant', 'bebe', 'fille', 'garcon', 'pyjama', 'body', 'combinaison', 'ensemble', 'robe', 'sweat', 'pantalon', 'manteau', 'bonnet', 'chaussette', 'tee-shirt', 'tshirt', 'survetement'],
   },
   {
     slug: 'jouets-cadeaux',
