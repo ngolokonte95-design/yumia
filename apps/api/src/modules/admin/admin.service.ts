@@ -1,14 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { isAdminEmail } from '../auth/is-admin-email';
 
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   isAdmin(email: string): boolean {
-    const raw = process.env.ADMIN_EMAILS ?? '';
-    const set = new Set(raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean));
-    return set.has(email.toLowerCase());
+    return isAdminEmail(email);
   }
 
   async getOverview() {

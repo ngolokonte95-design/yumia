@@ -14,6 +14,18 @@ export interface ShopCategory {
   productsCount: number;
 }
 
+/**
+ * Marge sur un produit — présente UNIQUEMENT dans les réponses servies à un
+ * compte admin. L'API ne l'envoie pas aux autres : côté client, `undefined`
+ * suffit donc à masquer l'encart, il n'y a pas de secret à protéger ici.
+ */
+export interface AdminMargin {
+  costCents: number;
+  marginCents: number;
+  marginPercent: number;
+  multiplier: number;
+}
+
 export interface ProductListItem {
   id: string;
   slug: string;
@@ -28,6 +40,7 @@ export interface ProductListItem {
   deliveryDays: number | null;
   featured: boolean;
   category: { slug: string; nameFr: string; emoji: string };
+  adminMargin?: AdminMargin | null;
 }
 
 export interface ProductVariant {

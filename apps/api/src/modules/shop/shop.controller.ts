@@ -14,6 +14,7 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { isAdminEmail } from '../auth/is-admin-email';
 import type { JwtPayload } from '../auth/types';
 import { AliExpressService } from './aliexpress.service';
 import { CartService } from './cart.service';
@@ -50,6 +51,7 @@ export class ShopController {
   @Get('products')
   @UseGuards(JwtAuthGuard)
   products(
+    @CurrentUser() user: JwtPayload,
     @Query('category') categorySlug?: string,
     @Query('q') q?: string,
     @Query('minPrice') minPrice?: string,
@@ -72,7 +74,7 @@ export class ShopController {
       sort: sort as ProductSort | undefined,
       page: asInt(page),
       pageSize: asInt(pageSize),
-    });
+    }, isAdminEmail(user.email));
   }
 
   /** Rayon lié à un univers YUMIA — produits proposés en contexte sur une fiche lieu. */
@@ -85,7 +87,7 @@ export class ShopController {
   @Get('products/:slug')
   @UseGuards(JwtAuthGuard)
   product(@CurrentUser() user: JwtPayload, @Param('slug') slug: string) {
-    return this.catalog.getProduct(slug, user.sub);
+    return this.catalog.getProduct(slug, user.sub, isAdminEmail(user.email));
   }
 
   // ── Wishlist & avis ───────────────────────────────────────────────────────

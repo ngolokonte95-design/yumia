@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from './jwt-auth.guard';
+import { isAdminEmail } from './is-admin-email';
 
 /**
  * Guard admin : autorise uniquement les emails listés dans ADMIN_EMAILS
@@ -21,16 +22,7 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Authentification requise.');
     }
 
-    // Lire à chaque requête pour refléter les changements d'env sans redémarrage.
-    const raw = process.env.ADMIN_EMAILS ?? '';
-    const adminEmails = new Set(
-      raw
-        .split(',')
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean),
-    );
-
-    if (!adminEmails.has(req.user.email.toLowerCase())) {
+    if (!isAdminEmail(req.user.email)) {
       throw new ForbiddenException('Accès réservé aux administrateurs.');
     }
     return true;

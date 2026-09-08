@@ -10,13 +10,28 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { AliExpressService, DEFAULT_MARGIN } from './aliexpress.service';
-import { SHOP_CATEGORIES, isBanned, isJunk, isRelevant, normalize } from './shop-categories';
+import { AliExpressService, sellingPriceCents } from './aliexpress.service';
+import {
+  SHOP_CATEGORIES,
+  isBanned,
+  isJunk,
+  isRelevant,
+  normalize,
+  titleSignature,
+  tooSimilar,
+} from './shop-categories';
 
 export interface ImportReport {
   category: string;
   imported: number;
-  skipped: { irrelevant: number; junk: number; banned: number; duplicate: number; noPrice: number };
+  skipped: {
+    irrelevant: number;
+    junk: number;
+    banned: number;
+    duplicate: number;
+    similar: number;
+    noPrice: number;
+  };
 }
 
 @Injectable()
@@ -47,11 +62,16 @@ export class ShopImportService {
   }
 
   /**
-   * Importe des produits dans un rayon. `limit` est le nombre de produits
-   * effectivement importés visé, pas le nombre de résultats examinés — les
-   * filtres en écartent une bonne partie.
+   * Importe des produits dans un rayon.
+   *
+   * `limitPerTerm` est le nombre de produits retenus PAR TERME de recherche,
+   * pas le total du rayon — et c'est lui qui gouverne la diversité. AliExpress
+   * renvoie les mieux classés d'un terme, donc en prendre dix sur
+   * « cadenas TSA bagage » donne dix cadenas. Quatre par terme sur douze termes
+   * remplit un rayon d'une cinquantaine d'articles sans jamais empiler plus de
+   * quatre variantes d'un même objet.
    */
-  async importCategory(slug: string, limitPerTerm = 10): Promise<ImportReport> {
+  async importCategory(slug: string, limitPerTerm = 4): Promise<ImportReport> {
     const seed = SHOP_CATEGORIES.find((c) => c.slug === slug);
     if (!seed) throw new Error(`Rayon inconnu : ${slug}`);
 
@@ -61,8 +81,18 @@ export class ShopImportService {
     const report: ImportReport = {
       category: slug,
       imported: 0,
-      skipped: { irrelevant: 0, junk: 0, banned: 0, duplicate: 0, noPrice: 0 },
+      skipped: { irrelevant: 0, junk: 0, banned: 0, duplicate: 0, similar: 0, noPrice: 0 },
     };
+
+    // Signatures des produits DÉJÀ en rayon : sans elles, un second import
+    // rajouterait les jumeaux du premier, chaque passe étant aveugle aux
+    // précédentes.
+    const known = (
+      await this.prisma.product.findMany({
+        where: { categoryId: category.id },
+        select: { title: true },
+      })
+    ).map((p) => titleSignature(p.title));
 
     for (const term of seed.searchTerms) {
       const results = await this.aliexpress.search(term, 1, limitPerTerm * 3);
@@ -81,8 +111,12 @@ export class ShopImportService {
         });
         if (exists) { report.skipped.duplicate++; continue; }
 
+        const signature = titleSignature(r.title);
+        if (known.some((k) => tooSimilar(signature, k))) { report.skipped.similar++; continue; }
+
         try {
           await this.importOne(r.productId, r.title, r.priceCents, r.imageUrl, category.id, slug);
+          known.push(signature);
           report.imported++;
           importedForTerm++;
         } catch (e) {
@@ -104,7 +138,7 @@ export class ShopImportService {
     categorySlug: string,
   ): Promise<void> {
     const detail = await this.aliexpress.getProductDetail(aliexpressProductId);
-    const priceCents = Math.round(aePriceCents * DEFAULT_MARGIN);
+    const priceCents = sellingPriceCents(aePriceCents);
 
     const images = detail.images.length ? detail.images : fallbackImage ? [fallbackImage] : [];
     // La description vendeur est souvent absente ou inutilisable : un repli

@@ -56,6 +56,21 @@ export function ProductCard({ product, onPress, variant = 'row' }: Props) {
           <Text style={styles.compareAt}>{formatPrice(product.compareAtCents!, product.currency)}</Text>
         )}
       </View>
+
+      {/* Servi par l'API aux seuls comptes admin — absent des autres réponses. */}
+      {product.adminMargin && (
+        <View style={styles.marginBox}>
+          <Text style={styles.marginTxt}>
+            Marge {formatPrice(product.adminMargin.marginCents, product.currency)}
+            {'  ·  '}
+            {product.adminMargin.marginPercent}%
+          </Text>
+          <Text style={styles.marginCost}>
+            Achat {formatPrice(product.adminMargin.costCents, product.currency)} · ×
+            {product.adminMargin.multiplier}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -84,4 +99,15 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   price: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
   compareAt: { fontSize: 11, color: colors.textMuted, textDecorationLine: 'line-through' },
+  // Encart admin : volontairement sobre et détaché du bloc prix, pour qu'un
+  // coup d'œil ne le confonde jamais avec une information client.
+  marginBox: {
+    marginTop: 2,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 4,
+    gap: 1,
+  },
+  marginTxt: { fontSize: 11, fontWeight: '800', color: colors.success },
+  marginCost: { fontSize: 10, color: colors.textMuted },
 });

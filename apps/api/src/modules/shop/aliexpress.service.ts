@@ -17,8 +17,49 @@ const API_URL = 'https://api-sg.aliexpress.com/sync';
 const REST_URL = 'https://api-sg.aliexpress.com/rest';
 const OAUTH_URL = 'https://api-sg.aliexpress.com/oauth';
 
-/** Marge appliquée au prix AliExpress pour obtenir le prix YUMIA. */
-export const DEFAULT_MARGIN = 2.5;
+/**
+ * Marge dégressive, appliquée par tranches sur le prix d'achat AliExpress.
+ *
+ * Un coefficient unique avait deux angles morts. En bas de gamme la marge était
+ * dérisoire en valeur absolue : 2,22 € sur un adaptateur revendu 3,70 €, dont
+ * la commission Stripe (1,4 % + 0,25 €) mangeait déjà 13 %. En haut de gamme
+ * elle rendait les prix peu défendables — 64 € pour une trousse de toilette que
+ * le client compare en trois clics.
+ *
+ * Les tranches sont MARGINALES, comme un barème d'impôt : les dix premiers
+ * euros d'achat sont multipliés par 3, la part entre 10 et 30 € par 2,5, le
+ * reste par 2. Des tranches par palier (« si le prix dépasse 10 €, alors ×2,5 »)
+ * produiraient une marche absurde à la frontière : un article acheté 10,00 €
+ * serait vendu MOINS CHER (25,00 €) qu'un article acheté 9,99 € (29,97 €).
+ */
+const MARGIN_TIERS: ReadonlyArray<{ upToCents: number; rate: number }> = [
+  { upToCents: 1000, rate: 3 },
+  { upToCents: 3000, rate: 2.5 },
+  { upToCents: Infinity, rate: 2 },
+];
+
+/** Prix de vente TTC, en centimes, pour un prix d'achat donné. */
+export function sellingPriceCents(costCents: number): number {
+  let remaining = costCents;
+  let previousCap = 0;
+  let price = 0;
+  for (const tier of MARGIN_TIERS) {
+    if (remaining <= 0) break;
+    const slice = Math.min(remaining, tier.upToCents - previousCap);
+    price += slice * tier.rate;
+    remaining -= slice;
+    previousCap = tier.upToCents;
+  }
+  return Math.round(price);
+}
+
+/**
+ * Coefficient effectif appliqué à un prix d'achat — pour l'affichage admin.
+ * Vaut 3 sur les tout petits prix et tend vers 2 sur les gros.
+ */
+export function effectiveMargin(costCents: number): number {
+  return costCents > 0 ? sellingPriceCents(costCents) / costCents : 0;
+}
 
 /** Le jeton est renouvelé s'il expire dans moins de 10 minutes. */
 const TOKEN_REFRESH_MARGIN_MS = 10 * 60 * 1000;
@@ -419,7 +460,7 @@ export class AliExpressService {
    * vignette de recherche), variantes achetables, description du vendeur,
    * délai de livraison, note/avis/ventes et fiche technique.
    */
-  async getProductDetail(productId: string, margin = DEFAULT_MARGIN): Promise<AliExpressProductDetail> {
+  async getProductDetail(productId: string): Promise<AliExpressProductDetail> {
     const detail = await this.getRawDetail(productId);
 
     const multimedia = detail['ae_multimedia_info_dto'] ?? {};
@@ -453,7 +494,7 @@ export class AliExpressService {
       salesCount: num(base['sales_count']),
       specifications,
       description: this.extractDescription(base['mobile_detail']),
-      variants: this.extractVariants(detail, margin),
+      variants: this.extractVariants(detail),
       categoryId: num(base['category_id']),
     };
   }
@@ -491,7 +532,7 @@ export class AliExpressService {
    * `sku_attr` exact : c'est lui qu'AliExpress réclame pour livrer LA bonne
    * déclinaison au moment de la commande.
    */
-  private extractVariants(detail: Record<string, any>, margin: number): AliExpressVariant[] {
+  private extractVariants(detail: Record<string, any>): AliExpressVariant[] {
     const skus = detail['ae_item_sku_info_dtos']?.['ae_item_sku_info_d_t_o'];
     if (!Array.isArray(skus)) return [];
 
@@ -514,7 +555,7 @@ export class AliExpressService {
         label,
         optionName: prop['sku_property_name'] ? String(prop['sku_property_name']) : undefined,
         skuAttr: String(sku['sku_attr'] ?? sku['id'] ?? '') || undefined,
-        priceCents: aePrice ? Math.round(aePrice * margin) : undefined,
+        priceCents: aePrice ? sellingPriceCents(aePrice) : undefined,
         stock,
       });
     }

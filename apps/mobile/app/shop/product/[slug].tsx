@@ -174,6 +174,23 @@ export default function ProductDetailScreen() {
             )}
           </View>
 
+          {/* Bloc admin — l'API ne renvoie `adminMargin` qu'aux comptes admin. */}
+          {product.adminMargin && (
+            <View style={styles.marginBox}>
+              <Text style={styles.marginTitle}>Marge (visible par toi seul)</Text>
+              <View style={styles.marginRow}>
+                <Text style={styles.marginValue}>
+                  {formatPrice(product.adminMargin.marginCents, product.currency)}
+                </Text>
+                <Text style={styles.marginPct}>{product.adminMargin.marginPercent} % du prix de vente</Text>
+              </View>
+              <Text style={styles.marginCost}>
+                Prix d'achat {formatPrice(product.adminMargin.costCents, product.currency)} · coefficient ×
+                {product.adminMargin.multiplier}
+              </Text>
+            </View>
+          )}
+
           {product.deliveryDays != null && (
             <Text style={styles.delivery}>🚚 Livraison estimée sous {product.deliveryDays} jours</Text>
           )}
@@ -317,6 +334,22 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: 4 },
   price: { fontSize: 26, fontWeight: '800', color: colors.textPrimary },
   compareAt: { fontSize: 15, color: colors.textMuted, textDecorationLine: 'line-through' },
+  // Encadré distinct du reste de la fiche : cette information n'est pas
+  // destinée au client, elle ne doit jamais se lire comme un argument de vente.
+  marginBox: {
+    borderWidth: 1,
+    borderColor: colors.success,
+    borderRadius: radius.md,
+    borderStyle: 'dashed',
+    padding: spacing.sm,
+    gap: 2,
+    marginTop: spacing.xs,
+  },
+  marginTitle: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase' },
+  marginRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  marginValue: { fontSize: 18, fontWeight: '800', color: colors.success },
+  marginPct: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  marginCost: { fontSize: 11, color: colors.textMuted },
   delivery: { fontSize: 13, color: colors.success, marginTop: 2 },
 
   block: { marginTop: spacing.lg, gap: spacing.sm },

@@ -5,6 +5,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma, ProductStatus } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { effectiveMargin } from './aliexpress.service';
 
 export type ProductSort = 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest' | 'bestsellers';
 
@@ -42,6 +43,50 @@ const LIST_SELECT = {
 
 const ACTIVE: ProductStatus[] = ['active', 'out_of_stock'];
 
+/**
+ * Champs jamais renvoyés à un client ordinaire : ce sont nos conditions
+ * d'achat. `getProduct` utilisait un `include`, qui remonte TOUS les scalaires
+ * du modèle — le prix payé chez le fournisseur partait donc dans la réponse de
+ * chaque fiche produit.
+ */
+const COST_FIELDS = ['aliexpressPriceCents', 'aliexpressProductId', 'aliexpressCategoryId'] as const;
+
+/** Marge sur un produit, telle qu'affichée à l'admin. */
+export interface AdminMargin {
+  costCents: number;
+  marginCents: number;
+  /** Part de marge dans le prix de vente, en pourcentage (arrondi au dixième). */
+  marginPercent: number;
+  /** Coefficient appliqué au prix d'achat (3 sur les petits prix, 2 sur les gros). */
+  multiplier: number;
+}
+
+export function adminMargin(priceCents: number, costCents: number | null): AdminMargin | null {
+  if (costCents == null || costCents <= 0) return null;
+  const marginCents = priceCents - costCents;
+  return {
+    costCents,
+    marginCents,
+    marginPercent: priceCents > 0 ? Math.round((marginCents / priceCents) * 1000) / 10 : 0,
+    multiplier: Math.round(effectiveMargin(costCents) * 100) / 100,
+  };
+}
+
+/** Retire les conditions d'achat, ou les convertit en marge si l'appelant est admin. */
+function forAudience<T extends Record<string, unknown>>(
+  product: T,
+  isAdmin: boolean,
+): T & { adminMargin?: AdminMargin | null } {
+  const clean = { ...product } as Record<string, unknown>;
+  const cost = typeof product.aliexpressPriceCents === 'number' ? product.aliexpressPriceCents : null;
+  for (const f of COST_FIELDS) delete clean[f];
+  if (!isAdmin) return clean as T;
+  return {
+    ...clean,
+    adminMargin: adminMargin(Number(product.priceCents ?? 0), cost),
+  } as T & { adminMargin: AdminMargin | null };
+}
+
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
@@ -75,7 +120,7 @@ export class CatalogService {
     });
   }
 
-  async listProducts(query: ProductListQuery) {
+  async listProducts(query: ProductListQuery, isAdmin = false) {
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(50, Math.max(1, query.pageSize ?? 20));
 
@@ -91,10 +136,12 @@ export class CatalogService {
       ...(query.maxDeliveryDays != null ? { deliveryDays: { lte: query.maxDeliveryDays } } : {}),
     };
 
-    const [items, total] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
-        select: LIST_SELECT,
+        // Le prix d'achat n'est même pas lu quand l'appelant n'est pas admin :
+        // ce qui ne sort pas de la base ne peut pas fuiter par mégarde.
+        select: isAdmin ? { ...LIST_SELECT, aliexpressPriceCents: true } : LIST_SELECT,
         orderBy: this.orderBy(query.sort),
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -102,6 +149,7 @@ export class CatalogService {
       this.prisma.product.count({ where }),
     ]);
 
+    const items = rows.map((p) => forAudience(p, isAdmin));
     return { items, total, page, pageSize, hasMore: page * pageSize < total };
   }
 
@@ -120,7 +168,7 @@ export class CatalogService {
   }
 
   /** Fiche produit complète + suggestions du même rayon. */
-  async getProduct(slug: string, userId?: string) {
+  async getProduct(slug: string, userId?: string, isAdmin = false) {
     const product = await this.prisma.product.findUnique({
       where: { slug },
       include: {
@@ -140,7 +188,7 @@ export class CatalogService {
     const [related, wishlisted] = await Promise.all([
       this.prisma.product.findMany({
         where: { categoryId: product.categoryId, status: { in: ACTIVE }, NOT: { id: product.id } },
-        select: LIST_SELECT,
+        select: isAdmin ? { ...LIST_SELECT, aliexpressPriceCents: true } : LIST_SELECT,
         orderBy: [{ salesCount: 'desc' }],
         take: 8,
       }),
@@ -152,7 +200,11 @@ export class CatalogService {
         : null,
     ]);
 
-    return { ...product, related, isWishlisted: !!wishlisted };
+    return {
+      ...forAudience(product, isAdmin),
+      related: related.map((p) => forAudience(p, isAdmin)),
+      isWishlisted: !!wishlisted,
+    };
   }
 
   // ── Wishlist ──────────────────────────────────────────────────────────────
