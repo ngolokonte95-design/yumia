@@ -32,9 +32,23 @@ interface Props {
   baseQuery: ProductQuery;
   /** Affiche le champ de recherche (écran Recherche uniquement). */
   showSearchInput?: boolean;
+  /**
+   * Onglets de sous-rayon (Femme / Homme / Enfant). Absents pour un rayon
+   * simple : la barre n'est alors pas rendue du tout.
+   */
+  tabs?: Array<{ key: string; label: string }>;
+  activeTab?: string;
+  onTabChange?: (key: string) => void;
 }
 
-export function ProductGridScreen({ title, baseQuery, showSearchInput }: Props) {
+export function ProductGridScreen({
+  title,
+  baseQuery,
+  showSearchInput,
+  tabs,
+  activeTab,
+  onTabChange,
+}: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -126,6 +140,22 @@ export function ProductGridScreen({ title, baseQuery, showSearchInput }: Props) 
             onChangeText={setSearch}
             returnKeyType="search"
           />
+        </View>
+      )}
+
+      {tabs && tabs.length > 0 && (
+        <View style={styles.tabRow}>
+          {tabs.map((t) => (
+            <Pressable
+              key={t.key}
+              style={[styles.tab, activeTab === t.key && styles.tabActive]}
+              onPress={() => onTabChange?.(t.key)}
+            >
+              <Text style={[styles.tabTxt, activeTab === t.key && styles.tabTxtActive]}>
+                {t.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
       )}
 
@@ -251,6 +281,20 @@ const styles = StyleSheet.create({
 
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.md, paddingVertical: spacing.sm },
   sortRow: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.md },
+  // Les onglets se partagent la largeur : trois ou quatre sous-rayons tiennent
+  // toujours sur une ligne, sans défilement horizontal.
+  tabRow: {
+    flexDirection: 'row', gap: spacing.xs,
+    paddingHorizontal: spacing.md, paddingBottom: spacing.xs,
+  },
+  tab: {
+    flex: 1, alignItems: 'center', paddingVertical: 7,
+    borderRadius: radius.pill, borderWidth: 1,
+    borderColor: colors.border, backgroundColor: colors.surface,
+  },
+  tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  tabTxt: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  tabTxtActive: { color: '#fff' },
   sortChip: {
     backgroundColor: colors.surface, borderRadius: radius.pill, borderWidth: 1,
     borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7,

@@ -20,6 +20,12 @@ export interface ShopCategorySeed {
   sortOrder: number;
   searchTerms: string[];
   keywords: string[];
+  /**
+   * Rayon parent. Un sous-rayon n'est pas une tuile de plus sur l'accueil : il
+   * devient un filtre a l'interieur de son parent — « Vetements » se parcourt
+   * d'un bloc, avec Femme / Homme / Enfant en onglets.
+   */
+  parentSlug?: string;
 }
 
 export const SHOP_CATEGORIES: ShopCategorySeed[] = [
@@ -248,6 +254,61 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     searchTerms: ['lampe de lecture rechargeable', 'support livre lecture', 'marque page magnetique', 'organisateur bureau', 'liseuse housse protection', 'coussin lecture lit', 'serre livres decoratifs', 'carnet cuir notes', 'stylo plume calligraphie', 'loupe lecture eclairee', 'plaid lecture polaire', 'etagere murale livres'],
     keywords: ['livre', 'lecture', 'liseuse', 'marque-page', 'marque page', 'bureau', 'lampe', 'carnet', 'stylo', 'loupe', 'etagere', 'serre-livres', 'plaid'],
   },
+  {
+    slug: 'bijoux-montres',
+    nameFr: 'Bijoux & montres',
+    emoji: '💍',
+    universe: 'jewelry',
+    sortOrder: 260,
+    searchTerms: ['collier acier inoxydable femme', 'bracelet cuir homme', 'montre automatique homme', 'boucles oreilles argent', 'bague acier femme', 'montre femme bracelet maille', 'chaine cheville', 'coffret rangement bijoux', 'bracelet perles pierre naturelle', 'pendentif argent 925', 'montre digitale sport', 'broche vintage'],
+    keywords: ['bijou', 'collier', 'bracelet', 'bague', 'montre', 'pendentif', 'chaine', 'boucle', 'argent', 'acier', 'perle', 'broche', 'cheville', 'coffret', 'boucle d oreille'],
+  },
+  {
+    slug: 'vetement',
+    nameFr: 'Vêtements',
+    emoji: '👕',
+    universe: 'shopping',
+    sortOrder: 270,
+    // Le parent ne cherche rien lui-même : ses produits viennent de ses trois
+    // sous-rayons, qui s'affichent en onglets Femme / Homme / Enfant.
+    searchTerms: [],
+    keywords: ['vetement', 'tee-shirt', 'tshirt', 'pull', 'robe', 'pantalon', 'veste', 'chemise', 'sweat', 'short', 'jupe', 'manteau', 'hoodie', 'jean', 'survetement', 'pyjama', 'chaussette', 'echarpe', 'bonnet', 'casquette'],
+  },
+  {
+    slug: 'vetement-femme',
+    nameFr: 'Femme',
+    emoji: '👗',
+    parentSlug: 'vetement',
+    sortOrder: 271,
+    searchTerms: ['robe ete femme', 'pull oversize femme', 'tee shirt coton femme', 'veste jean femme', 'pantalon taille haute femme', 'jupe plissee femme', 'sweat capuche femme', 'chemise blanche femme', 'manteau long femme', 'legging sport femme', 'top crop femme', 'ensemble jogging femme'],
+    keywords: ['tee shirt', 'robe', 'jupe', 'legging', 'top', 'blouse', 'chemisier', 'pull', 'veste', 'pantalon', 'sweat', 'manteau', 'tee-shirt', 'tshirt', 'ensemble', 'chemise'],
+  },
+  {
+    slug: 'vetement-homme',
+    nameFr: 'Homme',
+    emoji: '👔',
+    parentSlug: 'vetement',
+    sortOrder: 272,
+    searchTerms: ['tee shirt homme coton', 'sweat capuche homme', 'chemise homme manches longues', 'pantalon cargo homme', 'veste bomber homme', 'polo homme', 'short homme ete', 'pull col rond homme', 'jean homme slim', 'survetement homme', 'chaussettes homme lot', 'manteau homme hiver'],
+    keywords: ['tee shirt', 'tee-shirt', 'tshirt', 'polo', 'chemise', 'sweat', 'hoodie', 'pantalon', 'cargo', 'jean', 'short', 'pull', 'veste', 'bomber', 'survetement', 'chaussette', 'manteau'],
+  },
+  {
+    slug: 'vetement-enfant',
+    nameFr: 'Enfant',
+    emoji: '🧒',
+    parentSlug: 'vetement',
+    sortOrder: 273,
+    searchTerms: ['tee shirt enfant coton', 'ensemble bebe naissance', 'pyjama enfant hiver', 'sweat capuche enfant', 'robe fille ete', 'pantalon garcon', 'combinaison bebe', 'manteau enfant hiver', 'bonnet echarpe enfant', 'chaussettes enfant lot', 'body bebe coton', 'survetement enfant'],
+    keywords: ['enfant', 'bebe', 'fille', 'garcon', 'pyjama', 'body', 'combinaison', 'ensemble', 'robe', 'sweat', 'pantalon', 'manteau', 'bonnet', 'chaussette', 'tee-shirt', 'tshirt', 'survetement'],
+  },
+  {
+    slug: 'jouets-cadeaux',
+    nameFr: 'Jouets & cadeaux',
+    emoji: '🎁',
+    sortOrder: 280,
+    searchTerms: ['peluche geante douce', 'jeu de societe famille', 'puzzle 1000 pieces', 'jouet montessori bois', 'circuit voiture enfant', 'kit science enfant', 'jeu de construction briques', 'poupee chiffon', 'coffret cadeau noel', 'calendrier avent reutilisable', 'jeu de cartes famille', 'veilleuse enfant projection'],
+    keywords: ['jouet', 'jeu', 'peluche', 'puzzle', 'poupee', 'montessori', 'construction', 'circuit', 'cadeau', 'noel', 'coffret', 'veilleuse', 'avent', 'carte', 'brique', 'figurine', 'science'],
+  },
 ];
 
 /**
@@ -279,6 +340,18 @@ export const BANNED_KEYWORDS = [
   'encre de tatouage', 'kit de percage', 'pistolet a percer', 'lentille de contact',
   'medicament', 'complement alimentaire', 'e-cigarette', 'cigarette electronique',
   'arme', 'couteau papillon', 'taser', 'laser pointeur',
+  // Horlogerie et joaillerie, ou la contrefacon est la plus dense.
+  'cartier', 'tiffany', 'pandora', 'swarovski', 'omega', 'patek philippe',
+  'audemars', 'hublot', 'tag heuer', 'bvlgari', 'van cleef', 'michael kors',
+  'daniel wellington', 'fossil', 'seiko', 'citizen', 'casio', 'longines',
+  // Pret-a-porter et streetwear
+  'burberry', 'lacoste', 'ralph lauren', 'tommy hilfiger', 'calvin klein',
+  'puma', 'under armour', 'new balance', 'jordan', 'yeezy', 'stone island',
+  'moncler', 'canada goose', 'versace', 'fendi', 'givenchy', 'off-white',
+  // Licences de jouets
+  'barbie', 'pokemon', 'marvel', 'hello kitty', 'paw patrol', 'peppa',
+  'spiderman', 'mickey', 'pixar', 'hasbro', 'mattel', 'funko', 'disneyland',
+  'harry potter', 'star wars', 'batman', 'sonic', 'minecraft', 'roblox',
 ];
 
 /** Sans accents ni casse — les titres AliExpress sont très irréguliers. */
@@ -299,8 +372,13 @@ export function normalize(s: string): string {
  * Le `s`/`x` final optionnel évite de devoir lister chaque pluriel.
  */
 function containsTerm(normalizedTitle: string, term: string): boolean {
-  const t = normalize(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^a-z0-9])${t}(s|x)?([^a-z0-9]|$)`).test(normalizedTitle);
+  // Séparateurs souples entre les mots du terme : « boucle d oreille » doit
+  // reconnaître « boucle d'oreille », et « pique-nique » reconnaître
+  // « pique nique ». Les vendeurs écrivent les deux, indifféremment.
+  const words = normalize(term).split(/[^a-z0-9]+/).filter(Boolean);
+  if (words.length === 0) return false;
+  const pattern = words.join('[^a-z0-9]+');
+  return new RegExp(`(^|[^a-z0-9])${pattern}(s|x)?([^a-z0-9]|$)`).test(normalizedTitle);
 }
 
 export function isRelevant(title: string, keywords: string[]): boolean {
@@ -308,9 +386,18 @@ export function isRelevant(title: string, keywords: string[]): boolean {
   return keywords.some((k) => containsTerm(t, k));
 }
 
-export function isJunk(title: string): boolean {
+/**
+ * Camelote — mais relativement au rayon.
+ *
+ * « pendentif » et « boucle d'oreille » sont du bruit dans le rayon animalerie,
+ * et exactement le produit recherche dans le rayon bijoux. Un mot de la liste
+ * qui figure aussi parmi les mots-cles du rayon n'est donc pas de la camelote :
+ * sans cette nuance, ouvrir un rayon bijouterie viderait ce rayon.
+ */
+export function isJunk(title: string, categoryKeywords: string[] = []): boolean {
   const t = normalize(title);
-  return JUNK_KEYWORDS.some((k) => containsTerm(t, k));
+  const vendu = new Set(categoryKeywords.map(normalize));
+  return JUNK_KEYWORDS.some((k) => !vendu.has(normalize(k)) && containsTerm(t, k));
 }
 
 export function isBanned(title: string): boolean {

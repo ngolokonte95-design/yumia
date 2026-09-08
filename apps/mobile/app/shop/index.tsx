@@ -39,8 +39,10 @@ export default function ShopHomeScreen() {
         shopApi.products(accessToken, { sort: 'newest', pageSize: 10 }),
       ]);
       // Un rayon vide n'a rien à faire dans la navigation : il mènerait à une
-      // page blanche tant que l'import n'a pas tourné dessus.
-      setCategories(cats.filter((c) => c.productsCount > 0));
+      // page blanche tant que l'import n'a pas tourné dessus. Les sous-rayons
+      // n'y figurent pas non plus : ils s'affichent en onglets à l'intérieur de
+      // leur parent, dont le compteur les inclut déjà.
+      setCategories(cats.filter((c) => c.parentSlug === null && c.productsCount > 0));
       setFeatured(feat.items);
       setBestsellers(best.items);
       setNewest(recent.items);
@@ -212,12 +214,15 @@ const styles = StyleSheet.create({
   seeAll: { ...typography.caption, color: colors.brandSoft },
   row: { gap: spacing.sm, paddingHorizontal: spacing.md },
 
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.md },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.md },
+  // Quatre par ligne : avec 25 rayons, trois colonnes imposaient neuf lignes et
+  // reléguaient la moitié du magasin sous la ligne de flottaison.
   categoryTile: {
-    width: '30.5%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', gap: 4,
+    width: '23.5%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, paddingVertical: spacing.sm, paddingHorizontal: 2,
+    alignItems: 'center', gap: 2,
   },
-  categoryEmoji: { fontSize: 24 },
-  categoryName: { ...typography.label, color: colors.textPrimary, fontSize: 10, textAlign: 'center' },
-  categoryCount: { fontSize: 9, color: colors.textMuted },
+  categoryEmoji: { fontSize: 18 },
+  categoryName: { ...typography.label, color: colors.textPrimary, fontSize: 9, textAlign: 'center' },
+  categoryCount: { fontSize: 8, color: colors.textMuted },
 });

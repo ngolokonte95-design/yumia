@@ -43,7 +43,13 @@ export class ShopImportService {
     private readonly aliexpress: AliExpressService,
   ) {}
 
-  /** Crée/rafraîchit les rayons à partir de SHOP_CATEGORIES (idempotent). */
+  /**
+   * Crée/rafraîchit les rayons à partir de SHOP_CATEGORIES (idempotent).
+   *
+   * En deux passes : les rayons d'abord, les liens de parenté ensuite. Un
+   * sous-rayon peut précéder son parent dans la liste, et rattacher au vol
+   * échouerait alors sur un parent qui n'existe pas encore.
+   */
   async seedCategories(): Promise<{ created: number; updated: number }> {
     let created = 0;
     let updated = 0;
@@ -58,6 +64,23 @@ export class ShopImportService {
         created++;
       }
     }
+
+    for (const c of SHOP_CATEGORIES) {
+      if (!c.parentSlug) continue;
+      const parent = await this.prisma.shopCategory.findUnique({
+        where: { slug: c.parentSlug },
+        select: { id: true },
+      });
+      if (!parent) {
+        this.logger.warn(`Rayon parent introuvable pour ${c.slug} : ${c.parentSlug}`);
+        continue;
+      }
+      await this.prisma.shopCategory.update({
+        where: { slug: c.slug },
+        data: { parentId: parent.id },
+      });
+    }
+
     return { created, updated };
   }
 
@@ -101,7 +124,7 @@ export class ShopImportService {
       for (const r of results) {
         if (importedForTerm >= limitPerTerm) break;
         if (isBanned(r.title)) { report.skipped.banned++; continue; }
-        if (isJunk(r.title)) { report.skipped.junk++; continue; }
+        if (isJunk(r.title, seed.keywords)) { report.skipped.junk++; continue; }
         if (!isRelevant(r.title, seed.keywords)) { report.skipped.irrelevant++; continue; }
         if (r.priceCents <= 0) { report.skipped.noPrice++; continue; }
 

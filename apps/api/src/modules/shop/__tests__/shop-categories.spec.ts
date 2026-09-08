@@ -1,4 +1,11 @@
-import { SHOP_CATEGORIES, isBanned, isRelevant, titleSignature, tooSimilar } from '../shop-categories';
+import {
+  SHOP_CATEGORIES,
+  isBanned,
+  isJunk,
+  isRelevant,
+  titleSignature,
+  tooSimilar,
+} from '../shop-categories';
 
 /**
  * Les titres ci-dessous sont ceux réellement renvoyés par AliExpress lors du
@@ -60,9 +67,32 @@ describe('SHOP_CATEGORIES', () => {
   it('offre assez de termes de recherche pour éviter les grappes', () => {
     // Cinq termes concentraient l'import sur les cinq meilleurs résultats de
     // chacun, donc cinq familles de produits quasi identiques par rayon.
+    // Un rayon parent est exempté : il n'importe rien lui-même, ses produits
+    // viennent de ses sous-rayons.
+    const parents = new Set(SHOP_CATEGORIES.map((c) => c.parentSlug).filter(Boolean));
     for (const c of SHOP_CATEGORIES) {
+      if (parents.has(c.slug)) {
+        expect(c.searchTerms).toEqual([]);
+        continue;
+      }
       expect(c.searchTerms.length).toBeGreaterThanOrEqual(10);
       expect(new Set(c.searchTerms).size).toBe(c.searchTerms.length);
+    }
+  });
+
+  it('rattache chaque sous-rayon à un parent qui existe', () => {
+    const slugs = new Set(SHOP_CATEGORIES.map((c) => c.slug));
+    for (const c of SHOP_CATEGORIES) {
+      if (c.parentSlug) expect(slugs.has(c.parentSlug)).toBe(true);
+    }
+  });
+
+  it("n'imbrique pas les sous-rayons sur plus d'un niveau", () => {
+    // L'accueil masque les enfants et le rayon parent agrège les siens : un
+    // petit-enfant ne serait affiché nulle part.
+    const parentOf = new Map(SHOP_CATEGORIES.map((c) => [c.slug, c.parentSlug]));
+    for (const c of SHOP_CATEGORIES) {
+      if (c.parentSlug) expect(parentOf.get(c.parentSlug)).toBeUndefined();
     }
   });
 
@@ -120,5 +150,27 @@ describe('filtres de mots-clés', () => {
       }
     }
     expect(orphelins).toEqual([]);
+  });
+});
+
+describe('camelote relative au rayon', () => {
+  const bijoux = SHOP_CATEGORIES.find((c) => c.slug === 'bijoux-montres')!;
+
+  it('ne jette pas ce que le rayon vend précisément', () => {
+    // « pendentif » et « boucle d'oreille » sont dans la liste camelote parce
+    // qu'ils polluent les autres rayons. Les appliquer au rayon bijoux le
+    // viderait de ses articles les plus vendus.
+    for (const titre of [
+      'Pendentif argent 925 avec chaine fine',
+      "Boucle d'oreille creole acier inoxydable",
+    ]) {
+      expect(isJunk(titre, bijoux.keywords)).toBe(false);
+      expect(isJunk(titre)).toBe(true);
+    }
+  });
+
+  it('continue de jeter la camelote qui n’a rien à faire là', () => {
+    expect(isJunk('Autocollant decoratif mural', bijoux.keywords)).toBe(true);
+    expect(isJunk('Porte-cles fantaisie voiture', bijoux.keywords)).toBe(true);
   });
 });

@@ -98,6 +98,7 @@ export class CatalogService {
       orderBy: { sortOrder: 'asc' },
       select: {
         id: true, slug: true, nameFr: true, emoji: true, universe: true, parentId: true,
+        parent: { select: { slug: true } },
         _count: { select: { products: { where: { status: 'active' } } } },
       },
     });
@@ -108,6 +109,7 @@ export class CatalogService {
       emoji: c.emoji,
       universe: c.universe,
       parentId: c.parentId,
+      parentSlug: c.parent?.slug ?? null,
       productsCount: c._count.products,
     }));
   }
@@ -126,7 +128,16 @@ export class CatalogService {
 
     const where: Prisma.ProductWhereInput = {
       status: { in: ACTIVE },
-      ...(query.categorySlug ? { category: { slug: query.categorySlug } } : {}),
+      // Un rayon parent affiche aussi ce que vendent ses sous-rayons : ouvrir
+      // « Vêtements » sans filtre doit montrer Femme, Homme et Enfant ensemble.
+      ...(query.categorySlug
+        ? {
+            OR: [
+              { category: { slug: query.categorySlug } },
+              { category: { parent: { slug: query.categorySlug } } },
+            ],
+          }
+        : {}),
       ...(query.q ? { title: { contains: query.q, mode: 'insensitive' } } : {}),
       ...(query.featuredOnly ? { featured: true } : {}),
       ...(query.minPriceCents != null || query.maxPriceCents != null

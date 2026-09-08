@@ -11,6 +11,8 @@ export interface ShopCategory {
   emoji: string;
   universe: string | null;
   parentId: string | null;
+  /** Slug du rayon parent — présent uniquement pour les sous-rayons. */
+  parentSlug: string | null;
   productsCount: number;
 }
 
