@@ -30,7 +30,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'travel_agency',
     sortOrder: 10,
     searchTerms: ['organisateur valise voyage', 'trousse de toilette voyage', 'adaptateur prise universel', 'oreiller de voyage', 'cadenas TSA bagage', 'balance bagage electronique', 'sac de compression voyage', 'pochette passeport rfid', 'masque de sommeil voyage', 'etiquette bagage', 'flacons voyage silicone', 'sac week end cabine'],
-    keywords: ['voyage', 'valise', 'bagage', 'trolley', 'passeport', 'cabine'],
+    keywords: ['voyage', 'valise', 'bagage', 'trolley', 'passeport', 'cabine', 'oreiller', 'adaptateur', 'trousse', 'organisateur', 'cadenas', 'serrure'],
   },
   {
     slug: 'gadgets-tech',
@@ -38,7 +38,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🎧',
     sortOrder: 20,
     searchTerms: ['batterie externe usb c', 'traceur gps bagage', 'ecouteurs bluetooth sport', 'chargeur sans fil voyage', 'mini drone camera', 'enceinte bluetooth portable', 'montre connectee sport', 'cle usb rapide', 'hub usb c multiport', 'camera sport etanche', 'lampe torche rechargeable', 'support ordinateur portable'],
-    keywords: ['batterie', 'powerbank', 'chargeur', 'ecouteur', 'casque', 'drone', 'gps', 'usb', 'bluetooth', 'camera'],
+    keywords: ['batterie', 'chargeur', 'ecouteur', 'casque', 'enceinte', 'montre', 'usb', 'bluetooth', 'gps', 'drone', 'camera', 'torche', 'hub', 'support'],
   },
   {
     slug: 'plage-vacances',
@@ -47,7 +47,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'beach',
     sortOrder: 30,
     searchTerms: ['serviette plage microfibre', 'sac etanche plage', 'parasol portable plage', 'matelas gonflable plage', 'chapeau paille plage', 'tapis de plage antisable', 'jeu raquettes plage', 'douche solaire portable', 'sandales plage antiderapantes', 'pochette telephone etanche', 'glaciere souple plage', 'hamac portable'],
-    keywords: ['plage', 'mer', 'sable', 'balneaire', 'serviette', 'parasol', 'etanche'],
+    keywords: ['plage', 'mer', 'sable', 'balneaire', 'serviette', 'parasol', 'etanche', 'maillot', 'bouee', 'hamac', 'solaire', 'sandale', 'chapeau'],
   },
   {
     slug: 'randonnee',
@@ -56,7 +56,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'hiking',
     sortOrder: 40,
     searchTerms: ['sac a dos randonnee', 'batons de randonnee', 'gourde filtrante randonnee', 'lampe frontale randonnee', 'chaussettes randonnee', 'poncho pluie randonnee', 'boussole orientation', 'trousse premiers secours randonnee', 'couverture de survie', 'guetres randonnee', 'sac hydratation', 'couteau multifonction randonnee'],
-    keywords: ['randonnee', 'trek', 'montagne', 'trekking', 'bivouac', 'marche', 'outdoor'],
+    keywords: ['randonnee', 'trekking', 'montagne', 'sac a dos', 'baton', 'gourde', 'frontale', 'boussole', 'survie', 'poncho', 'chaussette', 'couteau', 'secours', 'hydratation'],
   },
   {
     slug: 'camping',
@@ -65,7 +65,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'camping',
     sortOrder: 50,
     searchTerms: ['tente camping 2 places', 'sac de couchage camping', 'rechaud camping gaz', 'lanterne camping led', 'matelas autogonflant camping', 'chaise pliante camping', 'table pliante camping', 'popote camping inox', 'hamac suspendu camping', 'bache tarp camping', 'glaciere electrique camping', 'allume feu camping'],
-    keywords: ['camping', 'tente', 'bivouac', 'couchage', 'rechaud', 'glamping', 'campement'],
+    keywords: ['camping', 'tente', 'bivouac', 'couchage', 'rechaud', 'lanterne', 'matelas', 'hamac', 'popote', 'glaciere', 'tarp', 'chaise', 'table'],
   },
   {
     slug: 'pique-nique',
@@ -74,7 +74,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'picnic_area',
     sortOrder: 60,
     searchTerms: ['panier pique nique', 'glaciere isotherme', 'nappe pique nique impermeable', 'couverts reutilisables pique nique', 'plaid pique nique impermeable', 'boite repas compartiment', 'sac isotherme dejeuner', 'planche apero bois', 'gourde isotherme', 'moulin poivre sel voyage', 'verres incassables plein air', 'tire bouchon pique nique'],
-    keywords: ['pique-nique', 'pique nique', 'panier', 'glaciere', 'isotherme', 'nappe'],
+    keywords: ['pique-nique', 'pique nique', 'panier', 'glaciere', 'isotherme', 'nappe', 'plaid', 'couvert', 'gourde', 'apero', 'planche', 'boite repas', 'lunch', 'thermos', 'moulin', 'verre'],
   },
   {
     slug: 'piscine-aquatique',
@@ -83,7 +83,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'aquatic',
     sortOrder: 70,
     searchTerms: ['masque snorkeling', 'lunettes natation adulte', 'bouee gonflable piscine', 'sac etanche natation', 'palmes natation', 'bonnet de bain silicone', 'planche natation', 'thermometre piscine', 'epuisette piscine', 'jouets plongee piscine', 'peignoir microfibre', 'brassards enfant piscine'],
-    keywords: ['piscine', 'natation', 'nage', 'snorkeling', 'plongee', 'aquatique', 'bouee', 'palmes'],
+    keywords: ['piscine', 'natation', 'snorkeling', 'plongee', 'aquatique', 'bouee', 'palme', 'lunette', 'bonnet', 'maillot', 'peignoir', 'brassard', 'epuisette'],
   },
   {
     slug: 'sport',
@@ -92,7 +92,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'sporting_goods',
     sortOrder: 80,
     searchTerms: ['bandes elastiques fitness', 'corde a sauter fitness', 'tapis de sport', 'gants musculation', 'halteres reglables', 'roue abdominaux', 'ceinture lombaire musculation', 'sangles suspension entrainement', 'montre cardio sport', 'shaker proteine', 'rouleau massage mousse', 'sac de sport homme'],
-    keywords: ['sport', 'fitness', 'musculation', 'entrainement', 'gym', 'workout', 'cardio'],
+    keywords: ['fitness', 'musculation', 'sport', 'entrainement', 'elastique', 'haltere', 'corde', 'tapis', 'gant', 'abdominaux', 'cardio', 'shaker', 'massage'],
   },
   {
     slug: 'yoga-bien-etre',
@@ -101,7 +101,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'yoga_studio',
     sortOrder: 90,
     searchTerms: ['tapis de yoga antiderapant', 'brique yoga liege', 'sangle yoga etirement', 'pistolet massage muscles', 'coussin meditation', 'roue yoga dos', 'diffuseur huiles essentielles', 'balles massage pieds', 'hamac yoga aerien', 'bandeau yeux relaxation', 'bol tibetain', 'tapis acupression'],
-    keywords: ['yoga', 'pilates', 'meditation', 'massage', 'relaxation', 'etirement', 'bien-etre'],
+    keywords: ['yoga', 'meditation', 'pilates', 'etirement', 'massage', 'relaxation', 'tapis', 'brique', 'sangle', 'coussin', 'diffuseur', 'acupression', 'bol'],
   },
   {
     slug: 'coiffure-beaute',
@@ -110,7 +110,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'hair_salon',
     sortOrder: 100,
     searchTerms: ['lisseur cheveux professionnel', 'seche cheveux ionique', 'brosse chauffante cheveux', 'boucleur automatique cheveux', 'peigne demelant cheveux', 'miroir maquillage lumineux', 'pinceaux maquillage set', 'bigoudis chauffants', 'diffuseur boucles seche cheveux', 'ciseaux coiffure professionnel', 'cape coiffure salon', 'pince cheveux professionnelle'],
-    keywords: ['cheveux', 'coiffure', 'lisseur', 'boucleur', 'brosse', 'seche-cheveux', 'capillaire'],
+    keywords: ['cheveux', 'coiffure', 'lisseur', 'boucleur', 'seche-cheveux', 'seche cheveux', 'brosse', 'peigne', 'bigoudi', 'maquillage', 'pinceau', 'miroir', 'ciseaux'],
   },
   {
     slug: 'barbier',
@@ -119,7 +119,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'barber',
     sortOrder: 110,
     searchTerms: ['tondeuse barbe professionnelle', 'kit entretien barbe', 'rasoir de surete', 'ciseaux barbier', 'huile a barbe', 'blaireau rasage', 'tondeuse cheveux professionnelle', 'miroir barbier', 'peigne barbe bois', 'baume a barbe', 'tondeuse nez oreilles', 'serviette barbier chauffante'],
-    keywords: ['barbe', 'barbier', 'rasage', 'rasoir', 'tondeuse', 'moustache'],
+    keywords: ['barbe', 'rasage', 'rasoir', 'tondeuse', 'barbier', 'moustache', 'blaireau', 'peigne', 'huile', 'baume', 'ciseaux'],
   },
   {
     slug: 'onglerie',
@@ -128,7 +128,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'nail_salon',
     sortOrder: 120,
     searchTerms: ['lampe uv led ongles', 'ponceuse ongles electrique', 'kit manucure professionnel', 'vernis semi permanent', 'faux ongles capsules', 'pinceaux nail art', 'strass decoration ongles', 'repose main manucure', 'aspirateur poussiere ongles', 'coupe ongles professionnel', 'base coat top coat', 'stickers ongles'],
-    keywords: ['ongle', 'manucure', 'pedicure', 'vernis', 'nail', 'onglerie'],
+    keywords: ['ongle', 'manucure', 'pedicure', 'vernis', 'nail', 'capsule', 'ponceuse', 'lampe uv', 'strass', 'coupe-ongles', 'cuticule', 'coat'],
   },
   {
     slug: 'cils-sourcils',
@@ -137,7 +137,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'lash_studio',
     sortOrder: 130,
     searchTerms: ['extension de cils professionnel', 'pince a cils', 'kit rehaussement cils', 'teinture sourcils', 'colle extension cils', 'pincettes precision cils', 'serum croissance cils', 'pochoir sourcils', 'brosse sourcils', 'lampe loupe estheticienne', 'patch hydrogel yeux', 'recourbe cils chauffant'],
-    keywords: ['cils', 'sourcil', 'extension', 'rehaussement', 'lash', 'brow'],
+    keywords: ['cil', 'cils', 'sourcil', 'sourcils', 'extension', 'rehaussement', 'mascara', 'teinture', 'pince', 'pochoir', 'serum', 'hydrogel', 'loupe', 'lampe'],
   },
   {
     slug: 'tatouage-piercing',
@@ -149,7 +149,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     // aiguilles, dermographes et matériel de perçage relèvent en France du
     // matériel réglementé et sont exclus (voir BANNED_KEYWORDS).
     searchTerms: ['bijou piercing titane', 'creme soin tatouage', 'tatouage temporaire adulte', 'pochoir tatouage temporaire', 'film protecteur tatouage', 'anneau septum acier', 'boucle oreille chirurgicale', 'pansement tatouage', 'baume apres tatouage', 'piercing nombril acier', 'gants nitrile noir', 'lampe loupe studio'],
-    keywords: ['tatouage', 'tattoo', 'piercing', 'bijou de corps', 'temporaire'],
+    keywords: ['tatouage', 'tattoo', 'piercing', 'bijou de corps', 'temporaire', 'septum', 'nombril', 'anneau', 'pochoir', 'pansement', 'nitrile', 'boucle', 'loupe', 'lampe'],
   },
   {
     slug: 'fleuriste',
@@ -158,7 +158,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'florist',
     sortOrder: 150,
     searchTerms: ['vase decoratif moderne', 'secateur jardinage', 'fleurs artificielles decoration', 'cache pot plante', 'mousse florale', 'ruban satin fleuriste', 'arrosoir decoratif', 'papier kraft bouquet', 'support plante interieur', 'ciseaux floraux', 'guirlande fleurs artificielles', 'brumisateur plantes'],
-    keywords: ['fleur', 'plante', 'vase', 'bouquet', 'jardinage', 'pot', 'floral'],
+    keywords: ['fleur', 'plante', 'vase', 'bouquet', 'jardinage', 'pot', 'floral', 'secateur', 'arrosoir', 'mousse', 'ruban', 'kraft', 'brumisateur', 'ciseaux'],
   },
   {
     slug: 'animalerie',
@@ -167,7 +167,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'pet_store',
     sortOrder: 160,
     searchTerms: ['harnais chien promenade', 'jouet chat interactif', 'sac transport animal', 'gamelle chien inox', 'arbre a chat', 'brosse poils animaux', 'laisse retractable chien', 'litiere chat automatique', 'coussin panier chien', 'distributeur croquettes', 'collier lumineux chien', 'griffoir chat'],
-    keywords: ['chien', 'chat', 'animal', 'animaux', 'harnais', 'laisse', 'gamelle', 'niche'],
+    keywords: ['chien', 'chat', 'animal', 'animaux', 'harnais', 'laisse', 'gamelle', 'niche', 'griffoir', 'litiere', 'croquette', 'collier', 'panier'],
   },
   {
     slug: 'cuisine',
@@ -176,7 +176,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'restaurant',
     sortOrder: 170,
     searchTerms: ['ustensiles cuisine silicone', 'couteau chef professionnel', 'balance cuisine precision', 'organisateur cuisine rangement', 'mandoline legumes', 'planche a decouper bambou', 'robot petrin manuel', 'moule patisserie silicone', 'thermometre cuisine', 'presse ail inox', 'essoreuse salade', 'boites conservation hermetiques'],
-    keywords: ['cuisine', 'ustensile', 'couteau', 'casserole', 'poele', 'culinaire', 'chef'],
+    keywords: ['cuisine', 'ustensile', 'couteau', 'casserole', 'poele', 'culinaire', 'chef', 'planche', 'mandoline', 'moule', 'balance', 'thermometre', 'conservation', 'patisserie', 'robot', 'petrin', 'presse', 'essoreuse'],
   },
   {
     slug: 'bricolage',
@@ -184,7 +184,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🔧',
     sortOrder: 180,
     searchTerms: ['set tournevis precision', 'metre laser telemetre', 'perceuse sans fil', 'boite a outils complete', 'pistolet a colle chaude', 'niveau laser croix', 'pince multiprise', 'scie sauteuse', 'detecteur metaux mur', 'etabli pliant', 'visserie assortiment', 'lunettes protection bricolage'],
-    keywords: ['outil', 'bricolage', 'tournevis', 'perceuse', 'visseuse', 'cle', 'atelier'],
+    keywords: ['outil', 'bricolage', 'tournevis', 'perceuse', 'visseuse', 'cle', 'atelier', 'scie', 'niveau', 'laser', 'etabli', 'pince', 'marteau', 'vis', 'colle', 'detecteur', 'protection', 'visserie'],
   },
   {
     slug: 'photo-creation',
@@ -193,7 +193,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'photo_spot',
     sortOrder: 190,
     searchTerms: ['trepied smartphone photo', 'ring light photo', 'stabilisateur gimbal smartphone', 'objectif clip smartphone', 'fond studio photo', 'micro cravate smartphone', 'softbox eclairage studio', 'teleprompteur smartphone', 'filtre objectif photo', 'carte memoire rapide', 'sac photo appareil', 'declencheur bluetooth photo'],
-    keywords: ['photo', 'trepied', 'ring light', 'gimbal', 'stabilisateur', 'objectif', 'video'],
+    keywords: ['photo', 'trepied', 'ring light', 'gimbal', 'stabilisateur', 'objectif', 'studio', 'eclairage', 'micro', 'softbox', 'filtre', 'carte memoire', 'declencheur', 'teleprompteur'],
   },
   {
     slug: 'cafe-the',
@@ -202,7 +202,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'cafe',
     sortOrder: 200,
     searchTerms: ['moulin a cafe manuel', 'cafetiere italienne', 'theiere en verre', 'accessoires barista', 'presse francaise cafe', 'mousseur a lait', 'balance cafe precision', 'filtre cafe reutilisable', 'boite conservation cafe', 'infuseur the inox', 'tasses expresso', 'tamper cafe'],
-    keywords: ['cafe', 'the', 'barista', 'cafetiere', 'theiere', 'moulin', 'infuseur'],
+    keywords: ['cafe', 'the', 'barista', 'cafetiere', 'theiere', 'moulin', 'expresso', 'infuseur', 'mousseur', 'filtre', 'tasse', 'tamper'],
   },
   {
     slug: 'vin-apero',
@@ -211,7 +211,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'wine_cellar',
     sortOrder: 210,
     searchTerms: ['tire bouchon electrique', 'carafe a decanter vin', 'aerateur de vin', 'sac isotherme bouteille', 'bouchon vin sous vide', 'verres a vin incassables', 'seau a glace', 'thermometre bouteille vin', 'porte bouteille mural', 'coffret degustation vin', 'plateau apero bois', 'pompe a vin conservation'],
-    keywords: ['vin', 'bouteille', 'tire-bouchon', 'tire bouchon', 'carafe', 'decanteur', 'apero', 'sommelier'],
+    keywords: ['vin', 'apero', 'bouteille', 'tire-bouchon', 'tire bouchon', 'carafe', 'aerateur', 'decanter', 'bouchon', 'verre', 'seau a glace', 'degustation', 'sommelier'],
   },
   {
     slug: 'auto-moto',
@@ -220,7 +220,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'garage',
     sortOrder: 220,
     searchTerms: ['organisateur coffre voiture', 'support telephone voiture', 'aspirateur voiture portable', 'housse moto impermeable', 'camera de recul voiture', 'compresseur pneu portable', 'chargeur allume cigare', 'tapis de sol voiture', 'gants moto ete', 'antivol moto disque', 'nettoyant jantes', 'pare soleil voiture'],
-    keywords: ['voiture', 'auto', 'moto', 'vehicule', 'coffre', 'pare-brise', 'volant'],
+    keywords: ['voiture', 'auto', 'moto', 'vehicule', 'coffre', 'pneu', 'allume-cigare', 'allume cigare', 'tapis de sol', 'housse', 'camera de recul', 'jante', 'pare-soleil', 'casque', 'gant'],
   },
   {
     slug: 'velo-mobilite',
@@ -228,7 +228,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🚲',
     sortOrder: 230,
     searchTerms: ['antivol velo securite', 'sacoche velo etanche', 'eclairage velo led', 'casque velo adulte', 'pompe velo portable', 'compteur velo sans fil', 'support telephone velo', 'kit reparation crevaison', 'porte bidon velo', 'gants velo rembourres', 'remorque velo bagages', 'selle velo confort'],
-    keywords: ['velo', 'cycliste', 'cyclisme', 'trottinette', 'antivol', 'sacoche', 'guidon'],
+    keywords: ['velo', 'cycliste', 'cyclisme', 'trottinette', 'antivol', 'sacoche', 'casque', 'pompe', 'compteur', 'selle', 'crevaison', 'bidon', 'eclairage'],
   },
   {
     slug: 'soiree-karaoke',
@@ -237,7 +237,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'karaoke',
     sortOrder: 240,
     searchTerms: ['micro karaoke bluetooth', 'jeu de lumiere soiree', 'machine a bulles fete', 'guirlande led soiree', 'machine a fumee', 'boule disco led', 'projecteur laser soiree', 'ballons decoration fete', 'photobooth accessoires', 'enceinte karaoke', 'confettis canon', 'masque led fete'],
-    keywords: ['karaoke', 'micro', 'soiree', 'fete', 'lumiere', 'disco', 'led'],
+    keywords: ['karaoke', 'soiree', 'fete', 'micro', 'lumiere', 'disco', 'led', 'fumee', 'bulle', 'ballon', 'confetti', 'guirlande', 'photobooth', 'enceinte'],
   },
   {
     slug: 'lecture',
@@ -246,7 +246,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     universe: 'bookstore',
     sortOrder: 250,
     searchTerms: ['lampe de lecture rechargeable', 'support livre lecture', 'marque page magnetique', 'organisateur bureau', 'liseuse housse protection', 'coussin lecture lit', 'serre livres decoratifs', 'carnet cuir notes', 'stylo plume calligraphie', 'loupe lecture eclairee', 'plaid lecture polaire', 'etagere murale livres'],
-    keywords: ['livre', 'lecture', 'liseuse', 'marque-page', 'bureau', 'papeterie', 'carnet'],
+    keywords: ['livre', 'lecture', 'liseuse', 'marque-page', 'marque page', 'bureau', 'lampe', 'carnet', 'stylo', 'loupe', 'etagere', 'serre-livres', 'plaid'],
   },
 ];
 
@@ -286,19 +286,36 @@ export function normalize(s: string): string {
   return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 }
 
+/**
+ * Terme présent dans le titre, sur des FRONTIÈRES DE MOT.
+ *
+ * Une simple recherche de sous-chaîne paraissait suffisante et ne l'était pas :
+ * « arme » bloquait « alarme », « charme » et « gendarmerie », donc tous les
+ * antivols de vélo et alarmes de voiture disparaissaient du catalogue sans que
+ * rien ne le signale ; « hermes » bloquait « thermes ». Dans l'autre sens, le
+ * mot-clé « cle » du rayon bricolage rendait pertinents « boucle » et
+ * « spectacle ».
+ *
+ * Le `s`/`x` final optionnel évite de devoir lister chaque pluriel.
+ */
+function containsTerm(normalizedTitle: string, term: string): boolean {
+  const t = normalize(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${t}(s|x)?([^a-z0-9]|$)`).test(normalizedTitle);
+}
+
 export function isRelevant(title: string, keywords: string[]): boolean {
   const t = normalize(title);
-  return keywords.some((k) => t.includes(normalize(k)));
+  return keywords.some((k) => containsTerm(t, k));
 }
 
 export function isJunk(title: string): boolean {
   const t = normalize(title);
-  return JUNK_KEYWORDS.some((k) => t.includes(normalize(k)));
+  return JUNK_KEYWORDS.some((k) => containsTerm(t, k));
 }
 
 export function isBanned(title: string): boolean {
   const t = normalize(title);
-  return BANNED_KEYWORDS.some((k) => t.includes(normalize(k)));
+  return BANNED_KEYWORDS.some((k) => containsTerm(t, k));
 }
 
 // ── Détection des quasi-doublons ────────────────────────────────────────────
