@@ -1398,6 +1398,10 @@ model ShippingAddress {
   line1       String
   line2       String?
   city        String
+  /// Region / departement / etat. Facultatif chez nous, mais EXIGE par
+  /// AliExpress a la creation d'une commande : sans lui, l'API repond
+  /// « MissingParameter: province » et la commande reste non transmise.
+  province    String?
   postalCode  String
   countryCode String   @default("FR")
   phone       String

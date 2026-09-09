@@ -578,6 +578,8 @@ export class AliExpressService {
       line1: string;
       line2?: string | null;
       city: string;
+      /** Region/etat. Obligatoire cote AliExpress. */
+      province: string;
       postalCode: string;
       countryCode: string;
       phone: string;
@@ -594,6 +596,7 @@ export class AliExpressService {
           address: params.address.line1,
           address2: params.address.line2 ?? '',
           city: params.address.city,
+          province: params.address.province,
           zip: params.address.postalCode,
           country: params.address.countryCode,
           mobile_no: params.address.phone,

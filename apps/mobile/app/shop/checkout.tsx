@@ -31,7 +31,8 @@ export default function CheckoutScreen() {
   const [showForm, setShowForm] = useState(false);
 
   const [form, setForm] = useState({
-    fullName: '', line1: '', line2: '', city: '', postalCode: '', phone: '', countryCode: 'FR',
+    fullName: '', line1: '', line2: '', city: '', province: '',
+    postalCode: '', phone: '', countryCode: 'FR',
   });
 
   const load = useCallback(async () => {
@@ -57,6 +58,9 @@ export default function CheckoutScreen() {
     if (!accessToken) return;
     const required: Array<[keyof typeof form, string]> = [
       ['fullName', 'Nom complet'], ['line1', 'Adresse'], ['city', 'Ville'],
+      // La région est exigée par le transporteur : la rendre facultative
+      // ferait échouer l'expédition après le paiement, au pire moment.
+      ['province', 'Région / département'],
       ['postalCode', 'Code postal'], ['phone', 'Téléphone'],
     ];
     const missing = required.filter(([k]) => !form[k].trim()).map(([, label]) => label);
@@ -142,6 +146,7 @@ export default function CheckoutScreen() {
               ['line2', 'Complément (optionnel)', 'default'],
               ['postalCode', 'Code postal', 'number-pad'],
               ['city', 'Ville', 'default'],
+              ['province', 'Région / département', 'default'],
               ['phone', 'Téléphone', 'phone-pad'],
             ] as const).map(([key, placeholder, keyboard]) => (
               <TextInput

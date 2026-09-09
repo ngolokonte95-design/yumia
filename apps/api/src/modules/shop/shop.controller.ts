@@ -164,7 +164,8 @@ export class ShopController {
     @CurrentUser() user: JwtPayload,
     @Body() body: {
       fullName: string; line1: string; line2?: string; city: string;
-      postalCode: string; countryCode?: string; phone: string; isDefault?: boolean;
+      province?: string; postalCode: string; countryCode?: string;
+      phone: string; isDefault?: boolean;
     },
   ) {
     const required = ['fullName', 'line1', 'city', 'postalCode', 'phone'] as const;

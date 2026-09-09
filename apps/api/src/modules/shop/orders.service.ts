@@ -59,7 +59,8 @@ export class OrdersService {
 
   async createAddress(userId: string, data: {
     fullName: string; line1: string; line2?: string; city: string;
-    postalCode: string; countryCode?: string; phone: string; isDefault?: boolean;
+    province?: string; postalCode: string; countryCode?: string;
+    phone: string; isDefault?: boolean;
   }) {
     // Une seule adresse par défaut à la fois.
     if (data.isDefault) {
@@ -73,6 +74,7 @@ export class OrdersService {
         line1: data.line1,
         line2: data.line2 ?? null,
         city: data.city,
+        province: data.province?.trim() || null,
         postalCode: data.postalCode,
         countryCode: data.countryCode ?? 'FR',
         phone: data.phone,
@@ -119,6 +121,7 @@ export class OrdersService {
           line1: address.line1,
           line2: address.line2,
           city: address.city,
+          province: address.province,
           postalCode: address.postalCode,
           countryCode: address.countryCode,
           phone: address.phone,
@@ -270,6 +273,12 @@ export class OrdersService {
         line1: address['line1'] ?? '',
         line2: address['line2'] ?? null,
         city: address['city'] ?? '',
+        // AliExpress exige une province. Quand l'adresse n'en porte pas — les
+        // adresses saisies avant l'ajout du champ, et les pays ou personne ne
+        // la renseigne — la ville fait un repli acceptable : c'est ce que le
+        // transporteur lira, et une commande transmise vaut mieux qu'une
+        // commande bloquee.
+        province: address['province'] || address['city'] || '',
         postalCode: address['postalCode'] ?? '',
         countryCode: address['countryCode'] ?? 'FR',
         phone: address['phone'] ?? '',

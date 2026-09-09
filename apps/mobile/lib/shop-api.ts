@@ -102,6 +102,8 @@ export interface ShippingAddress {
   line1: string;
   line2: string | null;
   city: string;
+  /** Région / département — exigé par le transporteur à l'expédition. */
+  province: string | null;
   postalCode: string;
   countryCode: string;
   phone: string;
