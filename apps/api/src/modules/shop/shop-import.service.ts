@@ -85,6 +85,32 @@ export class ShopImportService {
   }
 
   /**
+   * Retire un rayon qui n'existe plus dans SHOP_CATEGORIES.
+   *
+   * `seedCategories()` ne fait que créer/mettre à jour par slug : un rayon
+   * retiré du code y resterait indéfiniment, avec ses produits, à côté de
+   * celui qui l'a remplacé. Cette méthode est le pendant symétrique — à
+   * appeler explicitement, jamais automatiquement au seed, pour qu'une faute
+   * de frappe dans un slug ne supprime pas un rayon par accident.
+   *
+   * Supprime d'abord les produits (leurs variantes, avis et lignes de panier
+   * suivent en cascade ; les lignes de commande passées basculent à `null`,
+   * l'historique d'achat n'est jamais perdu), puis le rayon lui-même — la
+   * contrainte `ON DELETE RESTRICT` refuserait sinon la suppression d'un
+   * rayon encore référencé.
+   */
+  async retireCategory(slug: string): Promise<{ slug: string; productsDeleted: number }> {
+    const category = await this.prisma.shopCategory.findUnique({ where: { slug } });
+    if (!category) throw new Error(`Rayon absent en base : ${slug}`);
+
+    const { count } = await this.prisma.product.deleteMany({ where: { categoryId: category.id } });
+    await this.prisma.shopCategory.delete({ where: { id: category.id } });
+
+    this.logger.log(`Rayon ${slug} retiré (${count} produits supprimés)`);
+    return { slug, productsDeleted: count };
+  }
+
+  /**
    * Importe des produits dans un rayon.
    *
    * `limitPerTerm` est le nombre de produits retenus PAR TERME de recherche,

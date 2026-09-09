@@ -257,6 +257,13 @@ export class ShopController {
     return this.imports.seedCategories();
   }
 
+  /** Retire un rayon retiré de SHOP_CATEGORIES et ses produits. */
+  @Delete('admin/categories/:slug')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  retireCategory(@Param('slug') slug: string) {
+    return this.imports.retireCategory(slug);
+  }
+
   @Get('admin/aliexpress/search')
   @UseGuards(JwtAuthGuard, AdminGuard)
   searchAliexpress(@Query('keyword') keyword: string, @Query('limit') limit?: string) {

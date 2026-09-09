@@ -214,13 +214,12 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     keywords: ['cafe', 'the', 'barista', 'cafetiere', 'theiere', 'moulin', 'expresso', 'infuseur', 'mousseur', 'filtre', 'tasse', 'tamper'],
   },
   {
-    slug: 'vin-apero',
-    nameFr: 'Vin & apéro',
-    emoji: '🍷',
-    universe: 'wine_cellar',
+    slug: 'meuble-deco',
+    nameFr: 'Meuble & déco',
+    emoji: '🛋️',
     sortOrder: 210,
-    searchTerms: ['tire bouchon electrique', 'carafe a decanter vin', 'aerateur de vin', 'sac isotherme bouteille', 'bouchon vin sous vide', 'verres a vin incassables', 'seau a glace', 'thermometre bouteille vin', 'porte bouteille mural', 'coffret degustation vin', 'plateau apero bois', 'pompe a vin conservation'],
-    keywords: ['vin', 'apero', 'bouteille', 'tire-bouchon', 'tire bouchon', 'carafe', 'aerateur', 'decanter', 'bouchon', 'verre', 'seau a glace', 'degustation', 'sommelier'],
+    searchTerms: ['etagere murale bois', 'meuble rangement modulable', 'coussin decoratif salon', 'tapis salon moderne', 'suspension luminaire design', 'miroir decoratif mural', 'cadre photo mural', 'plante artificielle decoration', 'rideau occultant chambre', 'organiseur rangement modulable', 'table appoint pliante', 'guirlande led decoration interieure'],
+    keywords: ['meuble', 'etagere', 'rangement', 'coussin', 'tapis', 'luminaire', 'suspension', 'miroir', 'cadre', 'decoration', 'rideau', 'table', 'guirlande', 'deco'],
   },
   {
     slug: 'auto-moto',
