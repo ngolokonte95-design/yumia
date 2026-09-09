@@ -115,7 +115,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
   {
     slug: 'coiffure-beaute',
     nameFr: 'Coiffure & beauté',
-    emoji: '💇',
+    emoji: '💇‍♀️',
     universe: 'hair_salon',
     sortOrder: 100,
     searchTerms: ['air styler multifonction cheveux', 'appareil coiffant multifonction rotatif', 'seche cheveux professionnel ionique', 'seche cheveux moteur brushless', 'lisseur cheveux vapeur premium', 'lisseur titane professionnel', 'epilateur lumiere pulsee ipl', 'epilateur ipl corps visage', 'masque led visage photontherapie', 'appareil led visage rajeunissement', 'brosse soufflante volumatrice', 'brosse chauffante lissante', 'coiffeuse table maquillage led', 'miroir maquillage hollywood led', 'appareil soin visage ultrasonique', 'nettoyeur visage sonique', 'appareil radiofrequence visage', 'microcourant lifting visage', 'boucleur automatique cheveux', 'fer a boucler ceramique', 'tondeuse cheveux professionnelle', 'peigne demelant cheveux', 'pinceaux maquillage set', 'bigoudis chauffants rapides', 'ciseaux coiffure professionnel', 'cape coiffure salon'],
