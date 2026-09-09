@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paiement annulé — YUMIA</title>
+<meta name="description" content="Le paiement de votre commande YUMIA a été annulé.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/logo.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .result { text-align: center; padding: 64px 0 40px; }
+  .result .mark {
+    width: 84px; height: 84px; margin: 0 auto 24px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 38px; background: rgba(232, 98, 26, .10); border: 1px solid rgba(232, 98, 26, .4);
+  }
+  .result h1 { margin-bottom: 12px; }
+  .result .ref {
+    display: inline-block; margin: 8px 0 28px; padding: 8px 16px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 999px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .5px;
+  }
+  .steps { text-align: left; max-width: 520px; margin: 32px auto 0; }
+  .steps li { margin-bottom: 10px; color: var(--text-2); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a href="/" class="brand"><img src="/logo.png" alt="YUMIA"> YUMIA</a>
+    <nav class="nav-links">
+      <a href="/support.html">Support</a>
+      <a href="/" class="btn ghost">Accueil</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="result">
+    <div class="mark">↩</div>
+    <h1>Paiement annulé</h1>
+    <p class="section-sub">Aucun montant n'a été débité.</p>
+
+    <div class="ref" id="ref" hidden></div>
+
+    <p><a href="/" class="btn">Retour à l'accueil</a></p>
+
+    <ul class="steps">
+      <li>Votre panier a été conservé : vous le retrouvez tel quel dans l'application.</li>
+      <li>Vous pouvez relancer le paiement à tout moment depuis <strong>Boutique → Panier</strong>.</li>
+      <li>Un problème pendant le paiement ? Écrivez-nous à <a href="mailto:ngolokonte95@gmail.com">ngolokonte95@gmail.com</a>, nous vous répondrons rapidement.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="copyright">© 2026 YUMIA. Tous droits réservés. · <a href="/cgv.html" style="color:var(--text-2);">CGV</a> · <a href="/retours.html" style="color:var(--text-2);">Retours</a> · <a href="/support.html" style="color:var(--text-2);">Support</a></div>
+  </div>
+</footer>
+
+<script>
+  // Même précaution que sur la page de succès : la référence vient de l'URL,
+  // elle est insérée comme du texte et jamais comme du HTML.
+  var ref = new URLSearchParams(location.search).get('order');
+  if (ref && /^[A-Za-z0-9-]{1,32}$/.test(ref)) {
+    var el = document.getElementById('ref');
+    el.textContent = 'Commande : ' + ref;
+    el.hidden = false;
+  }
+</script>
+
+</body>
+</html>

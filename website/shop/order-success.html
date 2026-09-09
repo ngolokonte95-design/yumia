@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commande confirmée — YUMIA</title>
+<meta name="description" content="Votre commande YUMIA a bien été enregistrée.">
+<!-- Page de retour après paiement : rien à indexer, et un moteur de recherche
+     n'a aucune raison de la faire remonter. -->
+<meta name="robots" content="noindex">
+<link rel="icon" href="/logo.png">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .result { text-align: center; padding: 64px 0 40px; }
+  .result .mark {
+    width: 84px; height: 84px; margin: 0 auto 24px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 40px; background: rgba(43, 182, 115, .12); border: 1px solid rgba(43, 182, 115, .4);
+  }
+  .result h1 { margin-bottom: 12px; }
+  .result .ref {
+    display: inline-block; margin: 8px 0 28px; padding: 8px 16px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 999px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .5px;
+  }
+  .steps { text-align: left; max-width: 520px; margin: 32px auto 0; }
+  .steps li { margin-bottom: 10px; color: var(--text-2); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a href="/" class="brand"><img src="/logo.png" alt="YUMIA"> YUMIA</a>
+    <nav class="nav-links">
+      <a href="/support.html">Support</a>
+      <a href="/" class="btn ghost">Accueil</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="result">
+    <div class="mark">✓</div>
+    <h1>Merci, votre commande est confirmée.</h1>
+    <p class="section-sub">Votre paiement a bien été reçu.</p>
+
+    <!-- La référence arrive en paramètre d'URL (?order=YUM-XXXXXX). Le bloc
+         reste masqué si elle est absente : mieux vaut ne rien afficher qu'un
+         encadré vide. -->
+    <div class="ref" id="ref" hidden></div>
+
+    <p><a href="/" class="btn">Retour à l'accueil</a></p>
+
+    <ul class="steps">
+      <li>Un e-mail de confirmation vous a été envoyé.</li>
+      <li>Vous retrouvez le détail et le suivi dans l'application, rubrique <strong>Boutique → Mes commandes</strong>.</li>
+      <li>Nos articles étant expédiés par nos partenaires, comptez généralement <strong>10 à 20 jours ouvrés</strong> pour la livraison.</li>
+      <li>Une question ? Écrivez-nous à <a href="mailto:ngolokonte95@gmail.com">ngolokonte95@gmail.com</a> en précisant votre référence.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="copyright">© 2026 YUMIA. Tous droits réservés. · <a href="/cgv.html" style="color:var(--text-2);">CGV</a> · <a href="/retours.html" style="color:var(--text-2);">Retours</a> · <a href="/support.html" style="color:var(--text-2);">Support</a></div>
+  </div>
+</footer>
+
+<script>
+  // `textContent` et non `innerHTML` : la valeur vient de l'URL, donc de
+  // l'extérieur. L'injecter comme du HTML ouvrirait une faille XSS sur une
+  // page que l'on peut faire ouvrir à n'importe qui par un simple lien.
+  var ref = new URLSearchParams(location.search).get('order');
+  if (ref && /^[A-Za-z0-9-]{1,32}$/.test(ref)) {
+    var el = document.getElementById('ref');
+    el.textContent = 'Référence : ' + ref;
+    el.hidden = false;
+  }
+</script>
+
+</body>
+</html>
