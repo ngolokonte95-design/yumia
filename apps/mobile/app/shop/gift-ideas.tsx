@@ -185,12 +185,13 @@ export default function GiftIdeasScreen() {
         </ScrollView>
       ) : (
         <>
-          {/* Critères retenus — chaque puce ramène à sa question. */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.criteriaRow}
-          >
+          {/* Critères retenus — chaque puce ramène à sa question.
+              Retour à la ligne plutôt que défilement horizontal : les libellés
+              viennent du serveur et peuvent être longs (« Anniversaire de
+              mariage », « Fête des grands-parents »). Une rangée qui défile
+              coupait la troisième puce au bord de l'écran, sans rien pour
+              signaler qu'il y avait quelque chose à côté. */}
+          <View style={styles.criteriaRow}>
             <Pressable style={styles.criteriaChip} onPress={() => setStep('recipient')}>
               <Text style={styles.criteriaTxt}>{labelOf(options?.recipients, recipient, 'Pour qui ?')}</Text>
             </Pressable>
@@ -200,7 +201,7 @@ export default function GiftIdeasScreen() {
             <Pressable style={styles.criteriaChip} onPress={() => setStep('budget')}>
               <Text style={styles.criteriaTxt}>{labelOf(options?.budgets, budget, 'Budget ?')}</Text>
             </Pressable>
-          </ScrollView>
+          </View>
 
           {loading ? (
             <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
@@ -296,7 +297,10 @@ const styles = StyleSheet.create({
   skip: { alignSelf: 'center', marginTop: spacing.lg, padding: spacing.sm },
   skipTxt: { ...typography.label, color: colors.textMuted, textDecorationLine: 'underline' },
 
-  criteriaRow: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  criteriaRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs,
+    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
+  },
   criteriaChip: {
     backgroundColor: colors.surfaceElevated, borderRadius: radius.pill,
     borderWidth: 1, borderColor: colors.border,
