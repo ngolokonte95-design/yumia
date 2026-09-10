@@ -43,7 +43,14 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
 // même trajet mais atterrit dans MODE_CHIPS ci-dessous (à côté de Date/Amis/
 // Voyage, sur demande explicite), pas ici.
 const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: string }[] = [
-  { key: 'swipe', emoji: '💫', label: 'Swipe', route: '/swipe' },
+  // Swipe retiré : les like/dislike étaient bien enregistrés
+  // (preferences.swipeLikes/swipeDislikes) mais relus NULLE PART — le geste
+  // n'avait aucun effet sur les recommandations. Surprise (🎲) couvre déjà
+  // l'envie « propose-moi quelque chose ». L'écran et la route /swipe restent
+  // en place, simplement sans accès.
+  // La Boutique prend le créneau : elle n'était accessible que depuis
+  // Explorer, un niveau plus bas. Elle y reste, en plus d'ici.
+  { key: 'shop', emoji: '🛍️', label: 'Boutique', route: '/shop' },
   { key: 'chatbot', emoji: '🤖', label: 'Assistant', route: '/chatbot' },
   { key: 'itinerary', emoji: '✨', label: 'Itinéraire', route: '/itinerary' },
   { key: 'quests', emoji: '🎯', label: 'Quêtes', route: '/quests' },
