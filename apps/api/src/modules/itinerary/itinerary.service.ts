@@ -335,16 +335,7 @@ Réponds UNIQUEMENT avec un objet JSON valide (sans markdown, sans backticks, sa
 
 Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub, monument, glace, boulangerie, balade, activité, photo, brunch, cocktail, dessert.
 ${isWeek
-  ? `Durée demandée : une semaine complète. Génère EXACTEMENT 7 étapes, une par jour (pas d'horaire précis) : "time" doit valoir "Jour 1", "Jour 2", ... "Jour 7", et "duration" doit valoir "Journée". Chaque jour propose UNE thématique/activité principale différente (pas de répétition d'un jour à l'autre), pensée pour un séjour touristique complet et varié dans la ville.
-
-En mode semaine, chaque étape porte EN PLUS un tableau "moments" de 3 à 4 entrées qui découpe la journée. C'est ce découpage que l'utilisateur ouvrira pour dérouler sa journée :
-      "moments": [
-        { "time": "Matin", "type": "monument", "name": "Nom précis du lieu", "description": "Ce qu'on y fait concrètement", "emoji": "🏰", "tips": "Conseil pratique" },
-        { "time": "Déjeuner", "type": "restaurant", "name": "...", "description": "...", "emoji": "🍽️" },
-        { "time": "Après-midi", "type": "balade", "name": "...", "description": "...", "emoji": "🚶" },
-        { "time": "Soir", "type": "bar", "name": "...", "description": "...", "emoji": "🍷" }
-      ]
-Les moments doivent être COHÉRENTS avec la description de la journée : si elle évoque un château puis un quartier puis des tapas, les moments reprennent ces trois endroits, dans l'ordre. Chaque "type" doit appartenir à la liste des types valides.`
+  ? ''
   : 'Génère 4-6 étapes bien enchaînées et réalistes.'}`;
 
     let steps: ItineraryStep[] = [];
@@ -355,21 +346,15 @@ Les moments doivent être COHÉRENTS avec la description de la journée : si ell
     // le repli déterministe : la fonctionnalité reste utilisable en permanence.
     if (this.ai) {
       try {
-        const response = await this.ai.messages.create({
-          model: this.model,
-          max_tokens: isWeek ? 6000 : 1500,
-          messages: [{ role: 'user', content: prompt }],
-        });
-
-        const raw = response.content[0].type === 'text' ? response.content[0].text : '';
-
-        // Extrait le JSON même si Claude l'a enveloppé dans des backticks markdown
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('No JSON object found in response');
-
-        const parsed = JSON.parse(jsonMatch[0]) as { summary: string; steps: ItineraryStep[] };
-        summary = parsed.summary ?? '';
-        steps = parsed.steps ?? [];
+        if (isWeek) {
+          const week = await this.generateWeek(req, city);
+          summary = week.summary;
+          steps = week.steps;
+        } else {
+          const parsed = await this.askJson<{ summary: string; steps: ItineraryStep[] }>(prompt, 1500);
+          summary = parsed.summary ?? '';
+          steps = parsed.steps ?? [];
+        }
       } catch (err) {
         this.logger.warn(`[itinerary] IA indisponible, repli déterministe : ${String(err)}`);
       }
@@ -468,6 +453,131 @@ Les moments doivent être COHÉRENTS avec la description de la journée : si ell
     }
 
     return { itinerary: summary, steps };
+  }
+
+  /**
+   * Un appel au modèle, dont on attend un objet JSON.
+   *
+   * Claude enveloppe parfois sa réponse dans des backticks markdown malgré la
+   * consigne : on extrait donc le premier objet plutôt que de parser le texte
+   * brut.
+   */
+  private async askJson<T>(prompt: string, maxTokens: number): Promise<T> {
+    const response = await this.ai!.messages.create({
+      model: this.model,
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const raw = response.content[0].type === 'text' ? response.content[0].text : '';
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON object found in response');
+    return JSON.parse(jsonMatch[0]) as T;
+  }
+
+  /**
+   * Itinéraire d'une semaine, en DEUX TEMPS.
+   *
+   * Écrire les sept jours d'un seul bloc demandait au modèle de produire
+   * plusieurs milliers de jetons avant le premier caractère affichable :
+   * 103 secondes mesurées en production, dont 95 pour ce seul appel — le temps
+   * de réponse est proportionnel au texte produit.
+   *
+   * On sépare donc :
+   *  1. un appel court qui fixe les sept thèmes (quelques centaines de jetons) ;
+   *  2. sept appels courts, lancés EN PARALLÈLE, qui détaillent chacun un jour.
+   *
+   * La durée devient celle du plus lent des sept, plus le premier appel — au
+   * lieu de leur somme. Le premier appel garde son intérêt : sans lui, sept
+   * générations indépendantes proposeraient trois fois le même musée.
+   */
+  private async generateWeek(
+    req: ItineraryRequest,
+    city: string,
+  ): Promise<{ summary: string; steps: ItineraryStep[] }> {
+    const moodCtx = MOOD_CONTEXT[req.mood] ?? MOOD_CONTEXT.amis;
+
+    const outline = await this.askJson<{
+      summary?: string;
+      days?: Array<{ time?: string; type?: string; name?: string; emoji?: string }>;
+    }>(
+      `${moodCtx}
+
+Séjour d'une semaine à ${city}. Budget : ${req.budget}.${req.interests?.length ? ` Centres d'intérêt : ${req.interests.join(', ')}.` : ''}${req.constraints ? ` Contraintes : ${req.constraints}.` : ''}
+
+Donne le PLAN de la semaine, sans détailler. Réponds UNIQUEMENT avec un objet JSON valide :
+{
+  "summary": "Description courte et enthousiaste du séjour (1-2 phrases)",
+  "days": [
+    { "time": "Jour 1", "type": "monument", "name": "Titre de la journée", "emoji": "🏛️" }
+  ]
+}
+
+EXACTEMENT 7 jours. Chaque jour a une thématique DIFFÉRENTE, pensée pour un séjour complet et varié.
+Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub, monument, glace, boulangerie, balade, activité, photo, brunch, cocktail, dessert.`,
+      900,
+    );
+
+    const days = (outline.days ?? []).slice(0, 7);
+    if (days.length === 0) throw new Error('Plan de semaine vide');
+
+    const themes = days.map((d) => d.name ?? '').filter(Boolean).join(' · ');
+
+    const steps = await Promise.all(
+      days.map(async (day, i): Promise<ItineraryStep> => {
+        const base: ItineraryStep = {
+          time: day.time ?? `Jour ${i + 1}`,
+          type: day.type ?? 'activité',
+          name: day.name ?? `Jour ${i + 1}`,
+          description: '',
+          duration: 'Journée',
+          emoji: day.emoji ?? '📍',
+        };
+
+        try {
+          const detail = await this.askJson<{
+            description?: string;
+            tips?: string;
+            moments?: ItineraryMoment[];
+          }>(
+            `${moodCtx}
+
+Séjour d'une semaine à ${city}, budget ${req.budget}. Programme complet : ${themes}.
+
+Détaille UNIQUEMENT cette journée : « ${base.name} » (${base.time}).
+
+Réponds UNIQUEMENT avec un objet JSON valide :
+{
+  "description": "Ce qu'on fait ce jour-là, 2-3 phrases concrètes et donnant envie",
+  "tips": "Un conseil pratique (transport, horaire, tarif)",
+  "moments": [
+    { "time": "Matin", "type": "monument", "name": "Nom PRÉCIS du lieu", "description": "Ce qu'on y fait", "emoji": "🏰", "tips": "Conseil" },
+    { "time": "Déjeuner", "type": "restaurant", "name": "...", "description": "...", "emoji": "🍽️" },
+    { "time": "Après-midi", "type": "balade", "name": "...", "description": "...", "emoji": "🚶" }
+  ]
+}
+
+3 à 4 moments, dans l'ordre de la journée, cohérents avec la description. Donne le nom RÉEL et précis de chaque endroit — c'est lui qui permet de retrouver le lieu.
+Ne reprends aucune activité des autres journées du programme.
+Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub, monument, glace, boulangerie, balade, activité, photo, brunch, cocktail, dessert.`,
+            900,
+          );
+
+          return {
+            ...base,
+            description: detail.description ?? '',
+            tips: detail.tips,
+            moments: detail.moments,
+          };
+        } catch (err) {
+          // Une journée qui échoue ne doit pas emporter la semaine : elle garde
+          // son titre et son emoji, simplement sans détail.
+          this.logger.warn(`[itinerary] détail du ${base.time} indisponible : ${String(err)}`);
+          return { ...base, description: `Une journée consacrée à ${base.name.toLowerCase()}.` };
+        }
+      }),
+    );
+
+    return { summary: outline.summary ?? '', steps };
   }
 
   /** Sauvegarde un itinéraire déjà généré tel quel (pas de régénération à la relecture). */
