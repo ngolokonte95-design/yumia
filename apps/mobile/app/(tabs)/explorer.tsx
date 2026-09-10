@@ -45,9 +45,13 @@ import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/aff
 // réactivation future, juste plus d'accès UI.
 // "Sortie en groupe" déménagé dans Social, sur la ligne de raccourcis
 // (mon profil / Tind / carte / meetups) — voir app/(tabs)/social.tsx.
+// "Bons plans" retiré : la liste de lieux proches réservables faisait doublon
+// avec la grille de partenaires juste en dessous, pour un intérêt moindre.
+// L'affiliation elle-même est intacte — onglets génériques ci-dessous et
+// bouton "Réserver" sur chaque fiche lieu. L'écran app/deals.tsx et la route
+// GET /affiliates/deals restent en place, simplement sans accès depuis l'UI.
 const QUICK_ACTIONS: { key: string; emoji: string; labelKey: TranslationKey; subKey: TranslationKey; route: string }[] = [
   { key: 'guides', emoji: '🧭', labelKey: 'explorer_action_guides_label', subKey: 'explorer_action_guides_sub', route: '/guides' },
-  { key: 'deals', emoji: '💰', labelKey: 'explorer_action_deals_label', subKey: 'explorer_action_deals_sub', route: '/deals' },
   { key: 'shop', emoji: '🛍️', labelKey: 'explorer_action_shop_label', subKey: 'explorer_action_shop_sub', route: '/shop' },
 ];
 
