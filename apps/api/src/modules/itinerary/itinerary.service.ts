@@ -468,6 +468,15 @@ ${isWeek
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     });
+
+    // Une réponse coupée par la limite de jetons produit un JSON tronqué,
+    // donc invalide. Sans ce contrôle, l'erreur remontait sous la forme
+    // « Expected ',' or ']' » — un message de parsing pour un problème de
+    // budget, qui envoie chercher au mauvais endroit.
+    if (response.stop_reason === 'max_tokens') {
+      throw new Error(`Réponse tronquée : limite de ${maxTokens} jetons atteinte`);
+    }
+
     const raw = response.content[0].type === 'text' ? response.content[0].text : '';
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON object found in response');
@@ -551,15 +560,22 @@ Réponds UNIQUEMENT avec un objet JSON valide :
   "tips": "Un conseil pratique (transport, horaire, tarif)",
   "moments": [
     { "time": "Matin", "type": "monument", "name": "Nom PRÉCIS du lieu", "description": "Ce qu'on y fait", "emoji": "🏰", "tips": "Conseil" },
-    { "time": "Déjeuner", "type": "restaurant", "name": "...", "description": "...", "emoji": "🍽️" },
-    { "time": "Après-midi", "type": "balade", "name": "...", "description": "...", "emoji": "🚶" }
+    { "time": "Après-midi", "type": "restaurant", "name": "...", "description": "...", "emoji": "🍽️", "tips": "..." },
+    { "time": "Soir", "type": "bar", "name": "...", "description": "...", "emoji": "🍷", "tips": "..." }
   ]
 }
 
-3 à 4 moments, dans l'ordre de la journée, cohérents avec la description. Donne le nom RÉEL et précis de chaque endroit — c'est lui qui permet de retrouver le lieu.
+EXACTEMENT 3 moments, dans l'ordre de la journée, cohérents avec la description.
+Sois CONCIS : 2 phrases maximum pour "description", 1 phrase pour chaque "description" de moment, 1 phrase pour chaque "tips".
+Donne le nom RÉEL et précis de chaque endroit — c'est lui qui permet de retrouver le lieu.
 Ne reprends aucune activité des autres journées du programme.
 Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub, monument, glace, boulangerie, balade, activité, photo, brunch, cocktail, dessert.`,
-            900,
+            // Mesuré : la version précédente coupait à 900 jetons, en plein
+            // tableau de moments. Le plafond doit couvrir le pire cas, et la
+            // consigne de concision ci-dessus maintient le cas courant bien
+            // en dessous — ce qui compte, puisque le temps de réponse suit le
+            // texte réellement produit, pas le plafond.
+            1400,
           );
 
           return {
