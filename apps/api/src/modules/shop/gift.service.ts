@@ -59,6 +59,16 @@ export class GiftService {
   }
 
   /**
+   * Combien d'idées par écran.
+   *
+   * L'écran charge une seule page, sans défilement infini : cette valeur est
+   * donc la totalité de ce que l'utilisateur verra. Vingt se parcouraient trop
+   * vite pour une liste censée donner des idées. Le catalogue plafonne à 50
+   * par requête (`CatalogService.listProducts`), 40 reste donc dans les clous.
+   */
+  private static readonly PAGE_SIZE = 40;
+
+  /**
    * Les idées correspondant aux réponses. Chaque critère est facultatif —
    * l'utilisateur qui ne sait rien de plus que « c'est pour un enfant » doit
    * quand même obtenir une sélection.
@@ -82,7 +92,7 @@ export class GiftService {
         // C'est exactement ce qu'on veut pour un cadeau — les valeurs sûres
         // d'abord, pas les derniers imports non éprouvés.
         page: params.page,
-        pageSize: params.pageSize,
+        pageSize: params.pageSize ?? GiftService.PAGE_SIZE,
       },
       isAdmin,
     );

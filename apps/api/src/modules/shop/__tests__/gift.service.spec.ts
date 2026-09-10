@@ -94,3 +94,27 @@ describe('GiftService.suggest', () => {
     expect(catalog.listProducts.mock.calls[0][1]).toBe(true);
   });
 });
+
+describe('GiftService.suggest — taille de liste', () => {
+  it('demande 40 idées par défaut', () => {
+    // L'écran ne charge qu'une page : cette valeur est tout ce que
+    // l'utilisateur verra.
+    const catalog = makeCatalog();
+    return makeService(catalog).suggest({ recipient: 'enfant' }).then(() => {
+      expect(catalog.listProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 40 }),
+        false,
+      );
+    });
+  });
+
+  it('laisse l’appelant imposer sa propre taille', () => {
+    const catalog = makeCatalog();
+    return makeService(catalog).suggest({ recipient: 'enfant', pageSize: 12 }).then(() => {
+      expect(catalog.listProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 12 }),
+        false,
+      );
+    });
+  });
+});
