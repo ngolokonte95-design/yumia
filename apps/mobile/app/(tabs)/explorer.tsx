@@ -36,7 +36,7 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
 import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 import { universeSearchRadius } from '../../lib/universeRadius';
-import { fetchGenericAffiliateLink } from '../../lib/affiliates-api';
+import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/affiliates-api';
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
 // (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
@@ -64,12 +64,9 @@ const GENERIC_DEAL_TABS: { category: string; emoji: string; labelKey: Translatio
   { category: 'airport_transfer', emoji: '🚕', labelKey: 'explorer_generic_airport_transfer' },
   { category: 'adventure', emoji: '🏔️', labelKey: 'explorer_generic_adventure' },
   { category: 'shows', emoji: '🌙', labelKey: 'explorer_generic_shows' },
-  // Booking.com — visibles dès maintenant sur demande explicite, même si pas
-  // encore fonctionnelles (AID déjà présent en config mais inscription
-  // encore en attente côté CJ Affiliate) : le clic échoue silencieusement
-  // tant que BOOKING_GENERIC_TABS_ENABLED n'est pas activé côté serveur (voir
-  // openGenericDeal et affiliates.service.ts) — pas de bouton visiblement
-  // cassé, juste pas d'action pour l'instant.
+  // Booking.com — fonctionnels même sans identifiant d'affilié : le lien mène
+  // à la bonne page, il n'est simplement pas rémunéré tant que l'inscription
+  // CJ n'est pas validée (voir BookingProvider.generateGenericLink).
   { category: 'hotel', emoji: '🏨', labelKey: 'explorer_generic_hotel' },
   { category: 'car_rental', emoji: '🚗', labelKey: 'explorer_generic_car_rental' },
   { category: 'flights', emoji: '✈️', labelKey: 'explorer_generic_flights' },
@@ -94,6 +91,35 @@ export default function ExplorerScreen() {
 
   const [genericLinkLoading, setGenericLinkLoading] = useState<string | null>(null);
 
+  /**
+   * Catégories réellement ouvertes côté serveur. `null` tant que la réponse
+   * n'est pas arrivée : on affiche alors la liste complète plutôt qu'une
+   * grille vide qui clignoterait à chaque ouverture de l'écran.
+   *
+   * Sans ce filtre, les onglets étaient codés en dur et affichés quoi qu'il
+   * arrive : Hôtel, Location et Vols apparaissaient alors que l'API refusait
+   * de générer leur lien, et l'appui ne faisait rien du tout.
+   */
+  const [openCategories, setOpenCategories] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    fetchGenericCategories(accessToken)
+      .then((cats) => {
+        if (cancelled) return;
+        setOpenCategories(new Set(cats.filter((c) => c.configured).map((c) => c.category)));
+      })
+      // Réseau indisponible : on garde la liste complète, un onglet qui ne
+      // répond pas reste préférable à une section qui disparaît.
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [accessToken]);
+
+  const visibleDealTabs = openCategories
+    ? GENERIC_DEAL_TABS.filter((d) => openCategories.has(d.category))
+    : GENERIC_DEAL_TABS;
+
   async function openGenericDeal(category: string) {
     if (!accessToken || genericLinkLoading) return;
     setGenericLinkLoading(category);
@@ -101,8 +127,9 @@ export default function ExplorerScreen() {
       const url = await fetchGenericAffiliateLink(category, accessToken);
       void Linking.openURL(url);
     } catch {
-      // Catégorie pas encore configurée côté serveur (provider sans clé) —
-      // échec silencieux, pas de bouton visiblement cassé pour autant.
+      // Ne devrait plus arriver : la grille ne montre que les catégories que
+      // le serveur déclare ouvertes. Reste silencieux plutôt que d'alerter sur
+      // une coupure réseau passagère — l'utilisateur réappuiera.
     } finally {
       setGenericLinkLoading(null);
     }
@@ -226,7 +253,7 @@ export default function ExplorerScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('explorer_action_deals_sub')}</Text>
         <View style={styles.genericGrid}>
-          {GENERIC_DEAL_TABS.map((d) => (
+          {visibleDealTabs.map((d) => (
             <Pressable
               key={d.category}
               style={styles.genericTile}

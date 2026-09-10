@@ -31,12 +31,14 @@ const GENERIC_CATEGORIES: Record<string, { provider: AffiliateProviderKey; searc
   airport_transfer: { provider: 'viator', searchTerm: 'airport transfer' },
   adventure: { provider: 'getyourguide', searchTerm: 'outdoor adventure' },
   shows: { provider: 'getyourguide', searchTerm: 'show' },
-  // Prêts côté code, masqués tant que Booking.com n'est pas approuvé par CJ —
-  // activer en mettant BOOKING_GENERIC_TABS_ENABLED=true dans .env.prod le
-  // jour de l'approbation (aucun redéploiement de code nécessaire).
-  hotel: { provider: 'booking', requiresEnvFlag: 'BOOKING_GENERIC_TABS_ENABLED' },
-  car_rental: { provider: 'booking', searchTerm: 'cars', requiresEnvFlag: 'BOOKING_GENERIC_TABS_ENABLED' },
-  flights: { provider: 'booking', searchTerm: 'flights', requiresEnvFlag: 'BOOKING_GENERIC_TABS_ENABLED' },
+  // Ouverts sans attendre l'approbation Booking.com via CJ : le lien fonctionne
+  // même sans identifiant d'affilié (voir BookingProvider.generateGenericLink),
+  // il devient simplement rémunéré le jour où BOOKING_AFFILIATE_ID est
+  // renseigné. `requiresEnvFlag` reste disponible pour un futur partenaire à
+  // masquer, mais plus aucun rayon ne l'utilise.
+  hotel: { provider: 'booking' },
+  car_rental: { provider: 'booking', searchTerm: 'cars' },
+  flights: { provider: 'booking', searchTerm: 'flights' },
 };
 export type GenericDealCategory = keyof typeof GENERIC_CATEGORIES;
 
@@ -154,12 +156,26 @@ export class AffiliatesService {
     return link;
   }
 
-  /** La liste des catégories génériques disponibles, avec leur disponibilité réelle (provider configuré + flag d'activation le cas échéant). */
+  /**
+   * La liste des catégories génériques, avec leur disponibilité réelle.
+   *
+   * `configured` répond à la seule question qui compte côté mobile : « appuyer
+   * sur cet onglet mènera-t-il quelque part ? ». On le mesure donc en
+   * demandant au provider de produire un lien, plutôt qu'en interrogeant
+   * `isConfigured()` — les deux ont divergé le jour où Booking.com a su
+   * générer un lien générique sans identifiant d'affilié, et l'écart se
+   * traduisait par trois onglets affichés qui ne faisaient rien.
+   *
+   * `generateGenericLink` est une pure construction d'URL chez les trois
+   * providers : l'appeler ici ne déclenche aucun effet de bord.
+   */
   genericCategories() {
     return Object.entries(GENERIC_CATEGORIES).map(([category, spec]) => ({
       category,
       provider: spec.provider,
-      configured: (this.providers.get(spec.provider)?.isConfigured() ?? false) && categoryEnabled(spec),
+      configured:
+        categoryEnabled(spec) &&
+        this.providers.get(spec.provider)?.generateGenericLink('preview', spec.searchTerm) != null,
     }));
   }
 

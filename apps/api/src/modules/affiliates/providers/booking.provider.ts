@@ -51,11 +51,22 @@ export class BookingProvider implements AffiliateProvider {
     flights: 'flights/index.html',
   };
 
-  /** Lien générique (page d'accueil hôtels/voitures/vols selon `vertical`, l'utilisateur choisit sa destination). */
+  /**
+   * Lien générique (page d'accueil hôtels/voitures/vols selon `vertical`,
+   * l'utilisateur choisit sa destination).
+   *
+   * Contrairement à `generateBookingLink`, ce lien est produit MÊME SANS
+   * identifiant d'affilié. La raison est un arbitrage assumé : l'approbation
+   * Booking.com via CJ peut prendre des mois, et pendant ce temps les onglets
+   * Hôtel / Location / Vols d'Explorer ne faisaient rien du tout — un bouton
+   * mort coûte plus cher en confiance que la commission perdue en attendant.
+   * Le jour où `BOOKING_AFFILIATE_ID` est renseigné, les mêmes liens
+   * deviennent tracés sans toucher une ligne de code.
+   */
   generateGenericLink(trackingId: string, vertical?: string): string | null {
-    if (!this.isConfigured()) return null;
-    const params = new URLSearchParams({ aid: this.aid!, label: trackingId });
     const path = (vertical && BookingProvider.GENERIC_PATHS[vertical]) || 'index.html';
+    if (!this.isConfigured()) return `https://www.booking.com/${path}`;
+    const params = new URLSearchParams({ aid: this.aid!, label: trackingId });
     return `https://www.booking.com/${path}?${params.toString()}`;
   }
 }
