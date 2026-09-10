@@ -17,6 +17,69 @@ export interface ItineraryRequest {
   constraints?: string;
 }
 
+// ── Rapprochement d'un nom de lieu ──────────────────────────────────────────
+//
+// L'IA nomme des endroits précis (« Cascade El Limón », « Castillo de Santa
+// Bárbara »). Sans ce rapprochement, la résolution ne regardait que le TYPE :
+// un moment intitulé « Cascade El Limón » recevait la photo et la note d'une
+// balade quelconque de la ville. Le lien était faux, et la carte mensongère.
+
+/**
+ * Mots ignorés pour comparer deux noms de lieux.
+ *
+ * Aux mots vides s'ajoutent les GENRES de lieu (plage, musée, restaurant...),
+ * et c'est ce qui fait la différence : « Plage de Las Terrenas » et « Plage de
+ * Playa Cosón » ne partagent que le mot « plage », lequel ne dit rien de
+ * l'endroit — les compter rapprochait deux plages distinctes. Les écarter
+ * laisse « terrenas » face à « cosón », qui tranchent.
+ *
+ * Effet heureux au passage : « Musée archéologique MARQ » et « Museo
+ * Arqueológico MARQ » se rejoignent sur « marq », le seul mot qui les
+ * identifie vraiment, sans avoir à traduire quoi que ce soit.
+ */
+const NAME_NOISE = new Set([
+  // Mots vides — français, espagnol, anglais.
+  'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'da', 'del', 'di', 'the',
+  'el', 'los', 'las', 'et', 'and', 'y', 'a', 'au', 'aux', 'en', 'sur', 'dans',
+  'chez', 'pour', 'par', 'avec', 'san', 'santa', 'saint', 'sainte', 'st',
+  // Genres de lieu : présents partout, distinctifs nulle part.
+  'plage', 'playa', 'beach', 'musee', 'museo', 'museum', 'restaurant',
+  'restaurante', 'cafe', 'cafeteria', 'bar', 'parc', 'parque', 'park',
+  'hotel', 'marche', 'mercado', 'market', 'cascade', 'cascada', 'waterfall',
+  'plaza', 'place', 'rue', 'calle', 'street', 'eglise', 'iglesia', 'church',
+  'castillo', 'chateau', 'castle', 'jardin', 'jardines', 'garden', 'tour',
+  'torre', 'tower', 'pont', 'puente', 'bridge', 'port', 'puerto', 'centre',
+  'centro', 'center', 'ville', 'ciudad', 'city', 'vieille', 'vieux', 'old',
+  'grand', 'grande', 'gran', 'petit', 'petite', 'table', 'principal',
+]);
+
+function nameTokens(value: string): Set<string> {
+  return new Set(
+    value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 2 && !NAME_NOISE.has(w)),
+  );
+}
+
+/**
+ * `true` si deux noms désignent visiblement le même endroit.
+ *
+ * Le recouvrement est rapporté au PLUS COURT des deux : l'IA écrit souvent un
+ * intitulé enrichi (« Castillo de Santa Bárbara & Barrio de la Santa Cruz »)
+ * là où la base ne porte que « Castillo de Santa Bárbara ».
+ */
+export function namesMatch(a: string, b: string): boolean {
+  const ta = nameTokens(a);
+  const tb = nameTokens(b);
+  if (ta.size === 0 || tb.size === 0) return false;
+  let shared = 0;
+  for (const w of ta) if (tb.has(w)) shared++;
+  return shared / Math.min(ta.size, tb.size) >= 0.5;
+}
+
 /** Un lieu tel que renvoyé par PlacesService — dérivé pour ne pas diverger. */
 type PlaceCandidate = Awaited<ReturnType<PlacesService['searchByCity']>>[number];
 
@@ -354,30 +417,53 @@ Les moments doivent être COHÉRENTS avec la description de la journée : si ell
       return ranked;
     };
 
-    const resolvePlace = async (type: string): Promise<ResolvedPlace> => {
+    const toResolved = (place: PlaceCandidate): ResolvedPlace => ({
+      placeId: place.id,
+      placeRating: place.rating,
+      placePhoto: place.photoUrls[0] ?? undefined,
+      placeLat: place.lat,
+      placeLng: place.lng,
+    });
+
+    /**
+     * Rattache un vrai lieu à une étape ou à un moment.
+     *
+     * `requireNameMatch` distingue deux intentions de l'IA :
+     *  - un MOMENT nomme un endroit précis. Faute de correspondance, on
+     *    n'attache RIEN : une carte « Cascade El Limón » illustrée par un bar
+     *    quelconque est pire qu'une carte sans photo, le texte suffit.
+     *  - une ÉTAPE nomme souvent un genre (« Un dîner romantique »). Là, un
+     *    lieu du bon univers est exactement ce qui est attendu.
+     */
+    const resolvePlace = async (
+      name: string,
+      type: string,
+      requireNameMatch: boolean,
+    ): Promise<ResolvedPlace> => {
       const universe = stepTypeToUniverse(type);
       if (!universe) return {};
       const candidates = await candidatesFor(universe);
       if (candidates.length === 0) return {};
+
+      const byName = candidates.find((p) => namesMatch(name, p.name));
+      // Un lieu trouvé par son nom n'avance pas le curseur : il est légitime
+      // qu'il revienne plusieurs fois si l'itinéraire y repasse vraiment.
+      if (byName) return toResolved(byName);
+
+      if (requireNameMatch) return {};
+
       const index = used.get(universe) ?? 0;
       used.set(universe, index + 1);
-      const place = candidates[index % candidates.length];
-      return {
-        placeId: place.id,
-        placeRating: place.rating,
-        placePhoto: place.photoUrls[0] ?? undefined,
-        placeLat: place.lat,
-        placeLng: place.lng,
-      };
+      return toResolved(candidates[index % candidates.length]);
     };
 
     // Séquentiel, et non `Promise.all` : le curseur doit avancer de façon
     // déterministe, et paralléliser viderait le cache de son intérêt puisque
     // toutes les requêtes partiraient avant la première réponse.
     for (const step of steps) {
-      Object.assign(step, await resolvePlace(step.type));
+      Object.assign(step, await resolvePlace(step.name, step.type, false));
       for (const moment of step.moments ?? []) {
-        Object.assign(moment, await resolvePlace(moment.type));
+        Object.assign(moment, await resolvePlace(moment.name, moment.type, true));
       }
     }
 
