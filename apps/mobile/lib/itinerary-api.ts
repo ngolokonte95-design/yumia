@@ -3,6 +3,21 @@
  */
 import { request } from './api';
 
+/** Un moment d'une journée — mode semaine uniquement. */
+export interface ItineraryMoment {
+  time: string;
+  type: string;
+  name: string;
+  description: string;
+  emoji: string;
+  tips?: string;
+  placeId?: string;
+  placeRating?: number;
+  placePhoto?: string;
+  placeLat?: number;
+  placeLng?: number;
+}
+
 export interface ItineraryStep {
   time: string;
   type: string;
@@ -16,6 +31,8 @@ export interface ItineraryStep {
   placePhoto?: string;
   placeLat?: number;
   placeLng?: number;
+  /** Découpage de la journée — présent seulement en mode semaine. */
+  moments?: ItineraryMoment[];
 }
 
 export interface SavedItinerary {

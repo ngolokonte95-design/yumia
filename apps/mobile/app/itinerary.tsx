@@ -18,6 +18,7 @@ import { saveItinerary } from '../lib/itinerary-api';
 import { MOOD_META, MOODS, type Mood } from '../lib/itinerary-meta';
 import { useCitySearch } from '../lib/useCitySearch';
 import { useI18n } from '../lib/useI18n';
+import { DayDetailModal, type DayMoment } from '../components/DayDetailModal';
 import { itineraryMoodLabel, itineraryMoodSub } from '../lib/labelHelpers';
 import type { CitySuggestion } from '../lib/services/weather';
 
@@ -39,6 +40,7 @@ interface Step {
   placePhoto?: string;
   placeLat?: number;
   placeLng?: number;
+  moments?: DayMoment[];
 }
 
 const DURATIONS: Array<{ key: Duration; labelKey: string; emoji: string }> = [
@@ -64,6 +66,9 @@ export default function ItineraryScreen() {
   // Alias `tr` : ce fichier a déjà une variable locale `t` (handle de
   // setTimeout) plus bas, qui masquerait le `t` de useI18n.
   const { t: tr } = useI18n();
+
+  // Journée ouverte dans le panneau flottant — `null` quand il est fermé.
+  const [openDay, setOpenDay] = useState<Step | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ mood?: string }>();
@@ -402,6 +407,17 @@ export default function ItineraryScreen() {
                         <Text style={[styles.placeBtnText, { color: meta.color }]}>{tr('itin_see_place')}</Text>
                       </Pressable>
                     ) : null}
+
+                    {/* Mode semaine : la description couvre la journée entière,
+                        ce bouton la déroule moment par moment. */}
+                    {step.moments?.length ? (
+                      <Pressable
+                        style={[styles.dayBtn, { backgroundColor: meta.color }]}
+                        onPress={() => setOpenDay(step)}
+                      >
+                        <Text style={styles.dayBtnText}>{tr('itin_see_full_day')}</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
               </View>
@@ -430,6 +446,21 @@ export default function ItineraryScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <DayDetailModal
+        visible={openDay !== null}
+        onClose={() => setOpenDay(null)}
+        day={openDay}
+        accent={meta.color}
+        seePlaceLabel={tr('itin_see_place')}
+        closeLabel={tr('itin_close_day')}
+        onOpenPlace={(moment) => {
+          // On ferme avant de naviguer : laisser la feuille ouverte derrière
+          // l'écran du lieu la ferait réapparaître au retour.
+          setOpenDay(null);
+          navigateToPlace(moment as Step);
+        }}
+      />
+
     </View>
   );
 }
@@ -571,6 +602,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8, alignItems: 'center',
   },
   placeBtnText: { fontSize: 13, fontWeight: '700' },
+  dayBtn: { borderRadius: radius.pill, paddingVertical: 11, alignItems: 'center', marginTop: 8 },
+  dayBtnText: { ...typography.label, color: '#fff', fontSize: 13 },
 
   bottomActions: {
     flexDirection: 'row', gap: 12, marginTop: spacing.md, marginBottom: spacing.lg,
