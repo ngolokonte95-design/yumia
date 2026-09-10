@@ -663,6 +663,64 @@ export class PlacesService {
   }
 
   /**
+   * Retrouve un lieu par son NOM dans une ville — et l'importe si besoin.
+   *
+   * Sert les moments d'un itinéraire, où l'IA désigne des endroits précis
+   * (« Real Alcázar », « Cascade El Limón ») qui n'ont aucune raison d'être
+   * déjà en base. On regarde d'abord localement, puis on demande au
+   * fournisseur, et on persiste ce qu'on trouve.
+   *
+   * Appelé À LA DEMANDE, au clic de l'utilisateur, et non à la génération :
+   * un itinéraire d'une semaine compte une vingtaine de moments, dont il
+   * n'en consultera que quelques-uns. Chaque recherche chez le fournisseur
+   * étant facturée, les résoudre toutes d'avance reviendrait à payer vingt
+   * fois pour deux consultations.
+   *
+   * Le résultat négatif est mis en cache : sans cela, un nom introuvable
+   * relancerait une recherche payante à chaque appui.
+   */
+  async findOrImportByName(params: {
+    name: string;
+    city: string;
+    universe?: Universe;
+  }): Promise<Place | null> {
+    const name = params.name.trim();
+    if (name.length < 3) return null;
+
+    const local = await this.prisma.place.findFirst({
+      where: {
+        name: { contains: name, mode: 'insensitive' },
+        ...(params.city ? { city: { contains: params.city, mode: 'insensitive' } } : {}),
+      },
+      orderBy: { rating: 'desc' },
+    });
+    if (local) return local;
+
+    if (!this.provider.isEnabled || !this.provider.searchByText) return null;
+
+    const cacheKey = `places:byname:${params.city.toLowerCase()}:${name.toLowerCase()}`;
+    const missed = await this.redis.getJson<boolean>(cacheKey).catch(() => null);
+    if (missed) return null;
+
+    try {
+      const found = await this.provider.searchByText(`${name} ${params.city}`, params.universe, 5);
+      if (found.length === 0) {
+        await this.redis.setJson(cacheKey, true, HYDRATE_EMPTY_RETRY_TTL_SECONDS).catch(() => undefined);
+        return null;
+      }
+      const saved = await this.persistProviderPlaces(found);
+      // Le fournisseur classe par pertinence : son premier résultat pour
+      // « <nom> <ville> » est le bon dans l'immense majorité des cas.
+      const best = saved[0] ?? null;
+      if (best) this.logger.log(`Lieu « ${name} » (${params.city}) importé à la demande.`);
+      return best;
+    } catch (err) {
+      this.logger.warn(`Résolution de « ${name} » échouée : ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
    * Construit les URL de photos pointant vers notre proxy `GET /places/photo`
    * (la clé Google reste côté serveur). Vide si l'URL publique de l'API n'est
    * pas configurée (évite des liens cassés).

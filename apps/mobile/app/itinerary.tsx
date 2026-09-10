@@ -14,6 +14,7 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { placeStore } from '../lib/place-store';
+import { resolvePlaceByName } from '../lib/places-api';
 import { saveItinerary } from '../lib/itinerary-api';
 import { MOOD_META, MOODS, type Mood } from '../lib/itinerary-meta';
 import { useCitySearch } from '../lib/useCitySearch';
@@ -453,11 +454,31 @@ export default function ItineraryScreen() {
         accent={meta.color}
         seePlaceLabel={tr('itin_see_place')}
         closeLabel={tr('itin_close_day')}
-        onOpenPlace={(moment) => {
+        onOpenPlace={async (moment) => {
+          // Un moment n'a un `placeId` que si son nom correspondait à un lieu
+          // déjà en base. Sinon on le cherche maintenant, par son nom : le
+          // faire à la génération coûterait une vingtaine de recherches par
+          // itinéraire, pour deux ou trois réellement consultées.
+          let target = moment as Step;
+          if (!moment.placeId) {
+            const found = await resolvePlaceByName(moment.name, city, moment.type as never);
+            if (!found) {
+              Alert.alert(tr('itin_place_not_found_title'), tr('itin_place_not_found_body'));
+              return;
+            }
+            target = {
+              ...(moment as Step),
+              placeId: found.id,
+              placeRating: found.rating,
+              placePhoto: found.photoUrls[0],
+              placeLat: found.lat,
+              placeLng: found.lng,
+            };
+          }
           // On ferme avant de naviguer : laisser la feuille ouverte derrière
           // l'écran du lieu la ferait réapparaître au retour.
           setOpenDay(null);
-          navigateToPlace(moment as Step);
+          navigateToPlace(target);
         }}
       />
 

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  NotFoundException,
   Body,
   Controller,
   Get,
@@ -115,6 +116,29 @@ export class PlacesController {
       universe: universe as Parameters<typeof this.places.searchByCity>[0]['universe'],
       limit: limit ? Math.min(parseInt(limit, 10) || 20, 50) : 20,
     });
+  }
+
+  /**
+   * GET /api/places/resolve — retrouve un lieu par son nom, et l'importe au
+   * besoin. Alimente les moments d'un itinéraire, résolus au clic.
+   */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('resolve')
+  async resolveByName(
+    @Query('name') name: string,
+    @Query('city') city: string,
+    @Query('universe') universe?: string,
+  ): Promise<Place> {
+    if (!name || name.trim().length < 3) {
+      throw new BadRequestException('Paramètre « name » requis.');
+    }
+    const place = await this.places.findOrImportByName({
+      name: name.trim(),
+      city: (city ?? '').trim(),
+      universe: universe as Parameters<typeof this.places.findOrImportByName>[0]['universe'],
+    });
+    if (!place) throw new NotFoundException('Aucun lieu trouvé pour ce nom.');
+    return place;
   }
 
   /** GET /api/places/trending — lieux tendance près de vous (dernières 24h). 30/60s. */

@@ -5,7 +5,8 @@
  * plusieurs endroits dont un seul était cliquable. Ce panneau déroule la
  * journée moment par moment : chacun a sa photo, son texte et son lieu.
  */
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,13 +34,31 @@ interface Props {
   day: { time: string; name: string; description: string; emoji: string; moments?: DayMoment[] } | null;
   /** Couleur du mode en cours (Date, Voyage…), pour rester cohérent avec l'écran. */
   accent: string;
-  onOpenPlace: (moment: DayMoment) => void;
+  /**
+   * Ouvre le lieu d'un moment. Peut être long : un moment sans `placeId` fait
+   * chercher l'endroit par son nom avant de pouvoir naviguer.
+   */
+  onOpenPlace: (moment: DayMoment) => Promise<void> | void;
   seePlaceLabel: string;
   closeLabel: string;
 }
 
 export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, seePlaceLabel, closeLabel }: Props) {
   const insets = useSafeAreaInsets();
+  // Index du moment en cours de résolution — le bouton doit montrer qu'il
+  // travaille, la recherche du lieu pouvant prendre une seconde.
+  const [opening, setOpening] = useState<number | null>(null);
+
+  async function open(moment: DayMoment, index: number) {
+    if (opening !== null) return;
+    setOpening(index);
+    try {
+      await onOpenPlace(moment);
+    } finally {
+      setOpening(null);
+    }
+  }
+
   const moments = day?.moments ?? [];
 
   return (
@@ -107,11 +126,19 @@ export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, see
                     </View>
                   ) : null}
 
-                  {m.placeId ? (
-                    <Pressable style={[styles.placeBtn, { borderColor: accent }]} onPress={() => onOpenPlace(m)}>
+                  {/* Toujours proposé, même sans lieu déjà rattaché : le nom
+                      du moment suffit à retrouver l'endroit au moment du clic. */}
+                  <Pressable
+                    style={[styles.placeBtn, { borderColor: accent }, opening === i && styles.placeBtnBusy]}
+                    onPress={() => void open(m, i)}
+                    disabled={opening !== null}
+                  >
+                    {opening === i ? (
+                      <ActivityIndicator size="small" color={accent} />
+                    ) : (
                       <Text style={[styles.placeBtnTxt, { color: accent }]}>{seePlaceLabel}</Text>
-                    </Pressable>
-                  ) : null}
+                    )}
+                  </Pressable>
                 </View>
               </Reveal>
             ))}
@@ -183,6 +210,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: radius.pill,
     paddingVertical: 9, alignItems: 'center', marginTop: 4,
   },
+  placeBtnBusy: { opacity: 0.6 },
   placeBtnTxt: { ...typography.label, fontSize: 13 },
 
   doneBtn: {

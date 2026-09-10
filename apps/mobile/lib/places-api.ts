@@ -80,6 +80,32 @@ export interface CityPlace {
   tags: string[];
 }
 
+/**
+ * Retrouve un lieu par son NOM dans une ville, en l'important au besoin.
+ *
+ * Sert les moments d'un itinéraire, qui désignent des endroits précis absents
+ * de notre base. Appelé au CLIC et non à l'affichage : chaque résolution
+ * interroge le fournisseur de lieux, facturé à l'appel.
+ *
+ * Renvoie `null` plutôt que de lever quand rien ne correspond — c'est une
+ * issue normale, pas une panne.
+ */
+export async function resolvePlaceByName(
+  name: string,
+  city: string,
+  universe?: Universe,
+): Promise<CityPlace | null> {
+  const q = new URLSearchParams();
+  q.set('name', name);
+  q.set('city', city);
+  if (universe) q.set('universe', universe);
+  try {
+    return await request<CityPlace>(`/places/resolve?${q.toString()}`);
+  } catch {
+    return null;
+  }
+}
+
 /** Recherche de lieux par ville (sans géolocalisation), filtrable par univers. */
 export function fetchByCity(name: string, universe?: Universe, limit?: number): Promise<CityPlace[]> {
   const q = new URLSearchParams();
