@@ -292,6 +292,19 @@ export class ShopController {
     return this.imports.retireCategory(slug);
   }
 
+  /**
+   * GET /shop/admin/aliexpress/probe-tracking?orderId=…
+   *
+   * Diagnostic : quelle méthode AliExpress répond au suivi d'une commande ?
+   * Toutes les candidates sont des lectures — aucune ne modifie quoi que ce
+   * soit. À retirer une fois la bonne identifiée.
+   */
+  @Get('admin/aliexpress/probe-tracking')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  probeTracking(@Query('orderId') orderId?: string) {
+    return this.aliexpress.probeTrackingMethods(orderId?.trim() || '0');
+  }
+
   @Get('admin/aliexpress/search')
   @UseGuards(JwtAuthGuard, AdminGuard)
   searchAliexpress(@Query('keyword') keyword: string, @Query('limit') limit?: string) {

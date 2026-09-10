@@ -383,6 +383,44 @@ export class AliExpressService {
     };
   }
 
+  /**
+   * Méthodes candidates pour le suivi d'une commande.
+   *
+   * La documentation publique de l'API Drop Shipping ne les expose pas
+   * clairement, et deux familles coexistent selon les intégrations : la fiche
+   * de commande (qui porte la logistique) et la requête de suivi dédiée.
+   * Plutôt que de parier, on interroge : un nom inconnu se signale par une
+   * erreur distincte de « paramètre manquant » ou « commande introuvable ».
+   */
+  private static readonly TRACKING_METHODS = [
+    'aliexpress.ds.order.get',
+    'aliexpress.trade.ds.order.get',
+    'aliexpress.logistics.ds.trackinginfo.query',
+    'aliexpress.ds.order.tracking.get',
+  ];
+
+  /**
+   * Réponse brute de chaque méthode candidate, pour identifier laquelle
+   * existe réellement. Réservé au diagnostic admin — voir
+   * `GET /shop/admin/aliexpress/probe-tracking`.
+   *
+   * Fonctionne même sans commande réelle : une méthode valide répondra
+   * « commande introuvable », une méthode inexistante répondra qu'elle
+   * n'existe pas. C'est cette différence qui nous intéresse.
+   */
+  async probeTrackingMethods(orderId: string): Promise<Array<{ method: string; response: unknown }>> {
+    const results: Array<{ method: string; response: unknown }> = [];
+    for (const method of AliExpressService.TRACKING_METHODS) {
+      const response = await this.call(method, {
+        order_id: orderId,
+        single_order_query: JSON.stringify({ order_id: orderId }),
+        param0: JSON.stringify({ order_id: orderId }),
+      });
+      results.push({ method, response });
+    }
+    return results;
+  }
+
   // ── Passerelle RPC ────────────────────────────────────────────────────────
 
   private sign(params: Record<string, string>): string {
