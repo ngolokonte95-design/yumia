@@ -11,6 +11,12 @@ export type ProductSort = 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 
 
 export interface ProductListQuery {
   categorySlug?: string;
+  /**
+   * Plusieurs rayons à la fois — utilisé par l'assistant Idées cadeaux, qui
+   * croise un destinataire et une occasion pour obtenir une poignée de rayons
+   * pertinents. Ignoré si `categorySlug` est fourni.
+   */
+  categorySlugs?: string[];
   /** Recherche plein texte sur le titre. */
   q?: string;
   minPriceCents?: number;
@@ -137,7 +143,14 @@ export class CatalogService {
               { category: { parent: { slug: query.categorySlug } } },
             ],
           }
-        : {}),
+        : query.categorySlugs?.length
+          ? {
+              OR: [
+                { category: { slug: { in: query.categorySlugs } } },
+                { category: { parent: { slug: { in: query.categorySlugs } } } },
+              ],
+            }
+          : {}),
       ...(query.q ? { title: { contains: query.q, mode: 'insensitive' } } : {}),
       ...(query.featuredOnly ? { featured: true } : {}),
       ...(query.minPriceCents != null || query.maxPriceCents != null

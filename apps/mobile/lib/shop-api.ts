@@ -73,6 +73,45 @@ export interface ProductDetail extends ProductListItem {
   isWishlisted: boolean;
 }
 
+// ── Assistant Idées cadeaux ─────────────────────────────────────────────────
+
+export interface GiftOccasionOption {
+  slug: string;
+  label: string;
+  emoji: string;
+  /** Prochaine date au format AAAA-MM-JJ, `null` pour une occasion permanente. */
+  date: string | null;
+  daysUntil: number | null;
+  /** `true` si l'occasion est dans sa fenêtre de pertinence — sert à la mettre en avant. */
+  isNow: boolean;
+}
+
+export interface GiftChoice {
+  slug: string;
+  label: string;
+  emoji?: string;
+}
+
+export interface GiftOptions {
+  occasions: GiftOccasionOption[];
+  recipients: GiftChoice[];
+  budgets: Array<GiftChoice & { minCents: number; maxCents: number | null }>;
+}
+
+export interface GiftSuggestions {
+  items: ProductListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  criteria: {
+    recipient: GiftChoice | null;
+    occasion: GiftChoice | null;
+    budget: GiftChoice | null;
+    categorySlugs: string[];
+  };
+}
+
 export interface CartLine {
   id: string;
   productId: string;
@@ -202,6 +241,17 @@ export const shopApi = {
     request<ShippingAddress>('/shop/addresses', { token, method: 'POST', body }),
   deleteAddress: (token: string, id: string) =>
     request<{ ok: boolean }>(`/shop/addresses/${id}`, { token, method: 'DELETE' }),
+
+  // Idées cadeaux
+  giftOptions: (token: string) => request<GiftOptions>('/shop/gift-ideas/options', { token }),
+  giftIdeas: (token: string, params: { recipient?: string; occasion?: string; budget?: string; page?: number }) => {
+    const q = new URLSearchParams();
+    if (params.recipient) q.set('recipient', params.recipient);
+    if (params.occasion) q.set('occasion', params.occasion);
+    if (params.budget) q.set('budget', params.budget);
+    if (params.page) q.set('page', String(params.page));
+    return request<GiftSuggestions>(`/shop/gift-ideas?${q.toString()}`, { token });
+  },
 
   // Commandes
   checkout: (token: string, addressId: string) =>

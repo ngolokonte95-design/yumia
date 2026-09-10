@@ -19,6 +19,7 @@ import type { JwtPayload } from '../auth/types';
 import { AliExpressService } from './aliexpress.service';
 import { CartService } from './cart.service';
 import { CatalogService, type ProductSort } from './catalog.service';
+import { GiftService } from './gift.service';
 import { OrdersService } from './orders.service';
 import { ShopImportService } from './shop-import.service';
 
@@ -36,6 +37,7 @@ export class ShopController {
     private readonly catalog: CatalogService,
     private readonly cart: CartService,
     private readonly orders: OrdersService,
+    private readonly gifts: GiftService,
     private readonly imports: ShopImportService,
     private readonly aliexpress: AliExpressService,
   ) {}
@@ -75,6 +77,32 @@ export class ShopController {
       page: asInt(page),
       pageSize: asInt(pageSize),
     }, isAdminEmail(user.email));
+  }
+
+  // ── Assistant Idées cadeaux ───────────────────────────────────────────────
+
+  /** GET /api/shop/gift-ideas/options — destinataires, occasions (triées par imminence) et budgets. */
+  @Get('gift-ideas/options')
+  @UseGuards(JwtAuthGuard)
+  giftOptions() {
+    return this.gifts.options();
+  }
+
+  /** GET /api/shop/gift-ideas?recipient=&occasion=&budget= — la sélection correspondante. */
+  @Get('gift-ideas')
+  @UseGuards(JwtAuthGuard)
+  giftIdeas(
+    @CurrentUser() user: JwtPayload,
+    @Query('recipient') recipient?: string,
+    @Query('occasion') occasion?: string,
+    @Query('budget') budget?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.gifts.suggest(
+      { recipient, occasion, budget, page: asInt(page), pageSize: asInt(pageSize) },
+      isAdminEmail(user.email),
+    );
   }
 
   /** Rayon lié à un univers YUMIA — produits proposés en contexte sur une fiche lieu. */
