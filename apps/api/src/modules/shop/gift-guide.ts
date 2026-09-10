@@ -13,9 +13,9 @@
 
 // ── Arithmétique du calendrier ──────────────────────────────────────────────
 //
-// Deux occasions n'ont pas de date fixe. Les coder en dur les rendrait fausses
-// l'année suivante, en silence — un assistant qui propose Halloween en février
-// ne se signale pas, il se contente d'être inutile.
+// Cinq occasions sur sept n'ont pas de date fixe. Les coder en dur les rendrait
+// fausses l'année suivante, en silence — un assistant qui propose la fête des
+// mères en octobre ne se signale pas, il se contente d'être inutile.
 
 /** Date UTC à minuit — toutes les comparaisons se font sur le jour, pas l'heure. */
 function utc(year: number, month0: number, day: number): Date {
@@ -24,8 +24,8 @@ function utc(year: number, month0: number, day: number): Date {
 
 /**
  * Dimanche de Pâques (grégorien), algorithme de Meeus/Jones/Butcher.
- * Nécessaire uniquement pour la fête des mères française, dont la règle
- * dépend de la Pentecôte.
+ * Nécessaire pour la fête des mères française, dont la règle dépend de la
+ * Pentecôte.
  */
 export function easterSunday(year: number): Date {
   const a = year % 19;
@@ -59,9 +59,14 @@ function lastWeekdayOfMonth(year: number, month0: number, weekday: number): Date
   return utc(year, month0, last.getUTCDate() - shift);
 }
 
-/** Black Friday : quatrième vendredi de novembre. */
-export function blackFriday(year: number): Date {
-  return nthWeekdayOfMonth(year, 10, 5, 4);
+/** Fête des grands-mères en France : premier dimanche de mars. */
+export function frenchGrandmothersDay(year: number): Date {
+  return nthWeekdayOfMonth(year, 2, 0, 1);
+}
+
+/** Fête des grands-pères en France : premier dimanche d'octobre. */
+export function frenchGrandfathersDay(year: number): Date {
+  return nthWeekdayOfMonth(year, 9, 0, 1);
 }
 
 /**
@@ -92,42 +97,40 @@ export interface GiftOccasion {
   /** Rayons privilégiés. Vide = toute la boutique. */
   categories: string[];
   /**
-   * Date de l'occasion pour une année donnée. `null` pour une occasion
+   * Dates de l'occasion pour une année donnée. `null` pour une occasion
    * permanente (un anniversaire n'a pas de saison).
+   *
+   * Un tableau, et non une date : la fête des grands-parents tombe DEUX fois
+   * par an (mars pour les grands-mères, octobre pour les grands-pères). Avec
+   * une date unique, celle de mars une fois passée aurait renvoyé à mars de
+   * l'année suivante, faisant disparaître octobre du calendrier.
    */
-  dateFor: ((year: number) => Date) | null;
+  datesFor: ((year: number) => Date[]) | null;
   /**
-   * Combien de jours avant la date l'occasion devient pertinente. Court pour
-   * Halloween (on n'achète pas son déguisement en août), long pour Noël.
+   * Combien de jours avant la date l'occasion devient pertinente. Long pour
+   * Noël, où l'on s'y prend d'avance ; court pour une fête des grands-pères,
+   * à laquelle personne ne pense six semaines plus tôt.
    */
   leadDays: number;
 }
 
 export const GIFT_OCCASIONS: readonly GiftOccasion[] = [
   {
-    slug: 'halloween',
-    label: 'Halloween',
-    emoji: '🎃',
-    categories: ['jouets-cadeaux', 'soiree-karaoke', 'loisirs-creatifs', 'cake-design', 'meuble-deco'],
-    dateFor: (y) => utc(y, 9, 31),
-    leadDays: 35,
-  },
-  {
-    slug: 'black-friday',
-    label: 'Black Friday',
-    emoji: '🏷️',
-    // Événement de prix plutôt que de thème : on oriente vers les rayons à
-    // panier élevé, ceux où une remise se ressent vraiment.
-    categories: ['gadgets-tech', 'bureau-teletravail', 'sport', 'meuble-deco', 'photo-creation', 'velo-mobilite'],
-    dateFor: blackFriday,
-    leadDays: 14,
+    slug: 'fete-des-grands-parents',
+    label: 'Fête des grands-parents',
+    emoji: '🧓',
+    categories: ['fleuriste', 'cafe-the', 'lecture', 'spa-massage', 'cake-design', 'bricolage', 'coiffure-beaute'],
+    // Deux échéances distinctes dans l'année : premier dimanche de mars pour
+    // les grands-mères, premier dimanche d'octobre pour les grands-pères.
+    datesFor: (y) => [frenchGrandmothersDay(y), frenchGrandfathersDay(y)],
+    leadDays: 21,
   },
   {
     slug: 'noel',
     label: 'Noël',
     emoji: '🎄',
     categories: ['jouets-cadeaux', 'gadgets-tech', 'bijoux-montres', 'bureau-teletravail', 'loisirs-creatifs', 'cake-design', 'meuble-deco', 'cinema-maison'],
-    dateFor: (y) => utc(y, 11, 25),
+    datesFor: (y) => [utc(y, 11, 25)],
     leadDays: 45,
   },
   {
@@ -135,7 +138,7 @@ export const GIFT_OCCASIONS: readonly GiftOccasion[] = [
     label: 'Nouvel An',
     emoji: '🎆',
     categories: ['soiree-karaoke', 'cake-design', 'bijoux-montres', 'gadgets-tech', 'cinema-maison'],
-    dateFor: (y) => utc(y, 11, 31),
+    datesFor: (y) => [utc(y, 11, 31)],
     leadDays: 20,
   },
   {
@@ -143,7 +146,7 @@ export const GIFT_OCCASIONS: readonly GiftOccasion[] = [
     label: 'Saint-Valentin',
     emoji: '💝',
     categories: ['bijoux-montres', 'spa-massage', 'coiffure-beaute', 'meuble-deco', 'cake-design', 'cinema-maison'],
-    dateFor: (y) => utc(y, 1, 14),
+    datesFor: (y) => [utc(y, 1, 14)],
     leadDays: 25,
   },
   {
@@ -151,7 +154,7 @@ export const GIFT_OCCASIONS: readonly GiftOccasion[] = [
     label: 'Fête des mères',
     emoji: '💐',
     categories: ['spa-massage', 'coiffure-beaute', 'bijoux-montres', 'fleuriste', 'yoga-bien-etre', 'cake-design'],
-    dateFor: frenchMothersDay,
+    datesFor: (y) => [frenchMothersDay(y)],
     leadDays: 25,
   },
   {
@@ -159,7 +162,7 @@ export const GIFT_OCCASIONS: readonly GiftOccasion[] = [
     label: 'Fête des pères',
     emoji: '🛠️',
     categories: ['barbier', 'auto-moto', 'bricolage', 'gadgets-tech', 'cafe-the', 'sport'],
-    dateFor: frenchFathersDay,
+    datesFor: (y) => [frenchFathersDay(y)],
     leadDays: 25,
   },
   {
@@ -167,7 +170,15 @@ export const GIFT_OCCASIONS: readonly GiftOccasion[] = [
     label: 'Anniversaire',
     emoji: '🎂',
     categories: [],
-    dateFor: null,
+    datesFor: null,
+    leadDays: 0,
+  },
+  {
+    slug: 'anniversaire-mariage',
+    label: 'Anniversaire de mariage',
+    emoji: '💍',
+    categories: ['bijoux-montres', 'spa-massage', 'fleuriste', 'meuble-deco', 'cake-design', 'cinema-maison'],
+    datesFor: null,
     leadDays: 0,
   },
   {
@@ -175,7 +186,7 @@ export const GIFT_OCCASIONS: readonly GiftOccasion[] = [
     label: 'Juste pour offrir',
     emoji: '🎁',
     categories: [],
-    dateFor: null,
+    datesFor: null,
     leadDays: 0,
   },
 ];
@@ -236,14 +247,20 @@ const DAY_MS = 86_400_000;
  * Prochaine occurrence d'une occasion et son urgence.
  *
  * Si la date de l'année en cours est passée, on bascule sur l'année suivante —
- * sans quoi Halloween afficherait « il y a 300 jours » à partir du 1er novembre.
+ * sans quoi la Saint-Valentin afficherait « il y a 300 jours » dès le 15 février.
  */
 export function timingOf(occasion: GiftOccasion, now: Date): OccasionTiming {
-  if (!occasion.dateFor) return { date: null, daysUntil: null, isNow: false };
+  if (!occasion.datesFor) return { date: null, daysUntil: null, isNow: false };
 
   const today = utc(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  let date = occasion.dateFor(today.getUTCFullYear());
-  if (date.getTime() < today.getTime()) date = occasion.dateFor(today.getUTCFullYear() + 1);
+  const year = today.getUTCFullYear();
+
+  // On regarde l'année en cours ET la suivante, puis on retient la première
+  // échéance encore à venir. Inclure l'année suivante est ce qui permet à une
+  // occasion déjà passée de basculer proprement, sans cas particulier.
+  const date = [...occasion.datesFor(year), ...occasion.datesFor(year + 1)]
+    .filter((d) => d.getTime() >= today.getTime())
+    .sort((a, b) => a.getTime() - b.getTime())[0];
 
   const daysUntil = Math.round((date.getTime() - today.getTime()) / DAY_MS);
   return { date, daysUntil, isNow: daysUntil <= occasion.leadDays };

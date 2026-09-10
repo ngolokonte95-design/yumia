@@ -12,12 +12,12 @@ const makeService = (catalog: ReturnType<typeof makeCatalog>) =>
 
 describe('GiftService.options', () => {
   it('met en tête l’occasion de la saison', () => {
-    // Mi-octobre : Halloween doit primer, même si l'ordre de déclaration du
-    // référentiel place d'autres occasions avant.
-    const { occasions } = makeService(makeCatalog()).options(new Date('2026-10-15T12:00:00Z'));
-    expect(occasions[0].slug).toBe('halloween');
+    // Mi-septembre : la fête des grands-pères (4 octobre) est la plus proche,
+    // même si l'ordre de déclaration du référentiel place Noël avant.
+    const { occasions } = makeService(makeCatalog()).options(new Date('2026-09-20T12:00:00Z'));
+    expect(occasions[0].slug).toBe('fete-des-grands-parents');
     expect(occasions[0].isNow).toBe(true);
-    expect(occasions[0].daysUntil).toBe(16);
+    expect(occasions[0].daysUntil).toBe(14);
   });
 
   it('bascule sur Noël début décembre', () => {
@@ -35,8 +35,8 @@ describe('GiftService.options', () => {
   it('renvoie les occasions permanentes en dernier, sans date', () => {
     const { occasions } = makeService(makeCatalog()).options(new Date('2026-09-10T12:00:00Z'));
     const permanentes = occasions.filter((o) => o.date === null).map((o) => o.slug);
-    expect(permanentes).toEqual(['anniversaire', 'juste-pour-offrir']);
-    expect(occasions.slice(-2).map((o) => o.slug)).toEqual(permanentes);
+    expect(permanentes).toEqual(['anniversaire', 'anniversaire-mariage', 'juste-pour-offrir']);
+    expect(occasions.slice(-3).map((o) => o.slug)).toEqual(permanentes);
   });
 
   it('expose les destinataires et budgets', () => {

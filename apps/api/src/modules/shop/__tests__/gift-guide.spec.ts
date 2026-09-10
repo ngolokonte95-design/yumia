@@ -2,10 +2,11 @@ import {
   GIFT_BUDGETS,
   GIFT_OCCASIONS,
   GIFT_RECIPIENTS,
-  blackFriday,
   categoriesFor,
   easterSunday,
   frenchFathersDay,
+  frenchGrandfathersDay,
+  frenchGrandmothersDay,
   frenchMothersDay,
   timingOf,
 } from '../gift-guide';
@@ -26,17 +27,28 @@ describe('easterSunday', () => {
   });
 });
 
-describe('blackFriday', () => {
+describe('fêtes des grands-parents', () => {
   it.each([
-    [2025, '2025-11-28'],
-    [2026, '2026-11-27'],
-    [2027, '2027-11-26'],
-  ])('Black Friday %i tombe le %s', (year, expected) => {
-    expect(iso(blackFriday(year))).toBe(expected);
+    [2026, '2026-03-01'],
+    [2027, '2027-03-07'],
+    [2028, '2028-03-05'],
+  ])('grands-mères %i : premier dimanche de mars, le %s', (year, expected) => {
+    expect(iso(frenchGrandmothersDay(year))).toBe(expected);
   });
 
-  it('tombe toujours un vendredi', () => {
-    for (let y = 2026; y <= 2040; y++) expect(blackFriday(y).getUTCDay()).toBe(5);
+  it.each([
+    [2026, '2026-10-04'],
+    [2027, '2027-10-03'],
+    [2028, '2028-10-01'],
+  ])('grands-pères %i : premier dimanche d’octobre, le %s', (year, expected) => {
+    expect(iso(frenchGrandfathersDay(year))).toBe(expected);
+  });
+
+  it('tombent toujours un dimanche', () => {
+    for (let y = 2026; y <= 2040; y++) {
+      expect(frenchGrandmothersDay(y).getUTCDay()).toBe(0);
+      expect(frenchGrandfathersDay(y).getUTCDay()).toBe(0);
+    }
   });
 });
 
@@ -82,31 +94,41 @@ describe('frenchFathersDay', () => {
 });
 
 describe('timingOf', () => {
-  const halloween = GIFT_OCCASIONS.find((o) => o.slug === 'halloween')!;
+  const noel = GIFT_OCCASIONS.find((o) => o.slug === 'noel')!;
+  const grandsParents = GIFT_OCCASIONS.find((o) => o.slug === 'fete-des-grands-parents')!;
   const anniversaire = GIFT_OCCASIONS.find((o) => o.slug === 'anniversaire')!;
 
   it('compte les jours jusqu’à la prochaine occurrence', () => {
-    const t = timingOf(halloween, new Date('2026-09-10T12:00:00Z'));
-    expect(iso(t.date!)).toBe('2026-10-31');
-    expect(t.daysUntil).toBe(51);
+    const t = timingOf(noel, new Date('2026-09-10T12:00:00Z'));
+    expect(iso(t.date!)).toBe('2026-12-25');
+    expect(t.daysUntil).toBe(106);
   });
 
   it('bascule sur l’année suivante une fois la date passée', () => {
-    // Sans ça, Halloween afficherait « dans -1 jour » dès le 1er novembre.
-    const t = timingOf(halloween, new Date('2026-11-01T12:00:00Z'));
-    expect(iso(t.date!)).toBe('2027-10-31');
+    // Sans ça, Noël afficherait « dans -1 jour » dès le 26 décembre.
+    const t = timingOf(noel, new Date('2026-12-26T12:00:00Z'));
+    expect(iso(t.date!)).toBe('2027-12-25');
     expect(t.daysUntil).toBeGreaterThan(300);
   });
 
   it('signale l’occasion le jour même', () => {
-    const t = timingOf(halloween, new Date('2026-10-31T23:00:00Z'));
+    const t = timingOf(noel, new Date('2026-12-25T23:00:00Z'));
     expect(t.daysUntil).toBe(0);
     expect(t.isNow).toBe(true);
   });
 
   it('n’est « en cours » que dans sa fenêtre', () => {
-    expect(timingOf(halloween, new Date('2026-10-01T12:00:00Z')).isNow).toBe(true);
-    expect(timingOf(halloween, new Date('2026-08-01T12:00:00Z')).isNow).toBe(false);
+    expect(timingOf(noel, new Date('2026-12-01T12:00:00Z')).isNow).toBe(true);
+    expect(timingOf(noel, new Date('2026-09-10T12:00:00Z')).isNow).toBe(false);
+  });
+
+  it('retient la plus proche des DEUX dates des grands-parents', () => {
+    // Le vrai piège de la fusion : en avril, mars est passé mais octobre
+    // arrive. Avec une date unique par an, l'occasion aurait sauté à mars de
+    // l'année suivante et octobre n'aurait jamais été annoncé.
+    expect(iso(timingOf(grandsParents, new Date('2026-01-15T12:00:00Z')).date!)).toBe('2026-03-01');
+    expect(iso(timingOf(grandsParents, new Date('2026-04-15T12:00:00Z')).date!)).toBe('2026-10-04');
+    expect(iso(timingOf(grandsParents, new Date('2026-11-15T12:00:00Z')).date!)).toBe('2027-03-07');
   });
 
   it('laisse les occasions permanentes sans date', () => {
