@@ -51,9 +51,7 @@ export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
     Object.entries(FREE_DISPLAY_CAPS).map(([cap, value]) => [cap, value * 2]),
   ) as Record<DisplayCap, number>,
   gold: { universePlaces: 15, mapPlaces: 15, explorerSectionPlaces: 8 },
-  diamond: {
-    universePlaces: Infinity, mapPlaces: Infinity, explorerSectionPlaces: Infinity,
-  },
+  diamond: { universePlaces: 20, mapPlaces: 30, explorerSectionPlaces: 10 },
 };
 
 /**
@@ -122,12 +120,22 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     circleMaxMembers: 15,
     passportMaxEntries: 90,
   },
+  // Diamond (9,99 €) : le palier le plus haut n'est pas « tout illimité ».
+  // Ce qui coûte à chaque usage — appels au modèle, recherches de lieux —
+  // garde un plafond, généreux mais réel ; ce qui ne coûte qu'à nous-mêmes
+  // (profils, événements, cercle, Passport) est ouvert.
   diamond: {
-    suggestionsPerDay: Infinity,
-    circleMaxMembers: Infinity, passportMaxEntries: Infinity,
-    chatbotPerDay: Infinity, desirePerDay: Infinity, itineraryPerModePerDay: Infinity,
-    surprisePerDay: Infinity, universeLoadsPerDay: Infinity, mapLoadsPerDay: Infinity,
-    peopleSuggestionsPerDay: Infinity, eventsPerDay: Infinity,
+    suggestionsPerDay: 40,
+    chatbotPerDay: 30,
+    desirePerDay: 30,
+    itineraryPerModePerDay: 12,
+    surprisePerDay: 12,
+    universeLoadsPerDay: 12,
+    mapLoadsPerDay: 12,
+    peopleSuggestionsPerDay: Infinity,
+    eventsPerDay: Infinity,
+    circleMaxMembers: Infinity,
+    passportMaxEntries: Infinity,
   },
 };
 

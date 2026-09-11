@@ -48,6 +48,13 @@ export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan 
   const { upgradeTo } = usePlanLimits();
   // `plan` reste prioritaire pour un appel qui vise un palier précis.
   const offered = (plan ?? upgradeTo ?? 'diamond') as Exclude<Plan, 'free'>;
+  /**
+   * Rien à vendre au-dessus : Diamond garde des plafonds sur ce qui coûte à
+   * chaque usage, donc ses abonnés atteignent parfois une limite. Leur
+   * afficher la liste des forfaits reviendrait à leur proposer celui qu'ils
+   * paient déjà — le message seul suffit.
+   */
+  const showTiers = plan != null || upgradeTo != null;
   const router = useRouter();
   const { t } = useI18n();
 
@@ -85,6 +92,7 @@ export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan 
               payer a le droit de voir tout de suite ce que valent les
               autres. Chaque ligne porte son étoile à côté de son prix — la
               même que celle affichée sur les profils. */}
+          {showTiers ? (
           <View style={styles.tiers}>
             {tiers.map((tier) => (
               <Pressable key={tier} style={[styles.tierRow, tier === offered && styles.tierRowHighlight]} onPress={goPremium}>
@@ -97,6 +105,7 @@ export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan 
               </Pressable>
             ))}
           </View>
+          ) : null}
           <Pressable style={styles.secondaryBtn} onPress={dismiss}>
             <Text style={styles.secondaryText}>{t('pu_later')}</Text>
           </Pressable>
