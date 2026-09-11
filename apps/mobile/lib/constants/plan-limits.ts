@@ -53,7 +53,7 @@ export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   plus: Object.fromEntries(
     Object.entries(FREE_DISPLAY_CAPS).map(([cap, value]) => [cap, value * 2]),
   ) as Record<DisplayCap, number>,
-  gold: { universePlaces: 50, mapPlaces: 50, explorerSectionPlaces: 20 },
+  gold: { universePlaces: 15, mapPlaces: 15, explorerSectionPlaces: 8 },
   diamond: {
     universePlaces: Infinity, mapPlaces: Infinity, explorerSectionPlaces: Infinity,
   },
@@ -108,12 +108,24 @@ const PLUS_LIMITS: Record<LimitedFeature, number> = {
 export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   free: FREE_LIMITS,
   plus: PLUS_LIMITS,
+  // Gold (5,99 €) : valeurs arrêtées une par une, sans règle de calcul — le
+  // rapport au Gratuit n'y est pas constant (l'assistant quadruple, les
+  // itinéraires triplent), donc les écrire est ici plus honnête que les
+  // dériver.
   gold: {
-    suggestionsPerDay: 150, plannerPerWeek: 30, predictivePerWeek: 20,
+    suggestionsPerDay: 30,
+    chatbotPerDay: 20,
+    desirePerDay: 20,
+    itineraryPerModePerDay: 9,
+    surprisePerDay: 9,
+    universeLoadsPerDay: 9,
+    mapLoadsPerDay: 9,
+    peopleSuggestionsPerDay: 30,
+    eventsPerDay: 8,
+    // Quotas hérités, pas encore revus avec l'utilisateur : gardés au-dessus
+    // de Plus pour que la progression reste vraie.
+    plannerPerWeek: 30, predictivePerWeek: 20,
     circleMaxMembers: 50, passportMaxEntries: 1000, travelCities: 80,
-    chatbotPerDay: 200, desirePerDay: 200, itineraryPerModePerDay: 50,
-    surprisePerDay: 60, universeLoadsPerDay: 60, mapLoadsPerDay: 60,
-    peopleSuggestionsPerDay: 300, eventsPerDay: 30,
   },
   diamond: {
     suggestionsPerDay: Infinity, plannerPerWeek: Infinity, predictivePerWeek: Infinity,

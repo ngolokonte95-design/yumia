@@ -28,6 +28,15 @@ describe('paliers', () => {
       expect(gold[feature]).toBeGreaterThanOrEqual(plus[feature]);
       expect(diamond[feature]).toBeGreaterThanOrEqual(gold[feature]);
     }
+    // Les plafonds d'affichage suivent la même règle : ils ont été réglés
+    // séparément des quotas, donc rien ne garantit leur progression sans ce
+    // contrôle.
+    for (const cap of Object.keys(FREE_DISPLAY_CAPS) as DisplayCap[]) {
+      const { free, plus, gold, diamond } = DISPLAY_CAPS_BY_PLAN;
+      expect(plus[cap]).toBeGreaterThanOrEqual(free[cap]);
+      expect(gold[cap]).toBeGreaterThanOrEqual(plus[cap]);
+      expect(diamond[cap]).toBeGreaterThanOrEqual(gold[cap]);
+    }
   });
 
   it('propose toujours le palier du dessus, et rien au-delà de Diamond', () => {
