@@ -46,7 +46,7 @@ export default function UniverseScreen() {
   const universe = (isUniverse(u) ? u : null) as Universe | null;
   const meta = universe ? UNIVERSE_META[universe] : null;
 
-  const { checkLimit, recordUsage, displayCap } = usePlanLimits();
+  const { checkLimit, recordUsage, displayCap, scopedLimitMessage } = usePlanLimits();
   const [upsell, setUpsell] = useState<string | null>(null);
   // `null` tant que le quota n'a pas été consulté : on ne lance aucune
   // requête avant d'avoir la réponse, sinon le chargement partirait quand
@@ -59,14 +59,15 @@ export default function UniverseScreen() {
     if (!universe) return;
     let active = true;
     void (async () => {
-      const { allowed, message } = await checkLimit('universeLoadsPerDay', undefined, universe);
+      const { allowed } = await checkLimit('universeLoadsPerDay', undefined, universe);
       if (!active) return;
-      if (!allowed) { setQuotaOk(false); setUpsell(message); return; }
+      // Le message nomme le rayon concerné : la limite ne ferme que celui-ci.
+      if (!allowed) { setQuotaOk(false); setUpsell(scopedLimitMessage(universeLabel(t, universe))); return; }
       await recordUsage('universeLoadsPerDay', universe);
       if (active) setQuotaOk(true);
     })();
     return () => { active = false; };
-  }, [universe, checkLimit, recordUsage]);
+  }, [universe, checkLimit, recordUsage, scopedLimitMessage, t]);
 
   const { places: allPlaces, loading, error, reload } = useNearbyUniverse({
     lat: coords.lat,
@@ -85,8 +86,8 @@ export default function UniverseScreen() {
   /** Rafraîchir consomme un chargement de plus — c'en est un. */
   const reloadWithQuota = async () => {
     if (!universe) return;
-    const { allowed, message } = await checkLimit('universeLoadsPerDay', undefined, universe);
-    if (!allowed) { setUpsell(message); return; }
+    const { allowed } = await checkLimit('universeLoadsPerDay', undefined, universe);
+    if (!allowed) { setUpsell(scopedLimitMessage(universeLabel(t, universe))); return; }
     await recordUsage('universeLoadsPerDay', universe);
     reload();
   };

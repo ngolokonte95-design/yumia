@@ -2,7 +2,8 @@ import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
-import { PLUS_PRICE_EUR } from '@yumia/shared';
+import { PLUS_PRICE_EUR, type Plan } from '@yumia/shared';
+import { PlanBadgeIcon } from './Avatar';
 
 const PREMIUM_PURPLE = '#7C3AED';
 
@@ -11,13 +12,19 @@ interface Props {
   /** Message contextuel (issu de LIMIT_MESSAGES). */
   message: string;
   onClose: () => void;
+  /**
+   * Palier proposé. Son étoile accompagne le prix : un tarif sans emblème
+   * n'apprend pas ce qu'on achète, et l'app affiche déjà ces étoiles sur les
+   * profils — c'est le même langage d'un bout à l'autre.
+   */
+  plan?: Plan;
 }
 
 /**
  * Modal d'upsell affiché quand une limite du forfait Gratuit est atteinte.
  * Bouton principal → écran Premium, bouton secondaire → fermeture.
  */
-export function PremiumUpsellModal({ visible, message, onClose }: Props) {
+export function PremiumUpsellModal({ visible, message, onClose, plan = 'plus' }: Props) {
   const router = useRouter();
   const { t } = useI18n();
 
@@ -32,12 +39,13 @@ export function PremiumUpsellModal({ visible, message, onClose }: Props) {
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.crownCircle}>
-            <Text style={styles.crown}>👑</Text>
+            <PlanBadgeIcon plan={plan} size={36} />
           </View>
           <Text style={styles.title}>{t('pu_title')}</Text>
           <Text style={styles.message}>{message}</Text>
 
           <Pressable style={styles.primaryBtn} onPress={goPremium}>
+            <PlanBadgeIcon plan={plan} size={18} />
             <Text style={styles.primaryText}>{t('pu_cta').replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`)}</Text>
           </Pressable>
           <Pressable style={styles.secondaryBtn} onPress={onClose}>
@@ -73,7 +81,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  crown: { fontSize: 32 },
   title: { ...typography.title, color: colors.textPrimary, textAlign: 'center' },
   message: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
   primaryBtn: {
@@ -81,7 +88,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
+    // L'étoile et le prix sur une même ligne, centrés ensemble.
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     alignSelf: 'stretch',
     marginTop: spacing.sm,
   },

@@ -153,6 +153,22 @@ export function usePlanLimits() {
     [planTier],
   );
 
+  /**
+   * Message d'une limite atteinte SUR UN SEUL UNIVERS.
+   *
+   * Le message générique (« limite du jour atteinte ») était trompeur ici :
+   * le quota se compte par univers, donc tout le reste de la carte est encore
+   * ouvert. Dire « passe à Plus » sans le dire laissait croire à une porte
+   * fermée là où il n'y a qu'un rayon épuisé.
+   */
+  const scopedLimitMessage = useCallback(
+    (universeLabel: string): string =>
+      t('limit_universe_reached')
+        .replace(/\{universe\}/g, universeLabel)
+        .replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`),
+    [t],
+  );
+
   /** Fonctionnalité fermée au forfait Gratuit (carte sociale). */
   const isFeatureLocked = useCallback(
     (_feature: PremiumOnlyFeature): boolean => planTier === 'free',
@@ -166,6 +182,6 @@ export function usePlanLimits() {
 
   return {
     planTier, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining,
-    displayCap, isFeatureLocked, lockedMessage,
+    displayCap, isFeatureLocked, lockedMessage, scopedLimitMessage,
   };
 }

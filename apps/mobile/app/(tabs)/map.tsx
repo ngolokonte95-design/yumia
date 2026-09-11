@@ -78,9 +78,19 @@ export default function MapScreen() {
   const [tapPoint, setTapPoint] = useState<{ x: number; y: number } | null>(null);
   const [tapCoord, setTapCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage, displayCap, planTier } = usePlanLimits();
+  const { checkLimit, recordUsage, displayCap, planTier, scopedLimitMessage } = usePlanLimits();
   // Le remplissage automatique au déplacement suit le palier, pas un quota.
   const unlimitedMapRefill = planTier !== 'free';
+
+  /**
+   * Le message d'une limite atteinte nomme l'univers concerné, parce que la
+   * limite ne porte que sur lui : les autres restent chargeables. Dire
+   * seulement « limite atteinte » ferait croire la carte entière bloquée.
+   */
+  const limitMessageFor = useCallback(
+    (u: Universe | null) => scopedLimitMessage(u ? universeLabel(t, u) : t('map_all_universes')),
+    [scopedLimitMessage, t],
+  );
 
   // Bottom sheet state — animé via translateY (transform) plutôt que height, pour
   // pouvoir tourner sur le driver natif (60fps hors JS thread) et rester fluide
@@ -150,9 +160,9 @@ export default function MapScreen() {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, 'all');
+      const { allowed } = await checkLimit('mapLoadsPerDay', undefined, 'all');
       if (!active) return;
-      if (!allowed) { setMapQuotaOk(false); setUpsell(message); return; }
+      if (!allowed) { setMapQuotaOk(false); setUpsell(limitMessageFor(null)); return; }
       await recordUsage('mapLoadsPerDay', 'all');
       if (active) setMapQuotaOk(true);
     })();
@@ -332,25 +342,25 @@ export default function MapScreen() {
 
   const selectUniverse = useCallback(async (u: Universe | null) => {
     const scope = u ?? 'all';
-    const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, scope);
-    if (!allowed) { setUpsell(message); setFilterPanelOpen(false); return; }
+    const { allowed } = await checkLimit('mapLoadsPerDay', undefined, scope);
+    if (!allowed) { setUpsell(limitMessageFor(u)); setFilterPanelOpen(false); return; }
     await recordUsage('mapLoadsPerDay', scope);
     setUniverse(u);
     setFilterPanelOpen(false);
     reload(u, radiusKm);
-  }, [reload, radiusKm, checkLimit, recordUsage]);
+  }, [reload, radiusKm, checkLimit, recordUsage, limitMessageFor]);
 
   const selectRadius = useCallback(async (km: number) => {
     // Changer de rayon relance une recherche : c'est un chargement de plus,
     // sur l'univers courant.
     const scope = universe ?? 'all';
-    const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, scope);
-    if (!allowed) { setUpsell(message); setRadiusPanelOpen(false); return; }
+    const { allowed } = await checkLimit('mapLoadsPerDay', undefined, scope);
+    if (!allowed) { setUpsell(limitMessageFor(universe)); setRadiusPanelOpen(false); return; }
     await recordUsage('mapLoadsPerDay', scope);
     setRadiusKm(km);
     setRadiusPanelOpen(false);
     reload(universe, km);
-  }, [reload, universe, setRadiusKm, checkLimit, recordUsage]);
+  }, [reload, universe, setRadiusKm, checkLimit, recordUsage, limitMessageFor]);
 
   const handleMapTap = useCallback(async (e: MapPressEvent) => {
     // L'événement est lu AVANT toute attente : React recycle les événements
@@ -362,8 +372,8 @@ export default function MapScreen() {
     // Chercher les lieux d'un point tapé est une recherche entière, pas un
     // détail d'affichage : elle se compte comme les autres.
     const scope = universe ?? 'all';
-    const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, scope);
-    if (!allowed) { setUpsell(message); return; }
+    const { allowed } = await checkLimit('mapLoadsPerDay', undefined, scope);
+    if (!allowed) { setUpsell(limitMessageFor(universe)); return; }
     await recordUsage('mapLoadsPerDay', scope);
 
     setTapPoint(position);
@@ -385,7 +395,7 @@ export default function MapScreen() {
     } finally {
       setTapLoading(false);
     }
-  }, [universe, radiusKm, checkLimit, recordUsage]);
+  }, [universe, radiusKm, checkLimit, recordUsage, limitMessageFor]);
 
   function selectPlace(place: NearbyPlace) {
     setSelectedId(place.id);
