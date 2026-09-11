@@ -49,7 +49,10 @@ export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
 /** Plafonds d'affichage du palier courant — Gratuit seul est bridé. */
 export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
-  plus: { universePlaces: 20, mapPlaces: 20, explorerSectionPlaces: 10 },
+  // Même règle que les quotas : le double de ce que voit le Gratuit.
+  plus: Object.fromEntries(
+    Object.entries(FREE_DISPLAY_CAPS).map(([cap, value]) => [cap, value * 2]),
+  ) as Record<DisplayCap, number>,
   gold: { universePlaces: 50, mapPlaces: 50, explorerSectionPlaces: 20 },
   diamond: {
     universePlaces: Infinity, mapPlaces: Infinity, explorerSectionPlaces: Infinity,
@@ -66,16 +69,28 @@ export type PremiumOnlyFeature = (typeof PREMIUM_ONLY_FEATURES)[number];
 
 export type LimitedFeature = keyof typeof FREE_LIMITS;
 
+/**
+ * Plus (2,99 €) = le Gratuit DOUBLÉ, à une exception près : For You passe de
+ * 15 à 25 lieux par jour.
+ *
+ * Écrit comme un calcul et non comme une liste de nombres : la règle voulue
+ * est « le double du Gratuit », et une liste recopiée à la main divergerait
+ * au premier ajustement d'une valeur du Gratuit — sans que rien ne le
+ * signale.
+ */
+const PLUS_LIMITS: Record<LimitedFeature, number> = {
+  // Le cast accompagne Object.entries, qui perd le type des clés ; les clés
+  // viennent de FREE_LIMITS, donc l'objet est complet par construction.
+  ...(Object.fromEntries(
+    Object.entries(FREE_LIMITS).map(([feature, value]) => [feature, value * 2]),
+  ) as Record<LimitedFeature, number>),
+  suggestionsPerDay: 25,
+};
+
 /** Free = valeurs ci-dessus ; Diamond = toujours illimité (Infinity). */
 export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   free: FREE_LIMITS,
-  plus: {
-    suggestionsPerDay: 50, plannerPerWeek: 10, predictivePerWeek: 7,
-    circleMaxMembers: 20, passportMaxEntries: 200, travelCities: 25,
-    chatbotPerDay: 50, desirePerDay: 50, itineraryPerModePerDay: 15,
-    surprisePerDay: 20, universeLoadsPerDay: 20, mapLoadsPerDay: 20,
-    peopleSuggestionsPerDay: 100, eventsPerDay: 10,
-  },
+  plus: PLUS_LIMITS,
   gold: {
     suggestionsPerDay: 150, plannerPerWeek: 30, predictivePerWeek: 20,
     circleMaxMembers: 50, passportMaxEntries: 1000, travelCities: 80,
