@@ -16,7 +16,53 @@ export const FREE_LIMITS = {
   circleMaxMembers: 5,
   passportMaxEntries: 30,
   travelCities: 6,
+  // Quotas quotidiens du forfait Gratuit, arrêtés avec l'utilisateur.
+  chatbotPerDay: 5,          // messages envoyés à l'assistant
+  desirePerDay: 5,           // réponses de « Dis-moi ton envie »
+  itineraryPerModePerDay: 3, // COMPTÉ PAR MODE (date, amis, voyage…)
+  surprisePerDay: 3,         // lancers de dé
+  universeLoadsPerDay: 3,    // COMPTÉ PAR UNIVERS
+  mapLoadsPerDay: 3,         // COMPTÉ PAR UNIVERS, « tous » compris
+  // Pas d'entrée « météo » : les cartes « À faire maintenant » ouvrent
+  // l'écran univers, qui applique déjà ses 3 chargements et ses 5 lieux. Un
+  // compteur séparé donnerait six chargements par univers à qui passe par la
+  // météo, ce qui n'est pas la règle voulue.
+  peopleSuggestionsPerDay: 10,
+  eventsPerDay: 2,
 } as const;
+
+/**
+ * Combien de lieux le forfait Gratuit voit à chaque chargement.
+ *
+ * Distinct d'un quota : rien n'est compté, la liste est simplement coupée.
+ * Le serveur continue d'en renvoyer davantage — couper ici garde le cache et
+ * la pagination intacts, et un passage à Plus révèle le reste sans recharger.
+ */
+export const FREE_DISPLAY_CAPS = {
+  universePlaces: 5,
+  mapPlaces: 5,
+  explorerSectionPlaces: 3,
+} as const;
+
+export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
+
+/** Plafonds d'affichage du palier courant — Gratuit seul est bridé. */
+export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
+  free: FREE_DISPLAY_CAPS,
+  plus: { universePlaces: 20, mapPlaces: 20, explorerSectionPlaces: 10 },
+  gold: { universePlaces: 50, mapPlaces: 50, explorerSectionPlaces: 20 },
+  diamond: {
+    universePlaces: Infinity, mapPlaces: Infinity, explorerSectionPlaces: Infinity,
+  },
+};
+
+/**
+ * Fonctionnalités entièrement réservées aux forfaits payants — ce n'est plus
+ * un quota mais une porte : la carte sociale (visibilité, membres visibles,
+ * signal) reste fermée tant que le compte est Gratuit.
+ */
+export const PREMIUM_ONLY_FEATURES = ['socialMap'] as const;
+export type PremiumOnlyFeature = (typeof PREMIUM_ONLY_FEATURES)[number];
 
 export type LimitedFeature = keyof typeof FREE_LIMITS;
 
@@ -26,14 +72,23 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   plus: {
     suggestionsPerDay: 50, plannerPerWeek: 10, predictivePerWeek: 7,
     circleMaxMembers: 20, passportMaxEntries: 200, travelCities: 25,
+    chatbotPerDay: 50, desirePerDay: 50, itineraryPerModePerDay: 15,
+    surprisePerDay: 20, universeLoadsPerDay: 20, mapLoadsPerDay: 20,
+    peopleSuggestionsPerDay: 100, eventsPerDay: 10,
   },
   gold: {
     suggestionsPerDay: 150, plannerPerWeek: 30, predictivePerWeek: 20,
     circleMaxMembers: 50, passportMaxEntries: 1000, travelCities: 80,
+    chatbotPerDay: 200, desirePerDay: 200, itineraryPerModePerDay: 50,
+    surprisePerDay: 60, universeLoadsPerDay: 60, mapLoadsPerDay: 60,
+    peopleSuggestionsPerDay: 300, eventsPerDay: 30,
   },
   diamond: {
     suggestionsPerDay: Infinity, plannerPerWeek: Infinity, predictivePerWeek: Infinity,
     circleMaxMembers: Infinity, passportMaxEntries: Infinity, travelCities: Infinity,
+    chatbotPerDay: Infinity, desirePerDay: Infinity, itineraryPerModePerDay: Infinity,
+    surprisePerDay: Infinity, universeLoadsPerDay: Infinity, mapLoadsPerDay: Infinity,
+    peopleSuggestionsPerDay: Infinity, eventsPerDay: Infinity,
   },
 };
 
@@ -49,6 +104,18 @@ export const LIMIT_MESSAGE_KEYS: Record<LimitedFeature, TranslationKey> = {
   circleMaxMembers: 'limit_circle_max_members',
   passportMaxEntries: 'limit_passport_max_entries',
   travelCities: 'limit_travel_cities',
+  // Un seul message pour les quotas quotidiens : il dit la seule chose utile
+  // — c'est reparti demain, ou tout de suite en passant à Plus. Un texte par
+  // fonctionnalité aurait demandé treize traductions chacun pour une nuance
+  // que l'écran donne déjà par son contexte.
+  chatbotPerDay: 'limit_daily_reached',
+  desirePerDay: 'limit_daily_reached',
+  itineraryPerModePerDay: 'limit_daily_reached',
+  surprisePerDay: 'limit_daily_reached',
+  universeLoadsPerDay: 'limit_daily_reached',
+  mapLoadsPerDay: 'limit_daily_reached',
+  peopleSuggestionsPerDay: 'limit_daily_reached',
+  eventsPerDay: 'limit_daily_reached',
 };
 
 /** Période de réinitialisation d'un compteur d'usage (pour les limites temporelles). */
@@ -59,4 +126,12 @@ export const LIMIT_PERIOD: Record<LimitedFeature, 'day' | 'week' | 'none'> = {
   circleMaxMembers: 'none', // basé sur le nombre réel de membres
   passportMaxEntries: 'none', // basé sur le nombre réel d'entrées
   travelCities: 'none', // basé sur le nombre réel de villes
+  chatbotPerDay: 'day',
+  desirePerDay: 'day',
+  itineraryPerModePerDay: 'day',
+  surprisePerDay: 'day',
+  universeLoadsPerDay: 'day',
+  mapLoadsPerDay: 'day',
+  peopleSuggestionsPerDay: 'day',
+  eventsPerDay: 'day',
 };

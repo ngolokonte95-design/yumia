@@ -2,6 +2,7 @@
  * UNIVERSE EXPLORER — liste des lieux d'un univers donné autour de l'utilisateur.
  * L'univers est passé via le paramètre URL `?u=restaurant`.
  */
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,8 @@ import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
 import { useSaved } from '../lib/useSaved';
 import { useNearbyUniverse } from '../lib/useNearbyUniverse';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { placeEmoji, universeLabel } from '../lib/universeMeta';
 import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
@@ -43,14 +46,50 @@ export default function UniverseScreen() {
   const universe = (isUniverse(u) ? u : null) as Universe | null;
   const meta = universe ? UNIVERSE_META[universe] : null;
 
-  const { places, loading, error, reload } = useNearbyUniverse({
+  const { checkLimit, recordUsage, displayCap } = usePlanLimits();
+  const [upsell, setUpsell] = useState<string | null>(null);
+  // `null` tant que le quota n'a pas été consulté : on ne lance aucune
+  // requête avant d'avoir la réponse, sinon le chargement partirait quand
+  // même et la limite ne servirait à rien.
+  const [quotaOk, setQuotaOk] = useState<boolean | null>(null);
+
+  // Le quota se compte PAR UNIVERS : trois chargements en Restaurant
+  // n'entament pas ceux de Musée.
+  useEffect(() => {
+    if (!universe) return;
+    let active = true;
+    void (async () => {
+      const { allowed, message } = await checkLimit('universeLoadsPerDay', undefined, universe);
+      if (!active) return;
+      if (!allowed) { setQuotaOk(false); setUpsell(message); return; }
+      await recordUsage('universeLoadsPerDay', universe);
+      if (active) setQuotaOk(true);
+    })();
+    return () => { active = false; };
+  }, [universe, checkLimit, recordUsage]);
+
+  const { places: allPlaces, loading, error, reload } = useNearbyUniverse({
     lat: coords.lat,
     lng: coords.lng,
     universe,
     radius: universeSearchRadius(universe),
     limit: 60,
-    enabled: hasFixedPoint || !resolving,
+    enabled: (hasFixedPoint || !resolving) && quotaOk === true,
   });
+
+  // Le serveur en renvoie jusqu'à 60 ; le forfait en montre 5. Couper ici
+  // plutôt qu'à la requête garde le cache utilisable tel quel le jour d'un
+  // passage à Plus.
+  const places = allPlaces.slice(0, displayCap('universePlaces'));
+
+  /** Rafraîchir consomme un chargement de plus — c'en est un. */
+  const reloadWithQuota = async () => {
+    if (!universe) return;
+    const { allowed, message } = await checkLimit('universeLoadsPerDay', undefined, universe);
+    if (!allowed) { setUpsell(message); return; }
+    await recordUsage('universeLoadsPerDay', universe);
+    reload();
+  };
 
   function handleTap(p: NearbyPlace) {
     placeStore.set({
@@ -89,6 +128,7 @@ export default function UniverseScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -114,7 +154,7 @@ export default function UniverseScreen() {
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryBtn} onPress={reload}>
+          <Pressable style={styles.retryBtn} onPress={() => void reloadWithQuota()}>
             <Text style={styles.retryText}>{t('retry')}</Text>
           </Pressable>
         </View>
@@ -130,7 +170,7 @@ export default function UniverseScreen() {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
+            <RefreshControl refreshing={loading} onRefresh={() => void reloadWithQuota()} tintColor={colors.brand} />
           }
           renderItem={({ item }) => {
             const isSaved = savedIds.has(item.id);

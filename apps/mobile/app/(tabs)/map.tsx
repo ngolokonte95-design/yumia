@@ -78,7 +78,7 @@ export default function MapScreen() {
   const [tapPoint, setTapPoint] = useState<{ x: number; y: number } | null>(null);
   const [tapCoord, setTapCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, displayCap } = usePlanLimits();
 
   // Bottom sheet state — animé via translateY (transform) plutôt que height, pour
   // pouvoir tourner sur le driver natif (60fps hors JS thread) et rester fluide
@@ -142,12 +142,30 @@ export default function MapScreen() {
     extrapolate: 'clamp',
   });
 
+  // Un « chargement » de carte se compte PAR UNIVERS, « tous » compris : la
+  // clé de portée est donc l'univers choisi, ou 'all' quand il n'y en a pas.
+  const [mapQuotaOk, setMapQuotaOk] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, 'all');
+      if (!active) return;
+      if (!allowed) { setMapQuotaOk(false); setUpsell(message); return; }
+      await recordUsage('mapLoadsPerDay', 'all');
+      if (active) setMapQuotaOk(true);
+    })();
+    return () => { active = false; };
+    // Une seule fois par ouverture d'écran : les changements d'univers
+    // passent par selectUniverse, qui compte de son côté.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { places, loading, error } = useNearby({
     lat: coords.lat,
     lng: coords.lng,
     radius: radiusKm * 1000,
     universe: universe ?? undefined,
-    enabled: !resolving,
+    enabled: !resolving && mapQuotaOk === true,
   });
 
   const region: Region = useMemo(
@@ -303,11 +321,15 @@ export default function MapScreen() {
     }
   }, [tapResults, cityResults, cityQuery]);
 
-  const selectUniverse = useCallback((u: Universe | null) => {
+  const selectUniverse = useCallback(async (u: Universe | null) => {
+    const scope = u ?? 'all';
+    const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, scope);
+    if (!allowed) { setUpsell(message); setFilterPanelOpen(false); return; }
+    await recordUsage('mapLoadsPerDay', scope);
     setUniverse(u);
     setFilterPanelOpen(false);
     reload(u, radiusKm);
-  }, [reload, radiusKm]);
+  }, [reload, radiusKm, checkLimit, recordUsage]);
 
   const selectRadius = useCallback((km: number) => {
     setRadiusKm(km);
@@ -397,8 +419,10 @@ export default function MapScreen() {
     // l'appli par moments. On garde toujours au plus MAX_DISPLAY_PLACES au final.
     return [...list]
       .sort((a, b) => (a.universe === 'restaurant' ? 0 : 1) - (b.universe === 'restaurant' ? 0 : 1))
-      .slice(0, MAX_DISPLAY_PLACES);
-  }, [cityResults, tapResults, places, viewportPlaces]);
+      // Le plafond du forfait passe avant le cap technique : en Gratuit, cinq
+      // lieux par chargement.
+      .slice(0, Math.min(MAX_DISPLAY_PLACES, displayCap('mapPlaces')));
+  }, [cityResults, tapResults, places, viewportPlaces, displayCap]);
 
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
@@ -528,7 +552,7 @@ export default function MapScreen() {
               contentContainerStyle={styles.filterGrid}
               keyboardShouldPersistTaps="handled"
             >
-              <FilterTile label={t('map_all_filter')} emoji="🗂️" active={universe === null} onPress={() => selectUniverse(null)} />
+              <FilterTile label={t('map_all_filter')} emoji="🗂️" active={universe === null} onPress={() => void selectUniverse(null)} />
               {SORTED_UNIVERSES.map((u) => (
                 <FilterTile
                   key={u}
@@ -536,7 +560,7 @@ export default function MapScreen() {
                   emoji={UNIVERSE_META[u].emoji}
                   icon={u === 'cannabis' ? <CannabisIcon size={14} /> : undefined}
                   active={universe === u}
-                  onPress={() => selectUniverse(u)}
+                  onPress={() => void selectUniverse(u)}
                 />
               ))}
             </ScrollView>

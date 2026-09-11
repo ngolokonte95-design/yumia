@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
+import { PLANS, type Plan } from '@yumia/shared';
 import { affiliateProviderLabel } from '../lib/affiliate-labels';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
@@ -29,6 +30,11 @@ interface AffiliateStats {
   clicksByUniverse: { universe: string; count: number }[];
 }
 interface TrendRow { date: string; count: number }
+
+/** Noms affichés des paliers — identiques dans toutes les langues. */
+const PLAN_LABEL: Record<Plan, string> = {
+  free: 'Gratuit', plus: 'Plus', gold: 'Gold', diamond: 'Diamond',
+};
 
 const FLAG: Record<string, string> = {
   FR: '🇫🇷', US: '🇺🇸', GB: '🇬🇧', DE: '🇩🇪', ES: '🇪🇸', IT: '🇮🇹',
@@ -56,7 +62,8 @@ function StatCard({ label, value, sub, accent }: { label: string; value: string 
 }
 
 export default function AdminScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken, user, reloadUser } = useAuth();
+  const [switchingPlan, setSwitchingPlan] = useState<Plan | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t, locale } = useI18n();
@@ -83,6 +90,33 @@ export default function AdminScreen() {
       void load();
     } catch {
       Alert.alert(t('adm_error'), t('adm_backfill_failed'));
+    }
+  }
+
+  /**
+   * Bascule le forfait du compte admin.
+   *
+   * Les quotas de l'app suivent le forfait réel, admin compris — c'est ce qui
+   * permet de voir exactement ce que voit un compte Gratuit sans se
+   * déconnecter ni créer un second compte.
+   */
+  async function switchPlan(plan: Plan) {
+    if (!accessToken || switchingPlan) return;
+    setSwitchingPlan(plan);
+    try {
+      const res = await fetch(`${API}/admin/me/plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ plan }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      // Le forfait est lu depuis le profil en mémoire : sans ce rechargement,
+      // l'app continuerait d'appliquer l'ancien jusqu'à la prochaine session.
+      await reloadUser();
+    } catch {
+      Alert.alert(t('adm_error'), t('adm_plan_switch_failed'));
+    } finally {
+      setSwitchingPlan(null);
     }
   }
 
@@ -145,6 +179,35 @@ export default function AdminScreen() {
           <Text style={styles.errorText}>⚠️ {error}</Text>
         </View>
       )}
+
+      {/* ── Forfait du compte admin ──
+          Placé en tête : c'est un outil de test, pas une statistique, et on
+          le cherche avant de parcourir les chiffres. */}
+      <Text style={styles.sectionTitle}>{t('adm_my_plan')}</Text>
+      <View style={styles.card}>
+        <Text style={styles.planHint}>{t('adm_my_plan_hint')}</Text>
+        <View style={styles.planRow}>
+          {PLANS.map((p) => {
+            const active = (user?.plan as Plan | undefined) === p;
+            return (
+              <Pressable
+                key={p}
+                style={[styles.planChip, active && styles.planChipActive]}
+                onPress={() => void switchPlan(p)}
+                disabled={switchingPlan !== null}
+              >
+                {switchingPlan === p ? (
+                  <ActivityIndicator size="small" color={colors.brand} />
+                ) : (
+                  <Text style={[styles.planChipText, active && styles.planChipTextActive]}>
+                    {PLAN_LABEL[p]}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
       {/* ── Overview ── */}
       {overview?.users && (
@@ -298,6 +361,15 @@ export default function AdminScreen() {
 }
 
 const styles = StyleSheet.create({
+  planHint: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.sm },
+  planRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  planChip: {
+    paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.border, minWidth: 84, alignItems: 'center',
+  },
+  planChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  planChipText: { ...typography.label, fontSize: 13, color: colors.textSecondary },
+  planChipTextActive: { color: '#fff' },
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 12 },

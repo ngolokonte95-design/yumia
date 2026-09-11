@@ -433,7 +433,11 @@ function UniverseRow({
   onCardPress: (p: NearbyPlace) => void;
 }) {
   const { t } = useI18n();
-  const { places, loading } = useNearbyUniverse({ lat, lng, universe, radius: universeSearchRadius(universe), limit: 8, enabled });
+  const { displayCap } = usePlanLimits();
+  const { places: allPlaces, loading } = useNearbyUniverse({ lat, lng, universe, radius: universeSearchRadius(universe), limit: 8, enabled });
+  // Le forfait Gratuit voit trois lieux par rayon ; « Voir tout » reste
+  // ouvert, et c'est l'écran univers qui applique là-bas son propre quota.
+  const places = allPlaces.slice(0, displayCap('explorerSectionPlaces'));
   const meta = UNIVERSE_META[universe];
   if (!loading && places.length === 0) return null;
   return (

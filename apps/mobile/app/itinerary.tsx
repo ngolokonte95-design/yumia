@@ -19,6 +19,8 @@ import { saveItinerary } from '../lib/itinerary-api';
 import { MOOD_META, MOODS, type Mood } from '../lib/itinerary-meta';
 import { useCitySearch } from '../lib/useCitySearch';
 import { useI18n } from '../lib/useI18n';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { DayDetailModal, type DayMoment } from '../components/DayDetailModal';
 import { itineraryMoodLabel, itineraryMoodSub } from '../lib/labelHelpers';
 import type { CitySuggestion } from '../lib/services/weather';
@@ -70,6 +72,11 @@ export default function ItineraryScreen() {
 
   // Journée ouverte dans le panneau flottant — `null` quand il est fermé.
   const [openDay, setOpenDay] = useState<Step | null>(null);
+  const [upsell, setUpsell] = useState<string | null>(null);
+  const { checkLimit, recordUsage } = usePlanLimits();
+  // Étape dont on cherche le lieu — le bouton doit montrer qu'il travaille,
+  // la recherche par nom passant par le réseau.
+  const [openingStep, setOpeningStep] = useState<string | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ mood?: string }>();
@@ -105,6 +112,12 @@ export default function ItineraryScreen() {
 
   const generate = async () => {
     if (loading) return;
+
+    // Quota compté PAR MODE : trois itinéraires en Date n'entament pas les
+    // trois de Voyage. C'est la portée passée en troisième argument.
+    const { allowed, message } = await checkLimit('itineraryPerModePerDay', undefined, mood);
+    if (!allowed) { setUpsell(message); return; }
+
     setCitySuggestOpen(false);
     setLoading(true);
     setResult(null);
@@ -123,6 +136,7 @@ export default function ItineraryScreen() {
       });
       if (res.ok) {
         setResult(await res.json());
+        await recordUsage('itineraryPerModePerDay', mood);
       } else {
         setResult({ itinerary: '', steps: [], error: tr('itin_error_status' as never).replace('{n}', String(res.status)) });
       }
@@ -163,6 +177,39 @@ export default function ItineraryScreen() {
     }
   };
 
+  /**
+   * Ouvre le lieu d'une étape.
+   *
+   * Une étape n'arrive avec un `placeId` que si son intitulé correspondait à
+   * un lieu déjà en base, ou s'il était assez générique pour qu'on lui en
+   * substitue un. Quand l'IA nomme un endroit précis que nous n'avons pas, le
+   * backend n'attache plus rien — c'était la source des fiches qui ne
+   * parlaient pas du lieu décrit. On le cherche donc ici, au clic.
+   */
+  const openStepPlace = async (step: Step) => {
+    if (step.placeId) { navigateToPlace(step); return; }
+    const key = `${step.time}-${step.name}`;
+    if (openingStep !== null) return;
+    setOpeningStep(key);
+    try {
+      const found = await resolvePlaceByName(step.name, city || 'Paris', step.type as never);
+      if (!found) {
+        Alert.alert(tr('itin_place_not_found_title'), tr('itin_place_not_found_body'));
+        return;
+      }
+      navigateToPlace({
+        ...step,
+        placeId: found.id,
+        placeRating: found.rating,
+        placePhoto: found.photoUrls[0],
+        placeLat: found.lat,
+        placeLng: found.lng,
+      });
+    } finally {
+      setOpeningStep(null);
+    }
+  };
+
   const navigateToPlace = (step: Step) => {
     if (!step.placeId) return;
     placeStore.set({
@@ -188,6 +235,7 @@ export default function ItineraryScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header coloré par mode */}
       <View style={[styles.header, { backgroundColor: meta.color }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -400,12 +448,21 @@ export default function ItineraryScreen() {
                       </View>
                     ) : null}
 
-                    {step.placeId ? (
+                    {/* Journée de séjour (mode semaine) : ce n'est pas un
+                        lieu, on n'en propose pas — « voir la journée
+                        complète » juste en dessous mène à ses moments, qui
+                        eux en sont. */}
+                    {!step.moments?.length ? (
                       <Pressable
-                        style={[styles.placeBtn, { borderColor: meta.color }]}
-                        onPress={() => navigateToPlace(step)}
+                        style={[styles.placeBtn, { borderColor: meta.color }, openingStep !== null && { opacity: 0.6 }]}
+                        onPress={() => void openStepPlace(step)}
+                        disabled={openingStep !== null}
                       >
-                        <Text style={[styles.placeBtnText, { color: meta.color }]}>{tr('itin_see_place')}</Text>
+                        {openingStep === `${step.time}-${step.name}` ? (
+                          <ActivityIndicator size="small" color={meta.color} />
+                        ) : (
+                          <Text style={[styles.placeBtnText, { color: meta.color }]}>{tr('itin_see_place')}</Text>
+                        )}
                       </Pressable>
                     ) : null}
 

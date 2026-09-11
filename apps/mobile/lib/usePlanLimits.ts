@@ -7,6 +7,16 @@
  * Les quotas temporels (suggestions/jour, planner/semaine…) sont comptés en
  * local (AsyncStorage) avec réinitialisation par période. Les limites « count »
  * (cercle, passport, voyage) s'appuient sur un `currentCount` fourni par l'écran.
+ *
+ * Le compte admin n'est PLUS exempté d'office. Il l'était tant qu'il n'avait
+ * aucun moyen de changer de forfait ; le sélecteur du tableau de bord lui en
+ * donne un, et une exemption invisible empêcherait justement de vérifier ce
+ * que voit un compte Gratuit. Un admin qui veut tout ouvert se met en Diamond,
+ * où chaque limite vaut Infinity.
+ *
+ * Ces compteurs vivent sur l'APPAREIL : réinstaller l'app les remet à zéro.
+ * C'est une limite de confort, pas une serrure — le jour où l'abonnement
+ * rapportera de l'argent, ils devront être tenus par le serveur.
  */
 import { useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,10 +24,13 @@ import type { Plan } from '@yumia/shared';
 import { useAuth } from './auth-context';
 import { useI18n } from './useI18n';
 import {
+  DISPLAY_CAPS_BY_PLAN,
   LIMITS_BY_PLAN,
   LIMIT_MESSAGE_KEYS,
   LIMIT_PERIOD,
+  type DisplayCap,
   type LimitedFeature,
+  type PremiumOnlyFeature,
 } from './constants/plan-limits';
 import { PLUS_PRICE_EUR } from '@yumia/shared';
 
@@ -45,9 +58,25 @@ function periodKey(period: 'day' | 'week' | 'none'): string {
   return 'none';
 }
 
-async function readCount(feature: LimitedFeature, period: 'day' | 'week' | 'none'): Promise<number> {
+/**
+ * Clé de stockage d'un compteur.
+ *
+ * La PORTÉE sépare des compteurs qui, sans elle, se confondraient : trois
+ * itinéraires par jour « pour chaque mode » veut dire trois en Date ET trois
+ * en Voyage, pas trois en tout. Même chose par univers pour la carte, les
+ * rayons et la météo.
+ */
+function usageKey(feature: LimitedFeature, scope?: string): string {
+  return scope ? `usage:${feature}:${scope}` : `usage:${feature}`;
+}
+
+async function readCount(
+  feature: LimitedFeature,
+  period: 'day' | 'week' | 'none',
+  scope?: string,
+): Promise<number> {
   try {
-    const raw = await AsyncStorage.getItem(`usage:${feature}`);
+    const raw = await AsyncStorage.getItem(usageKey(feature, scope));
     if (!raw) return 0;
     const parsed = JSON.parse(raw) as { pk: string; count: number };
     return parsed.pk === periodKey(period) ? parsed.count : 0;
@@ -74,31 +103,69 @@ export function usePlanLimits() {
   );
 
   const checkLimit = useCallback(
-    async (feature: LimitedFeature, currentCount?: number): Promise<LimitCheck> => {
-      if (isAdmin) return { allowed: true, message: '' };
+    async (feature: LimitedFeature, currentCount?: number, scope?: string): Promise<LimitCheck> => {
       const limit = getLimit(feature);
       const period = LIMIT_PERIOD[feature];
-      const used = period === 'none' ? currentCount ?? 0 : await readCount(feature, period);
+      const used = period === 'none' ? currentCount ?? 0 : await readCount(feature, period, scope);
       const allowed = used < limit;
       const message = allowed
         ? ''
         : t(LIMIT_MESSAGE_KEYS[feature]).replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`);
       return { allowed, message };
     },
-    [isAdmin, getLimit, t],
+    [getLimit, t],
   );
 
   const recordUsage = useCallback(
-    async (feature: LimitedFeature): Promise<void> => {
-      if (isAdmin) return;
+    async (feature: LimitedFeature, scope?: string): Promise<void> => {
       const period = LIMIT_PERIOD[feature];
       if (period === 'none') return; // compté via currentCount, pas de compteur local
       const pk = periodKey(period);
-      const used = await readCount(feature, period);
-      await AsyncStorage.setItem(`usage:${feature}`, JSON.stringify({ pk, count: used + 1 }));
+      const used = await readCount(feature, period, scope);
+      await AsyncStorage.setItem(usageKey(feature, scope), JSON.stringify({ pk, count: used + 1 }));
     },
-    [isAdmin],
+    [],
   );
 
-  return { planTier, isPremium, isAdmin, getLimit, checkLimit, recordUsage };
+  /**
+   * Ce qui reste du quota aujourd'hui.
+   *
+   * Nécessaire quand l'écran doit DOSER plutôt qu'ouvrir ou fermer : Tind ne
+   * peut pas présenter quinze profils à qui il en reste trois.
+   */
+  const remaining = useCallback(
+    async (feature: LimitedFeature, scope?: string): Promise<number> => {
+      const limit = getLimit(feature);
+      if (limit === Infinity) return Infinity;
+      const period = LIMIT_PERIOD[feature];
+      if (period === 'none') return limit;
+      return Math.max(0, limit - (await readCount(feature, period, scope)));
+    },
+    [getLimit],
+  );
+
+  /**
+   * Combien de lieux afficher au palier courant. Le serveur en renvoie plus :
+   * on coupe à l'affichage, sans toucher au cache ni à la pagination.
+   */
+  const displayCap = useCallback(
+    (cap: DisplayCap): number => DISPLAY_CAPS_BY_PLAN[planTier][cap],
+    [planTier],
+  );
+
+  /** Fonctionnalité fermée au forfait Gratuit (carte sociale). */
+  const isFeatureLocked = useCallback(
+    (_feature: PremiumOnlyFeature): boolean => planTier === 'free',
+    [planTier],
+  );
+
+  const lockedMessage = useCallback(
+    (): string => t('limit_premium_only').replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`),
+    [t],
+  );
+
+  return {
+    planTier, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining,
+    displayCap, isFeatureLocked, lockedMessage,
+  };
 }

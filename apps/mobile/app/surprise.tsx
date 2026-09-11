@@ -65,7 +65,7 @@ export default function SurpriseScreen() {
 
   const spin = useCallback(async () => {
     if (loading) return;
-    const { allowed, message } = await checkLimit('predictivePerWeek');
+    const { allowed, message } = await checkLimit('surprisePerDay');
     if (!allowed) { setUpsell(message); return; }
     setLoading(true);
     setError(null);
@@ -98,7 +98,7 @@ export default function SurpriseScreen() {
       const pick = data.suggestions[Math.floor(Math.random() * data.suggestions.length)];
       setResult(pick);
       setSpins((n) => n + 1);
-      await recordUsage('predictivePerWeek');
+      await recordUsage('surprisePerDay');
 
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     } catch (err) {

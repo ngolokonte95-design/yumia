@@ -23,6 +23,8 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { useI18n } from '../lib/useI18n';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { useSaved } from '../lib/useSaved';
 import { searchPlaces } from '../lib/search-api';
 import { recordVisit } from '../lib/passport-api';
@@ -65,11 +67,19 @@ export default function SearchScreen() {
   const [maxPriceTier, setMaxPriceTier] = useState<number | undefined>(undefined);
   const inputRef = useRef<TextInput>(null);
   const { history, push: pushHistory, clear: clearHistory } = useSearchHistory();
+  const [upsell, setUpsell] = useState<string | null>(null);
+  const { checkLimit, recordUsage } = usePlanLimits();
 
   const handleSearch = useCallback(async (q: string, uFilter = universeFilter, pFilter = maxPriceTier) => {
     const trimmed = q.trim();
     if (!trimmed) return;
     Keyboard.dismiss();
+
+    // Le quota porte sur les RÉPONSES : une recherche qui échoue ne compte
+    // pas, elle est décomptée seulement une fois le résultat obtenu.
+    const { allowed, message } = await checkLimit('desirePerDay');
+    if (!allowed) { setUpsell(message); return; }
+
     setLoading(true);
     setError(null);
     setResult(null);
@@ -85,13 +95,14 @@ export default function SearchScreen() {
         maxPriceTier: pFilter,
       });
       setResult(res);
+      await recordUsage('desirePerDay');
       void pushHistory(trimmed);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('srch_generic_error'));
     } finally {
       setLoading(false);
     }
-  }, [accessToken, coords, user, pushHistory, universeFilter, maxPriceTier, t]);
+  }, [accessToken, coords, user, pushHistory, universeFilter, maxPriceTier, checkLimit, recordUsage, t]);
 
   function handleChip(chip: string) {
     const clean = chip.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF} ]+/gu, '').trim();
@@ -103,6 +114,7 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header avec input */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>

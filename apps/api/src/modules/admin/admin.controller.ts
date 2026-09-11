@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
@@ -16,6 +16,22 @@ export class AdminController {
   @Get('is-admin')
   isAdmin(@Req() req: any) {
     return { isAdmin: this.adminService.isAdmin(req.user.email) };
+  }
+
+  /**
+   * POST /admin/me/plan — bascule le forfait DU COMPTE ADMIN.
+   *
+   * Sert à vérifier ce que voit un compte Gratuit sans créer un second
+   * compte : les quotas de l'app suivent le forfait, y compris pour l'admin.
+   */
+  @Post('me/plan')
+  @UseGuards(AdminGuard)
+  async setOwnPlan(@Req() req: any, @Body('plan') plan: string) {
+    try {
+      return await this.adminService.setOwnPlan(req.user.sub, plan);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message);
+    }
   }
 
   @Get('stats')

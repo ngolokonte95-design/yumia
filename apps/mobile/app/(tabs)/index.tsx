@@ -50,7 +50,10 @@ const FEATURE_SHORTCUTS: { key: string; emoji: string; label: string; route: str
   // en place, simplement sans accès.
   // La Boutique prend le créneau : elle n'était accessible que depuis
   // Explorer, un niveau plus bas. Elle y reste, en plus d'ici.
-  { key: 'shop', emoji: '🛍️', label: 'Boutique', route: '/shop' },
+  // Icône volontairement différente du 🛍️ de la tuile Boutique dans
+  // Explorer : deux entrées vers le même écran, mais rien ne gagne à ce
+  // qu'elles se ressemblent d'un onglet à l'autre.
+  { key: 'shop', emoji: '🏬', label: 'Boutique', route: '/shop' },
   { key: 'chatbot', emoji: '🤖', label: 'Assistant', route: '/chatbot' },
   { key: 'itinerary', emoji: '✨', label: 'Itinéraire', route: '/itinerary' },
   { key: 'quests', emoji: '🎯', label: 'Quêtes', route: '/quests' },

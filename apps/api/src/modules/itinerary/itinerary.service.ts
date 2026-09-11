@@ -80,6 +80,46 @@ export function namesMatch(a: string, b: string): boolean {
   return shared / Math.min(ta.size, tb.size) >= 0.5;
 }
 
+/**
+ * Déterminants qui ouvrent un intitulé GÉNÉRIQUE (« Un bar à cocktails »,
+ * « Une table du centre »). Leur présence en tête signale que l'IA a décrit un
+ * GENRE d'endroit, pas un endroit.
+ */
+const GENERIC_OPENERS = new Set(['un', 'une', 'des', 'du', 'le', 'la', 'les', 'l', 'a']);
+
+/**
+ * `true` si le nom désigne un genre de lieu plutôt qu'un lieu précis.
+ *
+ * Cette distinction décide de ce qu'on a le droit de rattacher à une étape.
+ * « Un dîner romantique » n'engage rien : n'importe quel bon restaurant de la
+ * ville fait l'affaire, et son nom peut même remplacer l'intitulé. « Real
+ * Alcázar » engage tout : lui substituer un autre monument produit exactement
+ * ce que l'utilisateur nous a signalé — une photo, une note et un lien qui ne
+ * parlent pas du lieu décrit juste au-dessus.
+ *
+ * Le critère est l'attaque de l'intitulé : un déterminant indéfini ou défini
+ * introduit une catégorie, une majuscule ou un mot plein introduit un nom.
+ */
+export function isGenericName(name: string): boolean {
+  // L'attaque de l'intitulé : un article, puis la première lettre du mot
+  // suivant — séparés par une espace (« Un bar ») ou par une élision
+  // (« L'apéro »).
+  const head = name.trim().match(/^(\p{L}+)(?:['’]\s*|\s+)(\p{L})/u);
+  if (!head) return false;
+
+  const article = head[1]
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  if (!GENERIC_OPENERS.has(article)) return false;
+
+  // L'article ne suffit pas à trancher : « La Boqueria » et « L'Atelier de
+  // Joël » sont des enseignes, « Le musée principal » est une catégorie. La
+  // majuscule du mot suivant est le seul indice qui les sépare, et se tromper
+  // ne coûte qu'une résolution par nom au clic — pas une carte mensongère.
+  return head[2] === head[2].toLowerCase();
+}
+
 /** Un lieu tel que renvoyé par PlacesService — dérivé pour ne pas diverger. */
 type PlaceCandidate = Awaited<ReturnType<PlacesService['searchByCity']>>[number];
 
@@ -423,8 +463,8 @@ ${isWeek
     const resolvePlace = async (
       name: string,
       type: string,
-      requireNameMatch: boolean,
-    ): Promise<ResolvedPlace> => {
+      allowSubstitute: boolean,
+    ): Promise<ResolvedPlace & { placeName?: string }> => {
       const universe = stepTypeToUniverse(type);
       if (!universe) return {};
       const candidates = await candidatesFor(universe);
@@ -435,20 +475,47 @@ ${isWeek
       // qu'il revienne plusieurs fois si l'itinéraire y repasse vraiment.
       if (byName) return toResolved(byName);
 
-      if (requireNameMatch) return {};
+      // Faute de correspondance, on ne comble que les intitulés génériques —
+      // et on adopte alors le NOM du lieu retenu. C'est ce qui empêche la
+      // carte de se contredire : titre, photo, note et lien désignent tous le
+      // même endroit. Un nom propre non trouvé, lui, ne reçoit rien : l'écran
+      // le résoudra à la demande, au clic.
+      if (!allowSubstitute || !isGenericName(name)) return {};
 
       const index = used.get(universe) ?? 0;
       used.set(universe, index + 1);
-      return toResolved(candidates[index % candidates.length]);
+      const pick = candidates[index % candidates.length];
+      return { ...toResolved(pick), placeName: pick.name };
     };
 
     // Séquentiel, et non `Promise.all` : le curseur doit avancer de façon
     // déterministe, et paralléliser viderait le cache de son intérêt puisque
     // toutes les requêtes partiraient avant la première réponse.
     for (const step of steps) {
-      Object.assign(step, await resolvePlace(step.name, step.type, false));
+      // Une journée de séjour (mode semaine) n'est pas un lieu : « Marché et
+      // gastronomie locale » ne se remplace par aucun restaurant. On ne lui
+      // attache donc rien directement — ses moments, eux, nomment de vrais
+      // endroits.
+      const isDay = (step.moments?.length ?? 0) > 0;
+
+      if (!isDay) {
+        const { placeName, ...resolved } = await resolvePlace(step.name, step.type, true);
+        Object.assign(step, resolved);
+        if (placeName) step.name = placeName;
+      }
+
       for (const moment of step.moments ?? []) {
-        Object.assign(moment, await resolvePlace(moment.name, moment.type, true));
+        const { placeName, ...resolved } = await resolvePlace(moment.name, moment.type, false);
+        Object.assign(moment, resolved);
+        if (placeName) moment.name = placeName;
+      }
+
+      // La photo de la journée vient de son premier moment résolu : elle
+      // illustre un endroit où l'on va vraiment ce jour-là. Aucun `placeId`
+      // n'est copié — la vignette illustre, elle ne prétend pas que la
+      // journée entière soit ce lieu.
+      if (isDay && !step.placePhoto) {
+        step.placePhoto = step.moments?.find((m) => m.placePhoto)?.placePhoto;
       }
     }
 

@@ -26,6 +26,8 @@ import { UNIVERSE_META } from '@yumia/shared';
 import { API_BASE_URL } from '../lib/config';
 import { universeLabel } from '../lib/universeMeta';
 import { useI18n } from '../lib/useI18n';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { TranslationKey } from '../lib/translations';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -187,6 +189,11 @@ export default function NearbyUsersScreen() {
 
   const [tab, setTab] = useState<Tab>('map');
   const [broadcasting, setBroadcasting] = useState(false);
+  const [upsell, setUpsell] = useState<string | null>(null);
+  // La carte sociale est une porte, pas un quota : en Gratuit, ni visibilité,
+  // ni membres visibles, ni signal.
+  const { isFeatureLocked, lockedMessage } = usePlanLimits();
+  const socialMapLocked = isFeatureLocked('socialMap');
   const [myIntent, setMyIntent] = useState<SocialIntent | null>(null);
   const [nearby, setNearby] = useState<DiscoveredUser[]>([]);
   const [events, setEvents] = useState<(SocialEvent & { distanceKm?: number })[]>([]);
@@ -230,7 +237,12 @@ export default function NearbyUsersScreen() {
     setLoading(true);
     try {
       const [disc, evts, intent] = await Promise.all([
-        socialApi.discoverNearby(accessToken, coords.lat, coords.lng, 5),
+        // Les membres visibles ne sont même pas demandés en Gratuit : les
+        // charger pour les masquer ensuite exposerait des positions à qui n'y
+        // a pas droit, dans la réponse réseau.
+        socialMapLocked
+          ? Promise.resolve([] as Awaited<ReturnType<typeof socialApi.discoverNearby>>)
+          : socialApi.discoverNearby(accessToken, coords.lat, coords.lng, 5),
         socialApi.getNearbyEvents(accessToken, coords.lat, coords.lng, 10),
         socialApi.getMyIntent(accessToken),
       ]);
@@ -240,7 +252,7 @@ export default function NearbyUsersScreen() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, coords, resolving]);
+  }, [accessToken, coords, resolving, socialMapLocked]);
 
   const broadcast = useCallback(async () => {
     if (!accessToken || resolving) return;
@@ -252,6 +264,7 @@ export default function NearbyUsersScreen() {
   }, [accessToken, coords, resolving]);
 
   const toggleBroadcast = useCallback(async () => {
+    if (socialMapLocked) { setUpsell(lockedMessage()); return; }
     if (broadcasting) {
       if (broadcastRef.current) clearInterval(broadcastRef.current);
       broadcastRef.current = null;
@@ -263,7 +276,7 @@ export default function NearbyUsersScreen() {
       setBroadcasting(true);
       void fetchAll();
     }
-  }, [broadcasting, broadcast, fetchAll, accessToken]);
+  }, [broadcasting, broadcast, fetchAll, accessToken, socialMapLocked, lockedMessage]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
   useEffect(() => () => { if (broadcastRef.current) clearInterval(broadcastRef.current); }, []);
@@ -368,6 +381,7 @@ export default function NearbyUsersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -478,7 +492,10 @@ export default function NearbyUsersScreen() {
 
               <Pressable
                 style={[styles.signalBtn, myIntent && { backgroundColor: INTENT_COLORS[myIntent.intent] }]}
-                onPress={myIntent ? cancelIntent : openSheet}
+                onPress={() => {
+                  if (socialMapLocked) { setUpsell(lockedMessage()); return; }
+                  if (myIntent) { void cancelIntent(); } else { openSheet(); }
+                }}
               >
                 <Text style={styles.signalBtnText}>
                   {myIntent ? `${intentLabel(t, myIntent.intent)}  ✕` : t('nu_signal_btn')}

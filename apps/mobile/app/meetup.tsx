@@ -9,6 +9,8 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 
 const API = API_BASE_URL;
 
@@ -38,6 +40,8 @@ export default function MeetupScreen() {
   const [loading, setLoading] = useState(true);
   const [city, setCity] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [upsell, setUpsell] = useState<string | null>(null);
+  const { checkLimit, recordUsage } = usePlanLimits();
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', city: '', date: '', maxAttendees: '' });
 
@@ -67,6 +71,11 @@ export default function MeetupScreen() {
       Alert.alert(t('mu_fill_required'));
       return;
     }
+    // Vérifié avant l'envoi, décompté après la création : un échec réseau ne
+    // doit pas consommer l'un des deux événements du jour.
+    const { allowed, message } = await checkLimit('eventsPerDay');
+    if (!allowed) { setShowCreate(false); setUpsell(message); return; }
+
     setCreating(true);
     const res = await fetch(`${API}/meetups`, {
       method: 'POST',
@@ -81,6 +90,7 @@ export default function MeetupScreen() {
     });
     setCreating(false);
     if (res.ok) {
+      await recordUsage('eventsPerDay');
       setShowCreate(false);
       setForm({ title: '', description: '', city: '', date: '', maxAttendees: '' });
       void load();
@@ -91,6 +101,7 @@ export default function MeetupScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('mu_title')}</Text>

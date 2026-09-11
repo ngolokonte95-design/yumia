@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { PLANS, type Plan } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { isAdminEmail } from '../auth/is-admin-email';
 
@@ -8,6 +9,30 @@ export class AdminService {
 
   isAdmin(email: string): boolean {
     return isAdminEmail(email);
+  }
+
+  /**
+   * Change le forfait de l'admin lui-même, pour voir l'app comme la voit
+   * chaque palier.
+   *
+   * Ne touche QUE le compte appelant : un endpoint capable de changer le
+   * forfait de n'importe qui deviendrait, le jour d'une fuite de jeton admin,
+   * un distributeur d'abonnements gratuits.
+   *
+   * `isPremium` suit `plan` — les deux champs coexistent depuis les paliers,
+   * et les laisser diverger enverrait l'app vers deux comportements
+   * contradictoires selon le champ qu'elle lit.
+   */
+  async setOwnPlan(userId: string, plan: string): Promise<{ plan: Plan; isPremium: boolean }> {
+    if (!PLANS.includes(plan as Plan)) {
+      throw new Error(`Forfait inconnu : ${plan}`);
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { plan: plan as Plan, isPremium: plan !== 'free' },
+      select: { plan: true, isPremium: true },
+    });
+    return { plan: updated.plan as Plan, isPremium: updated.isPremium };
   }
 
   async getOverview() {

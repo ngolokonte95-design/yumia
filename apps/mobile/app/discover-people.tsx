@@ -12,6 +12,8 @@ import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
 import { PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { TranslationKey } from '../lib/translations';
 
 const API = API_BASE_URL;
@@ -54,6 +56,8 @@ export default function DiscoverPeopleScreen() {
   // d'attente), alors que la position n'a évidemment pas bougé entre deux
   // clics sur « Homme » / « Femme ».
   const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [upsell, setUpsell] = useState<string | null>(null);
+  const { checkLimit, recordUsage, remaining } = usePlanLimits();
 
   const load = useCallback(async (interestedIn: FilterValue = 'everyone') => {
     if (!accessToken) return;
@@ -76,15 +80,29 @@ export default function DiscoverPeopleScreen() {
         url += `&lat=${coordsRef.current.lat}&lng=${coordsRef.current.lng}`;
       }
       const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-      if (res.ok) { const data = await res.json(); setProfiles(Array.isArray(data) ? data : []); setIdx(0); }
+      if (res.ok) {
+        const data = await res.json();
+        const list: Profile[] = Array.isArray(data) ? data : [];
+        // Le quota porte sur les PROFILS VUS, pas sur les chargements : on ne
+        // présente que ce qu'il reste à voir aujourd'hui. Charger quinze
+        // profils pour en montrer trois donnerait un paquet qui s'arrête sans
+        // raison visible.
+        const left = await remaining('peopleSuggestionsPerDay');
+        setProfiles(left === Infinity ? list : list.slice(0, left));
+        setIdx(0);
+      }
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, remaining]);
 
   useEffect(() => { void load(filter); }, [load, filter]);
 
   const markSeen = async (userId: string) => {
+    // Un profil vu consomme le quota, qu'il soit accepté ou passé.
+    await recordUsage('peopleSuggestionsPerDay');
+    const { allowed, message } = await checkLimit('peopleSuggestionsPerDay');
+    if (!allowed) setUpsell(message);
     await fetch(`${API}/discover/swipe/${userId}/seen`, {
       method: 'POST', headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -120,6 +138,7 @@ export default function DiscoverPeopleScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('dp_title')}</Text>

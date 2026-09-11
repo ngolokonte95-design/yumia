@@ -9,6 +9,8 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
+import { usePlanLimits } from '../lib/usePlanLimits';
+import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 
 const API = API_BASE_URL;
 
@@ -31,10 +33,19 @@ export default function ChatbotScreen() {
   }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [upsell, setUpsell] = useState<string | null>(null);
+  const { checkLimit, recordUsage } = usePlanLimits();
   const listRef = useRef<FlatList>(null);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
+
+    // Quota compté À L'ENVOI : chaque message envoyé appelle une réponse, donc
+    // compter les deux reviendrait à diviser le quota par deux sans le dire.
+    const { allowed, message } = await checkLimit('chatbotPerDay');
+    if (!allowed) { setUpsell(message); return; }
+    await recordUsage('chatbotPerDay');
+
     const userMsg: Msg = { role: 'user', content: text };
     const history = messages.slice(-10);
     setMessages((prev) => [...prev, userMsg]);
@@ -58,10 +69,11 @@ export default function ChatbotScreen() {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [messages, loading, accessToken]);
+  }, [messages, loading, accessToken, checkLimit, recordUsage, t]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
