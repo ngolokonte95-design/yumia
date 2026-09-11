@@ -45,7 +45,7 @@ export default function ForYouScreen() {
   const { user, accessToken } = useAuth();
   const router = useRouter();
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
   const [mood, setMood] = useState<(typeof MOODS)[number] | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
 
@@ -63,14 +63,14 @@ export default function ForYouScreen() {
 
   // Quota Gratuit : on ouvre l'upsell au lieu de charger davantage au-delà de la limite.
   const handleEndReached = useCallback(async () => {
-    const { allowed, message } = await checkLimit('suggestionsPerDay');
+    const { allowed } = await checkLimit('suggestionsPerDay');
     if (!allowed) {
-      setUpsell(message);
+      setUpsell(quotaMessage('suggestionsPerDay', t('tab_foryou')));
       return;
     }
     await recordUsage('suggestionsPerDay');
     loadMore();
-  }, [checkLimit, recordUsage, loadMore]);
+  }, [checkLimit, recordUsage, quotaMessage, loadMore, t]);
 
   return (
     <View style={styles.screen}>

@@ -78,7 +78,7 @@ export default function MapScreen() {
   const [tapPoint, setTapPoint] = useState<{ x: number; y: number } | null>(null);
   const [tapCoord, setTapCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage, displayCap, planTier, scopedLimitMessage } = usePlanLimits();
+  const { checkLimit, recordUsage, displayCap, planTier, quotaMessage } = usePlanLimits();
   // Le remplissage automatique au déplacement suit le palier, pas un quota.
   const unlimitedMapRefill = planTier !== 'free';
 
@@ -88,8 +88,9 @@ export default function MapScreen() {
    * seulement « limite atteinte » ferait croire la carte entière bloquée.
    */
   const limitMessageFor = useCallback(
-    (u: Universe | null) => scopedLimitMessage(u ? universeLabel(t, u) : t('map_all_universes')),
-    [scopedLimitMessage, t],
+    (u: Universe | null) =>
+      quotaMessage('mapLoadsPerDay', u ? universeLabel(t, u) : t('map_all_universes'), true),
+    [quotaMessage, t],
   );
 
   // Bottom sheet state — animé via translateY (transform) plutôt que height, pour

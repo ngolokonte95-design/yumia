@@ -26,13 +26,14 @@ import { useI18n } from './useI18n';
 import {
   DISPLAY_CAPS_BY_PLAN,
   LIMITS_BY_PLAN,
+  LIMIT_UNIT_KEYS,
   LIMIT_MESSAGE_KEYS,
   LIMIT_PERIOD,
   type DisplayCap,
   type LimitedFeature,
   type PremiumOnlyFeature,
 } from './constants/plan-limits';
-import { PLUS_PRICE_EUR } from '@yumia/shared';
+import { PLAN_PRICE_EUR, PLUS_PRICE_EUR } from '@yumia/shared';
 
 export interface LimitCheck {
   allowed: boolean;
@@ -154,19 +155,28 @@ export function usePlanLimits() {
   );
 
   /**
-   * Message d'une limite atteinte SUR UN SEUL UNIVERS.
+   * Message d'une limite atteinte.
    *
-   * Le message générique (« limite du jour atteinte ») était trompeur ici :
-   * le quota se compte par univers, donc tout le reste de la carte est encore
-   * ouvert. Dire « passe à Plus » sans le dire laissait croire à une porte
-   * fermée là où il n'y a qu'un rayon épuisé.
+   * Trois choses, dans cet ordre : le quota exact et ce qu'il compte, ce qui
+   * reste ouvert, puis le prix. L'ancien texte commençait par proposer de
+   * payer, ce qui présentait comme une porte fermée ce qui n'est qu'un
+   * compteur du jour — et taisait le chiffre, seul renseignement vraiment
+   * utile pour s'organiser.
+   *
+   * `othersOpen` distingue un quota compté PAR PORTÉE (un univers, un mode :
+   * les autres restent disponibles) d'un quota global.
    */
-  const scopedLimitMessage = useCallback(
-    (universeLabel: string): string =>
-      t('limit_universe_reached')
-        .replace(/\{universe\}/g, universeLabel)
-        .replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`),
-    [t],
+  const quotaMessage = useCallback(
+    (feature: LimitedFeature, scopeLabel: string, othersOpen = false): string => {
+      const unitKey = LIMIT_UNIT_KEYS[feature];
+      const head = t(othersOpen ? 'limit_quota_scoped' : 'limit_quota_global')
+        .replace('{n}', String(getLimit(feature)))
+        .replace('{unit}', unitKey ? t(unitKey) : '')
+        .replace(/\{scope\}/g, scopeLabel);
+      const price = `${PLAN_PRICE_EUR.plus.toFixed(2).replace('.', ',')} €`;
+      return `${head} ${t('limit_quota_upsell').replace('{price}', price)}`;
+    },
+    [getLimit, t],
   );
 
   /** Fonctionnalité fermée au forfait Gratuit (carte sociale). */
@@ -182,6 +192,6 @@ export function usePlanLimits() {
 
   return {
     planTier, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining,
-    displayCap, isFeatureLocked, lockedMessage, scopedLimitMessage,
+    displayCap, isFeatureLocked, lockedMessage, quotaMessage,
   };
 }

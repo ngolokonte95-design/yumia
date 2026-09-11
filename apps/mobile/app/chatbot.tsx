@@ -34,7 +34,7 @@ export default function ChatbotScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
   const listRef = useRef<FlatList>(null);
 
   const send = useCallback(async (text: string) => {
@@ -42,8 +42,8 @@ export default function ChatbotScreen() {
 
     // Quota compté À L'ENVOI : chaque message envoyé appelle une réponse, donc
     // compter les deux reviendrait à diviser le quota par deux sans le dire.
-    const { allowed, message } = await checkLimit('chatbotPerDay');
-    if (!allowed) { setUpsell(message); return; }
+    const { allowed } = await checkLimit('chatbotPerDay');
+    if (!allowed) { setUpsell(quotaMessage('chatbotPerDay', t('home_shortcut_chatbot'))); return; }
     await recordUsage('chatbotPerDay');
 
     const userMsg: Msg = { role: 'user', content: text };
@@ -69,7 +69,7 @@ export default function ChatbotScreen() {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [messages, loading, accessToken, checkLimit, recordUsage, t]);
+  }, [messages, loading, accessToken, checkLimit, recordUsage, quotaMessage, t]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

@@ -73,7 +73,7 @@ export default function ItineraryScreen() {
   // Journée ouverte dans le panneau flottant — `null` quand il est fermé.
   const [openDay, setOpenDay] = useState<Step | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
   // Étape dont on cherche le lieu — le bouton doit montrer qu'il travaille,
   // la recherche par nom passant par le réseau.
   const [openingStep, setOpeningStep] = useState<string | null>(null);
@@ -115,8 +115,12 @@ export default function ItineraryScreen() {
 
     // Quota compté PAR MODE : trois itinéraires en Date n'entament pas les
     // trois de Voyage. C'est la portée passée en troisième argument.
-    const { allowed, message } = await checkLimit('itineraryPerModePerDay', undefined, mood);
-    if (!allowed) { setUpsell(message); return; }
+    const { allowed } = await checkLimit('itineraryPerModePerDay', undefined, mood);
+    if (!allowed) {
+      // Les autres modes gardent leurs trois itinéraires : le message le dit.
+      setUpsell(quotaMessage('itineraryPerModePerDay', itineraryMoodLabel(tr, mood, meta.label), true));
+      return;
+    }
 
     setCitySuggestOpen(false);
     setLoading(true);

@@ -41,7 +41,7 @@ export default function MeetupScreen() {
   const [city, setCity] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', city: '', date: '', maxAttendees: '' });
 
@@ -73,8 +73,8 @@ export default function MeetupScreen() {
     }
     // Vérifié avant l'envoi, décompté après la création : un échec réseau ne
     // doit pas consommer l'un des deux événements du jour.
-    const { allowed, message } = await checkLimit('eventsPerDay');
-    if (!allowed) { setShowCreate(false); setUpsell(message); return; }
+    const { allowed } = await checkLimit('eventsPerDay');
+    if (!allowed) { setShowCreate(false); setUpsell(quotaMessage('eventsPerDay', t('mu_title'))); return; }
 
     setCreating(true);
     const res = await fetch(`${API}/meetups`, {

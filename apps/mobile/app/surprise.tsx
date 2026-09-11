@@ -42,7 +42,7 @@ export default function SurpriseScreen() {
   const [error, setError] = useState<string | null>(null);
   const [spins, setSpins] = useState(0);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
 
   // `null` = tous les univers (comportement d'origine).
   const [universeFilter, setUniverseFilter] = useState<Universe | null>(null);
@@ -65,8 +65,8 @@ export default function SurpriseScreen() {
 
   const spin = useCallback(async () => {
     if (loading) return;
-    const { allowed, message } = await checkLimit('surprisePerDay');
-    if (!allowed) { setUpsell(message); return; }
+    const { allowed } = await checkLimit('surprisePerDay');
+    if (!allowed) { setUpsell(quotaMessage('surprisePerDay', t('home_shortcut_surprise'))); return; }
     setLoading(true);
     setError(null);
     setResult(null);
@@ -106,7 +106,7 @@ export default function SurpriseScreen() {
     } finally {
       setLoading(false);
     }
-  }, [loading, coords, city, user, universeFilter, shake, fadeAnim, checkLimit, recordUsage, t]);
+  }, [loading, coords, city, user, universeFilter, shake, fadeAnim, checkLimit, recordUsage, quotaMessage, t]);
 
   function goToDetail() {
     if (!result) return;

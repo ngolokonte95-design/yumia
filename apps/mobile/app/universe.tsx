@@ -46,7 +46,7 @@ export default function UniverseScreen() {
   const universe = (isUniverse(u) ? u : null) as Universe | null;
   const meta = universe ? UNIVERSE_META[universe] : null;
 
-  const { checkLimit, recordUsage, displayCap, scopedLimitMessage } = usePlanLimits();
+  const { checkLimit, recordUsage, displayCap, quotaMessage } = usePlanLimits();
   const [upsell, setUpsell] = useState<string | null>(null);
   // `null` tant que le quota n'a pas été consulté : on ne lance aucune
   // requête avant d'avoir la réponse, sinon le chargement partirait quand
@@ -62,12 +62,12 @@ export default function UniverseScreen() {
       const { allowed } = await checkLimit('universeLoadsPerDay', undefined, universe);
       if (!active) return;
       // Le message nomme le rayon concerné : la limite ne ferme que celui-ci.
-      if (!allowed) { setQuotaOk(false); setUpsell(scopedLimitMessage(universeLabel(t, universe))); return; }
+      if (!allowed) { setQuotaOk(false); setUpsell(quotaMessage('universeLoadsPerDay', universeLabel(t, universe), true)); return; }
       await recordUsage('universeLoadsPerDay', universe);
       if (active) setQuotaOk(true);
     })();
     return () => { active = false; };
-  }, [universe, checkLimit, recordUsage, scopedLimitMessage, t]);
+  }, [universe, checkLimit, recordUsage, quotaMessage, t]);
 
   const { places: allPlaces, loading, error, reload } = useNearbyUniverse({
     lat: coords.lat,
@@ -87,7 +87,7 @@ export default function UniverseScreen() {
   const reloadWithQuota = async () => {
     if (!universe) return;
     const { allowed } = await checkLimit('universeLoadsPerDay', undefined, universe);
-    if (!allowed) { setUpsell(scopedLimitMessage(universeLabel(t, universe))); return; }
+    if (!allowed) { setUpsell(quotaMessage('universeLoadsPerDay', universeLabel(t, universe), true)); return; }
     await recordUsage('universeLoadsPerDay', universe);
     reload();
   };

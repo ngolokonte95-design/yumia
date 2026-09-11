@@ -68,7 +68,7 @@ export default function SearchScreen() {
   const inputRef = useRef<TextInput>(null);
   const { history, push: pushHistory, clear: clearHistory } = useSearchHistory();
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
 
   const handleSearch = useCallback(async (q: string, uFilter = universeFilter, pFilter = maxPriceTier) => {
     const trimmed = q.trim();
@@ -77,8 +77,8 @@ export default function SearchScreen() {
 
     // Le quota porte sur les RÉPONSES : une recherche qui échoue ne compte
     // pas, elle est décomptée seulement une fois le résultat obtenu.
-    const { allowed, message } = await checkLimit('desirePerDay');
-    if (!allowed) { setUpsell(message); return; }
+    const { allowed } = await checkLimit('desirePerDay');
+    if (!allowed) { setUpsell(quotaMessage('desirePerDay', t('search_title'))); return; }
 
     setLoading(true);
     setError(null);
@@ -102,7 +102,7 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, coords, user, pushHistory, universeFilter, maxPriceTier, checkLimit, recordUsage, t]);
+  }, [accessToken, coords, user, pushHistory, universeFilter, maxPriceTier, checkLimit, recordUsage, quotaMessage, t]);
 
   function handleChip(chip: string) {
     const clean = chip.replace(/^[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF} ]+/gu, '').trim();

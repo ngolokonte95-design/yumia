@@ -2,10 +2,15 @@ import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
-import { PLUS_PRICE_EUR, type Plan } from '@yumia/shared';
+import { PLAN_PRICE_EUR, type Plan } from '@yumia/shared';
 import { PlanBadgeIcon } from './Avatar';
 
 const PREMIUM_PURPLE = '#7C3AED';
+
+/** Noms commerciaux — identiques dans toutes les langues. */
+const TIER_NAME: Record<Exclude<Plan, 'free'>, string> = {
+  plus: 'YUMIA Plus', gold: 'YUMIA Gold', diamond: 'YUMIA Diamond',
+};
 
 interface Props {
   visible: boolean;
@@ -34,6 +39,9 @@ export function PremiumUpsellModal({ visible, message, onClose, plan = 'plus' }:
     router.push('/plus' as never);
   }
 
+  /** Les trois paliers payants, du moins cher au plus cher. */
+  const tiers: Exclude<Plan, 'free'>[] = ['plus', 'gold', 'diamond'];
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -44,10 +52,23 @@ export function PremiumUpsellModal({ visible, message, onClose, plan = 'plus' }:
           <Text style={styles.title}>{t('pu_title')}</Text>
           <Text style={styles.message}>{message}</Text>
 
-          <Pressable style={styles.primaryBtn} onPress={goPremium}>
-            <PlanBadgeIcon plan={plan} size={18} />
-            <Text style={styles.primaryText}>{t('pu_cta').replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`)}</Text>
-          </Pressable>
+          {/* Les trois paliers, pas seulement le moins cher : le message
+              annonce un prix « à partir de », et quelqu'un qui accepte de
+              payer a le droit de voir tout de suite ce que valent les
+              autres. Chaque ligne porte son étoile à côté de son prix — la
+              même que celle affichée sur les profils. */}
+          <View style={styles.tiers}>
+            {tiers.map((tier) => (
+              <Pressable key={tier} style={[styles.tierRow, tier === plan && styles.tierRowHighlight]} onPress={goPremium}>
+                <PlanBadgeIcon plan={tier} size={26} />
+                <Text style={styles.tierName}>{TIER_NAME[tier]}</Text>
+                <Text style={styles.tierPrice}>
+                  {PLAN_PRICE_EUR[tier].toFixed(2).replace('.', ',')} €
+                  <Text style={styles.tierPer}>{t('plus_per_month')}</Text>
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <Pressable style={styles.secondaryBtn} onPress={onClose}>
             <Text style={styles.secondaryText}>{t('pu_later')}</Text>
           </Pressable>
@@ -83,20 +104,24 @@ const styles = StyleSheet.create({
   },
   title: { ...typography.title, color: colors.textPrimary, textAlign: 'center' },
   message: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
-  primaryBtn: {
-    backgroundColor: PREMIUM_PURPLE,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    // L'étoile et le prix sur une même ligne, centrés ensemble.
+  tiers: { alignSelf: 'stretch', gap: spacing.xs },
+  tierRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    alignSelf: 'stretch',
-    marginTop: spacing.sm,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  primaryText: { ...typography.body, color: '#fff', fontWeight: '700' },
+  // Le palier qui lève précisément la limite atteinte, mis en avant sans
+  // exclure les autres.
+  tierRowHighlight: { borderColor: PREMIUM_PURPLE, backgroundColor: `${PREMIUM_PURPLE}14` },
+  tierName: { ...typography.label, color: colors.textPrimary, flex: 1 },
+  tierPrice: { ...typography.label, color: colors.textPrimary },
+  tierPer: { ...typography.caption, color: colors.textSecondary },
+
   secondaryBtn: { paddingVertical: spacing.sm, alignItems: 'center' },
   secondaryText: { ...typography.caption, color: colors.textMuted },
 });

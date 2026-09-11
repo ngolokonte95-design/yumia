@@ -118,6 +118,26 @@ export const LIMIT_MESSAGE_KEYS: Record<LimitedFeature, TranslationKey> = {
   eventsPerDay: 'limit_daily_reached',
 };
 
+/**
+ * Nom de ce qui est compté, par fonctionnalité.
+ *
+ * Le message d'une limite atteinte annonce le chiffre exact et ce qu'il
+ * compte — « 3 chargements par jour », « 5 messages par jour ». Un texte
+ * vague (« limite atteinte ») laisse l'utilisateur deviner ce qu'il a
+ * consommé et à partir de quand ça repart.
+ */
+export const LIMIT_UNIT_KEYS: Partial<Record<LimitedFeature, TranslationKey>> = {
+  chatbotPerDay: 'limit_unit_messages',
+  desirePerDay: 'limit_unit_searches',
+  itineraryPerModePerDay: 'limit_unit_itineraries',
+  surprisePerDay: 'limit_unit_rolls',
+  universeLoadsPerDay: 'limit_unit_loads',
+  mapLoadsPerDay: 'limit_unit_loads',
+  peopleSuggestionsPerDay: 'limit_unit_profiles',
+  eventsPerDay: 'limit_unit_events',
+  suggestionsPerDay: 'limit_unit_places',
+};
+
 /** Période de réinitialisation d'un compteur d'usage (pour les limites temporelles). */
 export const LIMIT_PERIOD: Record<LimitedFeature, 'day' | 'week' | 'none'> = {
   suggestionsPerDay: 'day',

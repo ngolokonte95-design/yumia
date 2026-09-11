@@ -57,7 +57,7 @@ export default function DiscoverPeopleScreen() {
   // clics sur « Homme » / « Femme ».
   const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage, remaining } = usePlanLimits();
+  const { checkLimit, recordUsage, remaining, quotaMessage } = usePlanLimits();
 
   const load = useCallback(async (interestedIn: FilterValue = 'everyone') => {
     if (!accessToken) return;
@@ -101,8 +101,8 @@ export default function DiscoverPeopleScreen() {
   const markSeen = async (userId: string) => {
     // Un profil vu consomme le quota, qu'il soit accepté ou passé.
     await recordUsage('peopleSuggestionsPerDay');
-    const { allowed, message } = await checkLimit('peopleSuggestionsPerDay');
-    if (!allowed) setUpsell(message);
+    const { allowed } = await checkLimit('peopleSuggestionsPerDay');
+    if (!allowed) setUpsell(quotaMessage('peopleSuggestionsPerDay', t('social_menu_tind')));
     await fetch(`${API}/discover/swipe/${userId}/seen`, {
       method: 'POST', headers: { Authorization: `Bearer ${accessToken}` },
     });
