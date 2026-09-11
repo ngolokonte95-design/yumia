@@ -21,11 +21,21 @@ import { resetPasswordRequest, deleteAccountRequest, exportDataRequest, updatePr
 import { API_BASE_URL } from '../lib/config';
 import { PRIVACY_URL, TERMS_URL } from '../lib/legal';
 import { useI18n } from '../lib/useI18n';
+import { nextPaidPlan } from '../lib/constants/plan-limits';
+import type { Plan } from '@yumia/shared';
+
+/** Noms commerciaux des paliers — identiques dans toutes les langues. */
+const PLAN_NAME: Record<Plan, string> = {
+  free: 'YUMIA Free', plus: 'YUMIA Plus', gold: 'YUMIA Gold', diamond: 'YUMIA Diamond',
+};
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, logout, accessToken } = useAuth();
+  const plan = (user?.plan ?? 'free') as Plan;
+  const isPaid = plan !== 'free';
+  const nextTier = nextPaidPlan(plan);
   const { t } = useI18n();
 
   const [notifDigest, setNotifDigest] = useState(user?.preferences?.notifDigest ?? true);
@@ -154,16 +164,18 @@ export default function SettingsScreen() {
           onPress={() => router.push('/plus')}
         >
           <View>
+            {/* Le palier réel, pas seulement Plus : un abonné Gold lisait
+                « Passer à YUMIA Plus » alors qu'il paie au-dessus. */}
             <Text style={styles.plusTitle}>
-              {user?.plan === 'plus' ? t('settings_plus_active') : t('settings_plus_upgrade')}
+              {isPaid
+                ? t('settings_plus_active').replace('YUMIA Plus', PLAN_NAME[plan])
+                : t('settings_plus_upgrade').replace('YUMIA Plus', PLAN_NAME[nextTier ?? 'plus'])}
             </Text>
             <Text style={styles.plusSub}>
-              {user?.plan === 'plus'
-                ? t('settings_plus_thanks')
-                : t('settings_plus_pitch')}
+              {isPaid ? t('settings_plus_thanks') : t('settings_plus_pitch')}
             </Text>
           </View>
-          {user?.plan !== 'plus' ? (
+          {nextTier ? (
             <Text style={styles.plusChevron}>›</Text>
           ) : null}
         </Pressable>

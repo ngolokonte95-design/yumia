@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable, Animated, Share, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { PLUS_PRICE_EUR } from '@yumia/shared';
+import { PLAN_PRICE_EUR, type Plan } from '@yumia/shared';
+import { nextPaidPlan } from '../../lib/constants/plan-limits';
 import { safeMeta, universeLabel } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useAuth } from '../../lib/auth-context';
@@ -19,6 +20,11 @@ import { CountriesModal } from '../../components/CountriesModal';
 import { levelName } from '../../lib/labelHelpers';
 
 /** PROFIL — niveau XP animé, stats, visites récentes, préférences, paramètres. */
+/** Noms commerciaux des paliers — identiques dans toutes les langues. */
+const PLAN_NAME: Record<Plan, string> = {
+  free: 'YUMIA Free', plus: 'YUMIA Plus', gold: 'YUMIA Gold', diamond: 'YUMIA Diamond',
+};
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout, accessToken, updateProfile } = useAuth();
@@ -42,7 +48,12 @@ export default function ProfileScreen() {
 
   const displayName = user?.displayName ?? t('profile_you_fallback');
   const initial = displayName.charAt(0).toUpperCase();
-  const isPlus = user?.plan === 'plus';
+  const plan = (user?.plan ?? 'free') as Plan;
+  // `plan === 'plus'` excluait Gold et Diamond : un abonné Gold voyait
+  // « YUMIA Free » et se faisait proposer Plus, tout en perdant les écrans
+  // réservés aux payants.
+  const isPaid = plan !== 'free';
+  const nextTier = nextPaidPlan(plan);
   const photoUrl = user?.photoUrl
     ? user.photoUrl.startsWith('http') ? user.photoUrl : `${API_BASE_URL}${user.photoUrl}`
     : null;
@@ -184,7 +195,7 @@ export default function ProfileScreen() {
           onClose={() => setShowStreakModal(false)}
           stats={stats}
           visits={passport.visits}
-          isPlus={isPlus}
+          isPlus={isPaid}
         />
       ) : null}
 
@@ -237,15 +248,21 @@ export default function ProfileScreen() {
       {/* Abonnement */}
       <View style={styles.section}>
         <View style={styles.planCard}>
+          <PlanBadgeIcon plan={plan} size={32} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.planTitle}>{isPlus ? 'YUMIA Plus' : 'YUMIA Free'}</Text>
+            <Text style={styles.planTitle}>{PLAN_NAME[plan]}</Text>
             <Text style={styles.planSub}>
-              {isPlus ? t('profile_plan_plus_sub') : t('profile_plan_free_sub')}
+              {isPaid ? t('profile_plan_plus_sub') : t('profile_plan_free_sub')}
             </Text>
           </View>
-          {!isPlus ? (
+          {/* Le palier du dessus, jamais celui qu'on paie déjà. Rien à
+              proposer en Diamond : le bouton disparaît. */}
+          {nextTier ? (
             <Pressable style={styles.upgradeBtn} onPress={() => router.push('/plus')}>
-              <Text style={styles.upgradeText}>Plus · {PLUS_PRICE_EUR.toFixed(2)} €</Text>
+              <PlanBadgeIcon plan={nextTier} size={16} />
+              <Text style={styles.upgradeText}>
+                {PLAN_NAME[nextTier].replace('YUMIA ', '')} · {PLAN_PRICE_EUR[nextTier].toFixed(2).replace('.', ',')} €
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -459,7 +476,11 @@ const styles = StyleSheet.create({
   },
   planTitle: { ...typography.heading, color: colors.textPrimary },
   planSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  upgradeBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  upgradeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.brand, borderRadius: radius.pill,
+    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+  },
   upgradeText: { ...typography.label, color: '#fff' },
 
   // Préférences
