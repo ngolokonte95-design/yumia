@@ -72,7 +72,11 @@ export function useNearbyUniverse(params: {
   }, [lat, lng, universe, radius, limit, ck, isOnline]);
 
   useEffect(() => {
-    if (!enabled) return;
+    // Désactivé = PAS en cours de chargement. Sans ce `setLoading(false)`,
+    // l'état initial `true` ne redescendait jamais tant que le hook restait
+    // désactivé (quota épuisé) : la carte affichait ses lieux avec un
+    // indicateur qui tournait indéfiniment au-dessus.
+    if (!enabled) { setLoading(false); return; }
     void load();
   }, [load, enabled]);
 
