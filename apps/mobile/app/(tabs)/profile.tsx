@@ -54,6 +54,9 @@ export default function ProfileScreen() {
   // réservés aux payants.
   const isPaid = plan !== 'free';
   const nextTier = nextPaidPlan(plan);
+  /** Les paliers strictement au-dessus de l'actuel, du moins cher au plus cher. */
+  const PAID_TIERS: Exclude<Plan, 'free'>[] = ['plus', 'gold', 'diamond'];
+  const upgrades = nextTier ? PAID_TIERS.slice(PAID_TIERS.indexOf(nextTier)) : [];
   const photoUrl = user?.photoUrl
     ? user.photoUrl.startsWith('http') ? user.photoUrl : `${API_BASE_URL}${user.photoUrl}`
     : null;
@@ -255,17 +258,23 @@ export default function ProfileScreen() {
               {isPaid ? t('profile_plan_plus_sub') : t('profile_plan_free_sub')}
             </Text>
           </View>
-          {/* Le palier du dessus, jamais celui qu'on paie déjà. Rien à
-              proposer en Diamond : le bouton disparaît. */}
-          {nextTier ? (
-            <Pressable style={styles.upgradeBtn} onPress={() => router.push('/plus')}>
-              <PlanBadgeIcon plan={nextTier} size={16} />
-              <Text style={styles.upgradeText}>
-                {PLAN_NAME[nextTier].replace('YUMIA ', '')} · {PLAN_PRICE_EUR[nextTier].toFixed(2).replace('.', ',')} €
-              </Text>
-            </Pressable>
-          ) : null}
         </View>
+
+        {/* TOUS les paliers au-dessus, pas seulement le suivant : quelqu'un
+            qui envisage de payer compare, et n'a pas a monter marche par
+            marche pour decouvrir ce qui existe. Ceux qu'on possede deja ou
+            qui sont en dessous ne sont pas listes — ils ne leveraient rien.
+            En Diamond, la liste est vide et la section s'arrete a la carte. */}
+        {upgrades.map((tier) => (
+          <Pressable key={tier} style={styles.tierRow} onPress={() => router.push('/plus')}>
+            <PlanBadgeIcon plan={tier} size={26} />
+            <Text style={styles.tierName}>{PLAN_NAME[tier]}</Text>
+            <Text style={styles.tierPrice}>
+              {PLAN_PRICE_EUR[tier].toFixed(2).replace('.', ',')} €
+              <Text style={styles.tierPer}>{t('plus_per_month')}</Text>
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       {/* Préférences & restrictions */}
@@ -476,12 +485,16 @@ const styles = StyleSheet.create({
   },
   planTitle: { ...typography.heading, color: colors.textPrimary },
   planSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  upgradeBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.brand, borderRadius: radius.pill,
+  tierRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg,
     paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
   },
-  upgradeText: { ...typography.label, color: '#fff' },
+  tierName: { ...typography.label, color: colors.textPrimary, flex: 1 },
+  tierPrice: { ...typography.label, color: colors.textPrimary },
+  tierPer: { ...typography.caption, color: colors.textMuted },
 
   // Préférences
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
