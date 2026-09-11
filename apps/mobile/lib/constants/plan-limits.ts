@@ -116,8 +116,8 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   },
 
   gold: {
-    chatbotPerDay: 30,
-    desirePerDay: 30,
+    chatbotPerDay: 40,
+    desirePerDay: 40,
     itineraryPerModePerDay: 10,
     surprisePerDay: 25,
     universeLoadsPerDay: 12,
