@@ -30,6 +30,10 @@ const HYDRATE_LOCK_TTL_SECONDS = 60;
 // Zone où le fournisseur n'a (pour l'instant) rien renvoyé : on retente après ce
 // délai au lieu de la bloquer une semaine entière (couverture mondiale).
 const HYDRATE_EMPTY_RETRY_TTL_SECONDS = 6 * 60 * 60; // 6 h
+// Un lieu dont le renouvellement de photos a échoué n'est pas réessayé avant
+// ce délai : sans lui, chaque affichage de sa fiche relancerait une recherche
+// facturée pour le même résultat vide.
+const PHOTO_REFRESH_RETRY_TTL_SECONDS = 24 * 60 * 60; // 24 h
 // URL photo (googleusercontent) résolue, mise en cache pour éviter un appel
 // Google à chaque chargement d'image. ATTENTION : ces URLs signées par Google
 // (New Places API, skipHttpRedirect) expirent bien avant les 6h qu'on utilisait
@@ -746,6 +750,57 @@ export class PlacesService {
     const url = await this.provider.resolvePhotoUrl(ref, maxWidthPx).catch(() => null);
     if (url) {
       await this.redis.setJson(cacheKey, url, PHOTO_URL_CACHE_TTL_SECONDS).catch(() => undefined);
+      return url;
+    }
+
+    // Référence refusée : Google borne la validité d'un nom de photo dans le
+    // temps, et les lieux importés il y a des mois portent des références
+    // devenues invalides (constaté : 400 sur les anciennes, 302 sur une
+    // fraîche). Plutôt que de rendre une carte sans image, on redemande ses
+    // photos au lieu et on met la base à jour — une fois, puis c'est réglé.
+    return this.refreshStalePhoto(ref, maxWidthPx);
+  }
+
+  /**
+   * Renouvelle les références photo d'un lieu dont une référence est périmée.
+   *
+   * Coûte UNE recherche textuelle par lieu concerné, payée une seule fois
+   * puisque les nouvelles références sont persistées. Un échec est mis en
+   * cache négatif : sans cela, un lieu dont Google n'a aucune photo relancerait
+   * une recherche à chaque affichage de sa fiche.
+   */
+  private async refreshStalePhoto(ref: string, maxWidthPx: number): Promise<string | null> {
+    if (!this.provider.findPhotoRefs || !this.provider.resolvePhotoUrl) return null;
+
+    // Le nom d'une photo porte l'identifiant du lieu : « places/<id>/photos/… ».
+    const providerPlaceId = ref.split('/')[1];
+    if (!providerPlaceId) return null;
+
+    const guardKey = `gphoto:refresh:${providerPlaceId}`;
+    const tried = await this.redis.getJson<boolean>(guardKey).catch(() => null);
+    if (tried) return null;
+    await this.redis.setJson(guardKey, true, PHOTO_REFRESH_RETRY_TTL_SECONDS).catch(() => undefined);
+
+    const place = await this.prisma.place
+      .findUnique({ where: { providerPlaceId } })
+      .catch(() => null);
+    if (!place) return null;
+
+    const refs = await this.provider
+      .findPhotoRefs(`${place.name} ${place.city}`.trim(), place.lat, place.lng)
+      .catch(() => [] as string[]);
+    if (refs.length === 0) return null;
+
+    await this.prisma.place
+      .update({ where: { id: place.id }, data: { photoUrls: this.buildPhotoUrls(refs) } })
+      .catch(() => undefined);
+    this.logger.log(`Photos renouvelées pour « ${place.name} » (${place.city}).`);
+
+    const url = await this.provider.resolvePhotoUrl(refs[0], maxWidthPx).catch(() => null);
+    if (url) {
+      await this.redis
+        .setJson(`gphoto:${refs[0]}:${maxWidthPx}`, url, PHOTO_URL_CACHE_TTL_SECONDS)
+        .catch(() => undefined);
     }
     return url;
   }
