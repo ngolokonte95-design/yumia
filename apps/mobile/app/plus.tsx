@@ -1,14 +1,18 @@
 /**
- * YUMIA PLUS/GOLD/DIAMOND — écran d'abonnement.
- * Trois paliers payants (Plus/Gold/Diamond), un seul prix mensuel chacun pour
- * l'instant (pas d'annuel — à ajouter plus tard si besoin). Achats via
- * RevenueCat (react-native-purchases).
+ * YUMIA PLUS / GOLD / DIAMOND — écran d'abonnement.
  *
- * Prix et avantages listés ci-dessous sont PROVISOIRES — restrictions
- * définitives par palier pas encore arrêtées (cf. gamification.ts,
- * PLAN_LIMITS, seul endroit à ajuster ensuite).
+ * Bâti autour d'un TABLEAU COMPARATIF alimenté par la table des forfaits
+ * (plan-limits.ts), et non plus d'une grille d'arguments : les paliers ne se
+ * distinguent que par des chiffres, donc montrer les chiffres est à la fois
+ * plus honnête et plus court qu'une liste de promesses. Les valeurs affichées
+ * ne peuvent pas mentir — ce sont exactement celles que l'app applique.
+ *
+ * La page proposait auparavant les formules UNIQUEMENT aux comptes gratuits :
+ * un abonné Plus qui voulait Gold tombait sur « tu es déjà abonné », sans
+ * aucun moyen de monter. Elle propose désormais tous les paliers au-dessus du
+ * palier courant, quel qu'il soit.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -21,50 +25,103 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { PurchasesOfferings } from 'react-native-purchases';
-import { PLAN_PRICE_EUR, type Plan } from '@yumia/shared';
+import { PLAN_PRICE_EUR, PLANS, type Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { buyPackage, fetchOfferings, packageForTier, restorePurchases } from '../lib/purchases';
 import { PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
+import {
+  DISPLAY_CAPS_BY_PLAN,
+  LIMITS_BY_PLAN,
+  nextPaidPlan,
+  type DisplayCap,
+  type LimitedFeature,
+} from '../lib/constants/plan-limits';
 
-type PaidTier = 'plus' | 'gold' | 'diamond';
+type PaidTier = Exclude<Plan, 'free'>;
 
-const FEATURES: { emoji: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
-  { emoji: '🧊', titleKey: 'plus_feat_streak_title', descKey: 'plus_feat_streak_desc' },
-  { emoji: '🔥', titleKey: 'plus_feat_trends_title', descKey: 'plus_feat_trends_desc' },
-  { emoji: '❤️‍🔥', titleKey: 'plus_feat_compat_title', descKey: 'plus_feat_compat_desc' },
-  { emoji: '🗺️', titleKey: 'plus_feat_map_title', descKey: 'plus_feat_map_desc' },
-  { emoji: '📊', titleKey: 'plus_feat_stats_title', descKey: 'plus_feat_stats_desc' },
-  { emoji: '🤖', titleKey: 'plus_feat_ai_title', descKey: 'plus_feat_ai_desc' },
-  { emoji: '🎭', titleKey: 'plus_feat_modes_title', descKey: 'plus_feat_modes_desc' },
-  { emoji: '📍', titleKey: 'plus_feat_lists_title', descKey: 'plus_feat_lists_desc' },
-];
+const PAID_TIERS: PaidTier[] = ['plus', 'gold', 'diamond'];
 
-const TIER_META: Record<PaidTier, { label: string; taglineKey: TranslationKey; badge: PaidTier; popular?: boolean }> = {
-  plus: { label: 'YUMIA Plus', taglineKey: 'plus_tier_plus_tagline', badge: 'plus' },
-  gold: { label: 'YUMIA Gold', taglineKey: 'plus_tier_gold_tagline', badge: 'gold', popular: true },
-  diamond: { label: 'YUMIA Diamond', taglineKey: 'plus_tier_diamond_tagline', badge: 'diamond' },
+/** Noms commerciaux — identiques dans toutes les langues. */
+const PLAN_NAME: Record<Plan, string> = {
+  free: 'YUMIA Free', plus: 'YUMIA Plus', gold: 'YUMIA Gold', diamond: 'YUMIA Diamond',
 };
 
-const TIERS: PaidTier[] = ['plus', 'gold', 'diamond'];
+/** En-tête de colonne : le nom sans son préfixe, pour tenir sur un écran. */
+const PLAN_SHORT: Record<Plan, string> = {
+  free: 'Free', plus: 'Plus', gold: 'Gold', diamond: 'Diamond',
+};
+
+/**
+ * Les lignes du tableau.
+ *
+ * `feature` lit un quota, `cap` un plafond d'affichage, `paidOnly` une porte
+ * ouverte ou fermée. Les libellés réutilisent les clés des écrans concernés :
+ * l'utilisateur retrouve le mot qu'il voit dans l'app, sans traduction
+ * parallèle à maintenir.
+ */
+type Row =
+  | { labelKey: TranslationKey; feature: LimitedFeature; perDay?: boolean }
+  | { labelKey: TranslationKey; cap: DisplayCap }
+  | { labelKey: TranslationKey; paidOnly: true };
+
+const ROWS: Row[] = [
+  { labelKey: 'home_shortcut_chatbot', feature: 'chatbotPerDay', perDay: true },
+  { labelKey: 'search_title', feature: 'desirePerDay', perDay: true },
+  { labelKey: 'home_shortcut_itinerary', feature: 'itineraryPerModePerDay', perDay: true },
+  { labelKey: 'home_shortcut_surprise', feature: 'surprisePerDay', perDay: true },
+  { labelKey: 'plus_row_universe', feature: 'universeLoadsPerDay', perDay: true },
+  { labelKey: 'plus_row_places_universe', cap: 'universePlaces' },
+  { labelKey: 'tab_map', feature: 'mapLoadsPerDay', perDay: true },
+  { labelKey: 'plus_row_places_map', cap: 'mapPlaces' },
+  { labelKey: 'plus_row_explorer_row', cap: 'explorerSectionPlaces' },
+  { labelKey: 'tab_foryou', feature: 'suggestionsPerDay', perDay: true },
+  { labelKey: 'social_menu_tind', feature: 'peopleSuggestionsPerDay', perDay: true },
+  { labelKey: 'mu_title', feature: 'eventsPerDay', perDay: true },
+  { labelKey: 'group_title', feature: 'circleMaxMembers' },
+  { labelKey: 'tab_passport', feature: 'passportMaxEntries' },
+  { labelKey: 'plus_row_social_map', paidOnly: true },
+];
 
 export default function PlusScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, reloadUser } = useAuth();
   const { t } = useI18n();
-  const [selectedTier, setSelectedTier] = useState<PaidTier>('gold');
   const [loading, setLoading] = useState(false);
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
 
   const currentPlan = (user?.plan ?? 'free') as Plan;
-  const isPaid = currentPlan !== 'free';
+  const upgrades = useMemo(() => {
+    const next = nextPaidPlan(currentPlan);
+    return next ? PAID_TIERS.slice(PAID_TIERS.indexOf(next)) : [];
+  }, [currentPlan]);
+
+  // Présélection du premier palier proposé : le plus proche, donc le moins
+  // cher — celui qu'on choisit le plus souvent.
+  const [selectedTier, setSelectedTier] = useState<PaidTier | null>(upgrades[0] ?? null);
+  useEffect(() => { setSelectedTier(upgrades[0] ?? null); }, [upgrades]);
 
   useEffect(() => {
     fetchOfferings().then(setOfferings);
   }, []);
+
+  /** Prix réel de la boutique quand il est connu, tarif de référence sinon. */
+  function priceOf(tier: PaidTier): string {
+    const pkg = packageForTier(offerings, tier);
+    return pkg?.product.priceString ?? `${PLAN_PRICE_EUR[tier].toFixed(2).replace('.', ',')} €`;
+  }
+
+  /** Valeur d'une ligne pour un palier — « ∞ » quand c'est illimité. */
+  function cellValue(row: Row, plan: Plan): string {
+    if ('paidOnly' in row) return plan === 'free' ? '—' : '✓';
+    const value = 'cap' in row
+      ? DISPLAY_CAPS_BY_PLAN[plan][row.cap]
+      : LIMITS_BY_PLAN[plan][row.feature];
+    return value === Infinity ? '∞' : String(value);
+  }
 
   async function handleRestore() {
     setLoading(true);
@@ -86,11 +143,12 @@ export default function PlusScreen() {
   }
 
   async function handleSubscribe() {
+    if (!selectedTier) return;
     const pkg = packageForTier(offerings, selectedTier);
     if (!pkg) {
       Alert.alert(
         t('plus_coming_soon_title'),
-        t('plus_coming_soon_body').replace('{tier}', TIER_META[selectedTier].label),
+        t('plus_coming_soon_body').replace('{tier}', PLAN_NAME[selectedTier]),
         [{ text: t('plus_great') }],
       );
       return;
@@ -99,9 +157,11 @@ export default function PlusScreen() {
     try {
       await buyPackage(pkg);
       await reloadUser();
-      Alert.alert(t('plus_welcome_title').replace('{tier}', TIER_META[selectedTier].label), t('plus_welcome_body'), [
-        { text: t('plus_lets_go'), onPress: () => router.back() },
-      ]);
+      Alert.alert(
+        t('plus_welcome_title').replace('{tier}', PLAN_NAME[selectedTier]),
+        t('plus_welcome_body'),
+        [{ text: t('plus_lets_go'), onPress: () => router.back() }],
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('plus_purchase_cancelled');
       if (!msg.includes('cancelled') && !msg.includes('cancel')) {
@@ -115,100 +175,108 @@ export default function PlusScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={[styles.hero, { paddingTop: insets.top + spacing.lg }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </Pressable>
-        <Text style={styles.badge}>{t('plus_badge')}</Text>
-        <Text style={styles.heroTitle}>{t('plus_hero_title')}</Text>
-        <Text style={styles.heroSub}>
-          {t('plus_hero_sub')}
-        </Text>
+        <Text style={styles.title}>{t('plus_hero_title').replace('\n', ' ')}</Text>
+        <Text style={styles.sub}>{t('plus_hero_sub')}</Text>
       </View>
 
-      {/* Fonctionnalités communes aux 3 paliers */}
-      <View style={styles.featuresGrid}>
-        {FEATURES.map((f) => (
-          <View key={f.titleKey} style={styles.featureCard}>
-            <Text style={styles.featureEmoji}>{f.emoji}</Text>
-            <Text style={styles.featureTitle}>{t(f.titleKey)}</Text>
-            <Text style={styles.featureDesc}>{t(f.descKey)}</Text>
+      {/* Palier en cours */}
+      <View style={styles.currentRow}>
+        <PlanBadgeIcon plan={currentPlan} size={26} />
+        <Text style={styles.currentName}>{PLAN_NAME[currentPlan]}</Text>
+        <Text style={styles.currentTag}>{t('plus_current_plan')}</Text>
+      </View>
+
+      {/* Tableau comparatif — les chiffres réellement appliqués par l'app. */}
+      <Text style={styles.sectionTitle}>{t('plus_table_title')}</Text>
+      <View style={styles.table}>
+        <View style={[styles.tr, styles.thead]}>
+          <Text style={[styles.th, styles.cellLabel]} />
+          {PLANS.map((p) => (
+            <Text
+              key={p}
+              style={[styles.th, styles.cell, p === currentPlan && styles.cellCurrent]}
+              numberOfLines={1}
+            >
+              {PLAN_SHORT[p]}
+            </Text>
+          ))}
+        </View>
+
+        {ROWS.map((row, i) => (
+          <View key={row.labelKey} style={[styles.tr, i % 2 === 1 && styles.trAlt]}>
+            <Text style={[styles.td, styles.cellLabel]} numberOfLines={2}>
+              {/* Les libellés empruntés à d'autres écrans portent parfois un
+                  emoji en tête ; il alourdit une grille de chiffres. */}
+              {t(row.labelKey).replace(/^[^\p{L}0-9]+/u, '')}
+              {'perDay' in row && row.perDay ? (
+                <Text style={styles.tdUnit}>{t('plus_per_day')}</Text>
+              ) : null}
+            </Text>
+            {PLANS.map((p) => (
+              <Text
+                key={p}
+                style={[styles.td, styles.cell, p === currentPlan && styles.cellCurrent]}
+              >
+                {cellValue(row, p)}
+              </Text>
+            ))}
           </View>
         ))}
       </View>
 
-      {/* Sélection du palier */}
-      {!isPaid ? (
-        <View style={styles.pricingSection}>
-          <Text style={styles.pricingTitle}>{t('plus_choose_plan')}</Text>
-
-          <View style={styles.plans}>
-            {TIERS.map((tier) => {
-              const meta = TIER_META[tier];
-              const isSelected = selectedTier === tier;
-              const pkg = packageForTier(offerings, tier);
-              const priceStr = pkg?.product.priceString ?? `${PLAN_PRICE_EUR[tier].toFixed(2).replace('.', ',')} €`;
-              return (
-                <Pressable
-                  key={tier}
-                  style={[styles.planCard, isSelected && styles.planCardSelected]}
-                  onPress={() => setSelectedTier(tier)}
-                >
-                  {meta.popular ? (
-                    <View style={styles.saveBadge}>
-                      <Text style={styles.saveBadgeText}>{t('plus_most_popular')}</Text>
-                    </View>
-                  ) : null}
-                  <View style={[styles.planRadio, isSelected && styles.planRadioSelected]}>
-                    {isSelected ? <View style={styles.planRadioDot} /> : null}
-                  </View>
-                  <PlanBadgeIcon plan={meta.badge} size={36} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.planLabel, isSelected && styles.planLabelSelected]}>
-                      {meta.label}
-                    </Text>
-                    <Text style={styles.planTagline} numberOfLines={2}>{t(meta.taglineKey)}</Text>
-                  </View>
-                  <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
-                    {priceStr}{'\n'}<Text style={styles.planPer}>{t('plus_per_month')}</Text>
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+      {upgrades.length === 0 ? (
+        <Text style={styles.topTier}>{t('plus_top_tier')}</Text>
+      ) : (
+        <>
+          <Text style={styles.sectionTitle}>{t('plus_choose_plan')}</Text>
+          {upgrades.map((tier) => {
+            const selected = tier === selectedTier;
+            return (
+              <Pressable
+                key={tier}
+                style={[styles.tierRow, selected && styles.tierRowSelected]}
+                onPress={() => setSelectedTier(tier)}
+              >
+                <View style={[styles.radio, selected && styles.radioOn]}>
+                  {selected ? <View style={styles.radioDot} /> : null}
+                </View>
+                <PlanBadgeIcon plan={tier} size={26} />
+                <Text style={styles.tierName}>{PLAN_NAME[tier]}</Text>
+                <Text style={styles.tierPrice}>
+                  {priceOf(tier)}
+                  <Text style={styles.tierPer}>{t('plus_per_month')}</Text>
+                </Text>
+              </Pressable>
+            );
+          })}
 
           <Pressable
-            style={[styles.ctaBtn, loading && styles.ctaDisabled]}
+            style={[styles.cta, loading && styles.ctaDisabled]}
             onPress={handleSubscribe}
-            disabled={loading}
+            disabled={loading || !selectedTier}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.ctaText}>{t('plus_cta_start').replace('{tier}', TIER_META[selectedTier].label)}</Text>
+              <Text style={styles.ctaText}>
+                {t('plus_cta_start').replace('{tier}', selectedTier ? PLAN_NAME[selectedTier] : '')}
+              </Text>
             )}
           </Pressable>
 
-          <Text style={styles.legal}>
-            {t('plus_legal')}
-          </Text>
+          <Text style={styles.legal}>{t('plus_legal')}</Text>
 
           <Pressable onPress={handleRestore} disabled={loading} style={styles.restoreBtn}>
             <Text style={styles.restoreText}>{t('plus_restore_purchases')}</Text>
           </Pressable>
-        </View>
-      ) : (
-        <View style={styles.alreadyPlusBox}>
-          <PlanBadgeIcon plan={currentPlan as PaidTier} size={48} />
-          <Text style={styles.alreadyPlusTitle}>
-            {t('plus_already_title').replace('{tier}', TIER_META[currentPlan as PaidTier]?.label ?? t('plus_already_subscriber'))}
-          </Text>
-          <Text style={styles.alreadyPlusSub}>{t('plus_already_sub')}</Text>
-        </View>
+        </>
       )}
     </ScrollView>
   );
@@ -217,145 +285,80 @@ export default function PlusScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
 
-  hero: {
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    alignItems: 'center',
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  backBtn: { alignSelf: 'flex-start', paddingVertical: spacing.sm },
+  backText: { fontSize: 22, color: colors.brandSoft, fontWeight: '700' },
+  title: { ...typography.title, color: colors.textPrimary, marginTop: spacing.xs },
+  sub: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
+
+  currentRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginHorizontal: spacing.lg, marginBottom: spacing.lg,
+    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
   },
-  backBtn: { position: 'absolute', left: spacing.md, top: undefined, alignSelf: 'flex-start' },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22, padding: spacing.sm },
-  badge: {
-    ...typography.label,
-    color: '#FFD700',
-    backgroundColor: 'rgba(255,215,0,0.12)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
+  currentName: { ...typography.label, color: colors.textPrimary, flex: 1 },
+  currentTag: { ...typography.caption, color: colors.textMuted },
+
+  sectionTitle: {
+    ...typography.label, color: colors.textSecondary,
+    marginHorizontal: spacing.lg, marginBottom: spacing.sm, marginTop: spacing.md,
+  },
+
+  table: {
+    marginHorizontal: spacing.lg,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
     overflow: 'hidden',
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-    letterSpacing: 2,
   },
-  heroTitle: {
-    ...typography.display,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  heroSub: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  tr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: spacing.sm },
+  trAlt: { backgroundColor: colors.surface },
+  thead: { backgroundColor: colors.surfaceElevated },
+  th: { ...typography.label, fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
+  td: { ...typography.body, fontSize: 12, color: colors.textPrimary, textAlign: 'center' },
+  tdUnit: { ...typography.caption, fontSize: 10, color: colors.textMuted },
+  // Le libellé prend la place restante, les quatre colonnes une part fixe en
+  // pourcentage : la grille tient ainsi sur n'importe quelle largeur d'écran.
+  cellLabel: { flex: 1, textAlign: 'left', color: colors.textSecondary, paddingRight: 4 },
+  cell: { width: '13%' },
+  cellCurrent: { color: colors.brand, fontWeight: '700' },
 
-  featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  featureCard: {
-    width: '47%',
+  tierRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginHorizontal: spacing.lg, marginBottom: spacing.sm,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: 4,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
   },
-  featureEmoji: { fontSize: 22 },
-  featureTitle: { ...typography.heading, color: colors.textPrimary, fontSize: 13 },
-  featureDesc: { ...typography.caption, color: colors.textMuted, lineHeight: 16 },
+  tierRowSelected: { borderColor: colors.brand, backgroundColor: `${colors.brand}12` },
+  radio: {
+    width: 18, height: 18, borderRadius: 9,
+    borderWidth: 2, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioOn: { borderColor: colors.brand },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand },
+  tierName: { ...typography.label, color: colors.textPrimary, flex: 1 },
+  tierPrice: { ...typography.label, color: colors.textPrimary },
+  tierPer: { ...typography.caption, color: colors.textMuted },
 
-  pricingSection: { padding: spacing.lg, gap: spacing.md },
-  pricingTitle: { ...typography.heading, color: colors.textPrimary },
-
-  plans: { gap: spacing.sm },
-  planCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    position: 'relative',
-  },
-  planCardSelected: {
-    borderColor: colors.brand,
-    backgroundColor: `${colors.brand}0D`,
-  },
-  saveBadge: {
-    position: 'absolute',
-    top: -10,
-    right: spacing.md,
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  saveBadgeText: { ...typography.label, color: '#fff', fontSize: 10 },
-  planRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.textMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  planRadioSelected: { borderColor: colors.brand },
-  planRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.brand },
-  planLabel: { ...typography.caption, color: colors.textSecondary, fontWeight: '700' },
-  planLabelSelected: { color: colors.brand },
-  planTagline: { ...typography.label, color: colors.textMuted, marginTop: 2 },
-  planPrice: { ...typography.heading, color: colors.textPrimary, textAlign: 'right', fontSize: 15 },
-  planPriceSelected: { color: colors.brandSoft },
-  planPer: { ...typography.caption, color: colors.textMuted },
-
-  ctaBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
+  cta: {
+    marginHorizontal: spacing.lg, marginTop: spacing.sm,
+    backgroundColor: colors.brand, borderRadius: radius.pill,
+    paddingVertical: 15, alignItems: 'center',
   },
   ctaDisabled: { opacity: 0.6 },
-  ctaText: { ...typography.heading, color: '#fff', fontSize: 16 },
+  ctaText: { ...typography.label, color: '#fff', fontSize: 15 },
+
   legal: {
-    ...typography.label,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: spacing.sm,
+    ...typography.caption, color: colors.textMuted, textAlign: 'center',
+    marginHorizontal: spacing.lg, marginTop: spacing.sm,
   },
+  restoreBtn: { alignItems: 'center', paddingVertical: spacing.md },
+  restoreText: { ...typography.caption, color: colors.brandSoft },
 
-  restoreBtn: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    marginTop: spacing.xs,
+  topTier: {
+    ...typography.body, color: colors.textSecondary, textAlign: 'center',
+    marginHorizontal: spacing.lg, marginTop: spacing.lg,
   },
-  restoreText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textDecorationLine: 'underline',
-  },
-
-  alreadyPlusBox: {
-    margin: spacing.lg,
-    backgroundColor: `${colors.success}12`,
-    borderWidth: 1,
-    borderColor: `${colors.success}40`,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  alreadyPlusTitle: { ...typography.title, color: colors.textPrimary },
-  alreadyPlusSub: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
 });
