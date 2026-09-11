@@ -19,8 +19,8 @@ import type { TranslationKey } from '../translations';
 // Le Gratuit doit permettre une séance de découverte entière : personne ne
 // s'abonne à une app dont il n'a pas vu ce qu'elle sait faire.
 export const FREE_LIMITS = {
-  chatbotPerDay: 5,          // messages envoyés à l'assistant
-  desirePerDay: 5,           // réponses de « Dis-moi ton envie »
+  chatbotPerDay: 10,         // messages envoyés à l'assistant
+  desirePerDay: 10,          // réponses de « Dis-moi ton envie »
   itineraryPerModePerDay: 3, // COMPTÉ PAR MODE (date, amis, voyage…)
   surprisePerDay: 5,         // lancers de dé
   universeLoadsPerDay: 5,    // COMPTÉ PAR UNIVERS
@@ -102,8 +102,8 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   free: FREE_LIMITS,
 
   plus: {
-    chatbotPerDay: 15,
-    desirePerDay: 15,
+    chatbotPerDay: 20,
+    desirePerDay: 20,
     itineraryPerModePerDay: 6,
     surprisePerDay: 12,
     universeLoadsPerDay: 8,
