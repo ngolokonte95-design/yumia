@@ -353,6 +353,12 @@ export default function MapScreen() {
   }, [reload, universe, setRadiusKm, checkLimit, recordUsage]);
 
   const handleMapTap = useCallback(async (e: MapPressEvent) => {
+    // L'événement est lu AVANT toute attente : React recycle les événements
+    // synthétiques dès que la main lui revient, et `e.nativeEvent` serait nul
+    // au retour du premier `await`.
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+    const position = e.nativeEvent.position ?? null;
+
     // Chercher les lieux d'un point tapé est une recherche entière, pas un
     // détail d'affichage : elle se compte comme les autres.
     const scope = universe ?? 'all';
@@ -360,8 +366,7 @@ export default function MapScreen() {
     if (!allowed) { setUpsell(message); return; }
     await recordUsage('mapLoadsPerDay', scope);
 
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setTapPoint(e.nativeEvent.position ?? null);
+    setTapPoint(position);
     setTapCoord({ lat: latitude, lng: longitude });
     setTapLoading(true);
     setCityResults(null);
