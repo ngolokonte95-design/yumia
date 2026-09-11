@@ -129,7 +129,19 @@ export default function UniverseScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
+      <PremiumUpsellModal
+        visible={upsell !== null}
+        message={upsell ?? ''}
+        onClose={() => setUpsell(null)}
+        onDismiss={() => {
+          // Quota refusé À L'OUVERTURE : l'écran n'a aucun lieu à montrer, et
+          // le refermer laisserait devant une page vide sans rien à y faire.
+          // On ramène donc à l'accueil. Un refus survenu sur un simple
+          // rafraîchissement (`quotaOk === true`) n'y touche pas : les lieux
+          // déjà chargés restent consultables.
+          if (quotaOk === false) router.replace('/(tabs)');
+        }}
+      />
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>

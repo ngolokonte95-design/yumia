@@ -18,6 +18,16 @@ interface Props {
   message: string;
   onClose: () => void;
   /**
+   * Appelé quand l'utilisateur DÉCLINE (« peut-être plus tard », ou tap hors
+   * de la fenêtre) — jamais quand il part vers l'écran d'abonnement.
+   *
+   * Séparé d'`onClose` parce que l'écran d'un rayon épuisé n'a plus rien à
+   * montrer derrière : il en profite pour ramener à l'accueil. Le faire
+   * depuis `onClose` aurait aussi navigué au moment de partir vers les
+   * forfaits, deux navigations dans le même instant.
+   */
+  onDismiss?: () => void;
+  /**
    * Palier proposé. Son étoile accompagne le prix : un tarif sans emblème
    * n'apprend pas ce qu'on achète, et l'app affiche déjà ces étoiles sur les
    * profils — c'est le même langage d'un bout à l'autre.
@@ -29,7 +39,7 @@ interface Props {
  * Modal d'upsell affiché quand une limite du forfait Gratuit est atteinte.
  * Bouton principal → écran Premium, bouton secondaire → fermeture.
  */
-export function PremiumUpsellModal({ visible, message, onClose, plan = 'plus' }: Props) {
+export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan = 'plus' }: Props) {
   const router = useRouter();
   const { t } = useI18n();
 
@@ -39,12 +49,17 @@ export function PremiumUpsellModal({ visible, message, onClose, plan = 'plus' }:
     router.push('/plus' as never);
   }
 
+  function dismiss() {
+    onClose();
+    onDismiss?.();
+  }
+
   /** Les trois paliers payants, du moins cher au plus cher. */
   const tiers: Exclude<Plan, 'free'>[] = ['plus', 'gold', 'diamond'];
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
+      <Pressable style={styles.overlay} onPress={dismiss}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.crownCircle}>
             <PlanBadgeIcon plan={plan} size={36} />
@@ -69,7 +84,7 @@ export function PremiumUpsellModal({ visible, message, onClose, plan = 'plus' }:
               </Pressable>
             ))}
           </View>
-          <Pressable style={styles.secondaryBtn} onPress={onClose}>
+          <Pressable style={styles.secondaryBtn} onPress={dismiss}>
             <Text style={styles.secondaryText}>{t('pu_later')}</Text>
           </Pressable>
         </Pressable>
