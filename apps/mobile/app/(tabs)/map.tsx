@@ -68,7 +68,6 @@ export default function MapScreen() {
   const [cityQuery, setCityQuery] = useState('');
   const [cityResults, setCityResults] = useState<NearbyPlace[] | null>(null);
   const [cityLoading, setCityLoading] = useState(false);
-  const [citiesSearchedCount, setCitiesSearchedCount] = useState(0);
   // Suggestions de villes pendant la frappe. Fermé dès qu'une recherche part,
   // sinon la liste resterait ouverte par-dessus les résultats.
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -249,14 +248,12 @@ export default function MapScreen() {
     if (!q) return;
     setSuggestOpen(false);
     Keyboard.dismiss();
-    const { allowed, message } = await checkLimit('travelCities', citiesSearchedCount);
-    if (!allowed) { setUpsell(message); return; }
+    // Plus de quota sur la recherche de villes : chercher une ville ne coûte
+    // rien de plus qu'un chargement de carte, lequel est déjà compté.
     setCityLoading(true);
     try {
       const results = await fetchByCity(q, universe ?? undefined, 20);
       setCityResults(results.map((p) => ({ ...p, distanceMeters: 0 })));
-      setCitiesSearchedCount((n) => n + 1);
-      await recordUsage('travelCities');
       if (results[0]) {
         mapRef.current?.animateToRegion(
           { latitude: results[0].lat, longitude: results[0].lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
@@ -268,7 +265,7 @@ export default function MapScreen() {
     } finally {
       setCityLoading(false);
     }
-  }, [citiesSearchedCount, universe, checkLimit, recordUsage]);
+  }, [universe]);
 
   // `onSubmitEditing` passe un événement en argument : on ne le laisse pas
   // arriver jusqu'à `runCitySearch`, qui attend une chaîne.

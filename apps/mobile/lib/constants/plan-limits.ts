@@ -11,11 +11,8 @@ import type { TranslationKey } from '../translations';
 
 export const FREE_LIMITS = {
   suggestionsPerDay: 15,
-  plannerPerWeek: 3,
-  predictivePerWeek: 2,
   circleMaxMembers: 5,
   passportMaxEntries: 30,
-  travelCities: 6,
   // Quotas quotidiens du forfait Gratuit, arrêtés avec l'utilisateur.
   chatbotPerDay: 5,          // messages envoyés à l'assistant
   desirePerDay: 5,           // réponses de « Dis-moi ton envie »
@@ -60,11 +57,6 @@ export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
 };
 
 /**
- * Fonctionnalités entièrement réservées aux forfaits payants — ce n'est plus
- * un quota mais une porte : la carte sociale (visibilité, membres visibles,
- * signal) reste fermée tant que le compte est Gratuit.
- */
-/**
  * Le palier payant juste au-dessus — `null` quand il n'y a plus rien à
  * vendre.
  *
@@ -81,6 +73,11 @@ export function nextPaidPlan(current: Plan): Exclude<Plan, 'free'> | null {
   }
 }
 
+/**
+ * Fonctionnalités entièrement réservées aux forfaits payants — ce n'est plus
+ * un quota mais une porte : la carte sociale (visibilité, membres visibles,
+ * signal) reste fermée tant que le compte est Gratuit.
+ */
 export const PREMIUM_ONLY_FEATURES = ['socialMap'] as const;
 export type PremiumOnlyFeature = (typeof PREMIUM_ONLY_FEATURES)[number];
 
@@ -122,14 +119,12 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     mapLoadsPerDay: 9,
     peopleSuggestionsPerDay: 30,
     eventsPerDay: 8,
-    // Quotas hérités, pas encore revus avec l'utilisateur : gardés au-dessus
-    // de Plus pour que la progression reste vraie.
-    plannerPerWeek: 30, predictivePerWeek: 20,
-    circleMaxMembers: 50, passportMaxEntries: 1000, travelCities: 80,
+    circleMaxMembers: 15,
+    passportMaxEntries: 90,
   },
   diamond: {
-    suggestionsPerDay: Infinity, plannerPerWeek: Infinity, predictivePerWeek: Infinity,
-    circleMaxMembers: Infinity, passportMaxEntries: Infinity, travelCities: Infinity,
+    suggestionsPerDay: Infinity,
+    circleMaxMembers: Infinity, passportMaxEntries: Infinity,
     chatbotPerDay: Infinity, desirePerDay: Infinity, itineraryPerModePerDay: Infinity,
     surprisePerDay: Infinity, universeLoadsPerDay: Infinity, mapLoadsPerDay: Infinity,
     peopleSuggestionsPerDay: Infinity, eventsPerDay: Infinity,
@@ -143,11 +138,8 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
  */
 export const LIMIT_MESSAGE_KEYS: Record<LimitedFeature, TranslationKey> = {
   suggestionsPerDay: 'limit_suggestions_per_day',
-  plannerPerWeek: 'limit_planner_per_week',
-  predictivePerWeek: 'limit_predictive_per_week',
   circleMaxMembers: 'limit_circle_max_members',
   passportMaxEntries: 'limit_passport_max_entries',
-  travelCities: 'limit_travel_cities',
   // Un seul message pour les quotas quotidiens : il dit la seule chose utile
   // — c'est reparti demain, ou tout de suite en passant à Plus. Un texte par
   // fonctionnalité aurait demandé treize traductions chacun pour une nuance
@@ -185,11 +177,8 @@ export const LIMIT_UNIT_KEYS: Partial<Record<LimitedFeature, TranslationKey>> = 
 /** Période de réinitialisation d'un compteur d'usage (pour les limites temporelles). */
 export const LIMIT_PERIOD: Record<LimitedFeature, 'day' | 'week' | 'none'> = {
   suggestionsPerDay: 'day',
-  plannerPerWeek: 'week',
-  predictivePerWeek: 'week',
   circleMaxMembers: 'none', // basé sur le nombre réel de membres
   passportMaxEntries: 'none', // basé sur le nombre réel d'entrées
-  travelCities: 'none', // basé sur le nombre réel de villes
   chatbotPerDay: 'day',
   desirePerDay: 'day',
   itineraryPerModePerDay: 'day',
