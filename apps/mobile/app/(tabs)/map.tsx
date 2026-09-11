@@ -78,7 +78,9 @@ export default function MapScreen() {
   const [tapPoint, setTapPoint] = useState<{ x: number; y: number } | null>(null);
   const [tapCoord, setTapCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage, displayCap } = usePlanLimits();
+  const { checkLimit, recordUsage, displayCap, planTier } = usePlanLimits();
+  // Le remplissage automatique au déplacement suit le palier, pas un quota.
+  const unlimitedMapRefill = planTier !== 'free';
 
   // Bottom sheet state — animé via translateY (transform) plutôt que height, pour
   // pouvoir tourner sur le driver natif (60fps hors JS thread) et rester fluide
@@ -190,6 +192,13 @@ export default function MapScreen() {
 
   const onRegionChangeComplete = useCallback((r: Region) => {
     regionRef.current = r;
+
+    // Le rechargement automatique au déplacement est un CONFORT payant.
+    // Le laisser ouvert vidait le quota de son sens : trois chargements
+    // comptés d'un côté, et de l'autre un remplissage silencieux à chaque
+    // glissement de doigt. Le forfait Gratuit garde la zone qu'il a chargée.
+    if (!unlimitedMapRefill) return;
+
     // Rayon ≈ demi-diagonale visible (°→m), plafonné par le rayon choisi par l'utilisateur.
     const visibleRadiusM = Math.round((Math.max(r.latitudeDelta, r.longitudeDelta) * 111_000) / 2);
     const radiusM = Math.min(visibleRadiusM, radiusKm * 1000, 50_000);
@@ -222,7 +231,7 @@ export default function MapScreen() {
         lastViewportKey.current = key;
       } catch { /* silent */ }
     }, 800);
-  }, [universe, radiusKm]);
+  }, [universe, radiusKm, unlimitedMapRefill]);
 
   const runCitySearch = useCallback(async (raw: string) => {
     const q = raw.trim();
@@ -331,13 +340,26 @@ export default function MapScreen() {
     reload(u, radiusKm);
   }, [reload, radiusKm, checkLimit, recordUsage]);
 
-  const selectRadius = useCallback((km: number) => {
+  const selectRadius = useCallback(async (km: number) => {
+    // Changer de rayon relance une recherche : c'est un chargement de plus,
+    // sur l'univers courant.
+    const scope = universe ?? 'all';
+    const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, scope);
+    if (!allowed) { setUpsell(message); setRadiusPanelOpen(false); return; }
+    await recordUsage('mapLoadsPerDay', scope);
     setRadiusKm(km);
     setRadiusPanelOpen(false);
     reload(universe, km);
-  }, [reload, universe, setRadiusKm]);
+  }, [reload, universe, setRadiusKm, checkLimit, recordUsage]);
 
   const handleMapTap = useCallback(async (e: MapPressEvent) => {
+    // Chercher les lieux d'un point tapé est une recherche entière, pas un
+    // détail d'affichage : elle se compte comme les autres.
+    const scope = universe ?? 'all';
+    const { allowed, message } = await checkLimit('mapLoadsPerDay', undefined, scope);
+    if (!allowed) { setUpsell(message); return; }
+    await recordUsage('mapLoadsPerDay', scope);
+
     const { latitude, longitude } = e.nativeEvent.coordinate;
     setTapPoint(e.nativeEvent.position ?? null);
     setTapCoord({ lat: latitude, lng: longitude });
@@ -358,7 +380,7 @@ export default function MapScreen() {
     } finally {
       setTapLoading(false);
     }
-  }, [universe, radiusKm]);
+  }, [universe, radiusKm, checkLimit, recordUsage]);
 
   function selectPlace(place: NearbyPlace) {
     setSelectedId(place.id);
@@ -417,12 +439,33 @@ export default function MapScreen() {
     // Cap dur : GPS (80) + viewport (80) peuvent se cumuler jusqu'à 160 s'ils ne se
     // recouvrent pas (carte déplacée loin de la position GPS) — ça faisait planter
     // l'appli par moments. On garde toujours au plus MAX_DISPLAY_PLACES au final.
-    return [...list]
-      .sort((a, b) => (a.universe === 'restaurant' ? 0 : 1) - (b.universe === 'restaurant' ? 0 : 1))
-      // Le plafond du forfait passe avant le cap technique : en Gratuit, cinq
-      // lieux par chargement.
-      .slice(0, Math.min(MAX_DISPLAY_PLACES, displayCap('mapPlaces')));
-  }, [cityResults, tapResults, places, viewportPlaces, displayCap]);
+    const cap = Math.min(MAX_DISPLAY_PLACES, displayCap('mapPlaces'));
+
+    // Sans filtre d'univers, on prend un lieu de chaque univers à tour de
+    // rôle. L'ancien tri mettait les restaurants devant — anodin sur cent
+    // lieux, désastreux sur cinq : « Tous » ne montrait que des restaurants.
+    // Avec un filtre, l'ordre d'origine (le plus proche d'abord) est le bon.
+    if (universe !== null) return list.slice(0, cap);
+
+    const byUniverse = new Map<string, NearbyPlace[]>();
+    for (const p of list) {
+      const bucket = byUniverse.get(p.universe);
+      if (bucket) bucket.push(p); else byUniverse.set(p.universe, [p]);
+    }
+    const buckets = [...byUniverse.values()];
+    const mixed: NearbyPlace[] = [];
+    for (let round = 0; mixed.length < Math.min(cap, list.length); round++) {
+      let tookOne = false;
+      for (const bucket of buckets) {
+        if (round >= bucket.length) continue;
+        mixed.push(bucket[round]);
+        tookOne = true;
+        if (mixed.length >= cap) break;
+      }
+      if (!tookOne) break; // tous les univers épuisés
+    }
+    return mixed;
+  }, [cityResults, tapResults, places, viewportPlaces, displayCap, universe]);
 
   const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
 
@@ -450,10 +493,13 @@ export default function MapScreen() {
     return () => clearTimeout(t);
   }, [markerIds]);
 
+  // Toujours `displayPlaces.length` : les listes brutes comptent des lieux que
+  // le plafond du forfait ne montre pas, et le compteur annonçait vingt lieux
+  // là où la carte en portait cinq.
   const drawerTitle = cityResults !== null
-    ? t('map_places_city').replace('{n}', String(cityResults.length)).replace('{city}', cityQuery)
+    ? t('map_places_city').replace('{n}', String(displayPlaces.length)).replace('{city}', cityQuery)
     : tapResults !== null
-    ? t('map_places_point').replace('{n}', String(tapResults.length))
+    ? t('map_places_point').replace('{n}', String(displayPlaces.length))
     : t('map_places_you').replace('{n}', String(displayPlaces.length));
 
   return (
@@ -575,7 +621,7 @@ export default function MapScreen() {
                 <Pressable
                   key={km}
                   style={[styles.radiusChip, radiusKm === km && styles.radiusChipActive]}
-                  onPress={() => selectRadius(km)}
+                  onPress={() => void selectRadius(km)}
                 >
                   <Text style={[styles.radiusChipText, radiusKm === km && styles.radiusChipTextActive]}>
                     {km} km
