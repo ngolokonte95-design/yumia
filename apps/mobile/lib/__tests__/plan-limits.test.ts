@@ -9,15 +9,13 @@ import {
 } from '../constants/plan-limits';
 
 describe('paliers', () => {
-  it('Plus vaut le double du Gratuit, sauf For You', () => {
-    // La règle métier tient en une phrase ; ce test est là pour qu'elle
-    // survive à un ajustement fait d'un seul côté.
-    for (const feature of Object.keys(FREE_LIMITS) as LimitedFeature[]) {
-      const expected = feature === 'suggestionsPerDay' ? 25 : FREE_LIMITS[feature] * 2;
-      expect({ feature, value: LIMITS_BY_PLAN.plus[feature] }).toEqual({ feature, value: expected });
-    }
-    for (const cap of Object.keys(FREE_DISPLAY_CAPS) as DisplayCap[]) {
-      expect(DISPLAY_CAPS_BY_PLAN.plus[cap]).toBe(FREE_DISPLAY_CAPS[cap] * 2);
+  it('couvre chaque fonctionnalité à chaque palier', () => {
+    // Le typage l'impose déjà, mais ce test attrape une cle ajoutee au
+    // Gratuit et oubliee ailleurs si quelqu'un elargit un Record avec un cast.
+    for (const plan of ['free', 'plus', 'gold', 'diamond'] as const) {
+      for (const feature of Object.keys(FREE_LIMITS) as LimitedFeature[]) {
+        expect(typeof LIMITS_BY_PLAN[plan][feature]).toBe('number');
+      }
     }
   });
 

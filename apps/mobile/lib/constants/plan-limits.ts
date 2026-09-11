@@ -1,31 +1,38 @@
 /**
  * Limites par palier d'abonnement + messages d'upsell contextuels.
  *
- * Valeurs Plus/Gold/Diamond PROVISOIRES — restrictions définitives pas
- * encore arrêtées. Ce fichier est le SEUL endroit à modifier pour les
- * ajuster plus tard : LIMITS_BY_PLAN est la seule source consultée par
- * usePlanLimits.ts.
+ * Ce fichier est le SEUL endroit à modifier pour ajuster un palier :
+ * LIMITS_BY_PLAN et DISPLAY_CAPS_BY_PLAN sont les seules sources lues par
+ * usePlanLimits, et l'écran d'abonnement construit sa grille comparative à
+ * partir d'elles — les chiffres annoncés ne peuvent donc pas diverger de ceux
+ * appliqués.
+ *
+ * RÈGLE DE DIMENSIONNEMENT. Un quota compté PAR PORTÉE (par univers, par
+ * mode) se multiplie par le nombre de portées : 20 chargements par univers,
+ * ce sont 640 recherches de lieux possibles sur 32 rayons, toutes facturées.
+ * Ces lignes-là restent basses même quand le chiffre paraît petit. Un quota
+ * global, lui, ne se multiplie par rien et peut être généreux.
  */
 import type { Plan } from '@yumia/shared';
 import type { TranslationKey } from '../translations';
 
+// Le Gratuit doit permettre une séance de découverte entière : personne ne
+// s'abonne à une app dont il n'a pas vu ce qu'elle sait faire.
 export const FREE_LIMITS = {
-  suggestionsPerDay: 15,
-  circleMaxMembers: 5,
-  passportMaxEntries: 30,
-  // Quotas quotidiens du forfait Gratuit, arrêtés avec l'utilisateur.
   chatbotPerDay: 5,          // messages envoyés à l'assistant
   desirePerDay: 5,           // réponses de « Dis-moi ton envie »
   itineraryPerModePerDay: 3, // COMPTÉ PAR MODE (date, amis, voyage…)
-  surprisePerDay: 3,         // lancers de dé
-  universeLoadsPerDay: 3,    // COMPTÉ PAR UNIVERS
-  mapLoadsPerDay: 3,         // COMPTÉ PAR UNIVERS, « tous » compris
+  surprisePerDay: 5,         // lancers de dé
+  universeLoadsPerDay: 5,    // COMPTÉ PAR UNIVERS
+  mapLoadsPerDay: 5,         // COMPTÉ PAR UNIVERS, « tous » compris
   // Pas d'entrée « météo » : les cartes « À faire maintenant » ouvrent
-  // l'écran univers, qui applique déjà ses 3 chargements et ses 5 lieux. Un
-  // compteur séparé donnerait six chargements par univers à qui passe par la
-  // météo, ce qui n'est pas la règle voulue.
+  // l'écran univers, qui applique déjà ses chargements et ses lieux. Un
+  // compteur séparé doublerait le quota pour qui passe par la météo.
+  suggestionsPerDay: 15,     // For You
   peopleSuggestionsPerDay: 10,
   eventsPerDay: 2,
+  circleMaxMembers: 5,
+  passportMaxEntries: 30,
 } as const;
 
 /**
@@ -36,9 +43,13 @@ export const FREE_LIMITS = {
  * la pagination intacts, et un passage à Plus révèle le reste sans recharger.
  */
 export const FREE_DISPLAY_CAPS = {
-  universePlaces: 5,
-  mapPlaces: 5,
-  explorerSectionPlaces: 3,
+  // Couper l'affichage n'économise RIEN : les lieux sont déjà chargés et déjà
+  // payés. C'est un levier de perception, et le plus mal vécu — d'où des
+  // valeurs qui laissent une page pleine plutôt qu'une page qui semble
+  // cassée.
+  universePlaces: 8,
+  mapPlaces: 8,
+  explorerSectionPlaces: 5,
 } as const;
 
 export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
@@ -46,12 +57,9 @@ export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
 /** Plafonds d'affichage du palier courant — Gratuit seul est bridé. */
 export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
-  // Même règle que les quotas : le double de ce que voit le Gratuit.
-  plus: Object.fromEntries(
-    Object.entries(FREE_DISPLAY_CAPS).map(([cap, value]) => [cap, value * 2]),
-  ) as Record<DisplayCap, number>,
-  gold: { universePlaces: 15, mapPlaces: 15, explorerSectionPlaces: 8 },
-  diamond: { universePlaces: 20, mapPlaces: 30, explorerSectionPlaces: 10 },
+  plus: { universePlaces: 15, mapPlaces: 15, explorerSectionPlaces: 8 },
+  gold: { universePlaces: 25, mapPlaces: 25, explorerSectionPlaces: 12 },
+  diamond: { universePlaces: 30, mapPlaces: 30, explorerSectionPlaces: 15 },
 };
 
 /**
@@ -82,56 +90,60 @@ export type PremiumOnlyFeature = (typeof PREMIUM_ONLY_FEATURES)[number];
 export type LimitedFeature = keyof typeof FREE_LIMITS;
 
 /**
- * Plus (2,99 €) = le Gratuit DOUBLÉ, à une exception près : For You passe de
- * 15 à 25 lieux par jour.
+ * Les quatre paliers.
  *
- * Écrit comme un calcul et non comme une liste de nombres : la règle voulue
- * est « le double du Gratuit », et une liste recopiée à la main divergerait
- * au premier ajustement d'une valeur du Gratuit — sans que rien ne le
- * signale.
+ * Chaque valeur est posée à la main : aucune règle de calcul ne survit à la
+ * réalité des coûts, qui diffèrent d'une fonctionnalité à l'autre. Un message
+ * d'assistant appelle le modèle, un chargement de rayon appelle le
+ * fournisseur de lieux, un profil Tind ne coûte que notre propre base — les
+ * trois ne peuvent pas suivre le même multiple.
  */
-const PLUS_LIMITS: Record<LimitedFeature, number> = {
-  // Le cast accompagne Object.entries, qui perd le type des clés ; les clés
-  // viennent de FREE_LIMITS, donc l'objet est complet par construction.
-  ...(Object.fromEntries(
-    Object.entries(FREE_LIMITS).map(([feature, value]) => [feature, value * 2]),
-  ) as Record<LimitedFeature, number>),
-  suggestionsPerDay: 25,
-};
-
-/** Free = valeurs ci-dessus ; Diamond = toujours illimité (Infinity). */
 export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   free: FREE_LIMITS,
-  plus: PLUS_LIMITS,
-  // Gold (5,99 €) : valeurs arrêtées une par une, sans règle de calcul — le
-  // rapport au Gratuit n'y est pas constant (l'assistant quadruple, les
-  // itinéraires triplent), donc les écrire est ici plus honnête que les
-  // dériver.
-  gold: {
-    suggestionsPerDay: 30,
-    chatbotPerDay: 20,
-    desirePerDay: 20,
-    itineraryPerModePerDay: 9,
-    surprisePerDay: 9,
-    universeLoadsPerDay: 9,
-    mapLoadsPerDay: 9,
-    peopleSuggestionsPerDay: 30,
-    eventsPerDay: 8,
-    circleMaxMembers: 15,
-    passportMaxEntries: 90,
-  },
-  // Diamond (9,99 €) : le palier le plus haut n'est pas « tout illimité ».
-  // Ce qui coûte à chaque usage — appels au modèle, recherches de lieux —
-  // garde un plafond, généreux mais réel ; ce qui ne coûte qu'à nous-mêmes
-  // (profils, événements, cercle, Passport) est ouvert.
-  diamond: {
+
+  plus: {
+    chatbotPerDay: 15,
+    desirePerDay: 15,
+    itineraryPerModePerDay: 6,
+    surprisePerDay: 12,
+    universeLoadsPerDay: 8,
+    mapLoadsPerDay: 8,
     suggestionsPerDay: 40,
+    peopleSuggestionsPerDay: 30,
+    eventsPerDay: 10,
+    circleMaxMembers: 10,
+    passportMaxEntries: 150,
+  },
+
+  gold: {
     chatbotPerDay: 30,
     desirePerDay: 30,
-    itineraryPerModePerDay: 12,
-    surprisePerDay: 12,
+    itineraryPerModePerDay: 10,
+    surprisePerDay: 25,
     universeLoadsPerDay: 12,
     mapLoadsPerDay: 12,
+    suggestionsPerDay: 60,
+    // Ce qui ne coûte qu'à notre propre serveur s'ouvre dès Gold : le saut de
+    // palier se sent, sans nous exposer.
+    peopleSuggestionsPerDay: Infinity,
+    eventsPerDay: Infinity,
+    circleMaxMembers: 20, // le maximum proposé par l'écran de groupe
+    passportMaxEntries: Infinity,
+  },
+
+  // Diamond n'est pas « illimité » partout, et c'est délibéré : sans plafond
+  // sur l'assistant ou les itinéraires, un seul compte automatisé coûterait
+  // en une journée plus que son abonnement d'un mois. Ces valeurs sont assez
+  // hautes pour qu'aucun usage humain ne les rencontre, assez basses pour
+  // qu'un script ne vide pas le budget.
+  diamond: {
+    chatbotPerDay: 60,
+    desirePerDay: 60,
+    itineraryPerModePerDay: 15,
+    surprisePerDay: 40,
+    universeLoadsPerDay: 20,
+    mapLoadsPerDay: 20,
+    suggestionsPerDay: 80,
     peopleSuggestionsPerDay: Infinity,
     eventsPerDay: Infinity,
     circleMaxMembers: Infinity,
