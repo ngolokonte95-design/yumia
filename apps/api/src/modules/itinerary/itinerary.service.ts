@@ -488,6 +488,40 @@ ${isWeek
       return { ...toResolved(pick), placeName: pick.name };
     };
 
+    /**
+     * Dernier recours pour un NOM PROPRE absent de notre base : on le demande
+     * au fournisseur de lieux, qui le retrouve et l'importe — avec sa photo.
+     *
+     * C'est ce qui rend les cartes illustrées à nouveau sans rouvrir la porte
+     * aux photos mensongères : l'image vient de l'endroit NOMMÉ, pas d'un
+     * voisin du même genre.
+     *
+     * Chaque appel est facturé, d'où un BUDGET : les étapes visibles d'emblée
+     * y ont droit, pas les vingt moments d'une semaine que l'utilisateur
+     * n'ouvrira pas. Ce qui est trouvé est persisté, donc une ville
+     * consultée souvent cesse vite de coûter.
+     */
+    let importBudget = 8;
+    const resolveByProvider = async (name: string, type: string): Promise<ResolvedPlace> => {
+      if (importBudget <= 0) return {};
+      const universe = stepTypeToUniverse(type);
+      importBudget -= 1;
+      const found = await this.places
+        .findOrImportByName({ name, city, universe: universe ?? undefined })
+        .catch(() => null);
+      if (!found) return {};
+
+      // Une recherche textuelle rend TOUJOURS quelque chose : pour un nom
+      // inventé par le modèle, elle rendra l'établissement le plus proche du
+      // texte, pas l'endroit demandé. On revérifie donc le nom — sans ce
+      // contrôle, on aurait juste déplacé la photo mensongère d'un cran.
+      if (!namesMatch(name, found.name)) {
+        this.logger.debug(`« ${name} » : le fournisseur a répondu « ${found.name} », écarté.`);
+        return {};
+      }
+      return toResolved(found);
+    };
+
     // Séquentiel, et non `Promise.all` : le curseur doit avancer de façon
     // déterministe, et paralléliser viderait le cache de son intérêt puisque
     // toutes les requêtes partiraient avant la première réponse.
@@ -502,6 +536,10 @@ ${isWeek
         const { placeName, ...resolved } = await resolvePlace(step.name, step.type, true);
         Object.assign(step, resolved);
         if (placeName) step.name = placeName;
+
+        // Rien en base pour ce nom précis : on va le chercher chez le
+        // fournisseur plutôt que de laisser une carte nue.
+        if (!step.placeId) Object.assign(step, await resolveByProvider(step.name, step.type));
       }
 
       for (const moment of step.moments ?? []) {
@@ -510,12 +548,23 @@ ${isWeek
         if (placeName) moment.name = placeName;
       }
 
-      // La photo de la journée vient de son premier moment résolu : elle
-      // illustre un endroit où l'on va vraiment ce jour-là. Aucun `placeId`
-      // n'est copié — la vignette illustre, elle ne prétend pas que la
-      // journée entière soit ce lieu.
-      if (isDay && !step.placePhoto) {
-        step.placePhoto = step.moments?.find((m) => m.placePhoto)?.placePhoto;
+      // La photo de la journée vient de son premier moment : elle illustre un
+      // endroit où l'on va vraiment ce jour-là. Aucun `placeId` n'est copié —
+      // la vignette illustre, elle ne prétend pas que la journée entière soit
+      // ce lieu.
+      //
+      // Le premier moment est résolu chez le fournisseur au besoin : sans ça,
+      // une journée dont aucun moment n'est déjà en base restait sans image.
+      // Les moments suivants gardent leur résolution au clic, qui ne coûte
+      // que ce que l'utilisateur consulte vraiment.
+      if (isDay) {
+        const first = step.moments?.[0];
+        if (first && !first.placeId) {
+          Object.assign(first, await resolveByProvider(first.name, first.type));
+        }
+        if (!step.placePhoto) {
+          step.placePhoto = step.moments?.find((m) => m.placePhoto)?.placePhoto;
+        }
       }
     }
 
