@@ -64,6 +64,23 @@ export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
  * un quota mais une porte : la carte sociale (visibilité, membres visibles,
  * signal) reste fermée tant que le compte est Gratuit.
  */
+/**
+ * Le palier payant juste au-dessus — `null` quand il n'y a plus rien à
+ * vendre.
+ *
+ * Une limite atteinte se propose de lever avec le palier SUIVANT : un abonné
+ * Plus à qui l'on propose Plus lit une offre absurde, et le prix affiché
+ * n'est même pas celui qui le débloquerait.
+ */
+export function nextPaidPlan(current: Plan): Exclude<Plan, 'free'> | null {
+  switch (current) {
+    case 'free': return 'plus';
+    case 'plus': return 'gold';
+    case 'gold': return 'diamond';
+    default: return null;
+  }
+}
+
 export const PREMIUM_ONLY_FEATURES = ['socialMap'] as const;
 export type PremiumOnlyFeature = (typeof PREMIUM_ONLY_FEATURES)[number];
 

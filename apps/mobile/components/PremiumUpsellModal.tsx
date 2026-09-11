@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
 import { PLAN_PRICE_EUR, type Plan } from '@yumia/shared';
+import { usePlanLimits } from '../lib/usePlanLimits';
 import { PlanBadgeIcon } from './Avatar';
 
 const PREMIUM_PURPLE = '#7C3AED';
@@ -28,9 +29,13 @@ interface Props {
    */
   onDismiss?: () => void;
   /**
-   * Palier proposé. Son étoile accompagne le prix : un tarif sans emblème
-   * n'apprend pas ce qu'on achète, et l'app affiche déjà ces étoiles sur les
-   * profils — c'est le même langage d'un bout à l'autre.
+   * Palier mis en avant. Par défaut, celui juste au-dessus de l'abonnement
+   * en cours — proposer son propre forfait à un abonné, au prix qu'il paie
+   * déjà, ne lui offre rien.
+   *
+   * Son étoile accompagne le prix : un tarif sans emblème n'apprend pas ce
+   * qu'on achète, et l'app affiche déjà ces étoiles sur les profils — c'est
+   * le même langage d'un bout à l'autre.
    */
   plan?: Plan;
 }
@@ -39,7 +44,10 @@ interface Props {
  * Modal d'upsell affiché quand une limite du forfait Gratuit est atteinte.
  * Bouton principal → écran Premium, bouton secondaire → fermeture.
  */
-export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan = 'plus' }: Props) {
+export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan }: Props) {
+  const { upgradeTo } = usePlanLimits();
+  // `plan` reste prioritaire pour un appel qui vise un palier précis.
+  const offered = (plan ?? upgradeTo ?? 'diamond') as Exclude<Plan, 'free'>;
   const router = useRouter();
   const { t } = useI18n();
 
@@ -54,15 +62,20 @@ export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan 
     onDismiss?.();
   }
 
-  /** Les trois paliers payants, du moins cher au plus cher. */
-  const tiers: Exclude<Plan, 'free'>[] = ['plus', 'gold', 'diamond'];
+  /**
+   * Les paliers proposés : celui mis en avant et ceux au-dessus. On ne
+   * montre pas les paliers déjà possédés ou inférieurs — ils ne lèveraient
+   * rien.
+   */
+  const ALL_TIERS: Exclude<Plan, 'free'>[] = ['plus', 'gold', 'diamond'];
+  const tiers = ALL_TIERS.slice(ALL_TIERS.indexOf(offered));
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
       <Pressable style={styles.overlay} onPress={dismiss}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.crownCircle}>
-            <PlanBadgeIcon plan={plan} size={36} />
+            <PlanBadgeIcon plan={offered} size={36} />
           </View>
           <Text style={styles.title}>{t('pu_title')}</Text>
           <Text style={styles.message}>{message}</Text>
@@ -74,7 +87,7 @@ export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan 
               même que celle affichée sur les profils. */}
           <View style={styles.tiers}>
             {tiers.map((tier) => (
-              <Pressable key={tier} style={[styles.tierRow, tier === plan && styles.tierRowHighlight]} onPress={goPremium}>
+              <Pressable key={tier} style={[styles.tierRow, tier === offered && styles.tierRowHighlight]} onPress={goPremium}>
                 <PlanBadgeIcon plan={tier} size={26} />
                 <Text style={styles.tierName}>{TIER_NAME[tier]}</Text>
                 <Text style={styles.tierPrice}>

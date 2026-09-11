@@ -1,4 +1,5 @@
 import {
+  nextPaidPlan,
   FREE_LIMITS,
   FREE_DISPLAY_CAPS,
   LIMITS_BY_PLAN,
@@ -27,5 +28,14 @@ describe('paliers', () => {
       expect(gold[feature]).toBeGreaterThanOrEqual(plus[feature]);
       expect(diamond[feature]).toBeGreaterThanOrEqual(gold[feature]);
     }
+  });
+
+  it('propose toujours le palier du dessus, et rien au-delà de Diamond', () => {
+    // Un abonné Plus à qui l'on propose Plus lit une offre absurde, au prix
+    // qu'il paie déjà.
+    expect(nextPaidPlan('free')).toBe('plus');
+    expect(nextPaidPlan('plus')).toBe('gold');
+    expect(nextPaidPlan('gold')).toBe('diamond');
+    expect(nextPaidPlan('diamond')).toBeNull();
   });
 });

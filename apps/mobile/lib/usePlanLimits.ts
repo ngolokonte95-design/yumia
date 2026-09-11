@@ -27,13 +27,14 @@ import {
   DISPLAY_CAPS_BY_PLAN,
   LIMITS_BY_PLAN,
   LIMIT_UNIT_KEYS,
+  nextPaidPlan,
   LIMIT_MESSAGE_KEYS,
   LIMIT_PERIOD,
   type DisplayCap,
   type LimitedFeature,
   type PremiumOnlyFeature,
 } from './constants/plan-limits';
-import { PLAN_PRICE_EUR, PLUS_PRICE_EUR } from '@yumia/shared';
+import { PLAN_PRICE_EUR } from '@yumia/shared';
 
 export interface LimitCheck {
   allowed: boolean;
@@ -96,6 +97,11 @@ export function usePlanLimits() {
     ?? (user?.isPremium ? 'plus' : 'free');
   const isPremium = planTier !== 'free';
   const isAdmin = user?.isAdmin === true;
+  /** Le palier à proposer : celui juste au-dessus de l'actuel. */
+  const upgradeTo = nextPaidPlan(planTier);
+  const upgradePrice = upgradeTo
+    ? `${PLAN_PRICE_EUR[upgradeTo].toFixed(2).replace('.', ',')} €`
+    : '';
 
   /** Limite du palier ACTUEL pour une fonctionnalité (Diamond = Infinity). */
   const getLimit = useCallback(
@@ -111,10 +117,10 @@ export function usePlanLimits() {
       const allowed = used < limit;
       const message = allowed
         ? ''
-        : t(LIMIT_MESSAGE_KEYS[feature]).replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`);
+        : t(LIMIT_MESSAGE_KEYS[feature]).replace('{price}', upgradePrice);
       return { allowed, message };
     },
-    [getLimit, t],
+    [getLimit, t, upgradePrice],
   );
 
   const recordUsage = useCallback(
@@ -173,10 +179,13 @@ export function usePlanLimits() {
         .replace('{n}', String(getLimit(feature)))
         .replace('{unit}', unitKey ? t(unitKey) : '')
         .replace(/\{scope\}/g, scopeLabel);
-      const price = `${PLAN_PRICE_EUR.plus.toFixed(2).replace('.', ',')} €`;
-      return `${head} ${t('limit_quota_upsell').replace('{price}', price)}`;
+      // Plus rien au-dessus (Diamond) : on n'invente pas une offre. Le cas ne
+      // devrait pas se présenter — Diamond n'a aucune limite — mais un
+      // message qui vend du vide serait pire qu'un message court.
+      if (!upgradeTo) return head;
+      return `${head} ${t('limit_quota_upsell').replace('{price}', upgradePrice)}`;
     },
-    [getLimit, t],
+    [getLimit, t, upgradeTo, upgradePrice],
   );
 
   /** Fonctionnalité fermée au forfait Gratuit (carte sociale). */
@@ -186,12 +195,12 @@ export function usePlanLimits() {
   );
 
   const lockedMessage = useCallback(
-    (): string => t('limit_premium_only').replace('{price}', `${PLUS_PRICE_EUR.toFixed(2)}€`),
-    [t],
+    (): string => t('limit_premium_only').replace('{price}', upgradePrice),
+    [t, upgradePrice],
   );
 
   return {
-    planTier, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining,
+    planTier, upgradeTo, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining,
     displayCap, isFeatureLocked, lockedMessage, quotaMessage,
   };
 }
