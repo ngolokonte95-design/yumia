@@ -167,12 +167,22 @@ export class GooglePlacesProvider implements PlacesProvider {
     // boutique de vêtements classée « chocolatier »).
     const fallbackUniverse = includedTypes.length > 0 ? params.universe : undefined;
     return (data.places ?? []).flatMap((g) => {
-      const mapped = this.mapPlace(g, fallbackUniverse);
+      const mapped = this.mapPlace(g, fallbackUniverse, includedTypes);
       return mapped ? [mapped] : [];
     });
   }
 
-  private mapPlace(g: GooglePlace, requested?: Universe): ProviderPlace | null {
+  /**
+   * @param requested    univers demandé — sert de repli au classement.
+   * @param matchedTypes types réellement filtrés par Google, le cas échéant.
+   *   Quand le lieu porte l'un d'eux, l'univers demandé l'emporte sur le
+   *   classement générique : sans cela, un rayon ciblé peut ne jamais se
+   *   remplir. Une épicerie parisienne est typée `supermarket` AVANT
+   *   `grocery_store` ; notre classement parcourt les types dans l'ordre de
+   *   Google et la rangeait donc en Supermarchés, laissant Épiceries
+   *   désespérément vide alors que Google, lui, avait bien répondu.
+   */
+  private mapPlace(g: GooglePlace, requested?: Universe, matchedTypes: string[] = []): ProviderPlace | null {
     const name = g.displayName?.text;
     const lat = g.location?.latitude;
     const lng = g.location?.longitude;
@@ -190,7 +200,9 @@ export class GooglePlacesProvider implements PlacesProvider {
     return {
       providerPlaceId: g.id,
       name,
-      universe: googleTypesToUniverse(types, requested ?? 'restaurant'),
+      universe: requested && matchedTypes.some((t) => types.includes(t))
+        ? requested
+        : googleTypesToUniverse(types, requested ?? 'restaurant'),
       lat,
       lng,
       city,
