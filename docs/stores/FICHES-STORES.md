@@ -205,11 +205,10 @@ Welcome to YUMIA! First release: AI contextual Top 3, itineraries from one eveni
 - **URL conditions d'utilisation** : https://yumia.eu/terms
 - **URL suppression de compte** (exigée par Google en plus du parcours in-app) :
   https://yumia.eu/delete-account
-- **Classification d'âge** : à revoir à la hausse depuis la version précédente de cette fiche. L'app
-  propose désormais de la mise en relation entre personnes (Tind, carte sociale, messagerie) et du
-  contenu publié par les utilisateurs — les deux boutiques classent cela nettement au-dessus de 12+.
-  Décider en même temps que la barrière d'âge côté app, qui n'existe pas encore : l'année de
-  naissance est déclarative et ne bloque rien.
+- **Classification d'âge, confidentialité, permissions, achats intégrés** : tout est repris champ par
+  champ dans `SOUMISSION.md`, à remplir depuis zéro. Ne te fie pas aux valeurs déjà saisies dans les
+  consoles : elles datent d'avant la boutique et le social, et l'âge y contredit les conditions
+  d'utilisation en ligne.
 - **Localisation en arrière-plan** : Google exige un formulaire de déclaration **et une vidéo de
   démonstration** pour `ACCESS_BACKGROUND_LOCATION`. Chez nous elle sert la carte sociale, réservée
   aux abonnés — préparer l'argumentaire, ou retirer la permission de la première soumission.
