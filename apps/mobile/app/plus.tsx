@@ -89,7 +89,7 @@ const ROWS: Row[] = [
   { key: 'surprise', labelKey: 'home_shortcut_surprise', feature: 'surprisePerDay', perDay: true },
   { key: 'uniLoads', labelKey: 'plus_row_universe', feature: 'universeLoadsPerDay', perDay: true },
   { key: 'uniPlaces', labelKey: 'plus_row_places_universe', cap: 'universePlaces' },
-  { key: 'mapLoads', labelKey: 'tab_map', feature: 'mapLoadsPerDay', perDay: true },
+  { key: 'mapLoads', labelKey: 'plus_row_map_loads', feature: 'mapLoadsPerDay', perDay: true },
   { key: 'mapPlaces', labelKey: 'plus_row_places_map', cap: 'mapPlaces' },
   { key: 'explorer', labelKey: 'plus_row_explorer_row', cap: 'explorerSectionPlaces' },
   { key: 'foryou', labelKey: 'tab_foryou', feature: 'suggestionsPerDay', perDay: true },
