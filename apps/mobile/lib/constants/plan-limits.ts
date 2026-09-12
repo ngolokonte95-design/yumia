@@ -12,7 +12,7 @@
  * depuis la carte en « Tous » en coûte DIX-SEPT, le serveur interrogeant
  * autant de catégories pour densifier (MAP_DENSITY_UNIVERSES, côté API). Une
  * zone déjà couverte, elle, ne coûte rien pendant sept jours — d'où des
- * chargements de rayon qu'on peut ouvrir largement.
+ * chargements de rayon tenus un cran au-dessus de ceux de la carte.
  *
  * RÈGLE DE DIMENSIONNEMENT. Un quota compté PAR PORTÉE (par univers, par
  * mode) se multiplie par le nombre de portées : 20 chargements par univers,
@@ -30,7 +30,7 @@ export const FREE_LIMITS = {
   desirePerDay: 10,          // réponses de « Dis-moi ton envie »
   itineraryPerModePerDay: 3, // COMPTÉ PAR MODE (date, amis, voyage…)
   surprisePerDay: 5,         // lancers de dé
-  universeLoadsPerDay: 8,    // COMPTÉ PAR UNIVERS
+  universeLoadsPerDay: 6,    // COMPTÉ PAR UNIVERS
   mapLoadsPerDay: 6,         // COMPTÉ PAR UNIVERS, « tous » compris
   // Pas d'entrée « météo » : les cartes « À faire maintenant » ouvrent
   // l'écran univers, qui applique déjà ses chargements et ses lieux. Un
@@ -64,9 +64,9 @@ export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
 /** Plafonds d'affichage du palier courant — Gratuit seul est bridé. */
 export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
-  plus: { universePlaces: 15, mapPlaces: 15, explorerSectionPlaces: 8 },
-  gold: { universePlaces: 25, mapPlaces: 25, explorerSectionPlaces: 12 },
-  diamond: { universePlaces: 30, mapPlaces: 30, explorerSectionPlaces: 15 },
+  plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8 },
+  gold: { universePlaces: 25, mapPlaces: 30, explorerSectionPlaces: 12 },
+  diamond: { universePlaces: 30, mapPlaces: 40, explorerSectionPlaces: 15 },
 };
 
 /**
@@ -113,7 +113,7 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     desirePerDay: 20,
     itineraryPerModePerDay: 6,
     surprisePerDay: 12,
-    universeLoadsPerDay: 15,
+    universeLoadsPerDay: 12,
     mapLoadsPerDay: 10,
     suggestionsPerDay: 40,
     peopleSuggestionsPerDay: 30,
@@ -127,7 +127,7 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     desirePerDay: 40,
     itineraryPerModePerDay: 10,
     surprisePerDay: 25,
-    universeLoadsPerDay: 30,
+    universeLoadsPerDay: 20,
     mapLoadsPerDay: 18,
     suggestionsPerDay: 60,
     // Ce qui ne coûte qu'à notre propre serveur s'ouvre dès Gold : le saut de
@@ -150,7 +150,7 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     desirePerDay: 60,
     itineraryPerModePerDay: 15,
     surprisePerDay: 40,
-    universeLoadsPerDay: 50,
+    universeLoadsPerDay: 30,
     mapLoadsPerDay: 25,
     suggestionsPerDay: 80,
     peopleSuggestionsPerDay: Infinity,
