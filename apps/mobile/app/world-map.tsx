@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
-import { isBackgroundLocationActive, startBackgroundLocation, stopBackgroundLocation } from '../lib/background-location';
+import { startSharingLocation, stopSharingLocation } from '../lib/share-location';
 import type { Plan } from '../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
@@ -33,7 +33,6 @@ export default function WorldMapScreen() {
   const [loading, setLoading] = useState(true);
   const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
-  const [broadcastVis, setBroadcastVis] = useState<'map' | 'off'>('off');
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   const loadUsers = useCallback(async () => {
@@ -56,44 +55,48 @@ export default function WorldMapScreen() {
     return loc.coords;
   }, []);
 
+  /** Fonction d'arrêt rendue par `startSharingLocation`, tant qu'on diffuse. */
+  const stopWatchRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     void getLocation();
     void loadUsers();
-    // Reflète l'état réel de la tâche de fond (ex : app relancée alors que la
-    // diffusion était déjà active).
-    void isBackgroundLocationActive().then((active) => {
-      setBroadcasting(active);
-      setBroadcastVis(active ? 'map' : 'off');
-    });
   }, [getLocation, loadUsers]);
 
+  // Quitter l'écran arrête la diffusion : une souscription laissée ouverte
+  // continuerait de consommer la batterie sans que rien ne l'affiche.
+  // La position déjà envoyée reste visible 10 minutes côté serveur (TTL Redis),
+  // puis s'efface d'elle-même.
+  useEffect(() => () => stopWatchRef.current?.(), []);
+
   const toggleBroadcast = async () => {
+    if (!accessToken) return;
     if (broadcasting) {
-      await stopBackgroundLocation();
-      await fetch(`${API}/location/me`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ visibility: 'off', lat: 0, lng: 0 }),
-      });
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
+      await stopSharingLocation(accessToken);
       setBroadcasting(false);
-      setBroadcastVis('off');
     } else {
       const coords = await getLocation();
-      if (!coords) return;
-      // Premier envoi immédiat (l'arrière-plan ne mettra à jour que 30s plus tard).
+      if (!coords) {
+        setPermissionDenied(true);
+        return;
+      }
+      // Premier envoi immédiat : la surveillance ne rendra une position que
+      // 30 s (ou 50 m) plus tard.
       await fetch(`${API}/location/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ lat: coords.latitude, lng: coords.longitude, visibility: 'map' }),
       });
-      const started = await startBackgroundLocation(t('bgloc_notification_body'));
-      if (!started) {
+      const stop = await startSharingLocation(accessToken);
+      if (!stop) {
         setPermissionDenied(true);
         return;
       }
+      stopWatchRef.current = stop;
       setPermissionDenied(false);
       setBroadcasting(true);
-      setBroadcastVis('map');
       void loadUsers();
     }
   };

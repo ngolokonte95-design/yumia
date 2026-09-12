@@ -125,11 +125,23 @@ la boutique), Google Places (données de lieux), Resend (courriels), et l'héber
 `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `RECORD_AUDIO`, `CAMERA`, `INTERNET`,
 `ACCESS_NETWORK_STATE`, `MODIFY_AUDIO_SETTINGS`, `WAKE_LOCK`, `BLUETOOTH`.
 
-⚠️ La **localisation en arrière-plan** est activée dans la configuration (`isIosBackgroundLocationEnabled`
-et `isAndroidBackgroundLocationEnabled`). Google exige pour cela un formulaire de déclaration **et une
-vidéo de démonstration** montrant la fonctionnalité qui la justifie. Chez nous, c'est la carte sociale
-— réservée aux abonnés. Deux options : monter le dossier, ou désactiver ces deux options pour la
-première soumission.
+La liste finale n'est pas celle-ci mais celle que produit la configuration (plugins compris) :
+`npx expo config --type introspect` la donne, et c'est elle qui fait foi.
+
+✅ **Pas de localisation en arrière-plan.** Elle a été retirée avant la première soumission : elle ne
+servait que la diffusion de position sur la carte sociale, réservée aux abonnés, et Google exige pour
+elle un formulaire de déclaration **et une vidéo de démonstration**. La carte sociale fonctionne
+toujours — la position est diffusée tant que l'écran est ouvert, et le serveur l'oublie au bout de
+10 minutes.
+
+Si un formulaire te demande quand même de le confirmer, vérifie plutôt que de te fier à ce document :
+
+```bash
+npx expo config --type introspect | grep -iE "BACKGROUND_LOCATION|NSLocationAlways|UIBackgroundModes" -A3
+```
+
+Attendu : aucun `ACCESS_BACKGROUND_LOCATION`, aucun `NSLocationAlways*`, et `UIBackgroundModes` limité
+à `fetch` et `audio` (notifications et lecture vidéo) — sans `location`.
 
 ---
 
@@ -166,6 +178,8 @@ Formats : 1290×2796 (iPhone 6,7″) et 1242×2688 (6,5″) pour Apple ; les mê
 
 1. **Immatriculation** — sans elle, pas de compte développeur vendeur, et Stripe reste en test.
 2. ~~L'âge~~ — tranché à 16 ans, barrière implémentée, textes corrigés (section 0).
-3. **La localisation en arrière-plan** — dossier Google à monter, ou permission à retirer.
+3. ~~La localisation en arrière-plan~~ — retirée de la première soumission (section 4).
 4. **Les captures** — à refaire.
 5. **Les abonnements** — à créer dans les deux consoles.
+6. **Le development build** — il valide d'un coup les cartes Android, le crash carte iOS et la
+   barrière d'âge. Rien ne peut être testé en vrai avant lui.

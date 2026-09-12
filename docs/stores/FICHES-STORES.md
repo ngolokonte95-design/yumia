@@ -209,7 +209,4 @@ Welcome to YUMIA! First release: AI contextual Top 3, itineraries from one eveni
   champ dans `SOUMISSION.md`, à remplir depuis zéro. Ne te fie pas aux valeurs déjà saisies dans les
   consoles : elles datent d'avant la boutique et le social, et l'âge y contredit les conditions
   d'utilisation en ligne.
-- **Localisation en arrière-plan** : Google exige un formulaire de déclaration **et une vidéo de
-  démonstration** pour `ACCESS_BACKGROUND_LOCATION`. Chez nous elle sert la carte sociale, réservée
-  aux abonnés — préparer l'argumentaire, ou retirer la permission de la première soumission.
 - **Coordonnées de support** : ngolokonte95@gmail.com + https://yumia.eu/support (en ligne).
