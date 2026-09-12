@@ -36,7 +36,7 @@ Remplacer les marqueurs `REPLACE_WITH_*` et les chaînes vides dans `extra` :
 | Champ | Source |
 |---|---|
 | `updates.url` + `extra.eas.projectId` | `eas init` (crée le projet, écrit le projectId) |
-| `extra.apiBaseUrl` | URL publique de l'API prod (ex. `https://api.yumia.app/api`). En build EAS, préférer `EXPO_PUBLIC_API_BASE_URL` (inliné par Metro, prioritaire) |
+| `extra.apiBaseUrl` | URL publique de l'API prod — aujourd'hui `https://api.yumia.eu/api`. En build EAS, préférer `EXPO_PUBLIC_API_BASE_URL` (inliné par Metro, prioritaire) |
 | `extra.googleClientId{Web,Ios,Android}` | Google Cloud Console → 3 OAuth clients (Web / iOS bundleId `com.yumia.app` / Android package + SHA-1) |
 | `android.config.googleMaps.apiKey` | Google Cloud Console → Maps SDK for Android, clé restreinte au package `com.yumia.app` (react-native-maps n'a PAS de config plugin → la clé va ici, pas dans `plugins`) | 
 | `extra.revenueCat{Ios,Android}Key` | RevenueCat Dashboard → Project → API Keys (clés publiques SDK par plateforme) |
@@ -117,19 +117,43 @@ OTA (correctifs JS sans resoumission store) : `eas update --branch production`.
 
 ## 6b. Documents légaux (obligatoire stores)
 
-Modèles RGPD prêts dans `docs/legal/` (à faire relire par un juriste + compléter les `[À COMPLÉTER]`) :
-- `docs/legal/POLITIQUE-CONFIDENTIALITE.md` → publier sur **https://yumia.app/privacy**
-- `docs/legal/CGU.md` → publier sur **https://yumia.app/terms**
+**Ces pages sont en ligne**, servies par nginx depuis `/var/www/yumia` (voir
+`deploy/nginx-yumia.conf`) :
 
-Ces deux URLs sont **déjà référencées dans l'app** (`apps/mobile/app/settings.tsx` → `PRIVACY_URL` / `TERMS_URL`).
-Apple et Google **refusent** la soumission sans une URL de politique de confidentialité accessible.
+| Page | URL | Source à modifier |
+|---|---|---|
+| Politique de confidentialité | https://yumia.eu/privacy | `website/privacy.html` |
+| Conditions d'utilisation | https://yumia.eu/terms | `website/terms.html` |
+| Suppression de compte (exigée par Google) | https://yumia.eu/delete-account | `website/delete-account.html` |
+| Support | https://yumia.eu/support | `website/support.html` |
+
+**La source est `website/`**, et la mise en ligne est une copie manuelle — elle
+ne part PAS avec le déploiement de l'API :
+
+```bash
+diff /var/www/yumia/terms.html /root/yumia/website/terms.html   # regarder avant d'écraser
+sudo cp /root/yumia/website/* /var/www/yumia/
+```
+
+`docs/legal/` contient les versions Markdown de travail (CGU, politique de
+confidentialité), utiles pour relire le fond — mais ce n'est pas ce qui est
+servi. Quand les deux divergent, c'est `website/` qui fait foi.
+
+Les deux premières URLs sont référencées dans l'app par `apps/mobile/lib/legal.ts`
+(`PRIVACY_URL` / `TERMS_URL`). Apple et Google **refusent** la soumission sans
+une politique de confidentialité accessible sans authentification, et les
+testeurs ouvrent réellement ces liens pendant la revue.
+
+L'âge minimum annoncé sur ces pages doit rester **16 ans**, identique à la
+barrière appliquée par l'app et à ce qui est déclaré aux boutiques (voir
+`docs/stores/SOUMISSION.md` §0).
 
 ## 7. Checklist pré-lancement
 
 - [ ] Tous les secrets `.env.prod` renseignés (aucun `CHANGE_ME` / `REPLACE_WITH`)
 - [ ] `app.json` : zéro `REPLACE_WITH_*`, zéro chaîne vide dans `extra`
 - [x] Logo officiel en place (cf. §3) — `icon.png` déjà opaque (fond foncé), conforme iOS
-- [ ] Politique de confidentialité + CGU publiées sur yumia.app/privacy et /terms (cf. §6b ; modèles dans `docs/legal/`)
+- [x] Politique de confidentialité + CGU publiées sur yumia.eu/privacy et /terms (cf. §6b ; source `website/`)
 - [ ] `expo-doctor` au vert (17/17) — déjà OK au dernier audit
 - [ ] `prisma migrate deploy` exécuté sur la DB prod
 - [ ] `REVENUECAT_WEBHOOK_SECRET` identique côté RevenueCat et API (cf. §5)
