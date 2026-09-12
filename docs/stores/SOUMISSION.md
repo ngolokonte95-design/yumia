@@ -1,32 +1,33 @@
-# Soumission aux boutiques — à remplir depuis zéro
+# Soumission aux boutiques — tout ce qu'il faut remplir
 
-Ce document ne décrit pas ce qui *avait été prévu* : chaque réponse ci-dessous est tirée du code de
-l'app tel qu'il est aujourd'hui, et indique **où** elle a été vérifiée. Reprends chaque champ des
-deux consoles à partir d'ici, sans te fier aux valeurs déjà saisies — elles datent d'avant la
-boutique, l'assistant cadeaux, le social et les quatre forfaits.
+Chaque réponse ci-dessous est tirée du code tel qu'il est aujourd'hui, et indique **où** elle a été
+vérifiée. Reprends chaque champ des deux consoles à partir d'ici, sans te fier aux valeurs déjà
+saisies : elles datent d'avant la boutique, l'assistant cadeaux, le social et les quatre forfaits.
 
-Les textes marketing (nom, sous-titre, descriptions) sont dans `FICHES-STORES.md`, vérifiés par
-`node docs/stores/check-lengths.mjs`.
+Les textes marketing (nom, sous-titre, descriptions, mots-clés) sont dans **`FICHES-STORES.md`**,
+vérifiés par `node docs/stores/check-lengths.mjs`. Ne les recopie pas d'ailleurs : Apple tronque
+sans prévenir.
 
 ---
 
 ## 0. L'âge minimum — tranché : **16 ans**
 
-Les trois endroits disent désormais la même chose, et l'app le fait respecter :
+Les trois endroits disent la même chose, et l'app le fait respecter :
 
 | Où | Valeur | État |
 |---|---|---|
-| Conditions d'utilisation (`website/terms.html`) | 16 ans | corrigé (était 13) |
-| Politique de confidentialité (`website/privacy.html`) | 16 ans | corrigé (était 13) |
-| Déclaration aux boutiques | 16 ans | à ressaisir (section 3) |
-| L'app | date de naissance demandée à l'inscription, refus bloquant en dessous | `apps/mobile/lib/age-gate.ts` + `apps/api/src/modules/auth/age.ts` |
+| Conditions d'utilisation (`website/terms.html`) | 16 ans | en ligne |
+| Politique de confidentialité (`website/privacy.html`) | 16 ans | en ligne |
+| Déclaration aux boutiques | 16 ans | à saisir (§3.3, §4.4) |
+| L'app | date de naissance à l'inscription, refus bloquant en dessous | `apps/mobile/lib/age-gate.ts` + `apps/api/src/modules/auth/age.ts` |
 
 **Comment la barrière fonctionne**, si un testeur de boutique pose la question :
 
 - Inscription par email : trois champs jour / mois / année dans le formulaire, aucun pré-rempli.
   Le bouton reste inactif tant que la date est absente, inexistante (31 février) ou sous la limite.
-- Inscription par Google ou Apple : le serveur repère qu'aucun compte n'existe, répond `AGE_REQUIRED`,
-  et l'app demande la date avant de rejouer l'appel. Une **re**connexion ne redemande rien.
+- Inscription par Google ou Apple : le serveur repère qu'aucun compte n'existe, répond
+  `AGE_REQUIRED`, et l'app demande la date avant de rejouer l'appel. Une **re**connexion ne
+  redemande rien.
 - Le serveur refait le calcul (`assertSignupAge`) et refuse **avant** toute écriture en base : un
   client modifié ne contourne rien.
 - Seule l'**année** est conservée (`User.birthYear`) — c'est tout ce dont le profil a besoin.
@@ -44,8 +45,6 @@ vérification d'identité. Ce qui est exigé, c'est que la question soit posée 
 | Nom de paquet Android | `com.yumia.app` | `app.json` |
 | Version | `0.1.0` | `app.json` |
 | Code de version Android | `8` | `app.json` |
-| Catégorie principale | Voyages *(ou Style de vie)* | à confirmer |
-| Catégorie secondaire | Cuisine et boissons | à confirmer |
 
 ---
 
@@ -54,132 +53,295 @@ vérification d'identité. Ce qui est exigé, c'est que la question soit posée 
 | Champ | URL | État |
 |---|---|---|
 | Politique de confidentialité | https://yumia.eu/privacy | en ligne |
-| Conditions d'utilisation | https://yumia.eu/terms | en ligne, **à corriger** (âge) |
+| Conditions d'utilisation | https://yumia.eu/terms | en ligne |
 | Suppression de compte (exigée par Google **en plus** du parcours dans l'app) | https://yumia.eu/delete-account | en ligne |
 | Support | https://yumia.eu/support | en ligne |
 | Courriel de support | ngolokonte95@gmail.com | — |
 
 ---
 
-## 3. Questionnaire de classification — réponses réelles
+## 3. App Store Connect, écran par écran
 
-Réponds d'après ce que l'app **contient vraiment**, pas d'après ce qu'on aimerait déclarer. Une
-réponse minorée se découvre au premier signalement et coûte le retrait.
+> Les libellés bougent d'une version de console à l'autre. Repère-toi au **sens** de la question,
+> pas au mot exact.
+
+### 3.1 Informations sur l'app
+
+| Champ | Valeur |
+|---|---|
+| Nom | `YUMIA : Sorties, IA & Cadeaux` |
+| Sous-titre | `Sorties, voyages et cadeaux` |
+| Catégorie principale | Voyages |
+| Catégorie secondaire | Cuisine et boissons |
+| Droits d'auteur | `2026 Ngolo Konte` |
+| Politique de confidentialité | https://yumia.eu/privacy |
+
+### 3.2 Statut de professionnel (DSA) — obligatoire pour vendre dans l'UE
+
+Apple exige désormais de déclarer si tu es **professionnel**, avec raison sociale, adresse,
+téléphone et numéro d'immatriculation, puis vérifie ces informations. Sans cela, l'app n'est pas
+distribuée dans l'Union européenne.
+
+C'est le même mur que l'immatriculation (§8). Tant que tu n'as pas de SIRET, cette section reste
+vide — et elle bloque à elle seule la distribution en Europe.
+
+### 3.3 Classification par âge
+
+Apple pose chaque question par **fréquence** : aucune / rare / fréquente. Réponds d'après ce que
+l'app contient vraiment : une réponse minorée se découvre au premier signalement et coûte le
+retrait.
 
 | Question | Réponse | Pourquoi |
 |---|---|---|
-| Contenu publié par les utilisateurs | **Oui** | Fil, reels, stories, commentaires, messages |
-| Modération et signalement | **Oui** | Filtrage automatique des textes, signalement sur les quatre surfaces, blocage, restriction |
-| Messagerie entre utilisateurs | **Oui** | Messages privés, réponses aux stories |
-| Partage de position entre utilisateurs | **Oui** | Carte sociale, visibilité activable, signaux |
-| Mise en relation / rencontre | **Oui** | Écran Tind, découverte de profils par swipe |
-| Alcool, tabac, drogues — références | **Oui** | Rayons Bars, Pubs, Caves à vin, Bars à chicha, Tabac & Presse, Coffee shops |
-| Jeux d'argent — références | **Oui** | Rayon Casinos (annuaire de lieux, aucun jeu dans l'app) |
-| Armes — références | **Oui** | Rayon « Armureries & Stands de tir » |
-| Violence, contenu sexuel, horreur | **Non** | Aucun contenu de ce type produit par l'app |
-| Achats intégrés | **Oui** | Trois abonnements |
-| Publicité | **Non** | Aucune régie |
-| Accès web non restreint | **Non** | Pas de navigateur intégré ; liens partenaires ouverts hors de l'app |
+| Alcool, tabac ou drogues — références | **Fréquentes** | Bars, Pubs, Caves à vin, Night-clubs, Bars à chicha, Tabac & Presse, Coffee shops : des rayons entiers |
+| Jeux d'argent — références | **Rares** | Rayon Casinos : un annuaire d'adresses, aucun jeu dans l'app |
+| Armes — références | **Rares** | Rayon « Armureries & Stands de tir », idem |
+| Violence (réaliste, fantastique, sang) | **Aucune** | — |
+| Contenu sexuel ou nudité | **Aucun** | — |
+| Horreur, thèmes effrayants | **Aucun** | — |
+| Contenu médical ou traitement | **Aucun** | Pharmacies et vétérinaires sont des adresses, pas des conseils |
+| Jeux d'argent réels | **Non** | Aucune mise, aucun jeu |
+| Contenu créé par les utilisateurs | **Oui** | Fil, reels, stories, commentaires, messages |
+| Fonctions de modération | **Oui** | Filtrage automatique des textes, signalement sur les quatre surfaces, blocage, restriction de compte |
+| Messagerie sans restriction | **Oui** | Messages privés et réponses aux stories |
+| Partage de position entre utilisateurs | **Oui** | Carte sociale, visibilité activable |
+| Rencontre / mise en relation | **Oui** | Écran Tind, découverte de profils par swipe |
+| Accès web non filtré | **Non** | Pas de navigateur intégré |
+| Concours | **Non** | — |
 
-> Apple pose ces questions par **fréquence** (aucune / rare / fréquente) depuis 2025, et le palier
-> **16+** existe désormais à côté de 13+ et 18+. Chez nous : références à l'alcool **fréquentes**
-> (Bars, Pubs, Caves à vin, Night-clubs sont des rayons entiers), jeux d'argent et armes **rares**
-> (un rayon chacun, et aucun jeu ni aucune arme dans l'app — seulement des adresses).
->
-> Le précédent utile : **Yelp**, annuaire de lieux comparable, porte les mentions « alcool, tabac,
-> drogues » et « armes » sans être réservé aux adultes.
->
-> Le questionnaire calcule le classement et l'affiche **avant** la soumission. S'il sort 18+ malgré
-> ces réponses, le levier est de **retirer des rayons**, jamais de minorer les réponses.
+Le questionnaire calcule le palier et **te l'affiche avant de valider**. Objectif : **16+**. S'il
+sort 18+, le levier est de retirer des rayons — jamais de minorer les réponses.
 
----
+Précédent utile si on te le conteste : **Yelp**, annuaire de lieux comparable, porte les mentions
+« alcool, tabac, drogues » et « armes » sans être réservé aux adultes.
 
-## 4. Confidentialité — données réellement collectées
+### 3.4 Confidentialité de l'app
 
-Déclaré dans le manifeste iOS (`app.json`) et vérifié contre le modèle `User` de la base.
+Réponds **non** à « suivi entre applications » : `NSPrivacyTracking` est à faux et aucune régie
+publicitaire n'est intégrée. Cela t'évite la fenêtre ATT.
 
-| Donnée | Liée au compte | Utilisée pour le suivi publicitaire | Finalité |
+| Donnée collectée | Liée au compte | Suivi publicitaire | Finalité |
 |---|---|---|---|
-| Adresse e-mail | Oui | Non | Compte |
-| Nom affiché | Oui | Non | Compte |
-| Identifiant utilisateur | Oui | Non | Compte |
-| Position précise | Non | Non | Recommandations autour de soi |
-| Photos et vidéos | Oui | Non | Publications, profil |
-| Autre contenu utilisateur | Oui | Non | Publications, commentaires, messages |
-| Identifiant d'appareil | Non | Non | Notifications |
-| Données de plantage | Non | Non | Diagnostic (Sentry) |
-| Données de performance | Non | Non | Diagnostic (Sentry) |
+| Adresse e-mail | Oui | Non | Fonctionnement de l'app |
+| Nom affiché | Oui | Non | Fonctionnement de l'app |
+| Identifiant utilisateur | Oui | Non | Fonctionnement de l'app |
+| Position précise | Non | Non | Fonctionnement de l'app |
+| Photos et vidéos | Oui | Non | Fonctionnement de l'app |
+| Autre contenu utilisateur | Oui | Non | Fonctionnement de l'app |
+| Adresse postale | Oui | Non | Livraison des commandes |
+| Historique d'achats | Oui | Non | Commandes de la boutique |
+| Genre, année de naissance, pays | Oui | Non | Personnalisation, barrière d'âge |
+| Identifiant d'appareil | Non | Non | Notifications push |
+| Plantages et performance | Non | Non | Diagnostic (Sentry) |
 
-Également stockés côté serveur, à déclarer s'ils ne le sont pas déjà : **genre**, **année de
-naissance**, **pays**, **adresses de livraison** et **commandes** (boutique). Les adresses postales
-sont une catégorie à part entière dans les deux formulaires — ne les oublie pas.
+**N'oublie ni l'adresse postale ni l'historique d'achats** : ce sont des catégories à part entière,
+et la boutique en collecte depuis qu'elle existe.
 
-**Aucun suivi publicitaire** : `NSPrivacyTracking` est à faux et aucune régie n'est intégrée. Tu peux
-donc répondre non à la question sur le suivi entre applications, ce qui t'évite la fenêtre ATT.
+Sous-traitants, si le formulaire les demande : Sentry (diagnostic), RevenueCat (abonnements),
+Stripe (paiement boutique), Google Places (données de lieux), Resend (courriels), DigitalOcean
+(hébergement).
 
-**Sous-traitants à mentionner** : Sentry (diagnostic), RevenueCat (abonnements), Stripe (paiement de
-la boutique), Google Places (données de lieux), Resend (courriels), et l'hébergement DigitalOcean.
+### 3.5 Abonnements
 
-### Permissions Android déclarées
+À créer **avant** de soumettre : une app qui propose un achat introuvable côté boutique est refusée.
 
-`ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `RECORD_AUDIO`, `CAMERA`, `INTERNET`,
-`ACCESS_NETWORK_STATE`, `MODIFY_AUDIO_SETTINGS`, `WAKE_LOCK`, `BLUETOOTH`.
+Un seul groupe — `YUMIA` — pour que passer d'un palier à l'autre soit une simple montée de gamme.
+Trois niveaux dans ce groupe, du moins cher au plus cher :
 
-La liste finale n'est pas celle-ci mais celle que produit la configuration (plugins compris) :
-`npx expo config --type introspect` la donne, et c'est elle qui fait foi.
+| Produit | Identifiant | Prix / mois | Rang |
+|---|---|---|---|
+| YUMIA Plus | `yumia_plus_monthly` | 2,99 € | 1 |
+| YUMIA Gold | `yumia_gold_monthly` | 5,99 € | 2 |
+| YUMIA Diamond | `yumia_diamond_monthly` | 9,99 € | 3 |
 
-✅ **Pas de localisation en arrière-plan.** Elle a été retirée avant la première soumission : elle ne
-servait que la diffusion de position sur la carte sociale, réservée aux abonnés, et Google exige pour
-elle un formulaire de déclaration **et une vidéo de démonstration**. La carte sociale fonctionne
-toujours — la position est diffusée tant que l'écran est ouvert, et le serveur l'oublie au bout de
-10 minutes.
+Chaque abonnement demande un nom affiché et une description :
 
-Si un formulaire te demande quand même de le confirmer, vérifie plutôt que de te fier à ce document :
+- **Plus** — « Deux fois plus de tout : assistant, itinéraires, chargements de lieux, et la carte
+  sociale débloquée. »
+- **Gold** — « Pour les curieux quotidiens : 40 messages par jour, 20 chargements par univers,
+  30 lieux affichés par chargement. »
+- **Diamond** — « Le maximum : 60 messages par jour, 30 chargements par univers, 40 lieux affichés,
+  et For You sans se rationner. »
 
-```bash
-npx expo config --type introspect | grep -iE "BACKGROUND_LOCATION|NSLocationAlways|UIBackgroundModes" -A3
+Les prix viennent de `packages/shared/src/gamification.ts`. S'ils changent là-bas, ils ne changent
+pas tout seuls dans les consoles : à reporter à la main.
+
+**La boutique ne passe pas par l'achat intégré.** Biens physiques livrés à domicile, payés par
+Stripe : les deux boutiques l'exigent, et c'est ce qui est implémenté.
+
+### 3.6 Informations pour la revue
+
+Le contenu est derrière une inscription : **sans compte de démonstration, l'app est refusée sans
+même être testée.**
+
+| Champ | Quoi mettre |
+|---|---|
+| Identifiant / mot de passe | Un compte réel créé sur la prod, **au palier Diamond** |
+| Notes | Le texte ci-dessous |
+| Contact | Nom, téléphone, ngolokonte95@gmail.com |
+
+Pourquoi Diamond : la **carte sociale est réservée aux abonnés**. Avec un compte gratuit,
+l'examinateur tombe sur un écran verrouillé, ne peut pas vérifier ce que tu déclares sur le partage
+de position, et te le reproche.
+
+Notes de revue à coller :
+
+```
+L'app nécessite un compte. Le compte de test fourni est actif au palier Diamond pour que toutes les
+fonctionnalités soient visibles, y compris la carte sociale (réservée aux abonnés).
+
+Âge minimum 16 ans, vérifié à l'inscription : une date de naissance est demandée, et une inscription
+en dessous est refusée côté serveur.
+
+L'app référence des lieux publics réservés aux adultes (bars, caves à vin, casinos, armureries).
+Ce sont des adresses et des horaires issus de Google Places : l'app ne vend pas ces produits, ne
+propose aucun jeu d'argent et aucune arme.
+
+La boutique vend des biens physiques livrés à domicile, payés par Stripe hors achat intégré.
+Les trois abonnements passent par l'achat intégré.
 ```
 
-Attendu : aucun `ACCESS_BACKGROUND_LOCATION`, aucun `NSLocationAlways*`, et `UIBackgroundModes` limité
-à `fetch` et `audio` (notifications et lecture vidéo) — sans `location`.
+### 3.7 Le reste des cases
+
+| Question | Réponse |
+|---|---|
+| Chiffrement (export) | Oui, mais **exempté** : uniquement HTTPS/TLS standard |
+| Droits sur le contenu | Aucun contenu de tiers nécessitant une autorisation |
+| Identifiant publicitaire (IDFA) | Non |
+| Mise en vente | Manuelle, après validation |
+
+> Sign in with Apple est déjà implémenté — obligatoire dès lors que l'app propose Google. Ne le
+> retire pas : c'est un motif de refus immédiat.
 
 ---
 
-## 5. Achats intégrés
+## 4. Play Console, écran par écran
 
-À créer dans les deux consoles **avant** la soumission : une app proposant un achat introuvable côté
-boutique est refusée.
+### 4.1 Fiche du store
 
-| Produit | Prix mensuel | Identifiant suggéré |
+| Champ | Valeur |
+|---|---|
+| Titre | `YUMIA : Sorties, IA & Cadeaux` |
+| Description courte | `Sorties, itinéraires, cadeaux : l'IA choisit le lieu parfait autour de toi.` |
+| Description complète | `FICHES-STORES.md` |
+| Catégorie | Style de vie |
+| Courriel | ngolokonte95@gmail.com |
+| Site | https://yumia.eu |
+| Confidentialité | https://yumia.eu/privacy |
+
+Visuels — **tous déjà produits**, sauf les captures :
+
+| Élément | Fichier | État |
 |---|---|---|
-| YUMIA Plus | 2,99 € | `yumia_plus_monthly` |
-| YUMIA Gold | 5,99 € | `yumia_gold_monthly` |
-| YUMIA Diamond | 9,99 € | `yumia_diamond_monthly` |
+| Icône 512×512 | `apps/mobile/assets/icon-play-512.png` | prêt |
+| Image mise en avant 1024×500 | `apps/mobile/assets/feature-graphic-1024x500.png` | prêt |
+| Captures téléphone | `docs/stores/screenshots/` | **à refaire** (§6) |
 
-Les prix viennent de `packages/shared/src/gamification.ts` — s'ils changent là-bas, ils changent dans
-l'app **et** dans la page d'abonnement, mais pas dans les consoles : à reporter à la main.
+### 4.2 Accès à l'app
 
-**Les produits de la boutique ne passent pas par l'achat intégré.** Ce sont des biens physiques livrés
-à domicile, payés par Stripe : les deux boutiques l'exigent, et c'est ce qui est implémenté.
+Coche « certaines fonctionnalités sont restreintes » et donne **les mêmes identifiants Diamond**
+qu'à Apple, avec la même explication. Google refuse aussi les apps qu'il ne peut pas ouvrir.
+
+### 4.3 Sécurité des données
+
+Mêmes données qu'en §3.4. Deux réponses transversales :
+
+- Données **chiffrées en transit** : oui, HTTPS partout.
+- L'utilisateur peut **demander la suppression** : oui — dans l'app, et par
+  https://yumia.eu/delete-account (Google exige l'URL **en plus** du parcours in-app).
+
+### 4.4 Classification du contenu (IARC)
+
+Mêmes réponses qu'en §3.3 : contenu utilisateur oui, messagerie oui, partage de position oui,
+rencontre oui, références à l'alcool et au tabac oui, jeux d'argent et armes en référence
+seulement, aucune violence, aucun contenu sexuel.
+
+### 4.5 Public cible
+
+Tranches d'âge : **16-17 ans** et **18 ans et plus**. Ne coche aucune tranche en dessous : l'app
+basculerait sous le programme *Families*, dont les règles sont bien plus strictes, et contredirait
+ta propre barrière.
+
+### 4.6 Déclarations
+
+| Question | Réponse |
+|---|---|
+| Publicités | Non |
+| Application d'actualités | Non |
+| COVID-19 / traçage | Non |
+| Fonctionnalités financières | Non — la boutique vend des biens physiques |
+| Santé | Non |
+| Application publique / gouvernementale | Non |
+| Identifiant publicitaire | Non |
+| **Localisation en arrière-plan** | **Non** — retirée (§5), donc ni formulaire ni vidéo |
+| Statut de professionnel (DSA) | Même mur qu'en §3.2 : dépend de l'immatriculation |
+
+---
+
+## 5. Permissions Android — la vraie liste
+
+Celle d'`app.json` n'en est qu'une partie : les plugins en ajoutent. La liste qui fait foi est
+celle que produit la configuration :
+
+```bash
+cd apps/mobile && npx expo config --type introspect | sed -n '/permissions:/,/]/p'
+```
+
+Au 13 septembre 2026, dix-neuf permissions, dont aucune classée sensible par Google : localisation
+approximative et précise, micro, caméra, réseau, Bluetooth, réveil, service au premier plan,
+fenêtre système, et les accès média (images, vidéo, audio, sélection partielle).
+
+✅ **Pas de localisation en arrière-plan**, pas d'identifiant publicitaire :
+
+```bash
+cd apps/mobile && npx expo config --type introspect | grep -iE "BACKGROUND_LOCATION|AD_ID|NSLocationAlways"
+```
+
+Aucune sortie attendue. La diffusion de position sur la carte sociale ne fonctionne plus que
+l'écran ouvert, et le serveur oublie la position au bout de 10 minutes.
 
 ---
 
 ## 6. Captures d'écran
 
-Les cinq images de `docs/stores/screenshots/` sont des maquettes dessinées, antérieures à la boutique,
-aux cadeaux et aux itinéraires de séjour. **À refaire**, idéalement depuis le *development build*, en
-couvrant : Top 3, itinéraire d'une journée, assistant cadeaux, boutique, carte.
+Les cinq images de `docs/stores/screenshots/` sont des maquettes dessinées, antérieures à la
+boutique, à l'assistant cadeaux et aux itinéraires de séjour. **À refaire.**
 
-Formats : 1290×2796 (iPhone 6,7″) et 1242×2688 (6,5″) pour Apple ; les mêmes conviennent à Google.
+Formats : 1290×2796 (iPhone 6,7″) et 1284×2778 (6,5″) — les mêmes conviennent à Google.
+
+Cinq écrans, dans cet ordre : **Top 3 du jour**, **itinéraire d'une journée**, **assistant
+cadeaux**, **boutique**, **carte des lieux**.
+
+Deux façons de les produire :
+
+1. **De vraies captures depuis le development build** — c'est ce qu'il faut viser, et ce qui donne
+   les meilleures fiches. Bloqué sur le build (§8).
+2. **Régénérer les maquettes** : `node docs/stores/build-screenshots.mjs`. Un pis-aller acceptable
+   pour une première soumission, à condition de mettre le script à jour pour les écrans actuels.
 
 ---
 
-## 7. Ce qui bloque encore la soumission
+## 7. Avant de cliquer sur « Envoyer »
 
-1. **Immatriculation** — sans elle, pas de compte développeur vendeur, et Stripe reste en test.
-2. ~~L'âge~~ — tranché à 16 ans, barrière implémentée, textes corrigés (section 0).
-3. ~~La localisation en arrière-plan~~ — retirée de la première soumission (section 4).
-4. **Les captures** — à refaire.
-5. **Les abonnements** — à créer dans les deux consoles.
-6. **Le development build** — il valide d'un coup les cartes Android, le crash carte iOS et la
-   barrière d'âge. Rien ne peut être testé en vrai avant lui.
+- [ ] Le compte de démonstration existe, est en Diamond, et tu viens de t'y connecter
+- [ ] `node docs/stores/check-lengths.mjs` → 13 conformes
+- [ ] Les trois abonnements sont créés **et** approuvés dans les deux consoles
+- [ ] Les captures montrent la version actuelle de l'app
+- [ ] https://yumia.eu/privacy, /terms et /delete-account répondent
+- [ ] La classification affichée est bien 16+ des deux côtés
+- [ ] Le build soumis contient la barrière d'âge
+
+---
+
+## 8. Ce qui bloque encore
+
+1. **Immatriculation** — pas de compte développeur vendeur, pas de statut de professionnel (donc
+   pas de distribution dans l'UE), et Stripe reste en test. C'est le seul vrai mur.
+2. **Le development build** — il valide d'un coup les cartes Android, le crash carte iOS et la
+   barrière d'âge. Rien ne se teste en vrai avant lui, et les captures en dépendent.
+3. **Les captures** — §6.
+4. **Les abonnements** — à créer dans les deux consoles.
+5. **Le compte de démonstration** — à créer sur la prod, en Diamond (§3.6).
+
+Réglés : l'âge (16 ans partout, barrière côté serveur) et la localisation en arrière-plan
+(retirée de la première soumission).
