@@ -11,10 +11,10 @@ import { useLocation } from '../../lib/useLocation';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
 import { WeatherCard } from '../../components/weather/WeatherCard';
-import { CannabisIcon } from '../../components/icons/CannabisIcon';
+import { CoffeeShopIcon } from '../../components/icons/CoffeeShopIcon';
 
-const UNIVERSE_CUSTOM_ICONS: Partial<Record<string, (props: { size: number }) => ReturnType<typeof CannabisIcon>>> = {
-  cannabis: CannabisIcon,
+const UNIVERSE_CUSTOM_ICONS: Partial<Record<string, (props: { size: number }) => ReturnType<typeof CoffeeShopIcon>>> = {
+  cannabis: CoffeeShopIcon,
 };
 
 function UniverseIcon({ u }: { u: string }) {

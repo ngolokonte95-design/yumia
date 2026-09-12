@@ -33,7 +33,7 @@ import { useSearchRadius, RADIUS_PRESETS_KM } from '../../lib/useSearchRadius';
 import { useCitySearch } from '../../lib/useCitySearch';
 import type { CitySuggestion } from '../../lib/services/weather';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
-import { CannabisIcon } from '../../components/icons/CannabisIcon';
+import { CoffeeShopIcon } from '../../components/icons/CoffeeShopIcon';
 
 const MAP_DELTA = 0.025;
 // Android uniquement : react-native-maps doit convertir chaque marqueur
@@ -617,7 +617,7 @@ export default function MapScreen() {
           >
             {universe === 'cannabis' ? (
               <>
-                <CannabisIcon size={16} />
+                <CoffeeShopIcon size={16} />
                 <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>{universeLabel(t, 'cannabis')}</Text>
               </>
             ) : (
@@ -651,7 +651,7 @@ export default function MapScreen() {
                   key={u}
                   label={universeLabel(t, u)}
                   emoji={UNIVERSE_META[u].emoji}
-                  icon={u === 'cannabis' ? <CannabisIcon size={14} /> : undefined}
+                  icon={u === 'cannabis' ? <CoffeeShopIcon size={14} /> : undefined}
                   active={universe === u}
                   onPress={() => void selectUniverse(u)}
                 />
@@ -721,7 +721,7 @@ export default function MapScreen() {
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
                 {place.universe === 'cannabis' ? (
-                  <CannabisIcon size={22} />
+                  <CoffeeShopIcon size={22} />
                 ) : (
                   <Text style={styles.markerEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
                 )}
@@ -864,7 +864,7 @@ function PlaceRow({
       ) : (
         <View style={styles.rowEmojiBg}>
           {place.universe === 'cannabis' ? (
-            <CannabisIcon size={28} />
+            <CoffeeShopIcon size={28} />
           ) : (
             <Text style={styles.rowEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
           )}
