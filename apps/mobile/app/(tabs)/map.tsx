@@ -13,6 +13,7 @@ import {
   PanResponder,
   Dimensions,
   Keyboard,
+  PixelRatio,
 } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
@@ -365,7 +366,18 @@ export default function MapScreen() {
     // synthétiques dès que la main lui revient, et `e.nativeEvent` serait nul
     // au retour du premier `await`.
     const { latitude, longitude } = e.nativeEvent.coordinate;
-    const position = e.nativeEvent.position ?? null;
+
+    // ANDROID : la position du tap arrive en PIXELS PHYSIQUES — le natif la
+    // calcule avec `projection.toScreenLocation()`, qui rend des pixels écran
+    // — alors que les styles React Native se placent en points indépendants
+    // de la densité. Sur un écran à 2,75x, l'indicateur de chargement
+    // atterrissait donc à presque trois fois la distance du doigt, souvent
+    // par-dessus un marqueur existant : on croyait que l'app avait sélectionné
+    // un autre lieu au lieu de charger là où on avait tapé. iOS renvoie déjà
+    // des points, d'où un écran parfaitement précis de ce côté.
+    const raw = e.nativeEvent.position;
+    const density = Platform.OS === 'android' ? PixelRatio.get() : 1;
+    const position = raw ? { x: raw.x / density, y: raw.y / density } : null;
 
     // Chercher les lieux d'un point tapé est une recherche entière, pas un
     // détail d'affichage : elle se compte comme les autres.
