@@ -33,7 +33,7 @@ import { useSearchRadius, RADIUS_PRESETS_KM } from '../../lib/useSearchRadius';
 import { useCitySearch } from '../../lib/useCitySearch';
 import type { CitySuggestion } from '../../lib/services/weather';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
-import { CoffeeShopIcon } from '../../components/icons/CoffeeShopIcon';
+import { universeIcon } from '../../components/icons/universeIcons';
 
 const MAP_DELTA = 0.025;
 // Android uniquement : react-native-maps doit convertir chaque marqueur
@@ -615,10 +615,10 @@ export default function MapScreen() {
             style={styles.filterButton}
             onPress={() => { setFilterPanelOpen((o) => !o); setRadiusPanelOpen(false); }}
           >
-            {universe === 'cannabis' ? (
+            {universe && universeIcon(universe, 16) ? (
               <>
-                <CoffeeShopIcon size={16} />
-                <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>{universeLabel(t, 'cannabis')}</Text>
+                {universeIcon(universe, 16)}
+                <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>{universeLabel(t, universe)}</Text>
               </>
             ) : (
               <Text style={styles.filterButtonText} numberOfLines={1}>
@@ -651,7 +651,7 @@ export default function MapScreen() {
                   key={u}
                   label={universeLabel(t, u)}
                   emoji={UNIVERSE_META[u].emoji}
-                  icon={u === 'cannabis' ? <CoffeeShopIcon size={14} /> : undefined}
+                  icon={universeIcon(u, 14) ?? undefined}
                   active={universe === u}
                   onPress={() => void selectUniverse(u)}
                 />
@@ -720,9 +720,7 @@ export default function MapScreen() {
               {...(Platform.OS === 'android' ? { anchor: { x: 0.5, y: 0.5 } } : {})}
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
-                {place.universe === 'cannabis' ? (
-                  <CoffeeShopIcon size={22} />
-                ) : (
+                {universeIcon(place.universe, 22) ?? (
                   <Text style={styles.markerEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
                 )}
               </View>
@@ -863,9 +861,7 @@ function PlaceRow({
         />
       ) : (
         <View style={styles.rowEmojiBg}>
-          {place.universe === 'cannabis' ? (
-            <CoffeeShopIcon size={28} />
-          ) : (
+          {universeIcon(place.universe, 28) ?? (
             <Text style={styles.rowEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
           )}
         </View>

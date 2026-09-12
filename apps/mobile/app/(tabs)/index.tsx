@@ -11,16 +11,14 @@ import { useLocation } from '../../lib/useLocation';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
 import { WeatherCard } from '../../components/weather/WeatherCard';
-import { CoffeeShopIcon } from '../../components/icons/CoffeeShopIcon';
-
-const UNIVERSE_CUSTOM_ICONS: Partial<Record<string, (props: { size: number }) => ReturnType<typeof CoffeeShopIcon>>> = {
-  cannabis: CoffeeShopIcon,
-};
+import { universeIcon } from '../../components/icons/universeIcons';
 
 function UniverseIcon({ u }: { u: string }) {
-  const Icon = UNIVERSE_CUSTOM_ICONS[u];
-  if (Icon) return <Icon size={26} />;
-  return <Text style={styles.universeEmoji}>{UNIVERSE_META[u as keyof typeof UNIVERSE_META]?.emoji ?? '❓'}</Text>;
+  // Le registre partagé décide : un univers dessiné rend son icône, les
+  // autres leur emoji. La liste vivait ici en double de celle de la carte.
+  return universeIcon(u, 26) ?? (
+    <Text style={styles.universeEmoji}>{UNIVERSE_META[u as keyof typeof UNIVERSE_META]?.emoji ?? '❓'}</Text>
+  );
 }
 
 type TFn = (key: Parameters<ReturnType<typeof import('../../lib/useI18n').useI18n>['t']>[0]) => string;
