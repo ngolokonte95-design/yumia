@@ -255,10 +255,12 @@ export const UNIVERSE_META: Record<Universe, UniverseMeta> = {
   fire_station:    { key: 'fire_station',    emoji: '🚒',   i18nKey: 'universe.fire_station',    labelFr: 'Casernes de pompiers' },
   theater:         { key: 'theater',         emoji: '🎟️',  i18nKey: 'universe.theater',         labelFr: 'Théâtres' },
   coworking:       { key: 'coworking',       emoji: '💻',   i18nKey: 'universe.coworking',       labelFr: 'Coworking & Bureaux' },
-  // Emoji volontairement neutre : une cigarette allumee tombe sous la meme
-  // regle que le joint (App Store 1.4.3, contenu encourageant la
-  // consommation). « Presse » est l'autre moitie du rayon, et se montre.
-  tobacco:         { key: 'tobacco',         emoji: '📰',   i18nKey: 'universe.tobacco',         labelFr: 'Tabac & Presse' },
+  // Emoji volontairement neutre : une cigarette allumée tomberait sous la même
+  // règle que le joint (App Store 1.4.3, contenu encourageant la
+  // consommation). Le commerce de proximité couvre tout ce qu'on trouve à ce
+  // comptoir — presse, jeux, timbres, titres de transport — sans désigner un
+  // seul produit, et ne ressemble à aucun autre rayon.
+  tobacco:         { key: 'tobacco',         emoji: '🏪',   i18nKey: 'universe.tobacco',         labelFr: 'Tabac & Presse' },
   post_office:     { key: 'post_office',     emoji: '📬',   i18nKey: 'universe.post_office',     labelFr: 'La Poste & Envoi colis' },
   police:          { key: 'police',          emoji: '🚔',   i18nKey: 'universe.police',          labelFr: 'Commissariats & Police' },
   fuel:            { key: 'fuel',            emoji: '⛽',   i18nKey: 'universe.fuel',            labelFr: 'Stations service & Bornes électriques' },
