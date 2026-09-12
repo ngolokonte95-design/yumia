@@ -28,6 +28,10 @@ export function buildPrismaMock(): PrismaMock {
     place: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn(), groupBy: jest.fn() },
     groupSession: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     groupMember: { create: jest.fn(), update: jest.fn(), findMany: jest.fn() },
+    // QuestsService.onModuleInit interroge cette table au démarrage de
+    // l'application : sans ce mock, AUCUN test e2e ne peut même démarrer.
+    // `count` non nul pour que le semis des quêtes par défaut soit sauté.
+    quest: { count: jest.fn().mockResolvedValue(1), createMany: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     $queryRaw: jest.fn().mockResolvedValue([]),
     $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     $transaction: jest.fn(),

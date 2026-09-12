@@ -27,7 +27,7 @@ describe('Webhooks (e2e)', () => {
       expect(res.body.received).toBe(true);
       expect(ta.prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-e2e' },
-        data: { plan: 'plus' },
+        data: { plan: 'plus', isPremium: true },
       });
     });
 
@@ -38,7 +38,7 @@ describe('Webhooks (e2e)', () => {
 
       expect(res.status).toBe(200);
       expect(ta.prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { plan: 'plus' } }),
+        expect.objectContaining({ data: { plan: 'plus', isPremium: true } }),
       );
     });
 
@@ -49,7 +49,7 @@ describe('Webhooks (e2e)', () => {
 
       expect(res.status).toBe(200);
       expect(ta.prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { plan: 'free' } }),
+        expect.objectContaining({ data: { plan: 'free', isPremium: false } }),
       );
     });
 
@@ -60,7 +60,7 @@ describe('Webhooks (e2e)', () => {
 
       expect(res.status).toBe(200);
       expect(ta.prisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { plan: 'free' } }),
+        expect.objectContaining({ data: { plan: 'free', isPremium: false } }),
       );
     });
 
@@ -133,7 +133,7 @@ describe('Webhooks (e2e)', () => {
       expect(res.status).toBe(200);
       expect(ta.prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'fallback-user' },
-        data: { plan: 'plus' },
+        data: { plan: 'plus', isPremium: true },
       });
     });
   });
