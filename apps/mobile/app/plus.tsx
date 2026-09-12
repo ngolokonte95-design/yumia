@@ -1,16 +1,19 @@
 /**
  * YUMIA PLUS / GOLD / DIAMOND — écran d'abonnement.
  *
- * Bâti autour d'un TABLEAU COMPARATIF alimenté par la table des forfaits
- * (plan-limits.ts), et non plus d'une grille d'arguments : les paliers ne se
- * distinguent que par des chiffres, donc montrer les chiffres est à la fois
- * plus honnête et plus court qu'une liste de promesses. Les valeurs affichées
- * ne peuvent pas mentir — ce sont exactement celles que l'app applique.
+ * Le cœur de l'écran n'est pas une grille de chiffres mais UN ÉCART : ce que
+ * le palier sélectionné change par rapport à celui qu'on a déjà. Quinze
+ * lignes sur quatre colonnes obligeaient chacun à faire la comparaison
+ * lui-même ; ici elle est déjà faite, et seules les lignes qui bougent
+ * s'affichent. La grille complète reste accessible d'un geste, pour qui veut
+ * tout voir.
  *
- * La page proposait auparavant les formules UNIQUEMENT aux comptes gratuits :
- * un abonné Plus qui voulait Gold tombait sur « tu es déjà abonné », sans
- * aucun moyen de monter. Elle propose désormais tous les paliers au-dessus du
- * palier courant, quel qu'il soit.
+ * Les valeurs viennent de plan-limits.ts, jamais recopiées : les chiffres
+ * annoncés sont exactement ceux que l'app applique.
+ *
+ * La page proposait autrefois les formules UNIQUEMENT aux comptes gratuits :
+ * un abonné Plus qui voulait Gold tombait sur « tu es déjà abonné ». Elle
+ * propose désormais tous les paliers au-dessus du palier courant.
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -49,41 +52,59 @@ const PLAN_NAME: Record<Plan, string> = {
   free: 'YUMIA Free', plus: 'YUMIA Plus', gold: 'YUMIA Gold', diamond: 'YUMIA Diamond',
 };
 
-/** En-tête de colonne : le nom sans son préfixe, pour tenir sur un écran. */
+/** En-tête de colonne de la grille : le nom sans son préfixe. */
 const PLAN_SHORT: Record<Plan, string> = {
   free: 'Free', plus: 'Plus', gold: 'Gold', diamond: 'Diamond',
 };
 
 /**
- * Les lignes du tableau.
+ * Teinte propre à chaque palier, reprise de ses étoiles.
+ *
+ * Elle sert d'accent sur la ligne sélectionnée et sur les chiffres gagnés :
+ * l'écran change de couleur selon la formule regardée, ce qui donne à chacune
+ * une identité sans ajouter un mot.
+ */
+const TIER_ACCENT: Record<PaidTier, string> = {
+  plus: '#9BA3AF',    // argent
+  gold: '#D4A72C',    // or
+  diamond: '#5FB8E8', // diamant
+};
+
+/**
+ * Une ligne comparable.
  *
  * `feature` lit un quota, `cap` un plafond d'affichage, `paidOnly` une porte
- * ouverte ou fermée. Les libellés réutilisent les clés des écrans concernés :
- * l'utilisateur retrouve le mot qu'il voit dans l'app, sans traduction
- * parallèle à maintenir.
+ * ouverte ou fermée. Les libellés empruntent les clés des écrans concernés :
+ * on retrouve le mot vu dans l'app, sans traduction parallèle à maintenir.
  */
 type Row =
-  | { labelKey: TranslationKey; feature: LimitedFeature; perDay?: boolean }
-  | { labelKey: TranslationKey; cap: DisplayCap }
-  | { labelKey: TranslationKey; paidOnly: true };
+  | { labelKey: TranslationKey; feature: LimitedFeature; perDay?: boolean; key: string }
+  | { labelKey: TranslationKey; cap: DisplayCap; key: string }
+  | { labelKey: TranslationKey; paidOnly: true; key: string };
 
 const ROWS: Row[] = [
-  { labelKey: 'home_shortcut_chatbot', feature: 'chatbotPerDay', perDay: true },
-  { labelKey: 'search_title', feature: 'desirePerDay', perDay: true },
-  { labelKey: 'home_shortcut_itinerary', feature: 'itineraryPerModePerDay', perDay: true },
-  { labelKey: 'home_shortcut_surprise', feature: 'surprisePerDay', perDay: true },
-  { labelKey: 'plus_row_universe', feature: 'universeLoadsPerDay', perDay: true },
-  { labelKey: 'plus_row_places_universe', cap: 'universePlaces' },
-  { labelKey: 'tab_map', feature: 'mapLoadsPerDay', perDay: true },
-  { labelKey: 'plus_row_places_map', cap: 'mapPlaces' },
-  { labelKey: 'plus_row_explorer_row', cap: 'explorerSectionPlaces' },
-  { labelKey: 'tab_foryou', feature: 'suggestionsPerDay', perDay: true },
-  { labelKey: 'social_menu_tind', feature: 'peopleSuggestionsPerDay', perDay: true },
-  { labelKey: 'mu_title', feature: 'eventsPerDay', perDay: true },
-  { labelKey: 'group_title', feature: 'circleMaxMembers' },
-  { labelKey: 'tab_passport', feature: 'passportMaxEntries' },
-  { labelKey: 'plus_row_social_map', paidOnly: true },
+  { key: 'chatbot', labelKey: 'home_shortcut_chatbot', feature: 'chatbotPerDay', perDay: true },
+  { key: 'search', labelKey: 'search_title', feature: 'desirePerDay', perDay: true },
+  { key: 'itinerary', labelKey: 'home_shortcut_itinerary', feature: 'itineraryPerModePerDay', perDay: true },
+  { key: 'surprise', labelKey: 'home_shortcut_surprise', feature: 'surprisePerDay', perDay: true },
+  { key: 'uniLoads', labelKey: 'plus_row_universe', feature: 'universeLoadsPerDay', perDay: true },
+  { key: 'uniPlaces', labelKey: 'plus_row_places_universe', cap: 'universePlaces' },
+  { key: 'mapLoads', labelKey: 'tab_map', feature: 'mapLoadsPerDay', perDay: true },
+  { key: 'mapPlaces', labelKey: 'plus_row_places_map', cap: 'mapPlaces' },
+  { key: 'explorer', labelKey: 'plus_row_explorer_row', cap: 'explorerSectionPlaces' },
+  { key: 'foryou', labelKey: 'tab_foryou', feature: 'suggestionsPerDay', perDay: true },
+  { key: 'tind', labelKey: 'social_menu_tind', feature: 'peopleSuggestionsPerDay', perDay: true },
+  { key: 'events', labelKey: 'mu_title', feature: 'eventsPerDay', perDay: true },
+  { key: 'circle', labelKey: 'group_title', feature: 'circleMaxMembers' },
+  { key: 'passport', labelKey: 'tab_passport', feature: 'passportMaxEntries' },
+  { key: 'socialMap', labelKey: 'plus_row_social_map', paidOnly: true },
 ];
+
+/** Valeur brute d'une ligne pour un palier. `null` = porte fermée. */
+function valueOf(row: Row, plan: Plan): number | null {
+  if ('paidOnly' in row) return plan === 'free' ? null : Infinity;
+  return 'cap' in row ? DISPLAY_CAPS_BY_PLAN[plan][row.cap] : LIMITS_BY_PLAN[plan][row.feature];
+}
 
 export default function PlusScreen() {
   const insets = useSafeAreaInsets();
@@ -92,6 +113,7 @@ export default function PlusScreen() {
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const currentPlan = (user?.plan ?? 'free') as Plan;
   const upgrades = useMemo(() => {
@@ -99,8 +121,8 @@ export default function PlusScreen() {
     return next ? PAID_TIERS.slice(PAID_TIERS.indexOf(next)) : [];
   }, [currentPlan]);
 
-  // Présélection du premier palier proposé : le plus proche, donc le moins
-  // cher — celui qu'on choisit le plus souvent.
+  // Présélection du palier le plus proche : le moins cher des proposés, donc
+  // celui qu'on choisit le plus souvent.
   const [selectedTier, setSelectedTier] = useState<PaidTier | null>(upgrades[0] ?? null);
   useEffect(() => { setSelectedTier(upgrades[0] ?? null); }, [upgrades]);
 
@@ -108,19 +130,40 @@ export default function PlusScreen() {
     fetchOfferings().then(setOfferings);
   }, []);
 
+  const accent = selectedTier ? TIER_ACCENT[selectedTier] : colors.brand;
+
+  /**
+   * Ce que le palier sélectionné change, et rien d'autre.
+   *
+   * Les gains DÉBLOCAGES (une limite qui saute, une porte qui s'ouvre) passent
+   * devant les gains chiffrés : ce sont eux qui décident un abonnement.
+   */
+  const changes = useMemo(() => {
+    if (!selectedTier) return [];
+    return ROWS.flatMap((row) => {
+      const from = valueOf(row, currentPlan);
+      const to = valueOf(row, selectedTier);
+      if (from === to) return [];
+      const unlocked = to === Infinity || from === null;
+      return [{ row, from, to, unlocked }];
+    }).sort((a, b) => Number(b.unlocked) - Number(a.unlocked));
+  }, [selectedTier, currentPlan]);
+
   /** Prix réel de la boutique quand il est connu, tarif de référence sinon. */
   function priceOf(tier: PaidTier): string {
     const pkg = packageForTier(offerings, tier);
     return pkg?.product.priceString ?? `${PLAN_PRICE_EUR[tier].toFixed(2).replace('.', ',')} €`;
   }
 
-  /** Valeur d'une ligne pour un palier — « ∞ » quand c'est illimité. */
-  function cellValue(row: Row, plan: Plan): string {
-    if ('paidOnly' in row) return plan === 'free' ? '—' : '✓';
-    const value = 'cap' in row
-      ? DISPLAY_CAPS_BY_PLAN[plan][row.cap]
-      : LIMITS_BY_PLAN[plan][row.feature];
+  /** Affichage d'une valeur : « ∞ » pour l'illimité, « — » pour une porte close. */
+  function format(value: number | null): string {
+    if (value === null) return '—';
     return value === Infinity ? '∞' : String(value);
+  }
+
+  /** Libellé d'une ligne, débarrassé de l'emoji que portent certaines clés. */
+  function label(row: Row): string {
+    return t(row.labelKey).replace(/^[^\p{L}0-9]+/u, '');
   }
 
   async function handleRestore() {
@@ -186,66 +229,31 @@ export default function PlusScreen() {
         <Text style={styles.sub}>{t('plus_hero_sub')}</Text>
       </View>
 
-      {/* Palier en cours */}
       <View style={styles.currentRow}>
-        <PlanBadgeIcon plan={currentPlan} size={26} />
+        <PlanBadgeIcon plan={currentPlan} size={24} />
         <Text style={styles.currentName}>{PLAN_NAME[currentPlan]}</Text>
         <Text style={styles.currentTag}>{t('plus_current_plan')}</Text>
-      </View>
-
-      {/* Tableau comparatif — les chiffres réellement appliqués par l'app. */}
-      <Text style={styles.sectionTitle}>{t('plus_table_title')}</Text>
-      <View style={styles.table}>
-        <View style={[styles.tr, styles.thead]}>
-          <Text style={[styles.th, styles.cellLabel]} />
-          {PLANS.map((p) => (
-            <Text
-              key={p}
-              style={[styles.th, styles.cell, p === currentPlan && styles.cellCurrent]}
-              numberOfLines={1}
-            >
-              {PLAN_SHORT[p]}
-            </Text>
-          ))}
-        </View>
-
-        {ROWS.map((row, i) => (
-          <View key={row.labelKey} style={[styles.tr, i % 2 === 1 && styles.trAlt]}>
-            <Text style={[styles.td, styles.cellLabel]} numberOfLines={2}>
-              {/* Les libellés empruntés à d'autres écrans portent parfois un
-                  emoji en tête ; il alourdit une grille de chiffres. */}
-              {t(row.labelKey).replace(/^[^\p{L}0-9]+/u, '')}
-              {'perDay' in row && row.perDay ? (
-                <Text style={styles.tdUnit}>{t('plus_per_day')}</Text>
-              ) : null}
-            </Text>
-            {PLANS.map((p) => (
-              <Text
-                key={p}
-                style={[styles.td, styles.cell, p === currentPlan && styles.cellCurrent]}
-              >
-                {cellValue(row, p)}
-              </Text>
-            ))}
-          </View>
-        ))}
       </View>
 
       {upgrades.length === 0 ? (
         <Text style={styles.topTier}>{t('plus_top_tier')}</Text>
       ) : (
         <>
-          <Text style={styles.sectionTitle}>{t('plus_choose_plan')}</Text>
+          {/* Choix du palier — des lignes, pas des cartes : trois formules se
+              comparent d'un regard vertical. */}
           {upgrades.map((tier) => {
             const selected = tier === selectedTier;
             return (
               <Pressable
                 key={tier}
-                style={[styles.tierRow, selected && styles.tierRowSelected]}
+                style={[
+                  styles.tierRow,
+                  selected && { borderColor: TIER_ACCENT[tier], backgroundColor: `${TIER_ACCENT[tier]}14` },
+                ]}
                 onPress={() => setSelectedTier(tier)}
               >
-                <View style={[styles.radio, selected && styles.radioOn]}>
-                  {selected ? <View style={styles.radioDot} /> : null}
+                <View style={[styles.radio, selected && { borderColor: TIER_ACCENT[tier] }]}>
+                  {selected ? <View style={[styles.radioDot, { backgroundColor: TIER_ACCENT[tier] }]} /> : null}
                 </View>
                 <PlanBadgeIcon plan={tier} size={26} />
                 <Text style={styles.tierName}>{PLAN_NAME[tier]}</Text>
@@ -257,8 +265,41 @@ export default function PlusScreen() {
             );
           })}
 
+          {/* L'écart, déjà calculé : la comparaison n'est plus à la charge du
+              lecteur, et seules les lignes qui changent apparaissent. */}
+          {selectedTier ? (
+            <>
+              <Text style={styles.sectionTitle}>
+                {t('plus_changes_title').replace('{tier}', PLAN_NAME[selectedTier])}
+              </Text>
+
+              {changes.length === 0 ? (
+                <Text style={styles.topTier}>{t('plus_nothing_more')}</Text>
+              ) : (
+                <View style={styles.changes}>
+                  {changes.map(({ row, from, to, unlocked }) => (
+                    <View key={row.key} style={styles.changeRow}>
+                      <Text style={styles.changeLabel} numberOfLines={2}>{label(row)}</Text>
+                      {unlocked ? (
+                        <Text style={[styles.changeUnlocked, { color: accent }]}>
+                          ✓ {t('plus_unlocked')}
+                        </Text>
+                      ) : (
+                        <View style={styles.changeValues}>
+                          <Text style={styles.changeFrom}>{format(from)}</Text>
+                          <Text style={styles.changeArrow}>→</Text>
+                          <Text style={[styles.changeTo, { color: accent }]}>{format(to)}</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : null}
+
           <Pressable
-            style={[styles.cta, loading && styles.ctaDisabled]}
+            style={[styles.cta, { backgroundColor: accent }, loading && styles.ctaDisabled]}
             onPress={handleSubscribe}
             disabled={loading || !selectedTier}
           >
@@ -272,6 +313,45 @@ export default function PlusScreen() {
           </Pressable>
 
           <Text style={styles.legal}>{t('plus_legal')}</Text>
+
+          {/* La grille complète reste là pour qui veut tout voir — repliée par
+              défaut, car elle demande un effort que l'écart ci-dessus évite. */}
+          <Pressable onPress={() => setCompareOpen((v) => !v)} style={styles.compareToggle}>
+            <Text style={[styles.compareToggleText, { color: accent }]}>
+              {compareOpen ? t('plus_compare_hide') : t('plus_compare_show')}
+            </Text>
+          </Pressable>
+
+          {compareOpen ? (
+            <View style={styles.table}>
+              <View style={[styles.tr, styles.thead]}>
+                <Text style={[styles.th, styles.cellLabel]} />
+                {PLANS.map((p) => (
+                  <Text
+                    key={p}
+                    style={[styles.th, styles.cell, p === currentPlan && styles.cellCurrent]}
+                    numberOfLines={1}
+                  >
+                    {PLAN_SHORT[p]}
+                  </Text>
+                ))}
+              </View>
+
+              {ROWS.map((row, i) => (
+                <View key={row.key} style={[styles.tr, i % 2 === 1 && styles.trAlt]}>
+                  <Text style={[styles.td, styles.cellLabel]} numberOfLines={2}>{label(row)}</Text>
+                  {PLANS.map((p) => (
+                    <Text
+                      key={p}
+                      style={[styles.td, styles.cell, p === currentPlan && styles.cellCurrent]}
+                    >
+                      {format(valueOf(row, p))}
+                    </Text>
+                  ))}
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           <Pressable onPress={handleRestore} disabled={loading} style={styles.restoreBtn}>
             <Text style={styles.restoreText}>{t('plus_restore_purchases')}</Text>
@@ -303,8 +383,60 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     ...typography.label, color: colors.textSecondary,
-    marginHorizontal: spacing.lg, marginBottom: spacing.sm, marginTop: spacing.md,
+    marginHorizontal: spacing.lg, marginBottom: spacing.sm, marginTop: spacing.lg,
   },
+
+  tierRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginHorizontal: spacing.lg, marginBottom: spacing.sm,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
+  },
+  radio: {
+    width: 18, height: 18, borderRadius: 9,
+    borderWidth: 2, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioDot: { width: 8, height: 8, borderRadius: 4 },
+  tierName: { ...typography.label, color: colors.textPrimary, flex: 1 },
+  tierPrice: { ...typography.label, color: colors.textPrimary },
+  tierPer: { ...typography.caption, color: colors.textMuted },
+
+  changes: {
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+  },
+  changeRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  changeLabel: { ...typography.body, fontSize: 13, color: colors.textSecondary, flex: 1, paddingRight: spacing.sm },
+  changeValues: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  changeFrom: { ...typography.body, fontSize: 13, color: colors.textMuted },
+  changeArrow: { ...typography.body, fontSize: 12, color: colors.textMuted },
+  // Le chiffre gagné est le seul élément en gras de la ligne : l'œil le trouve
+  // sans lire le reste.
+  changeTo: { ...typography.heading, fontSize: 16 },
+  changeUnlocked: { ...typography.label, fontSize: 13 },
+
+  cta: {
+    marginHorizontal: spacing.lg, marginTop: spacing.lg,
+    borderRadius: radius.pill, paddingVertical: 15, alignItems: 'center',
+  },
+  ctaDisabled: { opacity: 0.6 },
+  ctaText: { ...typography.label, color: '#fff', fontSize: 15 },
+
+  legal: {
+    ...typography.caption, color: colors.textMuted, textAlign: 'center',
+    marginHorizontal: spacing.lg, marginTop: spacing.sm,
+  },
+
+  compareToggle: { alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.xs },
+  compareToggleText: { ...typography.label, fontSize: 13 },
 
   table: {
     marginHorizontal: spacing.lg,
@@ -316,49 +448,17 @@ const styles = StyleSheet.create({
   thead: { backgroundColor: colors.surfaceElevated },
   th: { ...typography.label, fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
   td: { ...typography.body, fontSize: 12, color: colors.textPrimary, textAlign: 'center' },
-  tdUnit: { ...typography.caption, fontSize: 10, color: colors.textMuted },
   // Le libellé prend la place restante, les quatre colonnes une part fixe en
-  // pourcentage : la grille tient ainsi sur n'importe quelle largeur d'écran.
+  // pourcentage : la grille tient sur n'importe quelle largeur d'écran.
   cellLabel: { flex: 1, textAlign: 'left', color: colors.textSecondary, paddingRight: 4 },
   cell: { width: '13%' },
   cellCurrent: { color: colors.brand, fontWeight: '700' },
 
-  tierRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    marginHorizontal: spacing.lg, marginBottom: spacing.sm,
-    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
-  },
-  tierRowSelected: { borderColor: colors.brand, backgroundColor: `${colors.brand}12` },
-  radio: {
-    width: 18, height: 18, borderRadius: 9,
-    borderWidth: 2, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  radioOn: { borderColor: colors.brand },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand },
-  tierName: { ...typography.label, color: colors.textPrimary, flex: 1 },
-  tierPrice: { ...typography.label, color: colors.textPrimary },
-  tierPer: { ...typography.caption, color: colors.textMuted },
-
-  cta: {
-    marginHorizontal: spacing.lg, marginTop: spacing.sm,
-    backgroundColor: colors.brand, borderRadius: radius.pill,
-    paddingVertical: 15, alignItems: 'center',
-  },
-  ctaDisabled: { opacity: 0.6 },
-  ctaText: { ...typography.label, color: '#fff', fontSize: 15 },
-
-  legal: {
-    ...typography.caption, color: colors.textMuted, textAlign: 'center',
-    marginHorizontal: spacing.lg, marginTop: spacing.sm,
-  },
   restoreBtn: { alignItems: 'center', paddingVertical: spacing.md },
   restoreText: { ...typography.caption, color: colors.brandSoft },
 
   topTier: {
     ...typography.body, color: colors.textSecondary, textAlign: 'center',
-    marginHorizontal: spacing.lg, marginTop: spacing.lg,
+    marginHorizontal: spacing.lg, marginTop: spacing.md,
   },
 });
