@@ -7,6 +7,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useAuth } from '../../lib/auth-context';
+import { promptReport } from '../../lib/report-content';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { PostVideo } from '../../components/PostVideo';
@@ -348,10 +349,22 @@ export default function PostDetailScreen() {
                 comment={c}
                 onLike={() => void toggleCommentLike(c.id)}
                 onReply={() => setReplyTo(c)}
+                onReport={() => promptReport({
+                  accessToken, targetType: 'comment', targetId: c.id, t,
+                  titleKey: 'report_comment_title',
+                })}
               />
               {c.replies?.map((r) => (
                 <View key={r.id} style={{ paddingLeft: 38 }}>
-                  <CommentRow comment={r} onLike={() => void toggleCommentLike(r.id)} onReply={() => setReplyTo(c)} />
+                  <CommentRow
+                    comment={r}
+                    onLike={() => void toggleCommentLike(r.id)}
+                    onReply={() => setReplyTo(c)}
+                    onReport={() => promptReport({
+                      accessToken, targetType: 'comment', targetId: r.id, t,
+                      titleKey: 'report_comment_title',
+                    })}
+                  />
                 </View>
               ))}
             </View>
@@ -416,7 +429,7 @@ export default function PostDetailScreen() {
   );
 }
 
-function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike: () => void; onReply: () => void }) {
+function CommentRow({ comment: c, onLike, onReply, onReport }: { comment: Comment; onLike: () => void; onReply: () => void; onReport: () => void }) {
   const { t } = useI18n();
   return (
     <View style={styles.commentRow}>
@@ -438,6 +451,11 @@ function CommentRow({ comment: c, onLike, onReply }: { comment: Comment; onLike:
           <Text style={styles.commentAgo}>{formatAgo(c.createdAt, t)}</Text>
           <Pressable onPress={onReply} hitSlop={6}>
             <Text style={styles.commentActionTxt}>{t('pd_reply')}</Text>
+          </Pressable>
+          {/* Un commentaire est un contenu d'utilisateur comme un autre : il
+              doit pouvoir être signalé là où on le lit. */}
+          <Pressable onPress={onReport} hitSlop={6}>
+            <Text style={styles.commentActionTxt}>{t('report_content_action')}</Text>
           </Pressable>
         </View>
       </View>

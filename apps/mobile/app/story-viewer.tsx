@@ -14,6 +14,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 // chargement du bundle, avant même qu'on ait besoin de "Enregistrer".
 import { Directory, File, Paths } from 'expo-file-system';
 import { useAuth } from '../lib/auth-context';
+import { promptReport } from '../lib/report-content';
 import { feedApi, type StoryGroup, type StorySticker } from '../lib/feed-api';
 import { colors, radius, spacing } from '../theme/tokens';
 import type { MusicTrack } from '../components/MusicPicker';
@@ -374,6 +375,20 @@ export default function StoryViewerScreen() {
         </View>
       ) : (
         <View style={[styles.replyBar, { bottom: insets.bottom + 12 }]}>
+          {/* Signalement : une story d'autrui n'offrait que la réponse en
+              message privé, donc aucun recours face à un contenu choquant. */}
+          <Pressable
+            onPress={() => promptReport({
+              accessToken,
+              targetType: 'story',
+              targetId: story.id,
+              t,
+              titleKey: 'report_story_title',
+            })}
+            hitSlop={8}
+          >
+            <Text style={styles.replySend}>⚠️</Text>
+          </Pressable>
           <TextInput
             style={styles.replyInput}
             placeholder={replySent ? t('sv_reply_sent') : t('sv_reply_to').replace('{name}', group.user.displayName.split(' ')[0])}
