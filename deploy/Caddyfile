@@ -13,7 +13,7 @@
 #   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
 #   sudo apt update && sudo apt install caddy
 #   sudo cp /root/yumia/deploy/Caddyfile /etc/caddy/Caddyfile
-#   sudo mkdir -p /var/www/yumia && sudo cp /root/yumia/legal/*.html /var/www/yumia/
+#   sudo mkdir -p /var/www/yumia && sudo cp /root/yumia/website/* /var/www/yumia/
 #   sudo systemctl reload caddy
 # ============================================================================
 
