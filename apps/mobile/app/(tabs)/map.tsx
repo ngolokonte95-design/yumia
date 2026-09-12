@@ -506,6 +506,28 @@ export default function MapScreen() {
     return () => clearTimeout(t);
   }, [markerIds]);
 
+  // ANDROID : un marqueur « posé » est un bitmap figé. Sa sélection change son
+  // style (bordure, fond, taille) mais rien ne se voit tant qu'on ne redemande
+  // pas sa capture — sur iOS les marqueurs sont de vraies vues, d'où un bug
+  // qui ne se manifestait que côté Android. On réactive donc brièvement le
+  // suivi sur le lieu choisi ET sur celui qui vient de perdre la sélection,
+  // sans quoi l'ancien garderait sa bordure de sélection indéfiniment.
+  const prevSelectedId = useRef<string | null>(null);
+  useEffect(() => {
+    const affected = [selectedId, prevSelectedId.current].filter((id): id is string => !!id);
+    prevSelectedId.current = selectedId;
+    if (affected.length === 0) return;
+    setTrackingIds((prev) => new Set([...prev, ...affected]));
+    const t = setTimeout(() => {
+      setTrackingIds((prev) => {
+        const next = new Set(prev);
+        affected.forEach((id) => next.delete(id));
+        return next;
+      });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [selectedId]);
+
   // Toujours `displayPlaces.length` : les listes brutes comptent des lieux que
   // le plafond du forfait ne montre pas, et le compteur annonçait vingt lieux
   // là où la carte en portait cinq.
@@ -1081,7 +1103,14 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
     borderWidth: 2.5,
     backgroundColor: colors.bg,
-    transform: [{ scale: 1.2 }],
+    // Pas de `transform: scale` : Android dessine le marqueur dans un bitmap
+    // à partir des dimensions de mise en page, et une transformation appliquée
+    // à cette même vue n'y figure pas — le marqueur choisi ne grossissait donc
+    // jamais. Un agrandissement par la taille, lui, traverse la capture, et
+    // l'ancre centrée le garde sur son point GPS.
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   markerEmoji: { fontSize: 20 },
 
