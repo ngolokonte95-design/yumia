@@ -8,6 +8,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
+import { promptReport } from '../../lib/report-content';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { feedApi, type FeedPost, type StoryGroup, type Plan } from '../../lib/feed-api';
@@ -219,23 +220,45 @@ function PostCard({
 }) {
   const isOwner = !!currentUserId && item.userId === currentUserId;
   const router = useRouter();
+  // Le jeton est lu ici plutôt que passé en propriété : la carte est rendue
+  // dans plusieurs listes, et ajouter la même propriété partout se serait
+  // oublié quelque part.
+  const { accessToken } = useAuth();
   // Alias `tr` : le paramètre `goFullscreen` ci-dessous s'appelle déjà `t`
   // (un nombre de secondes), ce qui masquerait le `t` de useI18n.
   const { t: tr } = useI18n();
   const goFullscreen = (t: number) => router.push(`/reels?postId=${item.id}&t=${Math.floor(t)}` as never);
 
   const handleMenu = () => {
-    Alert.alert(tr('social_post_menu_title'), undefined, [
-      {
-        text: tr('social_delete'),
-        style: 'destructive',
-        onPress: () => Alert.alert(tr('social_delete_confirm_title'), tr('social_delete_confirm_body'), [
-          { text: tr('social_cancel'), style: 'cancel' },
-          { text: tr('social_delete'), style: 'destructive', onPress: () => onDelete?.(item.id) },
-        ]),
-      },
-      { text: tr('social_cancel'), style: 'cancel' },
-    ]);
+    // Sa propre publication se supprime ; celle d'un autre se signale. Le
+    // menu n'apparaissait qu'au propriétaire, ce qui ne laissait AUCUN moyen
+    // de signaler un contenu — exigence de la règle 1.2 de l'App Store et de
+    // la politique de contenu de Google Play.
+    Alert.alert(tr('social_post_menu_title'), undefined, isOwner
+      ? [
+        {
+          text: tr('social_delete'),
+          style: 'destructive',
+          onPress: () => Alert.alert(tr('social_delete_confirm_title'), tr('social_delete_confirm_body'), [
+            { text: tr('social_cancel'), style: 'cancel' },
+            { text: tr('social_delete'), style: 'destructive', onPress: () => onDelete?.(item.id) },
+          ]),
+        },
+        { text: tr('social_cancel'), style: 'cancel' },
+      ]
+      : [
+        {
+          text: tr('report_content_action'),
+          style: 'destructive',
+          onPress: () => promptReport({
+            accessToken,
+            targetType: 'post',
+            targetId: item.id,
+            t: tr,
+          }),
+        },
+        { text: tr('social_cancel'), style: 'cancel' },
+      ]);
   };
 
   return (
@@ -256,11 +279,9 @@ function PostCard({
           {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
         </View>
         <Text style={styles.postAgo}>{formatAgo(item.createdAt, tr)}</Text>
-        {isOwner && (
-          <Pressable onPress={handleMenu} hitSlop={12} style={{ marginLeft: 'auto', paddingHorizontal: 6 }}>
-            <Text style={{ color: colors.textMuted, fontSize: 18, letterSpacing: 1 }}>···</Text>
-          </Pressable>
-        )}
+        <Pressable onPress={handleMenu} hitSlop={12} style={{ marginLeft: 'auto', paddingHorizontal: 6 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 18, letterSpacing: 1 }}>···</Text>
+        </Pressable>
       </Pressable>
 
       {/* Média + musique en overlay (façon Instagram) */}

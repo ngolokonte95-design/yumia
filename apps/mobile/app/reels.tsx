@@ -9,6 +9,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAuth } from '../lib/auth-context';
+import { promptReport } from '../lib/report-content';
 import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { feedApi, type FeedPost, type PostOverlay } from '../lib/feed-api';
@@ -302,6 +303,7 @@ function ReelCard({
   };
 
   const { t } = useI18n();
+  const { accessToken } = useAuth();
   const mediaUrl = item.mediaUrls?.[0];
   const isVideo = !!mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('video'));
 
@@ -396,8 +398,13 @@ function ReelCard({
           <Text style={styles.reelActionCount}>12</Text>
         </Pressable>
 
-        {/* ... menu */}
-        <Pressable style={styles.reelActionBtn}>
+        {/* Menu — signalement du contenu. Le bouton existait sans action ;
+            un reel est le contenu le plus vu de l'app, il doit être
+            signalable comme le reste (règle 1.2 de l'App Store). */}
+        <Pressable
+          style={styles.reelActionBtn}
+          onPress={() => promptReport({ accessToken, targetType: 'post', targetId: item.id, t })}
+        >
           <Text style={styles.reelActionIcon}>···</Text>
         </Pressable>
 
