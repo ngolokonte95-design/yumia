@@ -20,6 +20,16 @@ export class RegisterDto {
   @MaxLength(40)
   displayName!: string;
 
+  /**
+   * Date de naissance (AAAA-MM-JJ). Obligatoire : c'est la barrière d'âge, et
+   * une barrière facultative ne barre rien. Le serveur ne conserve que
+   * l'année (voir `assertSignupAge`).
+   */
+  @ApiProperty({ example: '2000-04-17', description: 'Date de naissance AAAA-MM-JJ' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date de naissance attendue au format AAAA-MM-JJ.' })
+  birthDate!: string;
+
   @ApiPropertyOptional({ example: 'fr', maxLength: 8 })
   @IsOptional()
   @IsString()

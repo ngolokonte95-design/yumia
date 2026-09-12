@@ -49,11 +49,16 @@ export interface Top3Params {
   weather?: { tempC: number; condition: string };
 }
 
-/** Erreur HTTP enrichie du code de statut. */
+/**
+ * Erreur HTTP enrichie du code de statut et, quand l'API en fournit un, d'un
+ * code applicatif (`AGE_REQUIRED`, `AGE_TOO_YOUNG`…). Le code permet de
+ * réagir à un cas précis sans lire le message, qui est traduit et peut changer.
+ */
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -132,25 +137,25 @@ async function _request<T>(path: string, opts: RequestOptions): Promise<T> {
   }
 
   if (!res.ok) {
-    const message = await extractError(res);
-    throw new ApiError(message, res.status);
+    const { message, code } = await extractError(res);
+    throw new ApiError(message, res.status, code);
   }
   // 204 No Content (ex. logout) → pas de corps à parser.
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-/** Tente d'extraire un message lisible du corps d'erreur de l'API. */
-async function extractError(res: Response): Promise<string> {
+/** Tente d'extraire un message lisible — et un code — du corps d'erreur de l'API. */
+async function extractError(res: Response): Promise<{ message: string; code?: string }> {
   try {
-    const body = (await res.json()) as { error?: { message?: string } | string };
+    const body = (await res.json()) as { error?: { message?: string; code?: string } | string };
     const err = body?.error;
-    if (typeof err === 'string') return err;
-    if (err?.message) return err.message;
+    if (typeof err === 'string') return { message: err };
+    if (err?.message) return { message: err.message, code: err.code };
   } catch {
     // corps non-JSON
   }
-  return `${apiT('api_request_failed')} (${res.status}).`;
+  return { message: `${apiT('api_request_failed')} (${res.status}).` };
 }
 
 /** Récupère le Top 3 contextuel pour une position et des signaux donnés. */

@@ -14,6 +14,17 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { UNIVERSES, type Universe } from '@yumia/shared';
+import { MIN_SIGNUP_AGE } from '../age';
+
+/**
+ * Année de naissance la plus récente acceptée dans le profil.
+ *
+ * Elle doit suivre la barrière posée à l'inscription : sans quoi on refuserait
+ * un compte à 15 ans pour le laisser se déclarer 15 ans le lendemain. Calculée
+ * au chargement du module plutôt qu'écrite en dur (c'était `2010`, juste par
+ * coïncidence), donc rafraîchie à chaque redémarrage du serveur.
+ */
+const MAX_BIRTH_YEAR = new Date().getFullYear() - MIN_SIGNUP_AGE;
 
 export class PreferencesDto {
   @ApiPropertyOptional({ type: [String], example: ['restaurant', 'bar'] })
@@ -85,7 +96,7 @@ export class UpdateMeDto {
   @IsOptional()
   @IsInt()
   @Min(1920)
-  @Max(2010)
+  @Max(MAX_BIRTH_YEAR)
   birthYear?: number;
 
   @ApiPropertyOptional({ example: 'everyone', enum: ['male', 'female', 'everyone'] })

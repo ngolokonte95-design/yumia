@@ -10,25 +10,29 @@ Les textes marketing (nom, sous-titre, descriptions) sont dans `FICHES-STORES.md
 
 ---
 
-## 0. À TRANCHER AVANT DE TOUCHER AUX CONSOLES
+## 0. L'âge minimum — tranché : **16 ans**
 
-### L'âge minimum — trois valeurs contradictoires aujourd'hui
+Les trois endroits disent désormais la même chose, et l'app le fait respecter :
 
-| Où | Valeur actuelle |
-|---|---|
-| Conditions d'utilisation en ligne (`website/terms.html`) | **13 ans** |
-| Ce qui a été déclaré à la boutique | **16 ans** |
-| L'app elle-même | **aucun contrôle** — l'année de naissance est déclarative |
+| Où | Valeur | État |
+|---|---|---|
+| Conditions d'utilisation (`website/terms.html`) | 16 ans | corrigé (était 13) |
+| Politique de confidentialité (`website/privacy.html`) | 16 ans | corrigé (était 13) |
+| Déclaration aux boutiques | 16 ans | à ressaisir (section 3) |
+| L'app | date de naissance demandée à l'inscription, refus bloquant en dessous | `apps/mobile/lib/age-gate.ts` + `apps/api/src/modules/auth/age.ts` |
 
-Il faut **un seul chiffre**, repris aux trois endroits. Et ce chiffre dépend d'une décision produit :
+**Comment la barrière fonctionne**, si un testeur de boutique pose la question :
 
-- **Avec Tind et la carte sociale** (mise en relation entre personnes, partage de position) : les deux
-  boutiques classent cela comme de la rencontre. Compte **18 ans**, une déclaration « application de
-  rencontre » côté Google, et un contrôle d'âge réel à l'inscription.
-- **Sans Tind ni carte sociale** dans la première version : le reste (fil, reels, messagerie) reste du
-  réseau social classique. **16 ans** se défend, et la classification descend d'un cran.
+- Inscription par email : trois champs jour / mois / année dans le formulaire, aucun pré-rempli.
+  Le bouton reste inactif tant que la date est absente, inexistante (31 février) ou sous la limite.
+- Inscription par Google ou Apple : le serveur repère qu'aucun compte n'existe, répond `AGE_REQUIRED`,
+  et l'app demande la date avant de rejouer l'appel. Une **re**connexion ne redemande rien.
+- Le serveur refait le calcul (`assertSignupAge`) et refuse **avant** toute écriture en base : un
+  client modifié ne contourne rien.
+- Seule l'**année** est conservée (`User.birthYear`) — c'est tout ce dont le profil a besoin.
 
-Tant que ce choix n'est pas fait, les sections 3 et 4 ne peuvent pas être remplies honnêtement.
+Un utilisateur peut évidemment mentir sur sa date : aucune boutique n'exige davantage sans
+vérification d'identité. Ce qui est exigé, c'est que la question soit posée et que la réponse bloque.
 
 ---
 
@@ -68,7 +72,7 @@ réponse minorée se découvre au premier signalement et coûte le retrait.
 | Modération et signalement | **Oui** | Filtrage automatique des textes, signalement sur les quatre surfaces, blocage, restriction |
 | Messagerie entre utilisateurs | **Oui** | Messages privés, réponses aux stories |
 | Partage de position entre utilisateurs | **Oui** | Carte sociale, visibilité activable, signaux |
-| Mise en relation / rencontre | **Oui** si Tind reste | Écran de découverte de profils par swipe |
+| Mise en relation / rencontre | **Oui** | Écran Tind, découverte de profils par swipe |
 | Alcool, tabac, drogues — références | **Oui** | Rayons Bars, Pubs, Caves à vin, Bars à chicha, Tabac & Presse, Coffee shops |
 | Jeux d'argent — références | **Oui** | Rayon Casinos (annuaire de lieux, aucun jeu dans l'app) |
 | Armes — références | **Oui** | Rayon « Armureries & Stands de tir » |
@@ -77,9 +81,16 @@ réponse minorée se découvre au premier signalement et coûte le retrait.
 | Publicité | **Non** | Aucune régie |
 | Accès web non restreint | **Non** | Pas de navigateur intégré ; liens partenaires ouverts hors de l'app |
 
-> Ces réponses mènent à un classement élevé — **17+ chez Apple**, adolescents ou adultes chez Google.
-> C'est la conséquence directe des rayons Casinos, Armureries, Coffee shops et de la mise en relation.
-> Si tu vises plus bas, il faut **retirer des rayons**, pas minorer les réponses.
+> Apple pose ces questions par **fréquence** (aucune / rare / fréquente) depuis 2025, et le palier
+> **16+** existe désormais à côté de 13+ et 18+. Chez nous : références à l'alcool **fréquentes**
+> (Bars, Pubs, Caves à vin, Night-clubs sont des rayons entiers), jeux d'argent et armes **rares**
+> (un rayon chacun, et aucun jeu ni aucune arme dans l'app — seulement des adresses).
+>
+> Le précédent utile : **Yelp**, annuaire de lieux comparable, porte les mentions « alcool, tabac,
+> drogues » et « armes » sans être réservé aux adultes.
+>
+> Le questionnaire calcule le classement et l'affiche **avant** la soumission. S'il sort 18+ malgré
+> ces réponses, le levier est de **retirer des rayons**, jamais de minorer les réponses.
 
 ---
 
@@ -154,7 +165,7 @@ Formats : 1290×2796 (iPhone 6,7″) et 1242×2688 (6,5″) pour Apple ; les mê
 ## 7. Ce qui bloque encore la soumission
 
 1. **Immatriculation** — sans elle, pas de compte développeur vendeur, et Stripe reste en test.
-2. **L'âge** — trois valeurs contradictoires, à unifier (section 0).
+2. ~~L'âge~~ — tranché à 16 ans, barrière implémentée, textes corrigés (section 0).
 3. **La localisation en arrière-plan** — dossier Google à monter, ou permission à retirer.
 4. **Les captures** — à refaire.
 5. **Les abonnements** — à créer dans les deux consoles.

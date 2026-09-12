@@ -2,6 +2,9 @@ import request = require('supertest');
 import * as bcrypt from 'bcryptjs';
 import { createTestApp, type TestApp } from './helpers/app.helper';
 
+/** Majeur, recalcule a chaque execution pour ne pas perimer. */
+const ADULT_BIRTH_DATE = `${new Date().getUTCFullYear() - 30}-01-01`;
+
 const mockUser = {
   id: 'user-e2e',
   email: 'e2e@yumia.app',
@@ -45,7 +48,13 @@ describe('Auth (e2e)', () => {
 
       const res = await request(ta.app.getHttpServer())
         .post('/api/auth/register')
-        .send({ email: 'e2e@yumia.app', password: 'ValidPass99!', displayName: 'E2E User', locale: 'fr' });
+        .send({
+          email: 'e2e@yumia.app',
+          password: 'ValidPass99!',
+          displayName: 'E2E User',
+          birthDate: ADULT_BIRTH_DATE,
+          locale: 'fr',
+        });
 
       expect(res.status).toBe(201);
       expect(res.body.user).toBeDefined();
@@ -93,12 +102,41 @@ describe('Auth (e2e)', () => {
       expect(res.status).toBe(400);
     });
 
+    it('400 — date de naissance absente', async () => {
+      const res = await request(ta.app.getHttpServer())
+        .post('/api/auth/register')
+        .send({ email: 'test@yumia.app', password: 'ValidPass99!', displayName: 'Test' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('403 — sous la barriere dage, sans creer de compte', async () => {
+      ta.prisma.user.findUnique.mockResolvedValue(null);
+
+      const res = await request(ta.app.getHttpServer())
+        .post('/api/auth/register')
+        .send({
+          email: 'kid@yumia.app',
+          password: 'ValidPass99!',
+          displayName: 'Kid',
+          birthDate: `${new Date().getUTCFullYear() - 15}-01-01`,
+        });
+
+      expect(res.status).toBe(403);
+      expect(ta.prisma.user.create).not.toHaveBeenCalled();
+    });
+
     it('409 — email déjà utilisé', async () => {
       ta.prisma.user.findUnique.mockResolvedValue(mockUser);
 
       const res = await request(ta.app.getHttpServer())
         .post('/api/auth/register')
-        .send({ email: 'e2e@yumia.app', password: 'ValidPass99!', displayName: 'E2E User' });
+        .send({
+          email: 'e2e@yumia.app',
+          password: 'ValidPass99!',
+          displayName: 'E2E User',
+          birthDate: ADULT_BIRTH_DATE,
+        });
 
       expect(res.status).toBe(409);
     });
@@ -115,7 +153,12 @@ describe('Auth (e2e)', () => {
 
       const res = await request(ta.app.getHttpServer())
         .post('/api/auth/register')
-        .send({ email: 'new@yumia.app', password: 'ValidPass99!', displayName: 'New' });
+        .send({
+          email: 'new@yumia.app',
+          password: 'ValidPass99!',
+          displayName: 'New',
+          birthDate: ADULT_BIRTH_DATE,
+        });
 
       expect(res.status).toBe(201);
       expect(ta.prisma.refreshToken.updateMany).toHaveBeenCalledWith(

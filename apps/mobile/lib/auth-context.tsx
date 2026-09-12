@@ -32,7 +32,7 @@ interface AuthContextValue {
   /** Jeton d'accès courant, pour les appels API protégés. */
   accessToken: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (input: { email: string; password: string; displayName: string }) => Promise<void>;
+  register: (input: { email: string; password: string; displayName: string; birthDate: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (patch: { displayName?: string; bio?: string; locale?: string; preferences?: UserPreferences; gender?: string; birthYear?: number; interestedIn?: string; photoUrl?: string }) => Promise<void>;
   applyAuthResult: (result: AuthResult) => Promise<void>;
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (input: { email: string; password: string; displayName: string }) => {
+    async (input: { email: string; password: string; displayName: string; birthDate: string }) => {
       const res = await registerRequest(input);
       await applySession(res.user, res.tokens);
       // Synchronise vers le profil fraîchement créé la langue choisie sur

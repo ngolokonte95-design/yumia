@@ -21,6 +21,8 @@ import { useGoogleAuth } from '../../lib/useGoogleAuth';
 import { useAppleAuth } from '../../lib/useAppleAuth';
 import { useI18n } from '../../lib/useI18n';
 import { PRIVACY_URL, TERMS_URL } from '../../lib/legal';
+import { AgeGateFields, AgeGateModal } from '../../components/AgeGateModal';
+import { MIN_SIGNUP_AGE, ageFromIso, toIsoBirthDate } from '../../lib/age-gate';
 
 /** Création de compte par email + mot de passe. */
 export default function RegisterScreen() {
@@ -32,20 +34,39 @@ export default function RegisterScreen() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // La date de naissance est demandée ici, avant toute création de compte —
+  // voir lib/age-gate.ts. Tant qu'elle est incomplète, `birthDate` vaut null
+  // et le bouton reste inactif : rien n'indique à l'écran quelle date passe.
+  const birthDate = toIsoBirthDate(Number(day), Number(month), Number(year));
+  const age = ageFromIso(birthDate);
+  const dateComplete = day.length > 0 && month.length > 0 && year.length === 4;
+  const tooYoung = age !== null && age < MIN_SIGNUP_AGE;
 
   const canSubmit =
     displayName.trim().length >= 2 &&
     email.trim().length > 3 &&
     password.length >= 8 &&
+    birthDate !== null &&
+    !tooYoung &&
     !submitting;
 
   async function onSubmit() {
+    if (!birthDate) return;
     setSubmitting(true);
     setError(null);
     try {
-      await register({ displayName: displayName.trim(), email: email.trim(), password });
+      await register({
+        displayName: displayName.trim(),
+        email: email.trim(),
+        password,
+        birthDate,
+      });
       // Redirection vers (tabs) gérée par le gate du layout racine.
     } catch (err) {
       setError(err instanceof Error ? err.message : t('register_error_generic'));
@@ -107,6 +128,25 @@ export default function RegisterScreen() {
             onChangeText={setPassword}
           />
 
+          <Text style={styles.fieldLabel}>{t('age_gate_title')}</Text>
+          <AgeGateFields
+            day={day}
+            month={month}
+            year={year}
+            onDay={setDay}
+            onMonth={setMonth}
+            onYear={setYear}
+          />
+          {dateComplete && !birthDate ? (
+            <Text style={styles.error}>{t('age_gate_invalid')}</Text>
+          ) : tooYoung ? (
+            <Text style={styles.error}>
+              {t('age_gate_denied_body').replace('{n}', String(MIN_SIGNUP_AGE))}
+            </Text>
+          ) : (
+            <Text style={styles.fieldHint}>{t('age_gate_subtitle')}</Text>
+          )}
+
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {google.error ? <Text style={styles.error}>{google.error}</Text> : null}
           {apple.error ? <Text style={styles.error}>{apple.error}</Text> : null}
@@ -134,7 +174,7 @@ export default function RegisterScreen() {
                 <Pressable
                   style={[styles.socialBtn, google.loading && styles.buttonDisabled]}
                   disabled={google.loading}
-                  onPress={google.signIn}
+                  onPress={() => google.signIn(birthDate ?? undefined)}
                 >
                   {google.loading ? (
                     <ActivityIndicator color={colors.textPrimary} />
@@ -149,7 +189,7 @@ export default function RegisterScreen() {
                   buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                   cornerRadius={radius.pill}
                   style={styles.appleBtn}
-                  onPress={apple.signIn}
+                  onPress={() => apple.signIn(birthDate ?? undefined)}
                 />
               ) : null}
             </>
@@ -172,6 +212,12 @@ export default function RegisterScreen() {
           </Text>
           {' '}{t('register_legal_suffix')}
         </Text>
+
+        <AgeGateModal
+          visible={google.needsAge || apple.needsAge}
+          onCancel={google.needsAge ? google.cancelAge : apple.cancelAge}
+          onSubmit={google.needsAge ? google.submitBirthDate : apple.submitBirthDate}
+        />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>{t('already_account')} </Text>
@@ -204,6 +250,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   error: { ...typography.caption, color: colors.danger },
+  fieldLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  fieldHint: { ...typography.caption, color: colors.textMuted, lineHeight: 16 },
   button: {
     backgroundColor: colors.brand,
     borderRadius: radius.pill,

@@ -9,6 +9,8 @@ import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { appleAuthRequest } from './auth-api';
+import { MIN_SIGNUP_AGE, isAgeRequiredError, isTooYoungError } from './age-gate';
+import { tRuntime } from './i18n-runtime';
 
 export function useAppleAuth(
   onSuccess: (result: Awaited<ReturnType<typeof appleAuthRequest>>) => Promise<void>,
@@ -16,6 +18,14 @@ export function useAppleAuth(
   const [available, setAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Identifiants mis de côté quand le serveur réclame une date de naissance :
+   * ce n'est pas une reconnexion mais une création. On rejoue l'appel avec la
+   * date plutôt que de relancer tout le parcours Apple.
+   */
+  const [pending, setPending] = useState<
+    { identityToken: string; user: string; displayName?: string } | null
+  >(null);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -36,7 +46,37 @@ export function useAppleAuth(
       .catch(() => setAvailable(false));
   }, []);
 
-  async function signIn() {
+  /** Échange les identifiants Apple contre une session YUMIA. */
+  async function exchange(
+    credentials: { identityToken: string; user: string; displayName?: string },
+    birthDate?: string,
+  ) {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await appleAuthRequest(
+        credentials.identityToken,
+        credentials.user,
+        credentials.displayName,
+        birthDate,
+      );
+      await onSuccess(result);
+      setPending(null);
+    } catch (err) {
+      if (isAgeRequiredError(err)) {
+        setPending(credentials);
+      } else if (isTooYoungError(err)) {
+        setPending(null);
+        setError(tRuntime('age_gate_denied_body').replace('{n}', String(MIN_SIGNUP_AGE)));
+      } else {
+        setError(err instanceof Error ? err.message : 'Connexion Apple échouée.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signIn(birthDate?: string) {
     setError(null);
     setLoading(true);
     try {
@@ -58,12 +98,14 @@ export function useAppleAuth(
             .trim()
         : undefined;
 
-      const result = await appleAuthRequest(
-        credential.identityToken,
-        credential.user,
-        displayName || undefined,
+      await exchange(
+        {
+          identityToken: credential.identityToken,
+          user: credential.user,
+          displayName: displayName || undefined,
+        },
+        birthDate,
       );
-      await onSuccess(result);
     } catch (err: unknown) {
       // L'utilisateur a annulé — pas une erreur à afficher
       if (
@@ -80,5 +122,16 @@ export function useAppleAuth(
     }
   }
 
-  return { available, signIn, loading, error };
+  return {
+    available,
+    signIn,
+    loading,
+    error,
+    /** Le serveur attend une date de naissance avant de créer le compte. */
+    needsAge: pending !== null,
+    submitBirthDate: (birthDate: string) => {
+      if (pending) void exchange(pending, birthDate);
+    },
+    cancelAge: () => setPending(null),
+  };
 }

@@ -1738,6 +1738,15 @@ const FR = {
   sm_freeze_active_desc: 'Ta série est protégée. Tu peux manquer un jour sans la perdre.',
   sc_skip_feedback: 'Passer →',
   sc_open_now: 'Ouvert',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Ta date de naissance",
+  age_gate_subtitle: "YUMIA référence des lieux réservés aux adultes (bars, casinos, armureries). On a besoin de ta date de naissance avant de créer ton compte.",
+  age_gate_day: "Jour",
+  age_gate_month: "Mois",
+  age_gate_year: "Année",
+  age_gate_invalid: "Cette date n'existe pas.",
+  age_gate_denied_title: "Compte impossible",
+  age_gate_denied_body: "YUMIA est réservé aux {n} ans et plus. On ne peut pas créer ton compte aujourd'hui.",
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -3463,6 +3472,15 @@ const EN: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Your streak is protected. You can miss a day without losing it.',
   sc_skip_feedback: 'Skip →',
   sc_open_now: 'Open',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Your date of birth",
+  age_gate_subtitle: "YUMIA lists places meant for adults (bars, casinos, gun shops). We need your date of birth before creating your account.",
+  age_gate_day: "Day",
+  age_gate_month: "Month",
+  age_gate_year: "Year",
+  age_gate_invalid: "That date doesn't exist.",
+  age_gate_denied_title: "We can't create this account",
+  age_gate_denied_body: "YUMIA is for people aged {n} and over. We can't create your account today.",
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -5188,6 +5206,15 @@ const ES: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Tu racha está protegida. Puedes fallar un día sin perderla.',
   sc_skip_feedback: 'Omitir →',
   sc_open_now: 'Abierto',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Tu fecha de nacimiento",
+  age_gate_subtitle: "YUMIA incluye lugares reservados a adultos (bares, casinos, armerías). Necesitamos tu fecha de nacimiento antes de crear tu cuenta.",
+  age_gate_day: "Día",
+  age_gate_month: "Mes",
+  age_gate_year: "Año",
+  age_gate_invalid: "Esa fecha no existe.",
+  age_gate_denied_title: "No podemos crear la cuenta",
+  age_gate_denied_body: "YUMIA es para mayores de {n} años. Hoy no podemos crear tu cuenta.",
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -6913,6 +6940,15 @@ const PT: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Sua sequência está protegida. Você pode perder um dia sem perdê-la.',
   sc_skip_feedback: 'Pular →',
   sc_open_now: 'Aberto',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Sua data de nascimento",
+  age_gate_subtitle: "A YUMIA lista lugares reservados a adultos (bares, casinos, lojas de armas). Precisamos da sua data de nascimento antes de criar a conta.",
+  age_gate_day: "Dia",
+  age_gate_month: "Mês",
+  age_gate_year: "Ano",
+  age_gate_invalid: "Essa data não existe.",
+  age_gate_denied_title: "Não dá para criar a conta",
+  age_gate_denied_body: "A YUMIA é para maiores de {n} anos. Não podemos criar sua conta hoje.",
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -8638,6 +8674,15 @@ const AR: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'سلسلتك محمية. يمكنك تفويت يوم دون أن تفقدها.',
   sc_skip_feedback: 'تخطي ←',
   sc_open_now: 'مفتوح',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "تاريخ ميلادك",
+  age_gate_subtitle: "يعرض YUMIA أماكن مخصّصة للبالغين (حانات، كازينوهات، متاجر أسلحة). نحتاج تاريخ ميلادك قبل إنشاء حسابك.",
+  age_gate_day: "اليوم",
+  age_gate_month: "الشهر",
+  age_gate_year: "السنة",
+  age_gate_invalid: "هذا التاريخ غير موجود.",
+  age_gate_denied_title: "لا يمكن إنشاء الحساب",
+  age_gate_denied_body: "YUMIA مخصّص لمن هم في سن {n} فما فوق. لا يمكننا إنشاء حسابك اليوم.",
 };
 
 const NL: Record<TranslationKey, string> = {
@@ -10341,6 +10386,15 @@ const NL: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Je streak is beschermd. Je kunt een dag missen zonder hem te verliezen.',
   sc_skip_feedback: 'Overslaan →',
   sc_open_now: 'Open',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Je geboortedatum",
+  age_gate_subtitle: "YUMIA toont plekken voor volwassenen (bars, casino's, wapenwinkels). We hebben je geboortedatum nodig voordat we je account aanmaken.",
+  age_gate_day: "Dag",
+  age_gate_month: "Maand",
+  age_gate_year: "Jaar",
+  age_gate_invalid: "Die datum bestaat niet.",
+  age_gate_denied_title: "Account niet mogelijk",
+  age_gate_denied_body: "YUMIA is voor {n} jaar en ouder. We kunnen je account vandaag niet aanmaken.",
 };
 
 const IT: Record<TranslationKey, string> = {
@@ -12044,6 +12098,15 @@ const IT: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'La tua serie è protetta. Puoi saltare un giorno senza perderla.',
   sc_skip_feedback: 'Salta →',
   sc_open_now: 'Aperto',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "La tua data di nascita",
+  age_gate_subtitle: "YUMIA elenca luoghi riservati agli adulti (bar, casinò, armerie). Ci serve la tua data di nascita prima di creare l'account.",
+  age_gate_day: "Giorno",
+  age_gate_month: "Mese",
+  age_gate_year: "Anno",
+  age_gate_invalid: "Questa data non esiste.",
+  age_gate_denied_title: "Account non creabile",
+  age_gate_denied_body: "YUMIA è riservato ai {n} anni e oltre. Oggi non possiamo creare il tuo account.",
 };
 
 const DE: Record<TranslationKey, string> = {
@@ -13747,6 +13810,15 @@ const DE: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Deine Serie ist geschützt. Du kannst einen Tag auslassen, ohne sie zu verlieren.',
   sc_skip_feedback: 'Überspringen →',
   sc_open_now: 'Geöffnet',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Dein Geburtsdatum",
+  age_gate_subtitle: "YUMIA listet Orte für Erwachsene (Bars, Casinos, Waffengeschäfte). Wir brauchen dein Geburtsdatum, bevor wir dein Konto anlegen.",
+  age_gate_day: "Tag",
+  age_gate_month: "Monat",
+  age_gate_year: "Jahr",
+  age_gate_invalid: "Dieses Datum gibt es nicht.",
+  age_gate_denied_title: "Konto nicht möglich",
+  age_gate_denied_body: "YUMIA ist ab {n} Jahren. Wir können dein Konto heute nicht anlegen.",
 };
 
 const PL: Record<TranslationKey, string> = {
@@ -15450,6 +15522,15 @@ const PL: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Twoja seria jest chroniona. Możesz pominąć jeden dzień bez jej utraty.',
   sc_skip_feedback: 'Pomiń →',
   sc_open_now: 'Otwarte',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Twoja data urodzenia",
+  age_gate_subtitle: "YUMIA pokazuje miejsca dla dorosłych (bary, kasyna, sklepy z bronią). Potrzebujemy twojej daty urodzenia, zanim założymy konto.",
+  age_gate_day: "Dzień",
+  age_gate_month: "Miesiąc",
+  age_gate_year: "Rok",
+  age_gate_invalid: "Taka data nie istnieje.",
+  age_gate_denied_title: "Nie możemy założyć konta",
+  age_gate_denied_body: "YUMIA jest od {n} lat. Nie możemy dziś założyć twojego konta.",
 };
 
 const SV: Record<TranslationKey, string> = {
@@ -17153,6 +17234,15 @@ const SV: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Din svit är skyddad. Du kan hoppa över en dag utan att förlora den.',
   sc_skip_feedback: 'Hoppa över →',
   sc_open_now: 'Öppet',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Ditt födelsedatum",
+  age_gate_subtitle: "YUMIA listar platser för vuxna (barer, kasinon, vapenbutiker). Vi behöver ditt födelsedatum innan vi skapar kontot.",
+  age_gate_day: "Dag",
+  age_gate_month: "Månad",
+  age_gate_year: "År",
+  age_gate_invalid: "Det datumet finns inte.",
+  age_gate_denied_title: "Kontot kan inte skapas",
+  age_gate_denied_body: "YUMIA är för {n} år och uppåt. Vi kan inte skapa ditt konto i dag.",
 };
 
 const ZH: Record<TranslationKey, string> = {
@@ -18856,6 +18946,15 @@ const ZH: Record<TranslationKey, string> = {
   sm_freeze_active_desc: '你的连续记录已受保护。你可以跳过一天而不会失去它。',
   sc_skip_feedback: '跳过 →',
   sc_open_now: '营业中',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "你的出生日期",
+  age_gate_subtitle: "YUMIA 收录面向成年人的场所（酒吧、赌场、枪械店）。创建账号前需要你的出生日期。",
+  age_gate_day: "日",
+  age_gate_month: "月",
+  age_gate_year: "年",
+  age_gate_invalid: "这个日期不存在。",
+  age_gate_denied_title: "无法创建账号",
+  age_gate_denied_body: "YUMIA 仅面向 {n} 岁及以上用户，今天无法为你创建账号。",
 };
 
 const RU: Record<TranslationKey, string> = {
@@ -20559,6 +20658,15 @@ const RU: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'Твоя серия защищена. Ты можешь пропустить один день, не потеряв её.',
   sc_skip_feedback: 'Пропустить →',
   sc_open_now: 'Открыто',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "Твоя дата рождения",
+  age_gate_subtitle: "YUMIA показывает места для взрослых (бары, казино, оружейные магазины). Нам нужна дата рождения, прежде чем создать аккаунт.",
+  age_gate_day: "День",
+  age_gate_month: "Месяц",
+  age_gate_year: "Год",
+  age_gate_invalid: "Такой даты не существует.",
+  age_gate_denied_title: "Аккаунт создать нельзя",
+  age_gate_denied_body: "YUMIA доступна с {n} лет. Сегодня мы не можем создать твой аккаунт.",
 };
 
 const HI: Record<TranslationKey, string> = {
@@ -22262,6 +22370,15 @@ const HI: Record<TranslationKey, string> = {
   sm_freeze_active_desc: 'तुम्हारी स्ट्रीक सुरक्षित है। तुम इसे खोए बिना एक दिन छोड़ सकते हो।',
   sc_skip_feedback: 'छोड़ें →',
   sc_open_now: 'खुला है',
+  // Barriere d age (creation de compte) — voir lib/age-gate.ts
+  age_gate_title: "तुम्हारी जन्म तिथि",
+  age_gate_subtitle: "YUMIA वयस्कों के लिए जगहें दिखाता है (बार, कैसीनो, हथियार की दुकानें)। खाता बनाने से पहले हमें तुम्हारी जन्म तिथि चाहिए।",
+  age_gate_day: "दिन",
+  age_gate_month: "महीना",
+  age_gate_year: "साल",
+  age_gate_invalid: "यह तारीख मौजूद नहीं है।",
+  age_gate_denied_title: "खाता नहीं बन सकता",
+  age_gate_denied_body: "YUMIA {n} साल और उससे ऊपर के लिए है। आज हम तुम्हारा खाता नहीं बना सकते।",
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

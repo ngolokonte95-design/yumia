@@ -19,6 +19,7 @@ import { useAuth } from '../../lib/auth-context';
 import { useGoogleAuth } from '../../lib/useGoogleAuth';
 import { useAppleAuth } from '../../lib/useAppleAuth';
 import { useI18n } from '../../lib/useI18n';
+import { AgeGateModal } from '../../components/AgeGateModal';
 
 /** Connexion par email + mot de passe. */
 export default function LoginScreen() {
@@ -125,7 +126,7 @@ export default function LoginScreen() {
                 <Pressable
                   style={[styles.socialBtn, google.loading && styles.buttonDisabled]}
                   disabled={google.loading}
-                  onPress={google.signIn}
+                  onPress={() => google.signIn()}
                 >
                   {google.loading ? (
                     <ActivityIndicator color={colors.textPrimary} />
@@ -140,12 +141,21 @@ export default function LoginScreen() {
                   buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                   cornerRadius={radius.pill}
                   style={styles.appleBtn}
-                  onPress={apple.signIn}
+                  onPress={() => apple.signIn()}
                 />
               ) : null}
             </>
           ) : null}
         </View>
+
+        {/* Google et Apple créent aussi des comptes : quelqu'un qui arrive ici
+            sans compte s'inscrit sans passer par l'écran d'inscription. Le
+            serveur réclame alors la date de naissance, et seulement là. */}
+        <AgeGateModal
+          visible={google.needsAge || apple.needsAge}
+          onCancel={google.needsAge ? google.cancelAge : apple.cancelAge}
+          onSubmit={google.needsAge ? google.submitBirthDate : apple.submitBirthDate}
+        />
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>{t('no_account')} </Text>

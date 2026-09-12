@@ -18,6 +18,7 @@ import { MailerService } from '../mailer/mailer.service';
 import type { AppConfig } from '../../config/configuration';
 import type { AuthResult, AuthTokens, JwtPayload, PublicUser } from './types';
 import { assertClean } from '../../common/moderation/moderation';
+import { assertSignupAge } from './age';
 
 const BCRYPT_ROUNDS = 12;
 /** Nombre maximum de sessions actives simultanées par utilisateur. */
@@ -59,9 +60,12 @@ export class AuthService {
     email: string,
     password: string,
     displayName: string,
+    birthDate: string,
     locale?: string,
   ): Promise<AuthResult> {
     assertClean(displayName);
+    // Avant toute écriture : une inscription refusée ne doit laisser aucune trace.
+    const birthYear = assertSignupAge(birthDate);
     const normalizedEmail = email.trim().toLowerCase();
 
     const existing = await this.prisma.user.findUnique({
@@ -79,6 +83,7 @@ export class AuthService {
         passwordHash,
         displayName: displayName.trim(),
         authProvider: 'password',
+        birthYear,
         ...(locale ? { locale } : {}),
         ...(countryCode ? { countryCode } : {}),
       },
@@ -163,7 +168,7 @@ export class AuthService {
    * Find-or-create : si l'email existe déjà en `password`, on lie le compte Google ;
    * sinon on crée un nouveau compte.
    */
-  async loginWithGoogle(idToken: string): Promise<AuthResult> {
+  async loginWithGoogle(idToken: string, birthDate?: string): Promise<AuthResult> {
     const clientId = this.config.get<AppConfig['google']>('google')!.clientId;
     if (!clientId) {
       throw new UnauthorizedException('Google OAuth non configuré sur ce serveur.');
@@ -192,12 +197,16 @@ export class AuthService {
         });
       }
     } else {
+      // Seule la CRÉATION est soumise à la barrière d'âge : un compte existant
+      // se reconnecte sans rien ressaisir.
+      const birthYear = assertSignupAge(birthDate);
       user = await this.prisma.user.create({
         data: {
           email,
           displayName: payload.name?.trim() || email.split('@')[0],
           photoUrl: payload.picture ?? null,
           authProvider: 'google',
+          birthYear,
         },
       });
       this.logger.log(`Nouvel utilisateur Google : ${user.id}`);
@@ -217,6 +226,7 @@ export class AuthService {
     identityToken: string,
     appleUserId: string,
     displayName?: string,
+    birthDate?: string,
   ): Promise<AuthResult> {
     let payload: { sub?: string; email?: string };
     try {
@@ -249,6 +259,8 @@ export class AuthService {
         });
       }
     } else {
+      // Voir loginWithGoogle : barrière à la création seulement.
+      const birthYear = assertSignupAge(birthDate);
       const fallbackName =
         displayName?.trim() ||
         (email ? email.split('@')[0] : `user_${sub.slice(-6)}`);
@@ -258,6 +270,7 @@ export class AuthService {
           appleId: appleUserId,
           displayName: fallbackName,
           authProvider: 'apple',
+          birthYear,
         },
       });
       this.logger.log(`Nouvel utilisateur Apple : ${user.id}`);

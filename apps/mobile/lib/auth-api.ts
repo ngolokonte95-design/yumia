@@ -54,6 +54,8 @@ export function registerRequest(input: {
   email: string;
   password: string;
   displayName: string;
+  /** Date de naissance AAAA-MM-JJ — obligatoire, voir `lib/age-gate.ts`. */
+  birthDate: string;
   locale?: string;
 }): Promise<AuthResult> {
   return request<AuthResult>('/auth/register', { method: 'POST', body: input });
@@ -82,18 +84,24 @@ export function updateProfileRequest(
   return request<PublicUser>('/auth/me', { method: 'PATCH', body: patch, token: accessToken });
 }
 
-export function googleAuthRequest(idToken: string): Promise<AuthResult> {
-  return request<AuthResult>('/auth/google', { method: 'POST', body: { idToken } });
+/**
+ * `birthDate` n'est nécessaire que si le jeton conduit à créer un compte : le
+ * serveur répond alors `AGE_REQUIRED` et l'appel est rejoué avec la date.
+ */
+export function googleAuthRequest(idToken: string, birthDate?: string): Promise<AuthResult> {
+  return request<AuthResult>('/auth/google', { method: 'POST', body: { idToken, birthDate } });
 }
 
+/** Voir `googleAuthRequest` pour `birthDate`. */
 export function appleAuthRequest(
   identityToken: string,
   appleUserId: string,
   displayName?: string,
+  birthDate?: string,
 ): Promise<AuthResult> {
   return request<AuthResult>('/auth/apple', {
     method: 'POST',
-    body: { identityToken, appleUserId, displayName },
+    body: { identityToken, appleUserId, displayName, birthDate },
   });
 }
 

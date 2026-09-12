@@ -52,7 +52,7 @@ export class AuthController {
   @Post('google')
   @HttpCode(HttpStatus.OK)
   loginWithGoogle(@Body() dto: GoogleAuthDto): Promise<AuthResult> {
-    return this.auth.loginWithGoogle(dto.idToken);
+    return this.auth.loginWithGoogle(dto.idToken, dto.birthDate);
   }
 
   /** POST /api/auth/apple — connexion / inscription via Apple Sign-In (identity token JWT). 10/60s. */
@@ -61,7 +61,12 @@ export class AuthController {
   @Post('apple')
   @HttpCode(HttpStatus.OK)
   loginWithApple(@Body() dto: AppleAuthDto): Promise<AuthResult> {
-    return this.auth.loginWithApple(dto.identityToken, dto.appleUserId, dto.displayName);
+    return this.auth.loginWithApple(
+      dto.identityToken,
+      dto.appleUserId,
+      dto.displayName,
+      dto.birthDate,
+    );
   }
 
   /** POST /api/auth/register — crée un compte et renvoie une première paire de jetons. */
@@ -69,7 +74,13 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   register(@Body() dto: RegisterDto): Promise<AuthResult> {
-    return this.auth.register(dto.email, dto.password, dto.displayName, dto.locale);
+    return this.auth.register(
+      dto.email,
+      dto.password,
+      dto.displayName,
+      dto.birthDate,
+      dto.locale,
+    );
   }
 
   /** POST /api/auth/login — authentifie et renvoie une paire de jetons. */

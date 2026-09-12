@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -29,6 +34,14 @@ jest.mock('jose', () => ({
     payload: { sub: 'apple-sub-456', email: 'apple@privaterelay.appleid.com' },
   }),
 }));
+
+/**
+ * Date de naissance d'un majeur, recalculee a chaque execution : une date en
+ * dur finirait par devenir fausse le jour ou la personne « vieillit ».
+ */
+const ADULT_BIRTH_DATE = `${new Date().getUTCFullYear() - 30}-01-01`;
+/** Quinze ans revolus : juste sous la barriere. */
+const MINOR_BIRTH_DATE = `${new Date().getUTCFullYear() - 15}-01-01`;
 
 const mockUser = {
   id: 'user-1',
@@ -174,7 +187,7 @@ describe('AuthService', () => {
       prismaMock.user.create.mockResolvedValue(mockUser);
       prismaMock.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      const result = await service.register('test@yumia.app', 'password123', 'Test User', 'fr');
+      const result = await service.register('test@yumia.app', 'password123', 'Test User', ADULT_BIRTH_DATE, 'fr');
 
       expect(prismaMock.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -195,7 +208,7 @@ describe('AuthService', () => {
       prismaMock.user.create.mockResolvedValue({ ...mockUser, email: 'test@yumia.app' });
       prismaMock.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      await service.register('  TEST@YUMIA.APP  ', 'password123', 'Test User');
+      await service.register('  TEST@YUMIA.APP  ', 'password123', 'Test User', ADULT_BIRTH_DATE);
 
       expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@yumia.app' },
@@ -206,8 +219,41 @@ describe('AuthService', () => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser);
 
       await expect(
-        service.register('test@yumia.app', 'password123', 'Test User'),
+        service.register('test@yumia.app', 'password123', 'Test User', ADULT_BIRTH_DATE),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('refuse une inscription sous la barriere dage, sans rien creer', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.register('kid@yumia.app', 'password123', 'Kid', MINOR_BIRTH_DATE),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.user.create).not.toHaveBeenCalled();
+    });
+
+    it('refuse une date de naissance absente ou inexistante', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.register('a@yumia.app', 'password123', 'A', '')).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(
+        service.register('b@yumia.app', 'password123', 'B', '2000-02-31'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.user.create).not.toHaveBeenCalled();
+    });
+
+    it('enregistre l annee de naissance, et elle seule', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      prismaMock.user.create.mockResolvedValue(mockUser);
+      prismaMock.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
+
+      await service.register('ok@yumia.app', 'password123', 'Ok', '1994-08-23');
+
+      const data = prismaMock.user.create.mock.calls[0][0].data;
+      expect(data.birthYear).toBe(1994);
+      expect(data).not.toHaveProperty('birthDate');
     });
   });
 
@@ -568,7 +614,7 @@ describe('AuthService', () => {
       });
       prismaMock.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      const result = await service.loginWithGoogle('valid-id-token');
+      const result = await service.loginWithGoogle('valid-id-token', ADULT_BIRTH_DATE);
 
       expect(prismaMock.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -576,6 +622,13 @@ describe('AuthService', () => {
         }),
       );
       expect(result.tokens.accessToken).toBe('access-token');
+    });
+
+    it('refuse de CREER un compte Google sans date de naissance', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.loginWithGoogle('valid-id-token')).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.user.create).not.toHaveBeenCalled();
     });
 
     it('relie le compte Google à un compte password existant', async () => {
@@ -637,7 +690,12 @@ describe('AuthService', () => {
       });
       prismaMock.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
-      const result = await service.loginWithApple('valid-identity-token', 'apple-sub-456', 'Apple User');
+      const result = await service.loginWithApple(
+        'valid-identity-token',
+        'apple-sub-456',
+        'Apple User',
+        ADULT_BIRTH_DATE,
+      );
 
       expect(prismaMock.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -645,6 +703,16 @@ describe('AuthService', () => {
         }),
       );
       expect(result.tokens.accessToken).toBe('access-token');
+    });
+
+    it('refuse de CREER un compte Apple sans date de naissance', async () => {
+      prismaMock.user.findFirst = jest.fn().mockResolvedValue(null);
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.loginWithApple('valid-identity-token', 'apple-sub-456', 'Apple User'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.user.create).not.toHaveBeenCalled();
     });
 
     it('retrouve l\'utilisateur par appleId et retourne les tokens', async () => {
