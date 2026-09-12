@@ -3,8 +3,10 @@
 Textes prêts à coller pour l'App Store (Apple) et le Play Store (Google), en français et en anglais.
 Les limites de caractères sont indiquées ; respecte-les (Apple tronque sans prévenir).
 
-> Astuce ASO : le **nom** et le **sous-titre/short description** pèsent le plus dans le référencement.
-> Mets-y tes mots-clés forts (« sorties », « restaurant », « IA »).
+> Astuce ASO : le **nom** et le **sous-titre / description courte** pèsent le plus dans le
+> référencement. Mets-y les mots-clés forts (« sorties », « voyage », « cadeaux », « IA »).
+
+**Vérifier les longueurs après chaque retouche :** `node docs/stores/check-lengths.mjs`
 
 ---
 
@@ -12,52 +14,53 @@ Les limites de caractères sont indiquées ; respecte-les (Apple tronque sans pr
 
 ### Nom de l'app (max 30)
 ```
-YUMIA : Sorties & Bons Plans
+YUMIA : Sorties, IA & Cadeaux
 ```
-*(28 car. — alternative : « YUMIA — Vos envies, partout » = 30)*
 
 ### Sous-titre (max 30)
 ```
-Sorties choisies par l'IA
+Sorties, voyages et cadeaux
 ```
 
 ### Texte promotionnel (max 170, modifiable sans review)
 ```
-Une envie, une humeur, un lieu parfait en 3 secondes. Restos, cafés, bars, sorties : laisse l'IA choisir ta prochaine expérience, où que tu sois.
+Une envie, une humeur, un lieu parfait en trois secondes. Et quand l'envie est d'offrir, l'assistant cadeaux trouve l'idée juste et la boutique s'occupe du reste.
 ```
 
 ### Mots-clés (max 100, séparés par des virgules, SANS espaces inutiles)
 ```
-sortie,restaurant,café,bar,bons plans,recommandation,IA,date,famille,voyage,autour de moi,foodie
+sortie,restaurant,café,bar,cadeau,boutique,itinéraire,voyage,IA,date,famille,autour de moi
 ```
-*(96 car.)*
 
 ### Description (max 4000)
 ```
-YUMIA n'est pas une appli de restaurants de plus. C'est ton copilote d'expériences du quotidien : dis ton envie (ou ton humeur), et l'intelligence artificielle te trouve le lieu parfait, au bon moment, à proximité.
+YUMIA n'est pas une appli de restaurants de plus. C'est ton copilote d'expériences du quotidien : dis ton envie, ou simplement ton humeur, et l'intelligence artificielle te trouve le lieu parfait, au bon moment, à proximité.
 
 « J'ai faim », « je m'ennuie », « surprends-moi » — YUMIA transforme une envie floue en destination précise.
 
 ✨ TON TOP 3 CONTEXTUEL
-L'IA analyse ton humeur, l'heure, la météo et tes goûts pour te proposer les 3 meilleurs lieux autour de toi. Plus besoin de scroller pendant 20 minutes.
+L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les trois meilleurs lieux autour de toi. Plus besoin de faire défiler pendant vingt minutes.
 
-🎭 5 MODES POUR CHAQUE MOMENT
-• Surprise Me — laisse-toi guider
-• Date — la soirée romantique idéale, étape par étape
-• Famille — des lieux adaptés aux enfants
-• Groupe — le consensus parfait quand vous n'êtes jamais d'accord
-• Voyage — explore comme un local, loin des pièges à touristes
+🗺️ 116 UNIVERS, DE LA TABLE AU QUOTIDIEN
+Restos, bars et cafés bien sûr — mais aussi spas, salons de coiffure, garages, pharmacies, escape games, criques discrètes, boucheries, vétérinaires. YUMIA couvre tout ce qui compose une journée, pas seulement les sorties.
 
-🗺️ 125 UNIVERS, DE LA TABLE AU QUOTIDIEN
-Restos, bars et cafés bien sûr — mais aussi spa, salons de coiffure, garages, pharmacies, escape games, criques secrètes, boucheries, vétérinaires... YUMIA couvre tout ce qui compose une journée, pas seulement les sorties.
+🧭 DES ITINÉRAIRES QUI TIENNENT DEBOUT
+D'une soirée à une semaine entière. Choisis ton mode — Date, Amis, Famille, Solo, Voyage — et reçois un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes. En mode séjour, chaque journée se déroule moment par moment.
 
-🔥 GAGNE DES XP À CHAQUE SORTIE
-Gamification complète : niveaux, badges, séries (streaks). Sortir n'a jamais été aussi addictif.
+🎁 L'ASSISTANT IDÉES CADEAUX
+Noël, anniversaire, fête des mères, crémaillère, anniversaire de mariage : dis pour qui et quel budget, et reçois une sélection de quarante idées. Chacune est un produit réel, commandable en deux tapes.
 
-📍 POUR TOI, PARTOUT
-Un flux « For You » personnalisé, une carte en temps réel, tes lieux sauvegardés, et des sessions de groupe pour décider ensemble.
+🛍️ UNE BOUTIQUE, 33 RAYONS
+Du vélo au matériel de sport, des jouets aux loisirs créatifs, de la déco aux bijoux. Livraison à domicile, paiement sécurisé.
 
-YUMIA Plus (abonnement) débloque les sauvegardes illimitées, les filtres avancés, le gel de série et les itinéraires étendus.
+👥 LE SOCIAL, SANS LA COURSE AUX LIKES
+Un fil, des reels, des stories, des rencontres autour d'un lieu et des sorties de groupe. On y parle d'endroits où aller, pas de soi.
+
+🔥 DES XP À CHAQUE SORTIE
+Niveaux, badges, séries : ton passeport garde la trace de ce que tu as vécu.
+
+FORFAITS
+YUMIA est utilisable gratuitement, tous les jours. Plus, Gold et Diamond augmentent les quotas quotidiens — assistant, itinéraires, chargements de lieux — et ouvrent la carte sociale. Abonnement mensuel, résiliable à tout moment.
 
 Tes envies, partout. Télécharge YUMIA.
 ```
@@ -68,7 +71,7 @@ Tes envies, partout. Télécharge YUMIA.
 
 ### Notes de version (v1.0)
 ```
-Bienvenue sur YUMIA ! Première version : Top 3 contextuel par IA, 5 modes (Surprise, Date, Famille, Groupe, Voyage), flux For You, carte, passeport gamifié et sessions de groupe. Bonne découverte 🌍
+Bienvenue sur YUMIA ! Première version : Top 3 contextuel par IA, itinéraires d'une soirée à une semaine, assistant idées cadeaux, boutique intégrée, fil social et passeport gamifié. Bonne découverte 🌍
 ```
 
 ---
@@ -77,48 +80,50 @@ Bienvenue sur YUMIA ! Première version : Top 3 contextuel par IA, 5 modes (Surp
 
 ### Titre (max 30)
 ```
-YUMIA : Sorties & Bons Plans
+YUMIA : Sorties, IA & Cadeaux
 ```
 
 ### Description courte (max 80)
 ```
-Restos, bars, sorties : l'IA choisit ta prochaine expérience autour de toi.
+Sorties, itinéraires, cadeaux : l'IA choisit le lieu parfait autour de toi.
 ```
-*(74 car.)*
 
 ### Description complète (max 4000)
 ```
 YUMIA est ton copilote d'expériences du quotidien. Dis ton envie ou ton humeur, et l'intelligence artificielle te trouve le lieu parfait, au bon moment, près de toi.
 
-« J'ai faim », « je m'ennuie », « surprends-moi » : YUMIA transforme une envie floue en destination précise — sans scroller pendant 20 minutes.
+« J'ai faim », « je m'ennuie », « surprends-moi » : YUMIA transforme une envie floue en destination précise, sans faire défiler pendant vingt minutes.
 
 ✨ TON TOP 3 CONTEXTUEL
-L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les 3 meilleurs lieux autour de toi.
+L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les trois meilleurs lieux autour de toi.
 
-🎭 5 MODES
-• Surprise Me — laisse-toi guider
-• Date — la soirée romantique étape par étape
-• Famille — des lieux adaptés aux enfants
-• Groupe — le consensus parfait à plusieurs
-• Voyage — explore comme un local
+🗺️ 116 UNIVERS, DE LA TABLE AU QUOTIDIEN
+Restos, bars et cafés bien sûr — mais aussi spas, garages, pharmacies, escape games, criques discrètes, boucheries, vétérinaires. Tout ce qui compose une journée.
 
-🗺️ 125 UNIVERS, DE LA TABLE AU QUOTIDIEN
-Restos, bars et cafés bien sûr — mais aussi spa, garages, pharmacies, escape games, criques secrètes, boucheries, vétérinaires... YUMIA couvre tout ce qui compose une journée, pas seulement les sorties.
+🧭 DES ITINÉRAIRES QUI TIENNENT DEBOUT
+D'une soirée à une semaine. Cinq modes — Date, Amis, Famille, Solo, Voyage — et un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes.
 
-🔥 GAGNE DES XP
-Niveaux, badges et séries : sortir devient un jeu.
+🎁 L'ASSISTANT IDÉES CADEAUX
+Noël, anniversaire, fête des mères, crémaillère : dis pour qui et quel budget, reçois quarante idées. Chacune est un produit réel, commandable en deux tapes.
 
-📍 PARTOUT
-Flux « For You » personnalisé, carte en temps réel, lieux sauvegardés, sessions de groupe.
+🛍️ UNE BOUTIQUE, 33 RAYONS
+Du vélo au matériel de sport, des jouets à la déco. Livraison à domicile, paiement sécurisé.
 
-YUMIA Plus débloque les sauvegardes illimitées, les filtres avancés, le gel de série et les itinéraires étendus.
+👥 LE SOCIAL, SANS LA COURSE AUX LIKES
+Un fil, des reels, des stories, des sorties de groupe. On y parle d'endroits où aller.
+
+🔥 DES XP À CHAQUE SORTIE
+Niveaux, badges et séries : ton passeport garde la trace de ce que tu as vécu.
+
+FORFAITS
+YUMIA s'utilise gratuitement tous les jours. Plus, Gold et Diamond augmentent les quotas quotidiens et ouvrent la carte sociale. Abonnement mensuel, résiliable à tout moment.
 
 Tes envies, partout.
 ```
 
 ### Catégorie
 - **Catégorie** : Style de vie *(ou Voyages et infos locales)*
-- **Tags** : sorties, restaurants, recommandations, IA
+- **Tags** : sorties, restaurants, itinéraires, cadeaux, IA
 
 ---
 
@@ -126,68 +131,86 @@ Tes envies, partout.
 
 ### App name (max 30)
 ```
-YUMIA: Outings & Hot Spots
+YUMIA: Outings, AI & Gifts
 ```
 
 ### Subtitle (max 30)
 ```
-Places picked by AI
+Places, trips and gift ideas
 ```
 
 ### Promotional text (max 170)
 ```
-A craving, a mood, the perfect spot in 3 seconds. Restaurants, cafés, bars, outings — let AI pick your next experience, wherever you are.
+A craving, a mood, the perfect spot in three seconds. And when the craving is to give, the gift assistant finds the right idea and the shop handles the rest.
 ```
 
 ### Keywords (max 100)
 ```
-outing,restaurant,cafe,bar,recommendation,AI,date,family,travel,near me,foodie,places,things to do
+outing,restaurant,cafe,bar,gift,shop,itinerary,travel,AI,date,family,near me,things to do
 ```
 
 ### Description (max 4000)
 ```
-YUMIA isn't just another restaurant app. It's your everyday-experiences copilot: tell it your craving (or your mood), and AI finds the perfect place, at the right time, near you.
+YUMIA isn't just another restaurant app. It's your everyday-experiences copilot: tell it your craving, or simply your mood, and AI finds the perfect place, at the right time, near you.
 
 "I'm hungry," "I'm bored," "surprise me" — YUMIA turns a vague urge into a precise destination.
 
 ✨ YOUR CONTEXTUAL TOP 3
-AI blends your mood, the time, the weather and your taste to surface the 3 best spots around you. No more 20-minute scrolling.
+AI blends your mood, the time, the weather and your taste to surface the three best spots around you. No more twenty-minute scrolling.
 
-🎭 5 MODES FOR EVERY MOMENT
-• Surprise Me — just go with it
-• Date — the perfect romantic night, step by step
-• Family — kid-friendly places
-• Group — the perfect consensus when no one agrees
-• Travel — explore like a local, away from tourist traps
+🗺️ 116 WORLDS, FROM DINING TO DAILY LIFE
+Restaurants, bars and cafés, sure — but also spas, garages, pharmacies, escape rooms, hidden coves, butchers, vets. Everything a day is made of, not just going out.
 
-🗺️ 125 WORLDS, FROM DINING TO DAILY LIFE
-Restaurants, bars and cafés, sure — but also spas, garages, pharmacies, escape rooms, hidden coves, butchers, vets... YUMIA covers everything that makes up a day, not just going out.
+🧭 ITINERARIES THAT ACTUALLY HOLD UP
+From one evening to a full week. Pick a mode — Date, Friends, Family, Solo, Travel — and get an hour-by-hour plan built from real places, with their photos and ratings. In trip mode, every day unfolds moment by moment.
 
-🔥 EARN XP EVERY TIME YOU GO OUT
-Full gamification: levels, badges, streaks. Going out has never been this addictive.
+🎁 THE GIFT IDEA ASSISTANT
+Christmas, birthdays, Mother's Day, housewarmings, wedding anniversaries: say who it's for and your budget, get forty ideas. Each one is a real product, orderable in two taps.
 
-📍 FOR YOU, EVERYWHERE
-A personalized "For You" feed, a live map, your saved places, and group sessions to decide together.
+🛍️ A SHOP WITH 33 AISLES
+Bikes and sports gear, toys and crafts, home and jewellery. Home delivery, secure payment.
 
-YUMIA Plus unlocks unlimited saves, advanced filters, streak freeze and extended itineraries.
+👥 SOCIAL, WITHOUT THE LIKE RACE
+A feed, reels, stories, meetups and group outings. It's about places to go, not about yourself.
+
+🔥 XP EVERY TIME YOU GO OUT
+Levels, badges and streaks: your passport keeps track of what you've lived.
+
+PLANS
+YUMIA is free to use, every day. Plus, Gold and Diamond raise the daily limits — assistant, itineraries, place loads — and unlock the social map. Monthly subscription, cancel anytime.
 
 Your cravings, everywhere. Download YUMIA.
 ```
 
 ### What's new (v1.0)
 ```
-Welcome to YUMIA! First release: AI contextual Top 3, 5 modes (Surprise, Date, Family, Group, Travel), For You feed, live map, gamified passport and group sessions. Enjoy 🌍
+Welcome to YUMIA! First release: AI contextual Top 3, itineraries from one evening to a full week, gift idea assistant, built-in shop, social feed and gamified passport. Enjoy 🌍
 ```
 
 ---
 
 ## 📋 À préparer aussi (côté store, non-texte)
 
-- **Captures d'écran** : ✅ 5 mockups générés dans `docs/stores/screenshots/` (1290×2796, compatibles App Store 6.7″ **et** Play Store) : `01-top3`, `02-modes`, `03-foryou`, `04-passport`, `05-map`. Régénérer : `node docs/stores/build-screenshots.mjs`. Ce sont des mockups stylisés aux couleurs YUMIA — à remplacer idéalement par de vraies captures device quand l'app tourne (mais conformes pour une 1re soumission). Les titres marketing sont en français ; dupliquer le script avec des titres EN pour la version anglaise.
+- **Captures d'écran** : les cinq mockups de `docs/stores/screenshots/` (1290×2796) datent d'avant la
+  boutique, l'assistant cadeaux et les itinéraires de séjour — **à refaire**. Le mieux est de prendre
+  de vraies captures depuis le *development build* (les mockups sont un pis-aller pour une première
+  soumission). Prévoir au moins : Top 3, itinéraire d'une journée, assistant cadeaux, boutique, carte.
+  Régénérer les mockups : `node docs/stores/build-screenshots.mjs`.
 - **Icône** : déjà en place (`assets/icon.png`).
-- **URL politique de confidentialité** : https://yumia.eu/privacy (cf. `docs/legal/`).
-- **URL conditions d'utilisation** : https://yumia.eu/terms.
-- **URL suppression de compte** (exigée par Google en plus du parcours in-app) : https://yumia.eu/delete-account.
-- **Classification d'âge** : remplir le questionnaire (probablement 12+/PEGI 12 vu la mention alcool/bars et la messagerie entre utilisateurs ; l'app est réservée aux 16 ans et plus dans les CGU, indépendamment de la classification de contenu du store).
-- **Coordonnées de support** : ngolokonte95@gmail.com + https://yumia.eu/support (déjà en ligne).
-```
+- **Achats intégrés** : déclarer les trois abonnements (Plus 2,99 € / Gold 5,99 € / Diamond 9,99 €)
+  dans App Store Connect **et** Play Console avant la soumission — une app qui propose un achat
+  introuvable côté store est refusée. Les produits physiques de la boutique sont payés hors achat
+  intégré (Stripe), ce que les deux boutiques exigent.
+- **URL politique de confidentialité** : https://yumia.eu/privacy
+- **URL conditions d'utilisation** : https://yumia.eu/terms
+- **URL suppression de compte** (exigée par Google en plus du parcours in-app) :
+  https://yumia.eu/delete-account
+- **Classification d'âge** : à revoir à la hausse depuis la version précédente de cette fiche. L'app
+  propose désormais de la mise en relation entre personnes (Tind, carte sociale, messagerie) et du
+  contenu publié par les utilisateurs — les deux boutiques classent cela nettement au-dessus de 12+.
+  Décider en même temps que la barrière d'âge côté app, qui n'existe pas encore : l'année de
+  naissance est déclarative et ne bloque rien.
+- **Localisation en arrière-plan** : Google exige un formulaire de déclaration **et une vidéo de
+  démonstration** pour `ACCESS_BACKGROUND_LOCATION`. Chez nous elle sert la carte sociale, réservée
+  aux abonnés — préparer l'argumentaire, ou retirer la permission de la première soumission.
+- **Coordonnées de support** : ngolokonte95@gmail.com + https://yumia.eu/support (en ligne).
