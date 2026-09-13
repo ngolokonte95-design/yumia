@@ -3,7 +3,7 @@
     "name": "YUMIA",
     "slug": "yumia",
     "scheme": "yumia",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
