@@ -228,4 +228,4 @@ Welcome to YUMIA! First release: AI contextual Top 3, itineraries from one eveni
   champ dans `SOUMISSION.md`, à remplir depuis zéro. Ne te fie pas aux valeurs déjà saisies dans les
   consoles : elles datent d'avant la boutique et le social, et l'âge y contredit les conditions
   d'utilisation en ligne.
-- **Coordonnées de support** : ngolokonte95@gmail.com + https://yumia.eu/support (en ligne).
+- **Coordonnées de support** : md.developpeur.paris@gmail.com + https://yumia.eu/support (en ligne).

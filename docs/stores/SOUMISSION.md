@@ -56,7 +56,7 @@ vérification d'identité. Ce qui est exigé, c'est que la question soit posée 
 | Conditions d'utilisation | https://yumia.eu/terms | en ligne |
 | Suppression de compte (exigée par Google **en plus** du parcours dans l'app) | https://yumia.eu/delete-account | en ligne |
 | Support | https://yumia.eu/support | en ligne |
-| Courriel de support | ngolokonte95@gmail.com | — |
+| Courriel de support | md.developpeur.paris@gmail.com | affiché publiquement par Google |
 
 ---
 
@@ -178,7 +178,7 @@ même être testée.**
 |---|---|
 | Identifiant / mot de passe | Un compte réel créé sur la prod, **au palier Diamond** |
 | Notes | Le texte ci-dessous |
-| Contact | Nom, téléphone, ngolokonte95@gmail.com |
+| Contact | Nom, téléphone, ngolokonte95@gmail.com — privé, sert à Apple pour te joindre |
 
 Pourquoi Diamond : la **carte sociale est réservée aux abonnés**. Avec un compte gratuit,
 l'examinateur tombe sur un écran verrouillé, ne peut pas vérifier ce que tu déclares sur le partage
@@ -225,7 +225,7 @@ Les trois abonnements passent par l'achat intégré.
 | Description courte | `Sorties, itinéraires, cadeaux : l'IA choisit le lieu parfait autour de toi.` |
 | Description complète | `FICHES-STORES.md` |
 | Catégorie | Style de vie |
-| Courriel | ngolokonte95@gmail.com |
+| Courriel | md.developpeur.paris@gmail.com |
 | Site | https://yumia.eu |
 | Confidentialité | https://yumia.eu/privacy |
 
