@@ -102,28 +102,28 @@ YUMIA est ton copilote d'expériences du quotidien. Dis ton envie ou ton humeur,
 
 « J'ai faim », « je m'ennuie », « surprends-moi » : YUMIA transforme une envie floue en destination précise, sans faire défiler pendant vingt minutes.
 
-✨ TON TOP 3 CONTEXTUEL
+TON TOP 3 CONTEXTUEL
 L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les trois meilleurs lieux autour de toi.
 
-🗺️ 116 UNIVERS, DE LA TABLE AU QUOTIDIEN
-Restos, bars et cafés bien sûr — mais aussi spas, garages, pharmacies, escape games, criques discrètes, boucheries, vétérinaires. Tout ce qui compose une journée.
+116 UNIVERS, DE LA TABLE AU QUOTIDIEN
+Restos, bars et cafés bien sûr, mais aussi spas, garages, pharmacies, escape games, criques discrètes, boucheries, vétérinaires. Tout ce qui compose une journée.
 
-🎭 SIX MODES POUR CHAQUE MOMENT
+SIX MODES POUR CHAQUE MOMENT
 Surprends-moi, Date, Famille, Groupe, Solo, Voyage. Chacun change ce que l'IA te propose.
 
-🧭 DES ITINÉRAIRES QUI TIENNENT DEBOUT
+DES ITINÉRAIRES QUI TIENNENT DEBOUT
 D'une soirée à une semaine, un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes.
 
-🎁 L'ASSISTANT IDÉES CADEAUX
+L'ASSISTANT IDÉES CADEAUX
 Noël, anniversaire, fête des mères, crémaillère : dis pour qui et quel budget, reçois quarante idées. Chacune est un produit réel, commandable en deux tapes.
 
-🛍️ UNE BOUTIQUE, 33 RAYONS
+UNE BOUTIQUE, 33 RAYONS
 Du vélo au matériel de sport, des jouets à la déco. Livraison à domicile, paiement sécurisé.
 
-👥 LE SOCIAL, SANS LA COURSE AUX LIKES
+LE SOCIAL, SANS LA COURSE AUX LIKES
 Un fil, des reels, des stories, des sorties de groupe. On y parle d'endroits où aller.
 
-🔥 DES XP À CHAQUE SORTIE
+DES XP À CHAQUE SORTIE
 Niveaux, badges et séries : ton passeport garde la trace de ce que tu as vécu.
 
 FORFAITS
