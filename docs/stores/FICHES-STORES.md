@@ -44,8 +44,16 @@ L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les t
 🗺️ 116 UNIVERS, DE LA TABLE AU QUOTIDIEN
 Restos, bars et cafés bien sûr — mais aussi spas, salons de coiffure, garages, pharmacies, escape games, criques discrètes, boucheries, vétérinaires. YUMIA couvre tout ce qui compose une journée, pas seulement les sorties.
 
+🎭 SIX MODES POUR CHAQUE MOMENT
+• Surprends-moi : laisse-toi guider
+• Date : la soirée romantique, étape par étape
+• Famille : des lieux qui marchent avec des enfants
+• Groupe : le consensus quand personne n'est d'accord
+• Solo : ton moment à toi
+• Voyage : explore comme un local, loin des pièges à touristes
+
 🧭 DES ITINÉRAIRES QUI TIENNENT DEBOUT
-D'une soirée à une semaine entière. Choisis ton mode — Date, Amis, Famille, Solo, Voyage — et reçois un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes. En mode séjour, chaque journée se déroule moment par moment.
+D'une soirée à une semaine entière. Choisis ton mode et reçois un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes. En mode séjour, chaque journée se déroule moment par moment.
 
 🎁 L'ASSISTANT IDÉES CADEAUX
 Noël, anniversaire, fête des mères, crémaillère, anniversaire de mariage : dis pour qui et quel budget, et reçois une sélection de quarante idées. Chacune est un produit réel, commandable en deux tapes.
@@ -100,8 +108,11 @@ L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les t
 🗺️ 116 UNIVERS, DE LA TABLE AU QUOTIDIEN
 Restos, bars et cafés bien sûr — mais aussi spas, garages, pharmacies, escape games, criques discrètes, boucheries, vétérinaires. Tout ce qui compose une journée.
 
+🎭 SIX MODES POUR CHAQUE MOMENT
+Surprends-moi, Date, Famille, Groupe, Solo, Voyage. Chacun change ce que l'IA te propose.
+
 🧭 DES ITINÉRAIRES QUI TIENNENT DEBOUT
-D'une soirée à une semaine. Cinq modes — Date, Amis, Famille, Solo, Voyage — et un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes.
+D'une soirée à une semaine, un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes.
 
 🎁 L'ASSISTANT IDÉES CADEAUX
 Noël, anniversaire, fête des mères, crémaillère : dis pour qui et quel budget, reçois quarante idées. Chacune est un produit réel, commandable en deux tapes.
@@ -161,8 +172,16 @@ AI blends your mood, the time, the weather and your taste to surface the three b
 🗺️ 116 WORLDS, FROM DINING TO DAILY LIFE
 Restaurants, bars and cafés, sure — but also spas, garages, pharmacies, escape rooms, hidden coves, butchers, vets. Everything a day is made of, not just going out.
 
+🎭 SIX MODES FOR EVERY MOMENT
+• Surprise me: just let go
+• Date: the romantic evening, step by step
+• Family: places that work with kids
+• Group: the consensus when nobody agrees
+• Solo: your own moment
+• Travel: explore like a local, away from tourist traps
+
 🧭 ITINERARIES THAT ACTUALLY HOLD UP
-From one evening to a full week. Pick a mode — Date, Friends, Family, Solo, Travel — and get an hour-by-hour plan built from real places, with their photos and ratings. In trip mode, every day unfolds moment by moment.
+From one evening to a full week. Pick a mode and get an hour-by-hour plan built from real places, with their photos and ratings. In trip mode, every day unfolds moment by moment.
 
 🎁 THE GIFT IDEA ASSISTANT
 Christmas, birthdays, Mother's Day, housewarmings, wedding anniversaries: say who it's for and your budget, get forty ideas. Each one is a real product, orderable in two taps.
