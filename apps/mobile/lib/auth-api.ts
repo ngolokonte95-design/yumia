@@ -3,6 +3,7 @@
  * Miroir des contrats renvoyés par `apps/api` (module `auth`).
  */
 import { request } from './api';
+import { appendFile } from './upload';
 import { API_BASE_URL } from './config';
 import type { Universe, Plan } from '@yumia/shared';
 export type { Universe, Plan };
@@ -148,13 +149,8 @@ export async function uploadAvatarRequest(
   accessToken: string,
   imageUri: string,
 ): Promise<{ photoUrl: string }> {
-  const filename = imageUri.split('/').pop() ?? 'avatar.jpg';
-  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
-  const mime = mimeMap[ext] ?? 'image/jpeg';
-
   const form = new FormData();
-  form.append('avatar', { uri: imageUri, name: filename, type: mime } as unknown as Blob);
+  appendFile(form, 'avatar', imageUri, 'avatar.jpg');
 
   const res = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
     method: 'POST',

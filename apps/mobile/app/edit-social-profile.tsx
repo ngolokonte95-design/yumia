@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../lib/auth-context';
+import { uploadAvatarRequest } from '../lib/auth-api';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
@@ -56,18 +57,12 @@ export default function EditSocialProfileScreen() {
 
     setUploadingPhoto(true);
     try {
-      const uri = result.assets[0].uri;
-      const form = new FormData();
-      form.append('avatar', { uri, type: 'image/jpeg', name: 'avatar.jpg' } as never);
-      const res = await fetch(`${API}/auth/me/avatar`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: form,
-      });
-      if (res.ok) {
-        const data = await res.json() as { photoUrl: string };
-        await updateProfile({ photoUrl: data.photoUrl });
-      }
+      // Passe par l'uploader partage (lib/auth-api) plutot que de refaire un
+      // fetch ici : c'etait la meme logique en double, et seule celle-ci a ete
+      // corrigee le jour ou FormData a change de regles.
+      if (!accessToken) return;
+      const data = await uploadAvatarRequest(accessToken, result.assets[0].uri);
+      await updateProfile({ photoUrl: data.photoUrl });
     } finally {
       setUploadingPhoto(false);
     }
