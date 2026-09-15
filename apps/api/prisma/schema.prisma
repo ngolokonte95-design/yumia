@@ -63,6 +63,13 @@ model User {
   interestedIn   String       @default("everyone") // 'male' | 'female' | 'everyone'
   isPrivate      Boolean      @default(false) // compte privé → follow via demande d'abonnement
 
+  /// Suspension : date de fin, ou null si le compte est actif. Une date très
+  /// lointaine vaut bannissement définitif. Exigé par la règle 1.2 de l'App
+  /// Store — il faut pouvoir exclure l'auteur d'un contenu signalé.
+  suspendedUntil  DateTime?
+  /// Motif communiqué à la personne suspendue, et gardé pour la trace.
+  suspendedReason String?
+
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -914,6 +921,10 @@ model Report {
   reason     String
   details    String?
   status     String   @default("pending") // 'pending' | 'reviewed' | 'dismissed'
+  /// Ce qui a été décidé, et quand. Sans ça, un signalement traité et un
+  /// signalement oublié se ressemblent.
+  resolution String?
+  reviewedAt DateTime?
   createdAt  DateTime @default(now())
 
   @@index([targetType, targetId])

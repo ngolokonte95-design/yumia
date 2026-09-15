@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   BadRequestException,
   ConflictException,
   Injectable,
@@ -44,6 +45,23 @@ const APPLE_JWKS = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/ke
  *   hash SHA-256 est persisté (`RefreshToken.tokenHash`). Rotation à chaque usage :
  *   l'ancien est révoqué et un nouveau est émis (détection de rejeu).
  */
+/**
+ * Refuse l'entrée à un compte suspendu, en disant pourquoi.
+ *
+ * Complète le contrôle du `JwtAuthGuard`, qui bloque les écritures : ici on
+ * empêche d'obtenir un nouveau jeton, là-bas on neutralise celui déjà émis.
+ */
+function assertNotSuspended(user: { suspendedUntil: Date | null; suspendedReason: string | null }): void {
+  if (!user.suspendedUntil || user.suspendedUntil <= new Date()) return;
+  throw new ForbiddenException({
+    code: 'ACCOUNT_SUSPENDED',
+    message: user.suspendedReason
+      ? `Ton compte est suspendu : ${user.suspendedReason}`
+      : 'Ton compte est suspendu.',
+    until: user.suspendedUntil.toISOString(),
+  });
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -112,6 +130,11 @@ export class AuthService {
     if (!ok) {
       throw invalid;
     }
+
+    // Une personne suspendue doit savoir pourquoi elle ne peut plus entrer :
+    // un « email ou mot de passe incorrect » l'enverrait réinitialiser un mot
+    // de passe qui fonctionne très bien.
+    assertNotSuspended(user);
 
     const tokens = await this.issueTokens(user);
     return { user: toPublicUser(user), tokens };

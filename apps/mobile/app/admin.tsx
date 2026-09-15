@@ -77,6 +77,7 @@ export default function AdminScreen() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [affiliateStats, setAffiliateStats] = useState<AffiliateStats | null>(null);
   const [affiliateTrend, setAffiliateTrend] = useState<TrendRow[]>([]);
+  const [pendingReports, setPendingReports] = useState<number | null>(null);
 
   async function backfillCountries() {
     if (!accessToken) return;
@@ -135,6 +136,13 @@ export default function AdminScreen() {
         fetch(`${API}/admin/affiliates/stats`, { headers: h }),
         fetch(`${API}/admin/affiliates/trend?days=30`, { headers: h }),
       ]);
+
+      // Compteur de signalements : indépendant du reste, un échec ici ne doit
+      // pas priver l'écran de ses statistiques.
+      void fetch(`${API}/admin/reports/pending-count`, { headers: h })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { count: number } | null) => setPendingReports(d?.count ?? null))
+        .catch(() => setPendingReports(null));
       if (ovRes.status === 'fulfilled') {
         if (ovRes.value.ok) setOverview(await ovRes.value.json());
         else setError(`Stats: ${ovRes.value.status}`);
@@ -179,6 +187,25 @@ export default function AdminScreen() {
           <Text style={styles.errorText}>⚠️ {error}</Text>
         </View>
       )}
+
+      {/* ── Modération ──
+          En tête avec le compteur : un signalement qui attend est la seule
+          chose de cet écran qui se dégrade avec le temps. La règle 1.2 de
+          l'App Store demande d'agir sous 24 heures. */}
+      <Pressable style={styles.moderationCard} onPress={() => router.push('/admin-moderation')}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.moderationTitle}>Modération</Text>
+          <Text style={styles.planHint}>
+            {pendingReports === null
+              ? 'Signalements à traiter'
+              : pendingReports === 0
+                ? 'Aucun signalement en attente'
+                : `${pendingReports} signalement(s) en attente`}
+          </Text>
+        </View>
+        {pendingReports ? <Text style={styles.moderationBadge}>{pendingReports}</Text> : null}
+        <Text style={styles.moderationChevron}>›</Text>
+      </Pressable>
 
       {/* ── Forfait du compte admin ──
           Placé en tête : c'est un outil de test, pas une statistique, et on
@@ -377,6 +404,28 @@ const styles = StyleSheet.create({
   title: { ...typography.h2, color: colors.text, flex: 1 },
   refreshBtn: { padding: 8 },
   refreshTxt: { fontSize: 22, color: colors.brand },
+  moderationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+  },
+  moderationTitle: { ...typography.h3, color: colors.text },
+  moderationBadge: {
+    ...typography.caption,
+    color: '#fff',
+    fontWeight: '700',
+    backgroundColor: colors.danger,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    overflow: 'hidden',
+  },
+  moderationChevron: { ...typography.h2, color: colors.textMuted },
   sectionTitle: { ...typography.h3, color: colors.text, marginHorizontal: spacing.md, marginTop: spacing.md, marginBottom: spacing.sm },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md, gap: 10, marginBottom: 4 },
   statCard: {

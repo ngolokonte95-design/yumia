@@ -300,6 +300,36 @@ describe('AuthService', () => {
     });
   });
 
+  describe('compte suspendu', () => {
+    it('refuse la connexion et dit pourquoi', async () => {
+      const hash = await bcrypt.hash('correctpassword', 4);
+      const future = new Date(Date.now() + 86400000);
+      prismaMock.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        passwordHash: hash,
+        suspendedUntil: future,
+        suspendedReason: 'Propos haineux',
+      });
+
+      await expect(service.login('test@yumia.app', 'correctpassword')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('laisse entrer quand la suspension est terminee', async () => {
+      const hash = await bcrypt.hash('correctpassword', 4);
+      const past = new Date(Date.now() - 86400000);
+      prismaMock.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        passwordHash: hash,
+        suspendedUntil: past,
+        suspendedReason: 'Ancienne sanction',
+      });
+      prismaMock.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
+
+      const result = await service.login('test@yumia.app', 'correctpassword');
+      expect(result.tokens.accessToken).toBe('access-token');
+    });
+  });
+
   describe('refresh', () => {
     it('rotation : révoque l\'ancien token et émet une nouvelle paire', async () => {
       prismaMock.refreshToken.findUnique.mockResolvedValue(mockRefreshTokenRecord);

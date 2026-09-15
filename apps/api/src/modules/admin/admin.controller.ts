@@ -1,7 +1,8 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
+import { ModerationService, type ModerationAction } from './moderation.service';
 import { AffiliatesService } from '../affiliates/affiliates.service';
 
 @Controller('admin')
@@ -9,6 +10,7 @@ import { AffiliatesService } from '../affiliates/affiliates.service';
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
+    private readonly moderation: ModerationService,
     private readonly affiliatesService: AffiliatesService,
   ) {}
 
@@ -80,5 +82,63 @@ export class AdminController {
   @UseGuards(AdminGuard)
   affiliateTrend(@Query('days') days?: string) {
     return this.affiliatesService.getClicksTrend(days ? +days : 30);
+  }
+
+  // ── Modération ────────────────────────────────────────────────────────────
+  //
+  // La règle 1.2 de l'App Store demande, pour toute app à contenu utilisateur,
+  // de pouvoir retirer un contenu signalé ET d'exclure son auteur. Les
+  // signalements étaient enregistrés depuis le début, mais rien ne permettait
+  // de les lire : ils partaient dans le vide.
+
+  /** File d'attente des signalements, du plus ancien au plus récent. */
+  @Get('reports')
+  @UseGuards(AdminGuard)
+  reports(@Query('status') status?: string, @Query('limit') limit?: string) {
+    return this.moderation.listReports(status ?? 'pending', limit ? +limit : 50);
+  }
+
+  /** Pastille du tableau de bord : combien de signalements attendent. */
+  @Get('reports/pending-count')
+  @UseGuards(AdminGuard)
+  async pendingReports() {
+    return { count: await this.moderation.pendingCount() };
+  }
+
+  /**
+   * Traite un signalement : classer sans suite, retirer le contenu, suspendre
+   * l'auteur, ou les deux. `days` absent sur une suspension = définitive.
+   */
+  @Post('reports/:id/resolve')
+  @UseGuards(AdminGuard)
+  resolveReport(
+    @Param('id') id: string,
+    @Body() dto: { action: ModerationAction; days?: number; reason?: string },
+  ) {
+    return this.moderation.resolve(id, dto.action, { days: dto.days, reason: dto.reason });
+  }
+
+  /** Comptes suspendus, pour pouvoir revenir sur une décision. */
+  @Get('users/suspended')
+  @UseGuards(AdminGuard)
+  suspendedUsers() {
+    return this.moderation.listSuspended();
+  }
+
+  /** Suspension directe, sans passer par un signalement. */
+  @Post('users/:id/suspend')
+  @UseGuards(AdminGuard)
+  async suspendUser(
+    @Param('id') id: string,
+    @Body() dto: { days?: number; reason?: string },
+  ) {
+    return { suspendedUntil: await this.moderation.suspend(id, dto.days, dto.reason) };
+  }
+
+  @Post('users/:id/unsuspend')
+  @UseGuards(AdminGuard)
+  async unsuspendUser(@Param('id') id: string) {
+    await this.moderation.unsuspend(id);
+    return { ok: true };
   }
 }

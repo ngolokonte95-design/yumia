@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import type { AppConfig } from '../../config/configuration';
 import type { JwtPayload } from './types';
+import { PrismaService } from '../../infra/prisma/prisma.service';
 
 /** Requête enrichie de l'utilisateur authentifié par le guard. */
 export interface AuthenticatedRequest extends Request {
@@ -24,6 +26,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,10 +41,43 @@ export class JwtAuthGuard implements CanActivate {
       req.user = await this.jwt.verifyAsync<JwtPayload>(token, {
         secret: jwtCfg.accessSecret,
       });
-      return true;
     } catch {
       throw new UnauthorizedException('Jeton d’accès invalide ou expiré.');
     }
+
+    await this.assertNotSuspended(req);
+    return true;
+  }
+
+  /**
+   * Un compte suspendu ne doit plus rien pouvoir publier.
+   *
+   * Le contrôle ne porte que sur les requêtes qui ÉCRIVENT : un jeton reste
+   * valide plusieurs heures après une suspension, et attendre son expiration
+   * laisserait la personne publier entre-temps. Les lectures, elles, ne
+   * justifient pas une requête de base supplémentaire à chaque appel — et
+   * laisser quelqu'un consulter l'app pendant sa suspension est sans
+   * conséquence.
+   */
+  private async assertNotSuspended(req: AuthenticatedRequest): Promise<void> {
+    if (req.method === 'GET' || req.method === 'HEAD') return;
+
+    const user = await this.prisma.user
+      .findUnique({
+        where: { id: req.user.sub },
+        select: { suspendedUntil: true, suspendedReason: true },
+      })
+      .catch(() => null);
+
+    if (!user?.suspendedUntil || user.suspendedUntil <= new Date()) return;
+
+    throw new ForbiddenException({
+      code: 'ACCOUNT_SUSPENDED',
+      message: user.suspendedReason
+        ? `Ton compte est suspendu : ${user.suspendedReason}`
+        : 'Ton compte est suspendu.',
+      until: user.suspendedUntil.toISOString(),
+    });
   }
 }
 
