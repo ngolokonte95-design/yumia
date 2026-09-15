@@ -15,6 +15,7 @@ import { API_BASE_URL } from '../lib/config';
 import { feedApi, type FeedPost, type PostOverlay } from '../lib/feed-api';
 import { PostOverlays } from '../components/PostOverlays';
 import { useI18n } from '../lib/useI18n';
+import { formatCount } from '../lib/format-count';
 
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -377,20 +378,26 @@ function ReelCard({
         {/* Like */}
         <Pressable style={styles.reelActionBtn} onPress={handleLike}>
           <Text style={[styles.reelActionIcon, liked && { color: '#FF3040' }]}>♥</Text>
-          <Text style={styles.reelActionCount}>{likes}</Text>
+          <Text style={styles.reelActionCount}>{formatCount(likes)}</Text>
         </Pressable>
 
         {/* Commentaire */}
         <Pressable style={styles.reelActionBtn} onPress={() => onComment(item.id)}>
           <Text style={styles.reelActionIcon}>💬</Text>
-          <Text style={styles.reelActionCount}>{item.commentsCount ?? 0}</Text>
+          <Text style={styles.reelActionCount}>{formatCount(item.commentsCount)}</Text>
         </Pressable>
 
         {/* Repost */}
         <Pressable style={styles.reelActionBtn}>
           <Text style={styles.reelActionIcon}>🔁</Text>
-          <Text style={styles.reelActionCount}>{item.repostsCount ?? 0}</Text>
+          <Text style={styles.reelActionCount}>{formatCount(item.repostsCount)}</Text>
         </Pressable>
+
+        {/* Vues — information, pas action : pas de Pressable. */}
+        <View style={styles.reelActionBtn}>
+          <Text style={styles.reelActionIcon}>👁</Text>
+          <Text style={styles.reelActionCount}>{formatCount(item.viewsCount)}</Text>
+        </View>
 
         {/* Partager */}
         <Pressable style={styles.reelActionBtn} onPress={() => onShare(item)}>
@@ -491,6 +498,14 @@ export default function ReelsScreen() {
   const [screenFocused, setScreenFocused] = useState(true);
   const [following, setFollowing] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList<FeedPost>>(null);
+  /**
+   * Reels déjà comptés pendant cette session.
+   *
+   * Sans ce garde-fou, revenir sur un reel en remontant le fil rajouterait une
+   * vue à chaque passage : le compteur mesurerait les allers-retours du pouce,
+   * pas l'audience.
+   */
+  const viewedRef = useRef<Set<string>>(new Set());
 
   // Stop tout l'audio quand l'utilisateur quitte l'écran reels
   useFocusEffect(useCallback(() => {
@@ -553,6 +568,20 @@ export default function ReelsScreen() {
       setActiveIndex(viewableItems[0].index ?? 0);
     }
   }).current;
+
+  // Une vue est comptée quand un reel occupe vraiment l'écran — pas quand il
+  // est préchargé en coulisses, ni quand on le traverse en défilant vite.
+  // `itemVisiblePercentThreshold: 60` fait ce tri en amont.
+  useEffect(() => {
+    const current = reels[activeIndex];
+    if (!current || !accessToken || !screenFocused) return;
+    if (viewedRef.current.has(current.id)) return;
+    viewedRef.current.add(current.id);
+    void feedApi.recordView(accessToken, current.id);
+    setReels((prev) =>
+      prev.map((r) => (r.id === current.id ? { ...r, viewsCount: (r.viewsCount ?? 0) + 1 } : r)),
+    );
+  }, [activeIndex, reels, accessToken, screenFocused]);
 
   const toggleLike = async (postId: string) => {
     if (!accessToken) return;

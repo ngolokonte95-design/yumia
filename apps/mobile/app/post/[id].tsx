@@ -15,6 +15,7 @@ import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import type { PostOverlay, AuthorRef } from '../../lib/feed-api';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
+import { formatCount } from '../../lib/format-count';
 
 const API = API_BASE_URL;
 
@@ -64,6 +65,7 @@ interface Post {
   videoMuted?: boolean;
   voiceTrackUrl?: string | null;
   likesCount: number;
+  viewsCount?: number;
   likedByMe: boolean;
   hideLikeCount?: boolean;
   commentsDisabled?: boolean;
@@ -331,9 +333,12 @@ export default function PostDetailScreen() {
             <Text style={[styles.likeIcon, post.likedByMe && styles.likeIconActive]}>
               {post.likedByMe ? '❤️' : '🤍'}
             </Text>
-            <Text style={styles.likeCount}>{post.likesCount}</Text>
+            <Text style={styles.likeCount}>{formatCount(post.likesCount)}</Text>
           </Pressable>
-          <Text style={styles.commentCount}>💬 {post.comments.length}</Text>
+          <Text style={styles.commentCount}>💬 {formatCount(post.comments.length)}</Text>
+          {/* La vue de cet écran vient d'être comptée par le POST ci-dessus :
+              le chiffre affiché inclut donc la visite en cours. */}
+          <Text style={styles.commentCount}>👁 {formatCount(post.viewsCount)}</Text>
         </View>
 
         {post.caption ? <Text style={styles.caption}><Text style={styles.captionUser}>{post.user?.displayName} </Text>{post.caption}</Text> : null}

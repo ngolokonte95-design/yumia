@@ -136,6 +136,13 @@ export const feedApi = {
     fetch(`${API}/posts/${postId}`, { method: 'DELETE', headers: auth(token) })
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); }),
 
+  /**
+   * Comptabilise une vue. Silencieux : une vue perdue n'est pas un incident,
+   * et surtout pas une raison d'interrompre la lecture d'une vidéo.
+   */
+  recordView: (token: string, postId: string) =>
+    fetch(`${API}/posts/${postId}/view`, { method: 'POST', headers: auth(token) }).catch(() => undefined),
+
   toggleLike: (token: string, postId: string) =>
     fetch(`${API}/posts/${postId}/like`, { method: 'POST', headers: auth(token) })
       .then((r) => safe<{ liked: boolean; likesCount: number }>(r, { liked: false, likesCount: 0 })),

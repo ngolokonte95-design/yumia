@@ -19,6 +19,7 @@ import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useUnreadMessages';
+import { formatCount } from '../../lib/format-count';
 
 const API = API_BASE_URL;
 
@@ -373,20 +374,29 @@ function PostCard({
 
       {/* Actions — like · commentaire · republier · message  (+ enregistrer à droite) */}
       <View style={styles.postActions}>
+        {/* Les compteurs s'affichent toujours, zéro compris : un chiffre absent
+            se lit comme une fonctionnalité manquante, pas comme un zéro. Seul
+            `hideLikeCount`, que l'auteur choisit publication par publication,
+            masque encore le nombre de j'aime. */}
         <Pressable style={styles.actionBtn} onPress={() => onLike(item.id)}>
           <Text style={styles.actionIcon}>{item.likedByMe ? '❤️' : '🤍'}</Text>
-          {!item.hideLikeCount && item.likesCount > 0 && <Text style={styles.actionCount}>{item.likesCount}</Text>}
+          {!item.hideLikeCount && <Text style={styles.actionCount}>{formatCount(item.likesCount)}</Text>}
         </Pressable>
         {!item.commentsDisabled && (
           <Pressable style={styles.actionBtn} onPress={() => onComment(item.id)}>
             <Text style={styles.actionIcon}>💬</Text>
-            {item.commentsCount > 0 && <Text style={styles.actionCount}>{item.commentsCount}</Text>}
+            <Text style={styles.actionCount}>{formatCount(item.commentsCount)}</Text>
           </Pressable>
         )}
         <Pressable style={styles.actionBtn} onPress={() => onRepost(item.id)}>
           <Text style={[styles.actionIcon, item.repostedByMe && styles.actionIconActive]}>🔁</Text>
-          {item.repostsCount > 0 && <Text style={styles.actionCount}>{item.repostsCount}</Text>}
+          <Text style={styles.actionCount}>{formatCount(item.repostsCount)}</Text>
         </Pressable>
+        {/* Vues : information, pas action — d'où l'absence de Pressable. */}
+        <View style={styles.actionBtn}>
+          <Text style={styles.actionIcon}>👁</Text>
+          <Text style={styles.actionCount}>{formatCount(item.viewsCount)}</Text>
+        </View>
         <Pressable style={styles.actionBtn} onPress={() => onShare(item)}>
           <Text style={styles.actionIcon}>✈️</Text>
         </Pressable>
