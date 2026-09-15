@@ -306,8 +306,13 @@ l'écran ouvert, et le serveur oublie la position au bout de 10 minutes.
 
 ## 6. Captures d'écran
 
-Les cinq images de `docs/stores/screenshots/` sont des maquettes dessinées, antérieures à la
-boutique, à l'assistant cadeaux et aux itinéraires de séjour. **À refaire.**
+✅ **App Store : faites** (15 septembre 2026), remplacées dans App Store Connect par de vraies
+captures de l'app.
+
+⬜ **Play Store : à faire.** Les mêmes images conviennent — Google accepte les formats d'Apple.
+
+Les cinq maquettes dessinées de `docs/stores/screenshots/` sont donc périmées : elles datent d'avant
+la boutique, l'assistant cadeaux et les itinéraires de séjour. Ne les réutilise pas.
 
 Formats : 1290×2796 (iPhone 6,7″) et 1284×2778 (6,5″) — les mêmes conviennent à Google.
 
@@ -346,7 +351,7 @@ Deux façons de les produire :
    contraire — c'était une supposition, démentie par l'usage.
 2. **Le development build** — il valide d'un coup les cartes Android, le crash carte iOS et la
    barrière d'âge. Rien ne se teste en vrai avant lui, et les captures en dépendent.
-3. **Les captures** — §6.
+3. **Les captures Play Store** — celles d'Apple sont faites (§6).
 4. **Les abonnements** — à créer dans les deux consoles.
 5. **Le compte de démonstration** — à créer sur la prod, en Diamond (§3.6).
 
