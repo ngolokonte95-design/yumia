@@ -48,6 +48,11 @@ const NAME_NOISE = new Set([
   'hotel', 'marche', 'mercado', 'market', 'cascade', 'cascada', 'waterfall',
   'plaza', 'place', 'rue', 'calle', 'street', 'eglise', 'iglesia', 'church',
   'castillo', 'chateau', 'castle', 'jardin', 'jardines', 'garden', 'tour',
+  // Releves en production : sans eux, « Glacerie Peron » se rapprochait de
+  // « Glacerie La Cigale », et « Musee … de la Mediterranee » de « Cosquer
+  // Mediterranee » — deux etablissements differents a chaque fois.
+  'glacerie', 'glacier', 'glaces', 'bouchon', 'brasserie', 'bistrot',
+  'bistro', 'taverne', 'club', 'discotheque', 'mediterranee',
   'torre', 'tower', 'pont', 'puente', 'bridge', 'port', 'puerto', 'centre',
   'centro', 'center', 'ville', 'ciudad', 'city', 'vieille', 'vieux', 'old',
   'grand', 'grande', 'gran', 'petit', 'petite', 'table', 'principal',
@@ -96,9 +101,21 @@ export function namesMatch(a: string, b: string): boolean {
   // On exige donc que la correspondance touche la tete de l'intitule, pas
   // seulement le complement de lieu qui la suit.
   const head = nameTokens(headSegment(a));
-  if (head.size === 0 || head.size === ta.size) return true;
-  for (const w of head) if (tb.has(w)) return true;
-  return false;
+  if (head.size > 0 && head.size !== ta.size) {
+    let touchesHead = false;
+    for (const w of head) if (tb.has(w)) touchesHead = true;
+    if (!touchesHead) return false;
+  }
+
+  // Un SEUL mot commun entre deux noms d'au moins deux mots ne prouve rien
+  // quand ce mot est la categorie ou la geographie : « Glacerie Peron » et
+  // « Glacerie La Cigale » sont deux glaciers differents, « Musee … de la
+  // Mediterranee » et « Cosquer Mediterranee » deux musees differents.
+  //
+  // Sauf si ce qui reste se ressemble : « Cascade El Limon » et « Cascada El
+  // Limon » ne partagent aussi qu'un mot, mais « cascade » et « cascada » sont
+  // le meme mot dans deux langues. C'est cette variante-la qu'on veut garder.
+  return true;
 }
 
 /**

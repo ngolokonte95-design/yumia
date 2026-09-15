@@ -50,4 +50,17 @@ describe('namesMatch', () => {
       expect(namesMatch('Musee d Aix-en-Provence', 'Musee Aix-en-Provence')).toBe(true);
     });
   });
+
+  describe('mot commun non distinctif', () => {
+    // Releves en production sur Marseille : un seul mot commun, et c'etait
+    // celui qui ne designe personne.
+    it('ne rapproche pas deux etablissements du meme genre', () => {
+      expect(namesMatch('Glacerie Peron – Plage des Catalans', 'Glacerie La Cigale')).toBe(false);
+      expect(namesMatch('Musee des Civilisations de l Europe et de la Mediterranee', 'Cosquer Mediterranee')).toBe(false);
+    });
+
+    it('garde les vrais rapprochements du meme genre', () => {
+      expect(namesMatch('Le Prescription Cocktail Club — Saint-Germain', 'Prescription Cocktail Club')).toBe(true);
+    });
+  });
 });
