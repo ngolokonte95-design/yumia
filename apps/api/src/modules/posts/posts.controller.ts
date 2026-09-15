@@ -248,8 +248,8 @@ export class PostsController {
   }
 
   @Post(':id/view')
-  recordView(@Param('id') id: string) {
-    return this.postsService.recordView(id);
+  recordView(@Req() req: any, @Param('id') id: string) {
+    return this.postsService.recordView(id, req.user.sub);
   }
 
   @Get(':id/stats')

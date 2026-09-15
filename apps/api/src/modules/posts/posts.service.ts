@@ -144,9 +144,26 @@ export class PostsService {
     return this.prisma.post.update({ where: { id: postId }, data: { isDraft: false, createdAt: new Date() } });
   }
 
-  /** Comptabilise une vue (stats). */
-  async recordView(postId: string) {
-    await this.prisma.post.update({ where: { id: postId }, data: { viewsCount: { increment: 1 } } }).catch(() => undefined);
+  /**
+   * Comptabilise une vue (stats).
+   *
+   * L'auteur ne compte pas dans ses propres vues : relire sa publication, ou
+   * simplement la croiser en descendant le fil, gonflait un compteur affiché
+   * à tout le monde. Le filtre est ici plutôt que côté application : toutes
+   * les surfaces qui comptent une vue (reels, fil, profil) passent par cet
+   * endpoint, et une règle de ce genre ne se fait pas confiance client.
+   *
+   * `updateMany` accepte un filtre sur l'auteur, ce qu'`update` (clé unique
+   * seulement) ne permet pas : une seule requête, sans lecture préalable —
+   * une vue est enregistrée à chaque reel qui s'affiche.
+   */
+  async recordView(postId: string, viewerId: string) {
+    await this.prisma.post
+      .updateMany({
+        where: { id: postId, userId: { not: viewerId } },
+        data: { viewsCount: { increment: 1 } },
+      })
+      .catch(() => undefined);
     return { ok: true };
   }
 

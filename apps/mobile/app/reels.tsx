@@ -628,16 +628,21 @@ export default function ReelsScreen() {
   // Une vue est comptée quand un reel occupe vraiment l'écran — pas quand il
   // est préchargé en coulisses, ni quand on le traverse en défilant vite.
   // `itemVisiblePercentThreshold: 60` fait ce tri en amont.
+  //
+  // Regarder sa propre publication ne compte pas. Le serveur applique déjà la
+  // règle ; sans le même test ici, l'incrément optimiste ferait monter le
+  // nombre affiché à l'auteur — qui retomberait au rechargement suivant.
   useEffect(() => {
     const current = reels[activeIndex];
     if (!current || !accessToken || !screenFocused) return;
+    if (current.userId === me?.id) return;
     if (viewedRef.current.has(current.id)) return;
     viewedRef.current.add(current.id);
     void feedApi.recordView(accessToken, current.id);
     setReels((prev) =>
       prev.map((r) => (r.id === current.id ? { ...r, viewsCount: (r.viewsCount ?? 0) + 1 } : r)),
     );
-  }, [activeIndex, reels, accessToken, screenFocused]);
+  }, [activeIndex, reels, accessToken, screenFocused, me?.id]);
 
   const toggleLike = async (postId: string) => {
     if (!accessToken) return;
