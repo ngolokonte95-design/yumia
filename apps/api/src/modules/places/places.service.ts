@@ -22,8 +22,17 @@ const PLACE_DETAIL_CACHE_TTL_SECONDS = 10 * 60; // 10 min — les lieux sont qua
 // beaucoup de lieux par point (100+), pas seulement « au moins quelques-uns ».
 const HYDRATE_MIN_LOCAL_RESULTS = 60;
 // Une tuile (zone + univers) hydratée avec succès n'est pas ré-interrogée avant
-// ce délai → évite de rappeler l'API (coût) pour la même zone. 7 jours.
-const HYDRATE_TILE_TTL_SECONDS = 7 * 24 * 60 * 60;
+// ce délai → évite de rappeler l'API (coût) pour la même zone.
+//
+// 30 jours, et non 7 : une zone qui a déjà rendu 60+ lieux n'en gagne presque
+// rien à être re-interrogée chaque semaine, alors que chaque interrogation est
+// facturée. Ce que ce délai retarde, ce sont les établissements qui viennent
+// d'ouvrir — et la propagation d'un correctif de classement.
+//
+// Ce dernier point serait gênant sans la version de clé juste en dessous :
+// passer 'v6' à 'v7' invalide toutes les tuiles du monde d'un coup. C'est elle
+// qui rend un délai long sans danger, pas la longueur du délai.
+const HYDRATE_TILE_TTL_SECONDS = 30 * 24 * 60 * 60;
 // Verrou court anti-stampede pendant l'appel réseau (plusieurs requêtes
 // concurrentes sur la même zone vide ne déclenchent qu'un seul appel).
 const HYDRATE_LOCK_TTL_SECONDS = 60;
