@@ -89,11 +89,13 @@ function AuthGate() {
     // Authentifié — vérifie si l'onboarding est terminé.
     const onboardingDone = user?.preferences?.onboardingComplete === true;
 
-    // L'écran d'onboarding s'appelle `start` et non `index` : tant qu'il
-    // portait ce nom, il correspondait à « / » au même titre que (tabs)/index.
-    // Au lancement, expo-router en choisissait un — l'onboarding — l'affichait,
-    // puis cette garde corrigeait vers l'accueil : l'écran « homme ou femme ? »
-    // apparaissait une fraction de seconde à chaque ouverture de l'app.
+    // L'écran d'onboarding s'appelle `start`, et non `index`, volontairement.
+    // Un `index.tsx` placé dans un groupe répond à « / » exactement comme
+    // (tabs)/index : quand plusieurs y répondent, expo-router en choisit un au
+    // lancement, l'affiche, et cette garde corrige juste après — d'où un écran
+    // qui apparaît puis disparaît. (onboarding) et (premium) prenaient tous
+    // deux « / » de cette façon. (tabs)/index doit rester le seul `index.tsx`
+    // de groupe de l'app ; un nouveau groupe se nomme autrement.
     if (!onboardingDone && !inOnboarding) {
       router.replace('/(onboarding)/start');
     } else if (onboardingDone && (inAuthGroup || inOnboarding)) {
@@ -138,7 +140,6 @@ function AuthGate() {
       <Stack.Screen name="(auth)" options={{ animation: 'none' }} />
       <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
       <Stack.Screen name="language-select" options={{ animation: 'none' }} />
-      <Stack.Screen name="(premium)" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="group-session" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="search" />

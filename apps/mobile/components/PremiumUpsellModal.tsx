@@ -60,8 +60,7 @@ export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan 
 
   function goPremium() {
     onClose();
-    // Cast : la route typée /(premium) est régénérée au prochain démarrage Expo.
-    router.push('/plus' as never);
+    router.push('/plus');
   }
 
   function dismiss() {
