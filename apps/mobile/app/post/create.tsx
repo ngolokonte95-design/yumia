@@ -14,6 +14,7 @@ import { PostVideo } from '../../components/PostVideo';
 import { VideoEditor } from '../../components/postEditor/VideoEditor';
 import type { PostOverlay } from '../../lib/feed-api';
 import { useI18n } from '../../lib/useI18n';
+import { appendFile } from '../../lib/upload';
 
 const API = API_BASE_URL;
 
@@ -80,17 +81,7 @@ export default function CreatePostScreen() {
   // indiscernable et masquait la vraie cause côté serveur.
   const uploadMedia = useCallback(async (uri: string): Promise<{ url: string; thumbnailUrl?: string }> => {
     const form = new FormData();
-    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const mime = ext === 'png' ? 'image/png'
-      : ext === 'webp' ? 'image/webp'
-      : ext === 'mp4' ? 'video/mp4'
-      : ext === 'mov' ? 'video/quicktime'
-      : ext === 'm4v' ? 'video/mp4'
-      : ext === 'webm' ? 'video/webm'
-      // Voix off enregistrée (expo-av) — même type que les vocaux du chat.
-      : ext === 'm4a' || ext === 'caf' ? 'audio/m4a'
-      : 'image/jpeg';
-    form.append('file', { uri, type: mime, name: `media.${ext}` } as unknown as Blob);
+    appendFile(form, 'file', uri);
     const res = await fetch(`${API}/posts/upload`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },

@@ -4,6 +4,7 @@
 import type { Universe } from '@yumia/shared';
 import { request } from './api';
 import { API_BASE_URL } from './config';
+import { appendFile } from './upload';
 
 /** Lieu renvoyé par `/places/nearby` (miroir de `PlaceWithDistance` de l'API). */
 export interface NearbyPlace {
@@ -139,10 +140,7 @@ export async function uploadPlacePhoto(
   imageUri: string,
 ): Promise<{ photoUrl: string }> {
   const form = new FormData();
-  const filename = imageUri.split('/').pop() ?? 'photo.jpg';
-  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-  form.append('photo', { uri: imageUri, name: filename, type: mime } as unknown as Blob);
+  appendFile(form, 'photo', imageUri, 'photo.jpg');
 
   const res = await fetch(`${API_BASE_URL}/places/${placeId}/photos`, {
     method: 'POST',

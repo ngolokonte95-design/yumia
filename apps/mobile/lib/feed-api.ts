@@ -5,6 +5,7 @@
 import { API_BASE_URL } from './config';
 import type { Plan } from './auth-api';
 import { tRuntime } from './i18n-runtime';
+import { appendFile } from './upload';
 export type { Plan };
 
 const API = API_BASE_URL;
@@ -207,17 +208,7 @@ export const feedApi = {
   /** Variante renvoyant aussi la miniature auto-générée (vidéos uniquement, best-effort). */
   uploadMediaWithThumbnail: async (token: string, uri: string): Promise<{ url: string; thumbnailUrl?: string }> => {
     const form = new FormData();
-    const name = uri.split('/').pop() ?? 'photo.jpg';
-    const ext = name.split('.').pop()?.toLowerCase();
-    const mime = ext === 'png' ? 'image/png'
-      : ext === 'webp' ? 'image/webp'
-      : ext === 'mp4' ? 'video/mp4'
-      : ext === 'mov' ? 'video/quicktime'
-      : ext === 'm4v' ? 'video/mp4'
-      : ext === 'webm' ? 'video/webm'
-      : 'image/jpeg';
-    // @ts-expect-error React Native FormData file shape
-    form.append('file', { uri, name, type: mime });
+    appendFile(form, 'file', uri);
     const r = await fetch(`${API}/posts/upload`, { method: 'POST', headers: auth(token), body: form });
     if (!r.ok) {
       const txt = await r.text().catch(() => '');

@@ -13,6 +13,7 @@ import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
+import { appendFile } from '../lib/upload';
 
 const { width: SW } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -283,7 +284,7 @@ export default function CameraScreen() {
     try {
       const isVideo = preview.type === 'video';
       const form = new FormData();
-      form.append('file', { uri: preview.uri, type: isVideo ? 'video/mp4' : 'image/jpeg', name: isVideo ? 'reel.mp4' : 'photo.jpg' } as never);
+      appendFile(form, 'file', preview.uri, isVideo ? 'reel.mp4' : 'photo.jpg');
 
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) {

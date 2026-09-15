@@ -5,41 +5,26 @@
  * un objet React Native `{ uri, name, type }`. Depuis SDK 54, le `fetch` de
  * l'app suit le standard du Web, où une pièce jointe doit être un `Blob` —
  * l'ancien objet est rejeté à l'exécution avec « Unsupported FormDataPart
- * implementation », sans que rien ne le signale à la compilation.
+ * implementation », et rien ne le signale à la compilation (d'où les
+ * `as never` et `@ts-expect-error` qui parsemaient les anciens appels).
  *
  * `File` d'expo-file-system implémente `Blob` et lit le fichier sur place,
  * sans le charger en mémoire : c'est ce qu'il faut pour une vidéo de story.
+ * Il déduit aussi le type MIME du fichier lui-même — on ne le force plus,
+ * et c'est ce type qui arrive au `fileFilter` du serveur.
  */
 import { File } from 'expo-file-system';
 
-/** Type MIME déduit de l'extension, avec un repli raisonnable. */
-const MIME: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  heic: 'image/heic',
-  mp4: 'video/mp4',
-  mov: 'video/quicktime',
-  m4v: 'video/mp4',
-  webm: 'video/webm',
-  m4a: 'audio/mp4',
-};
-
-export function fileName(uri: string, fallback = 'upload.jpg'): string {
+/** Nom de fichier extrait de l'URI, extension comprise. */
+function fileName(uri: string, fallback = 'upload.jpg'): string {
   const last = uri.split('?')[0].split('/').pop();
   return last && last.includes('.') ? last : fallback;
 }
 
-export function mimeType(uri: string): string {
-  const ext = fileName(uri).split('.').pop()?.toLowerCase() ?? '';
-  return MIME[ext] ?? 'image/jpeg';
-}
-
 /**
  * Ajoute un fichier local à un `FormData`, sous le nom de champ attendu par
- * l'API. Le nom de fichier transmis garde l'extension d'origine : le serveur
- * s'en sert pour choisir le dossier et valider le type.
+ * l'API. Le nom transmis garde l'extension d'origine : le serveur s'en sert
+ * pour nommer le fichier stocké.
  */
 export function appendFile(
   form: FormData,

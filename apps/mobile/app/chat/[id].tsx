@@ -23,6 +23,7 @@ import { PhotoViewer } from '../../components/PhotoViewer';
 import { translateMessage } from '../../lib/chat-translate-api';
 import { SUPPORTED_LOCALES } from '../../lib/locales';
 import { haptics } from '../../lib/useHaptics';
+import { appendFile } from '../../lib/upload';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -352,11 +353,7 @@ export default function ChatRoomScreen() {
     setUploadingMedia(true);
     try {
       const form = new FormData();
-      form.append('file', {
-        uri: asset.uri,
-        type: kind === 'image' ? 'image/jpeg' : 'video/mp4',
-        name: kind === 'image' ? 'photo.jpg' : 'video.mp4',
-      } as never);
+      appendFile(form, 'file', asset.uri, kind === 'image' ? 'photo.jpg' : 'video.mp4');
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) { Alert.alert(t('chat_delete_error_title'), t('chat_upload_error')); return; }
       const { url } = await up.json() as { url: string };
@@ -514,7 +511,7 @@ export default function ChatRoomScreen() {
     setSending(true);
     try {
       const form = new FormData();
-      form.append('file', { uri, type: 'audio/m4a', name: 'voice.m4a' } as never);
+      appendFile(form, 'file', uri, 'voice.m4a');
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) return;
       const { url } = await up.json() as { url: string };
