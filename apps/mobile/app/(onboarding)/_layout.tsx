@@ -4,7 +4,7 @@ import { colors } from '../../theme/tokens';
 export default function OnboardingLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Screen name="index" />
+      <Stack.Screen name="start" />
     </Stack>
   );
 }
