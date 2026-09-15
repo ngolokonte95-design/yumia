@@ -89,11 +89,13 @@ function AuthGate() {
     // Authentifié — vérifie si l'onboarding est terminé.
     const onboardingDone = user?.preferences?.onboardingComplete === true;
 
-    // Chemins de GROUPE explicites : '/' est ambigu entre (tabs)/index et
-    // (onboarding)/index → expo-router peut renvoyer à l'onboarding. On cible
-    // donc explicitement chaque groupe.
+    // L'écran d'onboarding s'appelle `start` et non `index` : tant qu'il
+    // portait ce nom, il correspondait à « / » au même titre que (tabs)/index.
+    // Au lancement, expo-router en choisissait un — l'onboarding — l'affichait,
+    // puis cette garde corrigeait vers l'accueil : l'écran « homme ou femme ? »
+    // apparaissait une fraction de seconde à chaque ouverture de l'app.
     if (!onboardingDone && !inOnboarding) {
-      router.replace('/(onboarding)');
+      router.replace('/(onboarding)/start');
     } else if (onboardingDone && (inAuthGroup || inOnboarding)) {
       router.replace('/(tabs)');
     }
