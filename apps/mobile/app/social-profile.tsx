@@ -12,7 +12,7 @@ import { feedApi, type StoryHighlight } from '../lib/feed-api';
 import { VideoThumb } from '../components/VideoThumb';
 import { PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
-import { PostPhotoViewer } from '../components/PostPhotoViewer';
+import { PostViewer } from '../components/PostViewer';
 import type { FeedPost } from '../lib/feed-api';
 
 const API = API_BASE_URL;
@@ -82,7 +82,12 @@ export default function SocialProfileScreen() {
    * même façon. Les vidéos gardent leur destination : la page de détail, où
    * elles se lisent.
    */
-  const [photoViewer, setPhotoViewer] = useState<Post | null>(null);
+  /**
+   * Publication ouverte en plein écran — c'est un index dans `gridData`, pas
+   * une publication isolée : depuis là on fait défiler tout le compte,
+   * photos et vidéos confondues, dans l'ordre de la grille.
+   */
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
 
   const photoUrl = user?.photoUrl
@@ -369,11 +374,7 @@ export default function SocialProfileScreen() {
         renderItem={({ item }) => (
           <Pressable
             style={styles.gridItem}
-            onPress={() =>
-              isVideoUrl(item.mediaUrls[0])
-                ? router.push(`/post/${item.id}` as never)
-                : setPhotoViewer(item)
-            }
+            onPress={() => setViewerIndex(gridData.findIndex((p) => p.id === item.id))}
             onLongPress={() => setPostMenu(item)}
           >
             {item.mediaUrls[0] ? (
@@ -504,8 +505,12 @@ export default function SocialProfileScreen() {
         </View>
       </Modal>
 
-      {photoViewer ? (
-        <PostPhotoViewer post={photoViewer} onClose={() => setPhotoViewer(null)} />
+      {viewerIndex !== null ? (
+        <PostViewer
+          posts={gridData}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
       ) : null}
     </View>
   );

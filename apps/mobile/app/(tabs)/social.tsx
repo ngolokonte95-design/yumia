@@ -20,7 +20,7 @@ import type { TranslationKey } from '../../lib/translations';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useUnreadMessages';
 import { formatCount } from '../../lib/format-count';
-import { PostPhotoViewer } from '../../components/PostPhotoViewer';
+import { PostViewer } from '../../components/PostViewer';
 
 const API = API_BASE_URL;
 
@@ -1091,11 +1091,11 @@ export default function SocialTab() {
       {/* Photo en plein écran — l'équivalent du reel pour les images, avec
           les mêmes actions que la carte du fil. */}
       {photoViewer ? (
-        <PostPhotoViewer
-          post={photoViewer.post}
-          initialIndex={photoViewer.index}
+        <PostViewer
+          posts={[photoViewer.post]}
+          initialImageIndex={photoViewer.index}
           onClose={() => setPhotoViewer(null)}
-          onChange={(patch) => patchPost(photoViewer.post.id, patch)}
+          onChange={(postId, patch) => patchPost(postId, patch)}
         />
       ) : null}
     </View>

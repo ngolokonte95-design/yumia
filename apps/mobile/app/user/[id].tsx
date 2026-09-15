@@ -12,7 +12,7 @@ import { feedApi, type FeedPost, type StoryHighlight, type Plan } from '../../li
 import { VideoThumb } from '../../components/VideoThumb';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
-import { PostPhotoViewer } from '../../components/PostPhotoViewer';
+import { PostViewer } from '../../components/PostViewer';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
@@ -49,7 +49,7 @@ export default function UserProfileScreen() {
    * même façon. Les vidéos gardent leur destination : la page de détail, où
    * elles se lisent.
    */
-  const [photoViewer, setPhotoViewer] = useState<FeedPost | null>(null);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
   const [activeHighlight, setActiveHighlight] = useState<StoryHighlight | null>(null);
   const [loading, setLoading] = useState(true);
@@ -323,11 +323,7 @@ export default function UserProfileScreen() {
         renderItem={({ item }) => (
           <Pressable
             style={styles.gridItem}
-            onPress={() =>
-              isVideoUrl(item.mediaUrls[0])
-                ? router.push(`/post/${item.id}` as never)
-                : setPhotoViewer(item)
-            }
+            onPress={() => setViewerIndex(gridData.findIndex((p) => p.id === item.id))}
           >
             {item.mediaUrls[0] ? (
               isVideoUrl(item.mediaUrls[0])
@@ -408,8 +404,12 @@ export default function UserProfileScreen() {
         </Pressable>
       </Modal>
 
-      {photoViewer ? (
-        <PostPhotoViewer post={photoViewer} onClose={() => setPhotoViewer(null)} />
+      {viewerIndex !== null ? (
+        <PostViewer
+          posts={gridData}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
       ) : null}
     </View>
   );
