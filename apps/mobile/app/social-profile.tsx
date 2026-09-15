@@ -14,6 +14,7 @@ import { PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
 import { PostViewer } from '../components/PostViewer';
 import type { FeedPost } from '../lib/feed-api';
+import { isVideoUrl } from '../lib/is-video-url';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -28,19 +29,6 @@ type ProfileTab = 'grid' | 'reels' | 'reposts' | 'tagged';
  * publication à la visionneuse plein écran.
  */
 type Post = FeedPost;
-
-/**
- * Détecte une vidéo par l'extension de son URL. Le backend ne renvoie aucun
- * champ `mediaType` — s'y fier (comme le faisait ce fichier) faisait
- * silencieusement échouer toute détection vidéo : la grille et l'onglet Reels
- * du profil affichaient les vidéos comme des <Image> cassées. Même détection
- * que dans le feed (social.tsx) et le profil des autres utilisateurs
- * (user/[id].tsx), pour rester cohérent.
- */
-function isVideoUrl(url?: string | null): boolean {
-  if (!url) return false;
-  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
-}
 
 interface SocialStats {
   followersCount: number;

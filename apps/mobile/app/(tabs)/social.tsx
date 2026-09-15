@@ -20,8 +20,8 @@ import type { TranslationKey } from '../../lib/translations';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useUnreadMessages';
 import { formatCount } from '../../lib/format-count';
-import { PostViewer } from '../../components/PostViewer';
 import { parseMusicTrack, isPlayableAudioUrl, type MusicMeta } from '../../lib/music-track';
+import { isVideoUrl } from '../../lib/is-video-url';
 
 const API = API_BASE_URL;
 
@@ -36,11 +36,6 @@ const ANDROID_FEED_PERF_PROPS = Platform.OS === 'android'
   ? { windowSize: 5, maxToRenderPerBatch: 4, initialNumToRender: 4, removeClippedSubviews: true }
   : {};
 
-/** Détecte une URL vidéo par son extension (les vidéos sont stockées dans mediaUrls). */
-function isVideoUrl(url?: string | null): boolean {
-  if (!url) return false;
-  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
-}
 
 
 type Tab = 'foryou' | 'following' | 'activity' | 'encounters' | 'people';
@@ -287,8 +282,9 @@ function PostCard({
           mediaEl = (
             <MediaCarousel
               urls={item.mediaUrls}
-              // Une photo s'ouvre en plein écran, comme une vidéo ouvre le reel.
-              // Sur une vidéo du carrousel, c'est `onExpand` qui prend la main.
+              // Une photo ouvre le reel sur cette photo-là. Sur une vidéo du
+              // carrousel, l'agrandissement passe par `onExpand` (le bouton du
+              // lecteur) ; le tap, lui, reste sur les commentaires.
               onPress={(index) =>
                 isVideoUrl(item.mediaUrls[index]) ? onComment(item.id) : onPhoto(item.mediaUrls, index)
               }
@@ -614,6 +610,19 @@ export default function SocialTab() {
     return () => { void stopMusic(); };
   }, [stopMusic]));
 
+  // ... et la reprend au retour. Rien n'a défilé entre-temps, donc le rappel
+  // de visibilité ne se redéclenche pas tout seul : sans ça, revenir du plein
+  // écran laissait le fil muet jusqu'au prochain scroll. `autoPlayPost` ne
+  // fait rien si la piste tourne déjà, donc les rendus intermédiaires (un
+  // j'aime, par exemple) ne relancent pas la musique depuis le début.
+  useFocusEffect(useCallback(() => {
+    const visible = [...globalPosts, ...followingPosts].find((p) => p.id === visiblePostId);
+    const track = parseMusicTrack(visible?.musicTrack);
+    if (visible && track?.previewUrl && isPlayableAudioUrl(track.previewUrl)) {
+      void autoPlayPost(visible.id, track.previewUrl);
+    }
+  }, [globalPosts, followingPosts, visiblePostId, autoPlayPost]));
+
   useEffect(() => () => { void stopMusic(); }, [stopMusic]);
 
   const handleDeletePost = useCallback(async (postId: string) => {
@@ -725,7 +734,6 @@ export default function SocialTab() {
    * en plein écran : les deux se comportent désormais pareil. Les commentaires
    * restent accessibles par leur propre bouton.
    */
-  const [photoViewer, setPhotoViewer] = useState<{ post: FeedPost; index: number } | null>(null);
 
   // ── Partage d'un post en DM : sélecteur de conversation ─────────────────────
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
@@ -784,12 +792,10 @@ export default function SocialTab() {
           onSave={toggleSave}
           onRepost={toggleRepost}
           onComment={openComments}
-          onPhoto={(_urls, index) => {
-            // Le plein écran joue sa propre musique : sans cette coupure, les
-            // deux lecteurs tourneraient ensemble sur la même piste.
-            void stopMusic();
-            setPhotoViewer({ post: item, index });
-          }}
+          // Une photo ouvre le reel, exactement comme une vidéo : même plein
+          // écran, et le défilement vertical continue sur les publications
+          // suivantes. `i` désigne la photo touchée dans un carrousel.
+          onPhoto={(_urls, index) => router.push(`/reels?postId=${item.id}&i=${index}` as never)}
           musicPaused={musicPaused}
           onToggleMusic={toggleMusicPaused}
           onShare={shareToDM}
@@ -1081,25 +1087,6 @@ export default function SocialTab() {
 
       {/* Photo en plein écran — l'équivalent du reel pour les images, avec
           les mêmes actions que la carte du fil. */}
-      {photoViewer ? (
-        <PostViewer
-          posts={[photoViewer.post]}
-          initialImageIndex={photoViewer.index}
-          onClose={() => {
-            setPhotoViewer(null);
-            // Le fil reprend sa musique là où il s'était arrêté : rien n'a
-            // défilé, donc le rappel de visibilité ne se déclenchera pas seul.
-            const visible = [...globalPosts, ...followingPosts].find(
-              (p) => p.id === visiblePostId,
-            );
-            const track = parseMusicTrack(visible?.musicTrack);
-            if (visible && track?.previewUrl && isPlayableAudioUrl(track.previewUrl)) {
-              void autoPlayPost(visible.id, track.previewUrl);
-            }
-          }}
-          onChange={(postId, patch) => patchPost(postId, patch)}
-        />
-      ) : null}
     </View>
   );
 }

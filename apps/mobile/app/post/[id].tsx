@@ -17,21 +17,9 @@ import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { formatCount } from '../../lib/format-count';
 import { parseMusicTrack, isPlayableAudioUrl } from '../../lib/music-track';
+import { isVideoUrl } from '../../lib/is-video-url';
 
 const API = API_BASE_URL;
-
-
-/**
- * Détecte une URL vidéo par son extension. Le champ `post.videoUrl` n'est pas
- * systématiquement renseigné : la plupart des vidéos vivent dans `mediaUrls[0]`
- * (comme dans le feed). S'appuyer uniquement sur `videoUrl` faisait passer ces
- * posts par le rendu `<Image>`, qui ne sait pas décoder un .mp4 — d'où des
- * publications vidéo qui s'affichaient cassées sur l'écran de détail.
- */
-function isVideoUrl(url?: string | null): boolean {
-  if (!url) return false;
-  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
-}
 
 interface Comment {
   id: string; content: string; createdAt: string;

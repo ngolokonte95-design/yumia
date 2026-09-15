@@ -16,6 +16,7 @@ import { feedApi, type FeedPost, type PostOverlay } from '../lib/feed-api';
 import { PostOverlays } from '../components/PostOverlays';
 import { useI18n } from '../lib/useI18n';
 import { formatCount } from '../lib/format-count';
+import { isVideoUrl } from '../lib/is-video-url';
 
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -147,7 +148,7 @@ function ReelVideo({
 // ── Carte d'un reel ──────────────────────────────────────────────────────────
 function ReelCard({
   item, active, shouldMount, onLike, onComment, onShare, onUserPress, onFollow,
-  screenHeight, startAtSec,
+  screenHeight, startAtSec, initialImageIndex,
 }: {
   item: FeedPost;
   active: boolean;
@@ -165,6 +166,8 @@ function ReelCard({
   onFollow: (id: string) => void;
   screenHeight: number;
   startAtSec?: number;
+  /** Média sur lequel ouvrir, quand la publication en porte plusieurs. */
+  initialImageIndex?: number;
 }) {
   const musicMeta = item.musicTrack ? (() => {
     try { return JSON.parse(item.musicTrack) as { title?: string; artist?: string; artworkUrl?: string; previewUrl?: string; startMs?: number }; }
@@ -305,43 +308,80 @@ function ReelCard({
 
   const { t } = useI18n();
   const { accessToken } = useAuth();
-  const mediaUrl = item.mediaUrls?.[0];
-  const isVideo = !!mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('video'));
+  const media = item.mediaUrls ?? [];
+  // Une publication du fil peut porter plusieurs médias (carrousel) : on ouvre
+  // sur celui qui a été touché, pas systématiquement le premier.
+  const [imageIndex, setImageIndex] = useState(
+    initialImageIndex != null && initialImageIndex < media.length ? initialImageIndex : 0,
+  );
+  const mediaUrl = media[imageIndex];
+  const isVideo = isVideoUrl(mediaUrl);
+  const isCarousel = media.length > 1;
+
+  /**
+   * Rend un média en plein écran.
+   *
+   * `pageActive` distingue la page regardée des pages voisines d'un carrousel.
+   * Une vidéo hors page ne monte pas de lecteur : un lecteur natif, même en
+   * pause, garde un décodeur matériel alloué — pool très limité et partagé par
+   * tout le système. C'est la raison qui fait qu'on ne monte pas non plus les
+   * reels voisins sur Android (cf. `shouldMount`) ; un carrousel de vidéos les
+   * empilerait de la même façon, dans une seule carte.
+   */
+  const renderMedia = (url: string, pageActive: boolean) => {
+    if (!isVideoUrl(url)) {
+      return <Image source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" />;
+    }
+    const playing = effectiveActive && pageActive;
+    const holdOff = Platform.OS === 'android' ? !playing && !shouldMount : !playing && isCarousel;
+    if (holdOff) {
+      return item.coverUrl ? (
+        <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
+      );
+    }
+    return (
+      <ReelVideo
+        uri={url}
+        active={playing}
+        muted={effectiveMuted}
+        progressAnim={progressAnim}
+        startAtSec={startAtSec}
+        overlays={item.overlays}
+        onLoop={() => {
+          void musicSoundRef.current?.seekTo(0).catch(() => null);
+          void voiceSoundRef.current?.seekTo(0).catch(() => null);
+        }}
+        posterUri={item.coverUrl}
+      />
+    );
+  };
 
   return (
     <View style={[styles.reelCard, { height: screenHeight }]}>
       {/* Fond / vidéo */}
-      {mediaUrl ? (
-        !isVideo ? (
-          <Image source={{ uri: mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        ) : (Platform.OS === 'android' && !effectiveActive && !shouldMount) ? (
-          // Android : un lecteur vidéo natif par carte, même en pause, garde
-          // un décodeur matériel alloué — pool très limité et partagé par
-          // tout le système. FlatList monte plusieurs cartes autour de la
-          // visible (fenêtre par défaut), donc sans ce garde-fou plusieurs
-          // décodeurs restaient vivants en scrollant les reels, jusqu'à
-          // épuisement (images d'une vidéo affichées sur une autre, puis
-          // crash). iOS gère mieux plusieurs décodeurs concurrents.
-          item.coverUrl ? (
-            <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
-          )
-        ) : (
-          <ReelVideo
-            uri={mediaUrl}
-            active={effectiveActive}
-            muted={effectiveMuted}
-            progressAnim={progressAnim}
-            startAtSec={startAtSec}
-            overlays={item.overlays}
-            onLoop={() => {
-              void musicSoundRef.current?.seekTo(0).catch(() => null);
-              void voiceSoundRef.current?.seekTo(0).catch(() => null);
-            }}
-            posterUri={item.coverUrl}
-          />
-        )
+      {isCarousel ? (
+        <FlatList
+          data={media}
+          keyExtractor={(u, i) => `${i}-${u}`}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          initialScrollIndex={imageIndex}
+          getItemLayout={(_, i) => ({ length: W, offset: W * i, index: i })}
+          onMomentumScrollEnd={(e) => setImageIndex(Math.round(e.nativeEvent.contentOffset.x / W))}
+          renderItem={({ item: url, index }) => (
+            // Le tap pause/relit est porté par la page elle-même : le Pressable
+            // plein écran utilisé plus bas intercepterait le glissement
+            // horizontal du carrousel.
+            <Pressable style={{ width: W, height: screenHeight }} onPress={togglePause}>
+              {renderMedia(url, index === imageIndex)}
+            </Pressable>
+          )}
+        />
+      ) : mediaUrl ? (
+        renderMedia(mediaUrl, true)
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
       )}
@@ -349,8 +389,9 @@ function ReelCard({
       {/* Overlay gradient bas */}
       <View style={styles.reelOverlay} />
 
-      {/* Tap au milieu pour mettre pause / relire (façon Instagram) */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={togglePause} />
+      {/* Tap au milieu pour mettre pause / relire (façon Instagram) — sur un
+          carrousel, c'est chaque page qui le porte (cf. plus haut). */}
+      {isCarousel ? null : <Pressable style={StyleSheet.absoluteFill} onPress={togglePause} />}
       {showPlayIcon && (
         <Animated.View style={[styles.pauseIconWrap, { opacity: playIconOpacity }]} pointerEvents="none">
           <View style={styles.pauseIconCircle}>
@@ -442,6 +483,16 @@ function ReelCard({
         ) : null}
       </View>
 
+      {/* Carrousel : mêmes repères que dans le fil, juste au-dessus de la
+          barre de progression. */}
+      {isCarousel ? (
+        <View style={styles.reelDots} pointerEvents="none">
+          {media.map((_, i) => (
+            <View key={i} style={[styles.reelDot, i === imageIndex && styles.reelDotActive]} />
+          ))}
+        </View>
+      ) : null}
+
       {/* Barre de progression — pleine largeur, indépendante du padding des
           infos ; suit la lecture pour une vidéo, pleine pour un reel photo. */}
       <View style={styles.reelProgressBar}>
@@ -485,8 +536,10 @@ function ReelCard({
 export default function ReelsScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
-  const { postId, t } = useLocalSearchParams<{ postId?: string; t?: string }>();
+  const { postId, t, i } = useLocalSearchParams<{ postId?: string; t?: string; i?: string }>();
   const startAtSec = t ? parseFloat(t) : undefined;
+  // Photo touchee dans un carrousel du fil : on ouvre sur celle-la.
+  const openAtImage = i ? parseInt(i, 10) : undefined;
   // Alias `tr` : le paramètre de route `t` (position de départ, secondes)
   // masquerait le `t` de useI18n.
   const { t: tr } = useI18n();
@@ -675,6 +728,7 @@ export default function ReelsScreen() {
               onUserPress={(id) => router.push(`/user/${id}` as never)}
               onFollow={toggleFollow}
               startAtSec={item.id === postId ? startAtSec : undefined}
+              initialImageIndex={item.id === postId ? openAtImage : undefined}
               screenHeight={screenH}
             />
           )}
@@ -759,6 +813,12 @@ const styles = StyleSheet.create({
     height: 2, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 1,
   },
   reelProgressFill: { height: '100%', backgroundColor: '#fff', borderRadius: 1 },
+  reelDots: {
+    position: 'absolute', bottom: 18, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', gap: 5,
+  },
+  reelDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
+  reelDotActive: { backgroundColor: '#fff', width: 7, height: 7, borderRadius: 3.5 },
 
   // Icône pause/lecture (tap au milieu)
   pauseIconWrap: {
