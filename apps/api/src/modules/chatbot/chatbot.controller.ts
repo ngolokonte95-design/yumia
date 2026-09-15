@@ -17,8 +17,10 @@ export class ChatbotController {
     @Body() dto: {
       message: string;
       history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+      /** Ville résolue par l'app — évite à l'assistant de la redemander. */
+      city?: string;
     },
   ) {
-    return this.chatbot.chat(user.sub, dto.message, dto.history ?? []);
+    return this.chatbot.chat(user.sub, dto.message, dto.history ?? [], { city: dto.city });
   }
 }

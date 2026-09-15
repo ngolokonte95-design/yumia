@@ -10,6 +10,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import { usePlanLimits } from '../lib/usePlanLimits';
+import { useLocation } from '../lib/useLocation';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 
 const API = API_BASE_URL;
@@ -35,6 +36,7 @@ export default function ChatbotScreen() {
   const [loading, setLoading] = useState(false);
   const [upsell, setUpsell] = useState<string | null>(null);
   const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
+  const { city } = useLocation();
   const listRef = useRef<FlatList>(null);
 
   const send = useCallback(async (text: string) => {
@@ -57,7 +59,9 @@ export default function ChatbotScreen() {
       const res = await fetch(`${API}/chatbot/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ message: text, history }),
+        // La ville part avec la question : sans elle, l'assistant ouvrait par
+        // « dans quelle ville es-tu ? » alors que l'app le sait déjà.
+        body: JSON.stringify({ message: text, history, city }),
       });
       if (res.ok) {
         const data = await res.json() as { reply: string };
