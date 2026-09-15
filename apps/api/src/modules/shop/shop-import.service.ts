@@ -200,9 +200,19 @@ export class ShopImportService {
         title,
         description,
         priceCents,
-        // Prix barré à +30 % : repère de réduction cohérent, jamais en dessous
-        // du prix réel (sinon la remise affichée serait mensongère).
-        compareAtCents: Math.round(priceCents * 1.3),
+        // Pas de prix barré : il n'y a pas de prix antérieur à afficher.
+        //
+        // Cette ligne valait `priceCents * 1.3`, ce qui affichait « -23 % » sur
+        // la totalité du catalogue — un rabais sur un prix jamais pratiqué. La
+        // directive Omnibus impose qu'un prix barré soit le prix le plus bas
+        // réellement applique dans les trente jours precedents ; une remise
+        // inventee est une pratique commerciale trompeuse, et un motif de
+        // rejet en revue de store.
+        //
+        // Le jour où de vraies promotions existeront, ce champ portera
+        // l'ancien prix effectif, et l'affichage (badge + prix barré) se
+        // rallumera de lui-même : il ne dépend que de ce champ.
+        compareAtCents: null,
         images,
         videoUrl: detail.videoUrl ?? null,
         specifications: detail.specifications,
