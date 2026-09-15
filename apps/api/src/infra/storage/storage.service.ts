@@ -8,10 +8,10 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, unlink } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { S3Client, type S3ClientConfig } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, S3Client, type S3ClientConfig } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import type { AppConfig } from '../../config/configuration';
 
@@ -69,6 +69,61 @@ export class StorageService {
       return this.uploadToS3(buffer, `${subPath}/${filename}`, originalName);
     }
     return this.writeToDisk(buffer, subPath, filename);
+  }
+
+  /**
+   * Supprime un fichier à partir de son URL publique.
+   *
+   * Sans cette méthode, rien n'effaçait jamais rien : une story expirée, une
+   * publication retirée ou un compte supprimé laissaient leurs vidéos sur le
+   * disque pour toujours. Relevé en production le 15/09/2026 — 55 fichiers
+   * orphelins sur 59, 500 Mo perdus pour quatre publications vivantes.
+   *
+   * Ne lève jamais : un fichier déjà absent, une URL d'un autre domaine ou un
+   * S3 indisponible ne doivent pas faire échouer la suppression du contenu
+   * lui-même, qui est la partie qui compte pour l'utilisateur.
+   */
+  async remove(url: string | null | undefined): Promise<boolean> {
+    const key = this.keyFromUrl(url);
+    if (!key) return false;
+    try {
+      if (this.s3) {
+        await this.s3.send(new DeleteObjectCommand({ Bucket: this.cfg.s3Bucket, Key: key }));
+      } else {
+        await unlink(join(process.cwd(), 'uploads', key));
+      }
+      return true;
+    } catch {
+      return false; // déjà supprimé, ou hors de notre stockage
+    }
+  }
+
+  /** Supprime plusieurs fichiers, sans s'arrêter au premier échec. */
+  async removeMany(urls: Array<string | null | undefined>): Promise<number> {
+    const results = await Promise.all(urls.map((u) => this.remove(u)));
+    return results.filter(Boolean).length;
+  }
+
+  /**
+   * `dossier/fichier.mp4` extrait d'une URL publique, ou `null` si l'URL ne
+   * désigne pas un de nos fichiers.
+   *
+   * Le découpage se fait sur `/uploads/` côté disque, et sur le dernier
+   * segment connu côté S3 : les deux formes d'URL cohabitent en base, une
+   * migration de stockage ne réécrit pas les anciennes lignes.
+   */
+  private keyFromUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+    const path = url.split('?')[0];
+    const marker = '/uploads/';
+    const at = path.indexOf(marker);
+    if (at >= 0) return path.slice(at + marker.length) || null;
+
+    // URL S3 : on garde les deux derniers segments (dossier/fichier).
+    const parts = path.split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    const key = parts.slice(-2).join('/');
+    return key.includes('.') ? key : null;
   }
 
   private async uploadToS3(buffer: Buffer, key: string, originalName: string): Promise<string> {

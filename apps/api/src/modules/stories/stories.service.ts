@@ -5,6 +5,7 @@ import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Cron } from '@nestjs/schedule';
 import { assertClean } from '../../common/moderation/moderation';
+import { StorageService } from '../../infra/storage/storage.service';
 
 /** Sticker posé sur une story (position en % du cadre). */
 export interface StorySticker {
@@ -32,6 +33,7 @@ export class StoriesService {
     private readonly prisma: PrismaService,
     private readonly chat: ChatService,
     private readonly notifications: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   async create(userId: string, dto: {
@@ -338,12 +340,30 @@ export class StoriesService {
     const story = await this.prisma.story.findUnique({ where: { id: storyId } });
     if (!story) throw new NotFoundException('Story introuvable');
     if (story.userId !== userId) throw new ForbiddenException();
-    return this.prisma.story.delete({ where: { id: storyId } });
+    const deleted = await this.prisma.story.delete({ where: { id: storyId } });
+    void this.storage.remove(story.mediaUrl);
+    return deleted;
   }
 
-  /** Supprime les stories expirées toutes les heures */
+  /**
+   * Supprime les stories expirées toutes les heures — fichiers compris.
+   *
+   * Les médias étaient laissés sur le disque : une story de 9 Mo effacée de la
+   * base restait 9 Mo occupés, pour toujours. C'est la fuite la plus rapide de
+   * l'app, puisque TOUTES les stories expirent au bout de 24 h.
+   */
   @Cron('0 * * * *')
   async purgeExpired() {
-    await this.prisma.story.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+    const expired = await this.prisma.story.findMany({
+      where: { expiresAt: { lt: new Date() } },
+      select: { id: true, mediaUrl: true },
+    });
+    if (expired.length === 0) return;
+
+    await this.prisma.story.deleteMany({ where: { id: { in: expired.map((s) => s.id) } } });
+    // Après la base : un fichier orphelin se rattrape, une story rendue
+    // invisible dont le fichier existe encore ne gêne personne. L'inverse —
+    // fichier supprimé, ligne conservée — casserait l'affichage.
+    await this.storage.removeMany(expired.map((s) => s.mediaUrl));
   }
 }

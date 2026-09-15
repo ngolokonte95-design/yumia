@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { PostsService } from '../posts.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { StorageService } from '../../../infra/storage/storage.service';
 
 /**
  * Couverture ciblée sur l'éditeur vidéo façon CapCut (overlays, son coupé,
@@ -23,6 +24,8 @@ describe('PostsService — overlays / videoMuted / voiceTrackUrl', () => {
         PostsService,
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationsService, useValue: {} },
+        // Le stockage n'est sollicité qu'à la suppression : un double suffit.
+        { provide: StorageService, useValue: { remove: jest.fn(), removeMany: jest.fn() } },
       ],
     }).compile();
     service = moduleRef.get(PostsService);

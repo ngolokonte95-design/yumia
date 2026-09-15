@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { StorageService } from '../../infra/storage/storage.service';
 
 /** Ce qu'on peut décider face à un signalement. */
 export type ModerationAction = 'dismiss' | 'delete' | 'suspend' | 'delete_and_suspend';
@@ -31,7 +32,10 @@ const PERMANENT_YEARS = 100;
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   /** File d'attente, du plus ancien au plus récent : l'ordre où il faut traiter. */
   async listReports(status = 'pending', limit = 50): Promise<ReportWithTarget[]> {
@@ -214,19 +218,37 @@ export class ModerationService {
       .catch(() => null);
   }
 
-  /** Retire le contenu signalé. `false` s'il avait déjà disparu. */
+  /**
+   * Retire le contenu signalé, fichiers compris. `false` s'il avait déjà
+   * disparu.
+   *
+   * Un contenu retiré par la modération est justement celui qu'on ne veut
+   * surtout pas laisser accessible par son URL directe.
+   */
   private async deleteTarget(type: string, id: string): Promise<boolean> {
     try {
       switch (type) {
-        case 'post':
-          await this.prisma.post.delete({ where: { id } });
+        case 'post': {
+          const post = await this.prisma.post.delete({
+            where: { id },
+            select: { mediaUrls: true, videoUrl: true, coverUrl: true, voiceTrackUrl: true },
+          });
+          void this.storage.removeMany([
+            ...post.mediaUrls,
+            post.videoUrl,
+            post.coverUrl,
+            post.voiceTrackUrl,
+          ]);
           return true;
+        }
         case 'comment':
           await this.prisma.postComment.delete({ where: { id } });
           return true;
-        case 'story':
-          await this.prisma.story.delete({ where: { id } });
+        case 'story': {
+          const story = await this.prisma.story.delete({ where: { id }, select: { mediaUrl: true } });
+          void this.storage.remove(story.mediaUrl);
           return true;
+        }
         default:
           // Un signalement visant un compte ne « supprime » rien : c'est la
           // suspension qui agit.

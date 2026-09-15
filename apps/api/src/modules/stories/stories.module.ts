@@ -4,9 +4,10 @@ import { StoriesService } from './stories.service';
 import { PrismaModule } from '../../infra/prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { ChatModule } from '../chat/chat.module';
+import { StorageModule } from '../../infra/storage/storage.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ChatModule],
+  imports: [PrismaModule, AuthModule, ChatModule, StorageModule],
   controllers: [StoriesController],
   providers: [StoriesService],
 })

@@ -3,6 +3,7 @@ import type { Post, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { assertClean } from '../../common/moderation/moderation';
+import { StorageService } from '../../infra/storage/storage.service';
 
 /** Extrait les hashtags (#mot) d'une légende, en minuscules, sans doublon. */
 function extractHashtags(caption?: string | null): string[] {
@@ -36,6 +37,7 @@ export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly storage: StorageService,
   ) {}
 
   async createPost(
@@ -196,10 +198,21 @@ export class PostsService {
   }
 
   async deletePost(userId: string, postId: string) {
-    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { userId: true } });
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { userId: true, mediaUrls: true, videoUrl: true, coverUrl: true, voiceTrackUrl: true },
+    });
     if (!post) throw new NotFoundException('Post introuvable');
     if (post.userId !== userId) throw new ForbiddenException();
     await this.prisma.post.delete({ where: { id: postId } });
+    // Les fichiers après la ligne : un média orphelin se rattrape, une
+    // publication dont le média a disparu s'affiche cassée.
+    void this.storage.removeMany([
+      ...post.mediaUrls,
+      post.videoUrl,
+      post.coverUrl,
+      post.voiceTrackUrl,
+    ]);
   }
 
   async getFeed(userId: string, limit = 30, cursor?: string) {
