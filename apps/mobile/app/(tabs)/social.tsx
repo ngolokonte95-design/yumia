@@ -196,6 +196,7 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
 
 function PostCard({
   item, onLike, onSave, onRepost, onComment, onPhoto, onShare, onUserPress, currentUserId, onDelete, isActive, shouldMount,
+  musicPaused, onToggleMusic,
   onVideoPlayingChange, onVideoLoop,
 }: {
   item: FeedPost;
@@ -203,6 +204,9 @@ function PostCard({
   onSave: (id: string) => void;
   onRepost: (id: string) => void;
   onComment: (id: string) => void;
+  /** Musique en pause (publication photo uniquement). */
+  musicPaused?: boolean;
+  onToggleMusic?: () => void;
   /** Ouvre la photo en plein écran, à l'image choisie. */
   onPhoto: (urls: string[], index: number) => void;
   onShare: (item: FeedPost) => void;
@@ -358,9 +362,17 @@ function PostCard({
           }
         }
 
-        // Musique intégrée à la publication (comme la piste audio d'une vidéo) : elle
-        // se joue automatiquement tant que le post est visible, sans contrôle pause/
-        // play dédié — ce n'est plus une option que le spectateur peut couper à part.
+        // La musique se joue tant que la publication est visible.
+        //
+        // Sur une PHOTO, elle est le seul son : le spectateur doit pouvoir la
+        // couper, d'où le bouton ci-dessous. Sur une VIDÉO, elle remplace le
+        // son d'origine — la couper laisserait une vidéo muette, et c'est le
+        // tap sur la vidéo qui commande les deux ensemble.
+        //
+        // Le bouton n'apparaît que sur la publication dont la musique joue
+        // réellement : ailleurs, il ne commanderait rien.
+        const hasVideo = !!item.videoUrl || item.mediaUrls.some(isVideoUrl);
+        const canPauseMusic = !!music && !hasVideo && !!isActive && !!onToggleMusic;
         const musicPill = music ? (
           <View style={styles.musicOverlay}>
             {music.artworkUrl
@@ -370,6 +382,11 @@ function PostCard({
               <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
               {music.artist ? <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text> : null}
             </View>
+            {canPauseMusic ? (
+              <Pressable onPress={onToggleMusic} hitSlop={10} style={styles.musicToggle}>
+                <Text style={styles.musicToggleIcon}>{musicPaused ? '▶' : '❚❚'}</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null;
 
@@ -458,6 +475,17 @@ export default function SocialTab() {
 
   // Music playback in feed
   const [playingMusicId, setPlayingMusicId] = useState<string | null>(null);
+  /**
+   * Musique mise en pause par le spectateur.
+   *
+   * Uniquement pour les publications PHOTO : sur une vidéo, la musique remplace
+   * le son d'origine, et la couper laisserait une vidéo muette — c'est le tap
+   * sur la vidéo qui commande les deux ensemble (`onVideoPlayingChange`).
+   *
+   * Un seul booléen suffit : une seule musique joue à la fois, et le passage à
+   * une autre publication le remet à faux.
+   */
+  const [musicPaused, setMusicPaused] = useState(false);
   const [visiblePostId, setVisiblePostId] = useState<string | null>(null);
   // Index du post actif — pilote le préchargement vidéo (cf. `shouldMount`
   // dans renderItem). Un préchargement basé sur la VISIBILITÉ (l'ancienne
@@ -527,6 +555,9 @@ export default function SocialTab() {
       sound.addListener('playbackStatusUpdate', makeStatusCb(sound));
       sound.play();
       setPlayingMusicId(postId);
+      // Une pause vaut pour la publication qu'on regardait, pas pour la
+      // suivante : on repart toujours en lecture.
+      setMusicPaused(false);
     } catch {
       if (myGen === playGenRef.current) setPlayingMusicId(null);
     }
@@ -538,6 +569,17 @@ export default function SocialTab() {
     if (!isPlayableAudioUrl(previewUrl)) { await stopMusic(); return; }
     await startTrack(postId, previewUrl);
   }, [playingMusicId, stopMusic, startTrack]);
+
+  /** Bouton pause/lecture du bandeau musique, sur une publication photo. */
+  const toggleMusicPaused = useCallback(() => {
+    const sound = musicSoundRef.current;
+    if (!sound) return;
+    setMusicPaused((paused) => {
+      if (paused) sound.play();
+      else sound.pause();
+      return !paused;
+    });
+  }, []);
 
   // Tap pause/lecture sur la vidéo d'un post → met sa musique en pause/reprise
   // en même temps (sans recharger le son, juste play/pause dessus). Sans ça,
@@ -757,6 +799,8 @@ export default function SocialTab() {
           onRepost={toggleRepost}
           onComment={openComments}
           onPhoto={(urls, index) => setPhotoViewer({ urls, index })}
+          musicPaused={musicPaused}
+          onToggleMusic={toggleMusicPaused}
           onShare={shareToDM}
           onUserPress={(id) => router.push(`/user/${id}` as never)}
           currentUserId={me?.id}
@@ -1122,6 +1166,15 @@ const styles = StyleSheet.create({
   musicBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.sm, marginTop: 2, marginBottom: 2, backgroundColor: colors.background + 'cc', borderRadius: radius.lg, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
   musicOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 12, paddingVertical: 8 },
   musicStandalone: { marginHorizontal: spacing.sm, marginTop: 2, marginBottom: 2 },
+  musicToggle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  musicToggleIcon: { color: '#fff', fontSize: 11, fontWeight: '700' },
   musicArtwork: { width: 32, height: 32, borderRadius: 4 },
   musicTitle: { fontSize: 12, color: '#fff', fontWeight: '700' },
   musicArtist: { fontSize: 11, color: 'rgba(255,255,255,0.75)' },
