@@ -12,7 +12,8 @@ import { feedApi, type StoryHighlight } from '../lib/feed-api';
 import { VideoThumb } from '../components/VideoThumb';
 import { PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
-import { PhotoViewer } from '../components/PhotoViewer';
+import { PostPhotoViewer } from '../components/PostPhotoViewer';
+import type { FeedPost } from '../lib/feed-api';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -20,13 +21,13 @@ const GRID_ITEM = (SCREEN_W - 3) / 3;
 
 type ProfileTab = 'grid' | 'reels' | 'reposts' | 'tagged';
 
-interface Post {
-  id: string;
-  mediaUrls: string[];
-  likesCount: number;
-  caption?: string;
-  pinned?: boolean;
-}
+/**
+ * L'API renvoie la publication complète (`hydratePosts`) : j'aime de
+ * l'utilisateur, enregistrements, nombre de commentaires. Ce fichier n'en
+ * déclarait qu'une poignée de champs, ce qui empêchait de passer une
+ * publication à la visionneuse plein écran.
+ */
+type Post = FeedPost;
 
 /**
  * Détecte une vidéo par l'extension de son URL. Le backend ne renvoie aucun
@@ -81,7 +82,7 @@ export default function SocialProfileScreen() {
    * même façon. Les vidéos gardent leur destination : la page de détail, où
    * elles se lisent.
    */
-  const [photoViewer, setPhotoViewer] = useState<string[] | null>(null);
+  const [photoViewer, setPhotoViewer] = useState<Post | null>(null);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
 
   const photoUrl = user?.photoUrl
@@ -371,7 +372,7 @@ export default function SocialProfileScreen() {
             onPress={() =>
               isVideoUrl(item.mediaUrls[0])
                 ? router.push(`/post/${item.id}` as never)
-                : setPhotoViewer(item.mediaUrls)
+                : setPhotoViewer(item)
             }
             onLongPress={() => setPostMenu(item)}
           >
@@ -504,7 +505,7 @@ export default function SocialProfileScreen() {
       </Modal>
 
       {photoViewer ? (
-        <PhotoViewer photos={photoViewer} visible onClose={() => setPhotoViewer(null)} />
+        <PostPhotoViewer post={photoViewer} onClose={() => setPhotoViewer(null)} />
       ) : null}
     </View>
   );

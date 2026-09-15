@@ -12,7 +12,7 @@ import { feedApi, type FeedPost, type StoryHighlight, type Plan } from '../../li
 import { VideoThumb } from '../../components/VideoThumb';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
-import { PhotoViewer } from '../../components/PhotoViewer';
+import { PostPhotoViewer } from '../../components/PostPhotoViewer';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
@@ -49,7 +49,7 @@ export default function UserProfileScreen() {
    * même façon. Les vidéos gardent leur destination : la page de détail, où
    * elles se lisent.
    */
-  const [photoViewer, setPhotoViewer] = useState<string[] | null>(null);
+  const [photoViewer, setPhotoViewer] = useState<FeedPost | null>(null);
   const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
   const [activeHighlight, setActiveHighlight] = useState<StoryHighlight | null>(null);
   const [loading, setLoading] = useState(true);
@@ -326,7 +326,7 @@ export default function UserProfileScreen() {
             onPress={() =>
               isVideoUrl(item.mediaUrls[0])
                 ? router.push(`/post/${item.id}` as never)
-                : setPhotoViewer(item.mediaUrls)
+                : setPhotoViewer(item)
             }
           >
             {item.mediaUrls[0] ? (
@@ -409,7 +409,7 @@ export default function UserProfileScreen() {
       </Modal>
 
       {photoViewer ? (
-        <PhotoViewer photos={photoViewer} visible onClose={() => setPhotoViewer(null)} />
+        <PostPhotoViewer post={photoViewer} onClose={() => setPhotoViewer(null)} />
       ) : null}
     </View>
   );

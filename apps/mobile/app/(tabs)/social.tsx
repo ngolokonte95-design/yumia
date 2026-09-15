@@ -20,7 +20,7 @@ import type { TranslationKey } from '../../lib/translations';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useUnreadMessages';
 import { formatCount } from '../../lib/format-count';
-import { PhotoViewer } from '../../components/PhotoViewer';
+import { PostPhotoViewer } from '../../components/PostPhotoViewer';
 
 const API = API_BASE_URL;
 
@@ -739,7 +739,7 @@ export default function SocialTab() {
    * en plein écran : les deux se comportent désormais pareil. Les commentaires
    * restent accessibles par leur propre bouton.
    */
-  const [photoViewer, setPhotoViewer] = useState<{ urls: string[]; index: number } | null>(null);
+  const [photoViewer, setPhotoViewer] = useState<{ post: FeedPost; index: number } | null>(null);
 
   // ── Partage d'un post en DM : sélecteur de conversation ─────────────────────
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
@@ -798,7 +798,7 @@ export default function SocialTab() {
           onSave={toggleSave}
           onRepost={toggleRepost}
           onComment={openComments}
-          onPhoto={(urls, index) => setPhotoViewer({ urls, index })}
+          onPhoto={(_urls, index) => setPhotoViewer({ post: item, index })}
           musicPaused={musicPaused}
           onToggleMusic={toggleMusicPaused}
           onShare={shareToDM}
@@ -1088,13 +1088,14 @@ export default function SocialTab() {
         </Pressable>
       </Modal>
 
-      {/* Photo en plein écran — l'équivalent du reel pour les images. */}
+      {/* Photo en plein écran — l'équivalent du reel pour les images, avec
+          les mêmes actions que la carte du fil. */}
       {photoViewer ? (
-        <PhotoViewer
-          photos={photoViewer.urls}
+        <PostPhotoViewer
+          post={photoViewer.post}
           initialIndex={photoViewer.index}
-          visible
           onClose={() => setPhotoViewer(null)}
+          onChange={(patch) => patchPost(photoViewer.post.id, patch)}
         />
       ) : null}
     </View>
