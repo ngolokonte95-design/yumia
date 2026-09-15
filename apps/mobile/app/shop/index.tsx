@@ -42,6 +42,8 @@ export default function ShopHomeScreen() {
       // page blanche tant que l'import n'a pas tourné dessus. Les sous-rayons
       // n'y figurent pas non plus : ils s'affichent en onglets à l'intérieur de
       // leur parent, dont le compteur les inclut déjà.
+      // `productsCount` n'est plus affiché sous les rayons, mais reste lu ici :
+      // un rayon vide ne doit pas figurer dans la liste.
       setCategories(cats.filter((c) => c.parentSlug === null && c.productsCount > 0));
       setFeatured(feat.items);
       setBestsellers(best.items);
@@ -132,7 +134,6 @@ export default function ShopHomeScreen() {
                       >
                         <Text style={styles.categoryEmoji}>{c.emoji}</Text>
                         <Text style={styles.categoryName} numberOfLines={2}>{c.nameFr}</Text>
-                        <Text style={styles.categoryCount}>{c.productsCount}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -224,5 +225,4 @@ const styles = StyleSheet.create({
   },
   categoryEmoji: { fontSize: 18 },
   categoryName: { ...typography.label, color: colors.textPrimary, fontSize: 9, textAlign: 'center' },
-  categoryCount: { fontSize: 8, color: colors.textMuted },
 });
