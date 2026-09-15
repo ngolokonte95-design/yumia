@@ -20,6 +20,7 @@ import type { TranslationKey } from '../../lib/translations';
 import { LollipopIcon } from '../../components/icons/LollipopIcon';
 import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useUnreadMessages';
 import { formatCount } from '../../lib/format-count';
+import { PhotoViewer } from '../../components/PhotoViewer';
 
 const API = API_BASE_URL;
 
@@ -148,7 +149,7 @@ function StoriesBar({
 
 const SCREEN_W = Dimensions.get('window').width;
 
-function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; onPress: () => void; active?: boolean; onExpand?: (t: number) => void }) {
+function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; onPress: (index: number) => void; active?: boolean; onExpand?: (t: number) => void }) {
   const [idx, setIdx] = useState(0);
   return (
     <View>
@@ -162,7 +163,7 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
         renderItem={({ item: url, index }) => {
           const itemActive = !!active && index === idx;
           return (
-            <Pressable onPress={onPress}>
+            <Pressable onPress={() => onPress(index)}>
               {!isVideoUrl(url) ? (
                 <Image source={{ uri: url }} style={{ width: SCREEN_W, aspectRatio: 1 }} />
               ) : (Platform.OS === 'android' && !itemActive) ? (
@@ -194,7 +195,7 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
 function PostCard({
-  item, onLike, onSave, onRepost, onComment, onShare, onUserPress, currentUserId, onDelete, isActive, shouldMount,
+  item, onLike, onSave, onRepost, onComment, onPhoto, onShare, onUserPress, currentUserId, onDelete, isActive, shouldMount,
   onVideoPlayingChange, onVideoLoop,
 }: {
   item: FeedPost;
@@ -202,6 +203,8 @@ function PostCard({
   onSave: (id: string) => void;
   onRepost: (id: string) => void;
   onComment: (id: string) => void;
+  /** Ouvre la photo en plein écran, à l'image choisie. */
+  onPhoto: (urls: string[], index: number) => void;
   onShare: (item: FeedPost) => void;
   onUserPress: (id: string) => void;
   currentUserId?: string;
@@ -291,7 +294,18 @@ function PostCard({
 
         let mediaEl: ReactNode = null;
         if (item.mediaUrls.length > 1) {
-          mediaEl = <MediaCarousel urls={item.mediaUrls} onPress={() => onComment(item.id)} active={isActive} onExpand={goFullscreen} />;
+          mediaEl = (
+            <MediaCarousel
+              urls={item.mediaUrls}
+              // Une photo s'ouvre en plein écran, comme une vidéo ouvre le reel.
+              // Sur une vidéo du carrousel, c'est `onExpand` qui prend la main.
+              onPress={(index) =>
+                isVideoUrl(item.mediaUrls[index]) ? onComment(item.id) : onPhoto(item.mediaUrls, index)
+              }
+              active={isActive}
+              onExpand={goFullscreen}
+            />
+          );
         } else {
           const media = item.mediaUrls[0];
           const videoSrc = isVideoUrl(media) ? media : (item.videoUrl ?? undefined);
@@ -337,7 +351,7 @@ function PostCard({
               );
           } else if (media) {
             mediaEl = (
-              <Pressable onPress={() => onComment(item.id)}>
+              <Pressable onPress={() => onPhoto([media], 0)}>
                 <Image source={{ uri: media }} style={styles.postImage} />
               </Pressable>
             );
@@ -675,6 +689,15 @@ export default function SocialTab() {
   };
 
   const openComments = (postId: string) => router.push(`/post/${postId}` as never);
+  /**
+   * Photo ouverte en plein écran.
+   *
+   * Une photo du fil menait jusqu'ici à la page de détail, où elle s'affichait
+   * petite au-dessus des commentaires. Les vidéos, elles, ouvrent déjà le reel
+   * en plein écran : les deux se comportent désormais pareil. Les commentaires
+   * restent accessibles par leur propre bouton.
+   */
+  const [photoViewer, setPhotoViewer] = useState<{ urls: string[]; index: number } | null>(null);
 
   // ── Partage d'un post en DM : sélecteur de conversation ─────────────────────
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
@@ -733,6 +756,7 @@ export default function SocialTab() {
           onSave={toggleSave}
           onRepost={toggleRepost}
           onComment={openComments}
+          onPhoto={(urls, index) => setPhotoViewer({ urls, index })}
           onShare={shareToDM}
           onUserPress={(id) => router.push(`/user/${id}` as never)}
           currentUserId={me?.id}
@@ -1019,6 +1043,16 @@ export default function SocialTab() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Photo en plein écran — l'équivalent du reel pour les images. */}
+      {photoViewer ? (
+        <PhotoViewer
+          photos={photoViewer.urls}
+          initialIndex={photoViewer.index}
+          visible
+          onClose={() => setPhotoViewer(null)}
+        />
+      ) : null}
     </View>
   );
 }

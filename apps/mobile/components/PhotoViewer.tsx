@@ -2,7 +2,7 @@
  * PhotoViewer — visionneuse plein écran pour les photos d'un lieu.
  * Swipe horizontal entre les photos, fond noir, bouton fermer.
  */
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -28,6 +28,9 @@ export function PhotoViewer({ photos, initialIndex = 0, visible, onClose }: Prop
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList>(null);
+  // Le compteur affichait « 1 / N » en dur : il annonçait la première photo
+  // quelle que soit celle qu'on regardait.
+  const [index, setIndex] = useState(initialIndex);
 
   function onLayout() {
     if (initialIndex > 0 && listRef.current) {
@@ -58,7 +61,7 @@ export function PhotoViewer({ photos, initialIndex = 0, visible, onClose }: Prop
         {/* Counter */}
         {photos.length > 1 ? (
           <View style={[styles.counter, { top: insets.top + 12 }]}>
-            <Text style={styles.counterText}>1 / {photos.length}</Text>
+            <Text style={styles.counterText}>{index + 1} / {photos.length}</Text>
           </View>
         ) : null}
 
@@ -70,6 +73,9 @@ export function PhotoViewer({ photos, initialIndex = 0, visible, onClose }: Prop
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onLayout={onLayout}
+          onMomentumScrollEnd={(e) =>
+            setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
+          }
           getItemLayout={(_, index) => ({
             length: width,
             offset: width * index,
