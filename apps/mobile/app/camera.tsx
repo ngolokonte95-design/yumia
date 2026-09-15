@@ -284,7 +284,7 @@ export default function CameraScreen() {
     try {
       const isVideo = preview.type === 'video';
       const form = new FormData();
-      appendFile(form, 'file', preview.uri, isVideo ? 'reel.mp4' : 'photo.jpg');
+      appendFile(form, 'file', preview.uri);
 
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) {

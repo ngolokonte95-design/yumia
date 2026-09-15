@@ -353,7 +353,7 @@ export default function ChatRoomScreen() {
     setUploadingMedia(true);
     try {
       const form = new FormData();
-      appendFile(form, 'file', asset.uri, kind === 'image' ? 'photo.jpg' : 'video.mp4');
+      appendFile(form, 'file', asset.uri);
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) { Alert.alert(t('chat_delete_error_title'), t('chat_upload_error')); return; }
       const { url } = await up.json() as { url: string };
@@ -511,7 +511,7 @@ export default function ChatRoomScreen() {
     setSending(true);
     try {
       const form = new FormData();
-      appendFile(form, 'file', uri, 'voice.m4a');
+      appendFile(form, 'file', uri);
       const up = await fetch(`${API}/posts/upload`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form });
       if (!up.ok) return;
       const { url } = await up.json() as { url: string };

@@ -140,7 +140,7 @@ export async function uploadPlacePhoto(
   imageUri: string,
 ): Promise<{ photoUrl: string }> {
   const form = new FormData();
-  appendFile(form, 'photo', imageUri, 'photo.jpg');
+  appendFile(form, 'photo', imageUri);
 
   const res = await fetch(`${API_BASE_URL}/places/${placeId}/photos`, {
     method: 'POST',

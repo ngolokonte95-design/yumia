@@ -150,7 +150,7 @@ export async function uploadAvatarRequest(
   imageUri: string,
 ): Promise<{ photoUrl: string }> {
   const form = new FormData();
-  appendFile(form, 'avatar', imageUri, 'avatar.jpg');
+  appendFile(form, 'avatar', imageUri);
 
   const res = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
     method: 'POST',
