@@ -22,7 +22,7 @@
  * c'est ce qui permet d'ouvrir cette visionneuse depuis le fil ET depuis les
  * deux écrans de profil sans que chacun ait à câbler les mêmes appels.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -43,7 +43,10 @@ import { spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { feedApi, type FeedPost } from '../lib/feed-api';
 import { formatCount } from '../lib/format-count';
+import type { MusicMeta } from '../lib/music-track';
 import { PostVideo } from './PostVideo';
+import { parseMusicTrack, isPlayableAudioUrl } from '../lib/music-track';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
 /** Même détection que le fil et les profils : le backend n'envoie pas de type. */
 function isVideoUrl(url?: string | null): boolean {
@@ -82,6 +85,65 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
    * appelant et ne se met pas à jour tout seul.
    */
   const [patches, setPatches] = useState<Record<string, Partial<FeedPost>>>({});
+
+  /**
+   * Musique de la publication regardée.
+   *
+   * Sans elle, ouvrir une photo en plein écran coupait le son que l'on
+   * entendait une seconde plus tôt dans le fil. Une seule piste joue à la
+   * fois : celle de la publication à l'écran.
+   */
+  const soundRef = useRef<AudioPlayer | null>(null);
+  const [musicPaused, setMusicPaused] = useState(false);
+
+  const stopMusic = useCallback(() => {
+    soundRef.current?.pause();
+    soundRef.current?.remove();
+    soundRef.current = null;
+  }, []);
+
+  const currentPost = posts[current] as FeedPost | undefined;
+  const currentMusic = parseMusicTrack(currentPost?.musicTrack);
+
+  useEffect(() => {
+    const url = currentMusic?.previewUrl;
+    stopMusic();
+    setMusicPaused(false);
+    if (!url || !isPlayableAudioUrl(url)) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        await setAudioModeAsync({ playsInSilentMode: true });
+        const sound = createAudioPlayer(url);
+        if (cancelled) { sound.remove(); return; }
+        sound.loop = true;
+        soundRef.current = sound;
+        sound.play();
+      } catch {
+        // Piste illisible : la publication reste visible, sans son.
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // `currentMusic` est reconstruit à chaque rendu : on suit l'URL, qui ne
+    // change que lorsqu'on passe à une autre publication.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMusic?.previewUrl, stopMusic]);
+
+  // Quitter la visionneuse coupe le son : sans ça, la piste continuerait par
+  // dessus l'écran d'où l'on vient.
+  useEffect(() => stopMusic, [stopMusic]);
+
+  const toggleMusic = useCallback(() => {
+    const sound = soundRef.current;
+    if (!sound) return;
+    setMusicPaused((paused) => {
+      if (paused) sound.play();
+      else sound.pause();
+      return !paused;
+    });
+  }, []);
 
   const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems.length > 0) setCurrent(viewableItems[0].index ?? 0);
@@ -140,6 +202,9 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
               onToggleChrome={() => setChrome((c) => !c)}
               insets={insets}
               initialImageIndex={index === initialIndex ? initialImageIndex : 0}
+              music={index === current ? currentMusic : null}
+              musicPaused={musicPaused}
+              onToggleMusic={toggleMusic}
               onLike={() => void toggleLike(item)}
               onSave={() => void toggleSave(item)}
               onComment={() => openComments(item.id)}
@@ -159,7 +224,8 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
 
 /** Une publication occupant tout l'écran. */
 function PostPage({
-  post, width, height, active, chrome, onToggleChrome, insets, initialImageIndex, onLike, onSave, onComment,
+  post, width, height, active, chrome, onToggleChrome, insets, initialImageIndex,
+  music, musicPaused, onToggleMusic, onLike, onSave, onComment,
 }: {
   post: FeedPost;
   width: number;
@@ -169,6 +235,10 @@ function PostPage({
   onToggleChrome: () => void;
   insets: { top: number; bottom: number };
   initialImageIndex: number;
+  /** Piste de cette publication, seulement quand c'est elle qu'on regarde. */
+  music: MusicMeta | null;
+  musicPaused: boolean;
+  onToggleMusic: () => void;
   onLike: () => void;
   onSave: () => void;
   onComment: () => void;
@@ -198,7 +268,9 @@ function PostPage({
                 active={active && index === imageIndex}
                 posterUri={post.coverUrl}
                 overlays={post.overlays}
-                videoMuted={post.videoMuted}
+                // Une musique ajoutée remplace le son d'origine : les deux
+                // ne doivent jamais jouer ensemble.
+                videoMuted={post.videoMuted || !!music}
               />
             </View>
           ) : (
@@ -228,6 +300,25 @@ function PostPage({
             colors={['transparent', 'rgba(0,0,0,0.85)']}
             style={[styles.bottom, { paddingBottom: insets.bottom + spacing.md }]}
           >
+            {music ? (
+              <View style={styles.music}>
+                {music.artworkUrl ? (
+                  <Image source={{ uri: music.artworkUrl }} style={styles.musicArtwork} />
+                ) : (
+                  <Text style={{ fontSize: 14 }}>🎵</Text>
+                )}
+                <View style={{ flex: 1, overflow: 'hidden' }}>
+                  <Text style={styles.musicTitle} numberOfLines={1}>{music.title}</Text>
+                  {music.artist ? (
+                    <Text style={styles.musicArtist} numberOfLines={1}>{music.artist}</Text>
+                  ) : null}
+                </View>
+                <Pressable onPress={onToggleMusic} hitSlop={10} style={styles.musicToggle}>
+                  <Text style={styles.musicToggleIcon}>{musicPaused ? '▶' : '❚❚'}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             {post.user?.displayName ? (
               <Text style={styles.author} numberOfLines={1}>{post.user.displayName}</Text>
             ) : null}
@@ -296,6 +387,30 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     gap: 4,
   },
+  music: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    maxWidth: '85%',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    marginBottom: 6,
+  },
+  musicArtwork: { width: 24, height: 24, borderRadius: 4 },
+  musicTitle: { color: '#fff', ...typography.caption, fontWeight: '700' },
+  musicArtist: { color: 'rgba(255,255,255,0.75)', ...typography.caption },
+  musicToggle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  musicToggleIcon: { color: '#fff', fontSize: 10, fontWeight: '700' },
   author: { color: '#fff', ...typography.body, fontWeight: '700' },
   caption: { color: 'rgba(255,255,255,0.9)', ...typography.caption, lineHeight: 18 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.sm },

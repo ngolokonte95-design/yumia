@@ -21,6 +21,7 @@ import { LollipopIcon } from '../../components/icons/LollipopIcon';
 import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useUnreadMessages';
 import { formatCount } from '../../lib/format-count';
 import { PostViewer } from '../../components/PostViewer';
+import { parseMusicTrack, isPlayableAudioUrl, type MusicMeta } from '../../lib/music-track';
 
 const API = API_BASE_URL;
 
@@ -41,21 +42,6 @@ function isVideoUrl(url?: string | null): boolean {
   return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
 }
 
-interface MusicMeta { title: string; artist?: string; artworkUrl?: string; previewUrl?: string }
-function parseMusicTrack(raw?: string | null): MusicMeta | null {
-  if (!raw) return null;
-  try { return JSON.parse(raw) as MusicMeta; } catch { return { title: raw }; }
-}
-
-/**
- * Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-av (AVFoundation les
- * rejette → « Unable to open URL »). Seules les pistes réhébergées sur Yumia sont
- * jouables. On ignore donc les anciennes pistes pointant encore vers ces CDN.
- */
-function isPlayableAudioUrl(url?: string | null): boolean {
-  if (!url) return false;
-  return !/dzcdn\.net|itunes\.apple\.com|mzstatic\.com/i.test(url);
-}
 
 type Tab = 'foryou' | 'following' | 'activity' | 'encounters' | 'people';
 
@@ -798,7 +784,12 @@ export default function SocialTab() {
           onSave={toggleSave}
           onRepost={toggleRepost}
           onComment={openComments}
-          onPhoto={(_urls, index) => setPhotoViewer({ post: item, index })}
+          onPhoto={(_urls, index) => {
+            // Le plein écran joue sa propre musique : sans cette coupure, les
+            // deux lecteurs tourneraient ensemble sur la même piste.
+            void stopMusic();
+            setPhotoViewer({ post: item, index });
+          }}
           musicPaused={musicPaused}
           onToggleMusic={toggleMusicPaused}
           onShare={shareToDM}
@@ -1094,7 +1085,18 @@ export default function SocialTab() {
         <PostViewer
           posts={[photoViewer.post]}
           initialImageIndex={photoViewer.index}
-          onClose={() => setPhotoViewer(null)}
+          onClose={() => {
+            setPhotoViewer(null);
+            // Le fil reprend sa musique là où il s'était arrêté : rien n'a
+            // défilé, donc le rappel de visibilité ne se déclenchera pas seul.
+            const visible = [...globalPosts, ...followingPosts].find(
+              (p) => p.id === visiblePostId,
+            );
+            const track = parseMusicTrack(visible?.musicTrack);
+            if (visible && track?.previewUrl && isPlayableAudioUrl(track.previewUrl)) {
+              void autoPlayPost(visible.id, track.previewUrl);
+            }
+          }}
           onChange={(postId, patch) => patchPost(postId, patch)}
         />
       ) : null}

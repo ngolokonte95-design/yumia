@@ -16,14 +16,10 @@ import type { PostOverlay, AuthorRef } from '../../lib/feed-api';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { formatCount } from '../../lib/format-count';
+import { parseMusicTrack, isPlayableAudioUrl } from '../../lib/music-track';
 
 const API = API_BASE_URL;
 
-interface MusicMeta { title: string; artist?: string; artworkUrl?: string; previewUrl?: string }
-function parseMusicTrack(raw?: string | null): MusicMeta | null {
-  if (!raw) return null;
-  try { return JSON.parse(raw) as MusicMeta; } catch { return { title: raw }; }
-}
 
 /**
  * Détecte une URL vidéo par son extension. Le champ `post.videoUrl` n'est pas
@@ -35,16 +31,6 @@ function parseMusicTrack(raw?: string | null): MusicMeta | null {
 function isVideoUrl(url?: string | null): boolean {
   if (!url) return false;
   return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url) || url.includes('/video');
-}
-
-/**
- * Les URLs CDN Deezer/iTunes ne sont pas lisibles par expo-av (AVFoundation les
- * rejette → « Unable to open URL »). Seules les pistes réhébergées sur Yumia sont
- * jouables. On ignore donc les anciennes pistes pointant encore vers ces CDN.
- */
-function isPlayableAudioUrl(url?: string | null): boolean {
-  if (!url) return false;
-  return !/dzcdn\.net|itunes\.apple\.com|mzstatic\.com/i.test(url);
 }
 
 interface Comment {
