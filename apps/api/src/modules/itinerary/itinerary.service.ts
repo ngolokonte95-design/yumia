@@ -37,26 +37,96 @@ export interface ItineraryRequest {
  * Arqueológico MARQ » se rejoignent sur « marq », le seul mot qui les
  * identifie vraiment, sans avoir à traduire quoi que ce soit.
  */
-const NAME_NOISE = new Set([
+/** Mots vides — français, espagnol, anglais. */
+const STOP_WORDS = new Set([
   // Mots vides — français, espagnol, anglais.
   'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'da', 'del', 'di', 'the',
   'el', 'los', 'las', 'et', 'and', 'y', 'a', 'au', 'aux', 'en', 'sur', 'dans',
   'chez', 'pour', 'par', 'avec', 'san', 'santa', 'saint', 'sainte', 'st',
-  // Genres de lieu : présents partout, distinctifs nulle part.
-  'plage', 'playa', 'beach', 'musee', 'museo', 'museum', 'restaurant',
-  'restaurante', 'cafe', 'cafeteria', 'bar', 'parc', 'parque', 'park',
-  'hotel', 'marche', 'mercado', 'market', 'cascade', 'cascada', 'waterfall',
-  'plaza', 'place', 'rue', 'calle', 'street', 'eglise', 'iglesia', 'church',
-  'castillo', 'chateau', 'castle', 'jardin', 'jardines', 'garden', 'tour',
-  // Releves en production : sans eux, « Glacerie Peron » se rapprochait de
-  // « Glacerie La Cigale », et « Musee … de la Mediterranee » de « Cosquer
-  // Mediterranee » — deux etablissements differents a chaque fois.
-  'glacerie', 'glacier', 'glaces', 'bouchon', 'brasserie', 'bistrot',
-  'bistro', 'taverne', 'club', 'discotheque', 'mediterranee',
-  'torre', 'tower', 'pont', 'puente', 'bridge', 'port', 'puerto', 'centre',
-  'centro', 'center', 'ville', 'ciudad', 'city', 'vieille', 'vieux', 'old',
-  'grand', 'grande', 'gran', 'petit', 'petite', 'table', 'principal',
 ]);
+
+/**
+ * Genres de lieu : présents partout, distinctifs nulle part.
+ *
+ * Ils servent deux fois : à ne pas rapprocher deux établissements sur le seul
+ * mot « glacerie », et à reconnaître un intitulé générique (« Bouchon
+ * lyonnais ») que l'IA n'a pas introduit par un article.
+ */
+const PLACE_GENRES = new Set([
+  'bar',
+  'beach',
+  'bistro',
+  'bistrot',
+  'bouchon',
+  'brasserie',
+  'bridge',
+  'cafe',
+  'cafeteria',
+  'calle',
+  'cascada',
+  'cascade',
+  'castillo',
+  'castle',
+  'center',
+  'centre',
+  'centro',
+  'chateau',
+  'church',
+  'city',
+  'ciudad',
+  'club',
+  'discotheque',
+  'eglise',
+  'garden',
+  'glace',
+  'glacerie',
+  'glaces',
+  'glacier',
+  'gran',
+  'grand',
+  'grande',
+  'hotel',
+  'iglesia',
+  'jardin',
+  'jardines',
+  'marche',
+  'market',
+  'mediterranee',
+  'mercado',
+  'musee',
+  'museo',
+  'museum',
+  'old',
+  'parc',
+  'park',
+  'parque',
+  'petit',
+  'petite',
+  'place',
+  'plage',
+  'playa',
+  'plaza',
+  'pont',
+  'port',
+  'principal',
+  'puente',
+  'puerto',
+  'restaurant',
+  'restaurante',
+  'rue',
+  'street',
+  'table',
+  'taverne',
+  'torre',
+  'tour',
+  'tower',
+  'vieille',
+  'vieux',
+  'ville',
+  'waterfall',
+]);
+
+const NAME_NOISE = new Set([...STOP_WORDS, ...PLACE_GENRES]);
 
 function nameTokens(value: string): Set<string> {
   return new Set(
@@ -138,6 +208,11 @@ const GENERIC_OPENERS = new Set(['un', 'une', 'des', 'du', 'le', 'la', 'les', 'l
  * Le critère est l'attaque de l'intitulé : un déterminant indéfini ou défini
  * introduit une catégorie, une majuscule ou un mot plein introduit un nom.
  */
+/** Minuscules sans accents — la forme sous laquelle les listes sont écrites. */
+function normalizeWord(word: string): string {
+  return word.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+}
+
 export function isGenericName(name: string): boolean {
   // L'attaque de l'intitulé : un article, puis la première lettre du mot
   // suivant — séparés par une espace (« Un bar ») ou par une élision
@@ -145,10 +220,21 @@ export function isGenericName(name: string): boolean {
   const head = name.trim().match(/^(\p{L}+)(?:['’]\s*|\s+)(\p{L})/u);
   if (!head) return false;
 
-  const article = head[1]
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
+  // Deuxième porte : l'IA n'introduit pas toujours par un article. « Bouchon
+  // lyonnais – Quartier Saint-Jean » et « Bar à cocktails » décrivent un genre
+  // sans le dire, et rester sourd à ces intitulés-là laissait des itinéraires
+  // entiers sans la moindre photo.
+  //
+  // La garantie reste la même que pour l'article : AUCUNE majuscule après le
+  // premier mot. « Restaurant El Cabito », « Musée des Civilisations » et
+  // « Glacier Terre de Glace » nomment des endroits précis, et le disent par
+  // leurs majuscules.
+  if (PLACE_GENRES.has(normalizeWord(head[1]))) {
+    const rest = headSegment(name).trim().split(/\s+/).slice(1);
+    return rest.every((w) => w[0] === w[0].toLowerCase());
+  }
+
+  const article = normalizeWord(head[1]);
   if (!GENERIC_OPENERS.has(article)) return false;
 
   // L'article ne suffit pas à trancher : « La Boqueria » et « L'Atelier de

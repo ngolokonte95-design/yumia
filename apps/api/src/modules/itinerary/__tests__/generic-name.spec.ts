@@ -25,4 +25,19 @@ describe('isGenericName', () => {
     expect(isGenericName('')).toBe(false);
     expect(isGenericName('   ')).toBe(false);
   });
+
+  describe('intitule de genre sans article', () => {
+    it('reconnait un genre suivi de mots en minuscules', () => {
+      expect(isGenericName('Bouchon lyonnais – Quartier Saint-Jean')).toBe(true);
+      expect(isGenericName('Bar a cocktails')).toBe(true);
+      expect(isGenericName('Restaurant italien du centre')).toBe(true);
+    });
+
+    it('respecte les majuscules, qui introduisent un nom propre', () => {
+      expect(isGenericName('Restaurant El Cabito')).toBe(false);
+      expect(isGenericName('Musee des Civilisations de l Europe')).toBe(false);
+      expect(isGenericName('Glacier Terre de Glace')).toBe(false);
+      expect(isGenericName('Bar du Caveau de la Huchette')).toBe(false);
+    });
+  });
 });
