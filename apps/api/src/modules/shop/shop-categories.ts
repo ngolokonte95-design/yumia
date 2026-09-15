@@ -21,6 +21,27 @@ export interface ShopCategorySeed {
   searchTerms: string[];
   keywords: string[];
   /**
+   * Mot que le titre doit AUSSI contenir, en plus d'un `keywords`.
+   *
+   * `keywords` est une liste OU : un seul mot un peu large suffit à faire
+   * entrer n'importe quoi. « rangement » a ramené des organisateurs de coffre
+   * de voiture dans le rayon bébé, « couche » des couches pour chien,
+   * « chambre » une robe de chambre pour femme. Exiger en plus un mot de
+   * contexte tranche ces cas sans avoir à deviner un par un les objets du
+   * monde qui se rangent.
+   *
+   * Absent = pas de seconde condition, le rayon se contente de `keywords`.
+   */
+  requireContext?: string[];
+  /**
+   * Mot qui disqualifie le titre, quoi qu'il contienne par ailleurs.
+   *
+   * Contrairement à `keywords`, dont l'absence se constate, ceci se vérifie :
+   * pour un rayon dont certains articles sont interdits de principe, ne pas
+   * les nommer ne suffit pas — il faut les refuser.
+   */
+  exclude?: string[];
+  /**
    * Rayon parent, quand un rayon mérite d'être subdivisé. Un sous-rayon n'est
    * pas une tuile de plus sur l'accueil : il devient un onglet à l'intérieur de
    * son parent, dont la liste agrège les produits de tous ses enfants.
@@ -352,6 +373,16 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     nameFr: 'Bébé & puériculture',
     emoji: '👶',
     sortOrder: 370,
+    // Un accessoire de rangement, un tapis de bain ou une trousse de toilette
+    // n'entre ici que s'il s'adresse vraiment à un enfant : sans cette
+    // exigence, le premier import a ramené des couches pour chien, des
+    // organisateurs de coffre de voiture et une robe de chambre pour femme.
+    requireContext: ['bebe', 'enfant', 'nourrisson', 'nouveau-ne', 'tout-petit', 'bambin', 'puericulture', 'maternite', 'layette', 'naissance', 'berceau', 'poussette', 'grossesse'],
+    // Refusés quoi que dise le reste du titre (cf. le commentaire ci-dessous).
+    // Un coffret « soins bébé » contenant une attache-tétine est passé au
+    // premier import : le produit principal était hors de cause, l'accessoire
+    // non — d'où un refus sur le mot, et non sur l'objet vendu.
+    exclude: ['biberon', 'tetine', 'attache-tetine', 'sucette', 'dentition', 'siege auto', 'chaise haute', 'porte-bebe', 'lit parapluie', 'tour de lit', 'transat', 'trotteur', 'youpala', 'rehausseur', 'cosy', 'nacelle'],
     /**
      * Rayon volontairement limité aux articles NON réglementés.
      *
@@ -451,6 +482,25 @@ function containsTerm(normalizedTitle: string, term: string): boolean {
 export function isRelevant(title: string, keywords: string[]): boolean {
   const t = normalize(title);
   return keywords.some((k) => containsTerm(t, k));
+}
+
+/**
+ * Le titre porte-t-il le contexte exigé par le rayon ?
+ *
+ * Vrai d'office quand le rayon n'en exige aucun — c'est le cas de tous sauf
+ * un aujourd'hui.
+ */
+export function matchesContext(title: string, context?: string[]): boolean {
+  if (!context || context.length === 0) return true;
+  const t = normalize(title);
+  return context.some((c) => containsTerm(t, c));
+}
+
+/** Le titre nomme-t-il un article que ce rayon refuse par principe ? */
+export function isExcluded(title: string, exclude?: string[]): boolean {
+  if (!exclude || exclude.length === 0) return false;
+  const t = normalize(title);
+  return exclude.some((e) => containsTerm(t, e));
 }
 
 /**

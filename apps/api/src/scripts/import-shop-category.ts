@@ -11,8 +11,15 @@
  *   node dist/scripts/import-shop-category.js peche
  *   node dist/scripts/import-shop-category.js peche ski-hiver --par-terme=4
  *   node dist/scripts/import-shop-category.js --vides --par-terme=4
+ *   node dist/scripts/import-shop-category.js bebe-puericulture --nettoyer
  *
  * `--vides` traite tous les rayons encore sans produit.
+ *
+ * `--nettoyer` repasse d'abord les produits deja en rayon dans les filtres
+ * actuels et retire ceux qui n'y satisfont plus. A lancer apres avoir
+ * resserre les criteres d'un rayon : un import passe ne se corrige pas tout
+ * seul. Les commandes deja passees gardent leur ligne (l'article y est
+ * recopie) ; seuls paniers et listes d'envies perdent la reference.
  *
  * Relancer sur un rayon déjà rempli le complète sans le dupliquer : l'import
  * connaît les produits déjà présents, par identifiant AliExpress et par
@@ -22,7 +29,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../infra/prisma/prisma.service';
 import { ShopImportService } from '../modules/shop/shop-import.service';
-import { SHOP_CATEGORIES } from '../modules/shop/shop-categories';
+import {
+  SHOP_CATEGORIES,
+  isBanned,
+  isExcluded,
+  isJunk,
+  isRelevant,
+  matchesContext,
+} from '../modules/shop/shop-categories';
 
 /**
  * Combien de produits retenir par terme de recherche.
@@ -45,6 +59,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const parTerme = nombreApres('--par-terme=', args) ?? PAR_TERME_DEFAUT;
   const tousLesVides = args.includes('--vides');
+  const nettoyer = args.includes('--nettoyer');
   let slugs = args.filter((a) => !a.startsWith('--'));
 
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -84,6 +99,27 @@ async function main(): Promise<void> {
     let total = 0;
     for (const slug of slugs) {
       const seed = SHOP_CATEGORIES.find((c) => c.slug === slug)!;
+
+      if (nettoyer) {
+        const enBase = await prisma.product.findMany({
+          where: { category: { slug } },
+          select: { id: true, title: true },
+        });
+        const aRetirer = enBase.filter(
+          (p) =>
+            isBanned(p.title) ||
+            isExcluded(p.title, seed.exclude) ||
+            !matchesContext(p.title, seed.requireContext) ||
+            isJunk(p.title, seed.keywords) ||
+            !isRelevant(p.title, seed.keywords),
+        );
+        for (const p of aRetirer) {
+          console.log(`  − ${p.title.slice(0, 110)}`);
+          await prisma.product.delete({ where: { id: p.id } });
+        }
+        console.log(`Nettoyage ${slug} : ${aRetirer.length} retiré(s) sur ${enBase.length}.`);
+      }
+
       const avant = Date.now();
       console.log(
         `\n── ${seed.emoji} ${seed.nameFr} — ${seed.searchTerms.length} termes × ${parTerme} ──`,
@@ -96,7 +132,8 @@ async function main(): Promise<void> {
         const secondes = Math.round((Date.now() - avant) / 1000);
         console.log(
           `${r.imported} importé(s) en ${secondes}s — ${enRayon} produit(s) en rayon.\n` +
-            `  écartés : ${r.skipped.irrelevant} hors sujet, ${r.skipped.similar} trop semblables, ` +
+            `  écartés : ${r.skipped.irrelevant} hors sujet, ${r.skipped.outOfContext} hors contexte, ` +
+            `${r.skipped.excluded} interdits dans ce rayon, ${r.skipped.similar} trop semblables, ` +
             `${r.skipped.duplicate} déjà connus, ${r.skipped.junk} camelote, ` +
             `${r.skipped.banned} marques interdites, ${r.skipped.noPrice} sans prix`,
         );

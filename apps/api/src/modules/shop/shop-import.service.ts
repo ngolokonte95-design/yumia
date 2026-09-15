@@ -19,6 +19,8 @@ import {
   normalize,
   titleSignature,
   tooSimilar,
+  isExcluded,
+  matchesContext,
 } from './shop-categories';
 
 export interface ImportReport {
@@ -28,6 +30,8 @@ export interface ImportReport {
     irrelevant: number;
     junk: number;
     banned: number;
+    excluded: number;
+    outOfContext: number;
     duplicate: number;
     similar: number;
     noPrice: number;
@@ -130,7 +134,16 @@ export class ShopImportService {
     const report: ImportReport = {
       category: slug,
       imported: 0,
-      skipped: { irrelevant: 0, junk: 0, banned: 0, duplicate: 0, similar: 0, noPrice: 0 },
+      skipped: {
+        irrelevant: 0,
+        junk: 0,
+        banned: 0,
+        excluded: 0,
+        outOfContext: 0,
+        duplicate: 0,
+        similar: 0,
+        noPrice: 0,
+      },
     };
 
     // Signatures des produits DÉJÀ en rayon : sans elles, un second import
@@ -150,6 +163,10 @@ export class ShopImportService {
       for (const r of results) {
         if (importedForTerm >= limitPerTerm) break;
         if (isBanned(r.title)) { report.skipped.banned++; continue; }
+        // Avant tout le reste : un article que le rayon refuse par principe ne
+        // se rattrape pas sur un mot-clé bien placé.
+        if (isExcluded(r.title, seed.exclude)) { report.skipped.excluded++; continue; }
+        if (!matchesContext(r.title, seed.requireContext)) { report.skipped.outOfContext++; continue; }
         if (isJunk(r.title, seed.keywords)) { report.skipped.junk++; continue; }
         if (!isRelevant(r.title, seed.keywords)) { report.skipped.irrelevant++; continue; }
         if (r.priceCents <= 0) { report.skipped.noPrice++; continue; }
