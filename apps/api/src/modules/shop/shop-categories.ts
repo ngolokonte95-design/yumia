@@ -314,6 +314,63 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     searchTerms: ['moule silicone patisserie', 'moule gateau anniversaire', 'poche a douille set', 'douilles inox patisserie', 'colorant alimentaire gel', 'colorant poudre alimentaire', 'tapis silicone patisserie', 'tapis mesure patisserie', 'emporte piece patisserie', 'emporte piece biscuits set', 'plateau tournant gateau', 'plateau presentation gateau', 'spatule lissante gateau', 'lisseur pate a sucre', 'thermometre sucre cuisson', 'thermometre four numerique', 'caissettes cupcake papier', 'support cupcakes presentoir', 'decoration comestible gateau', 'perles sucre decoration', 'rouleau texture pate a sucre', 'rouleau patisserie ajustable', 'boite transport gateau', 'carton support gateau', 'pistolet decoration gateau', 'set modelage pate a sucre', 'tapis dentelle sucre', 'pochoir decoration gateau'],
     keywords: ['patisserie', 'gateau', 'moule', 'douille', 'poche', 'colorant', 'tapis', 'emporte', 'plateau', 'spatule', 'lisseur', 'thermometre', 'caissette', 'cupcake', 'decoration', 'pate a sucre', 'rouleau', 'boite', 'silicone', 'cuisson', 'presentoir', 'perle', 'carton', 'pistolet', 'modelage', 'dentelle', 'pochoir', 'support', 'set'],
   },
+  {
+    slug: 'fete-decoration',
+    nameFr: 'Fêtes & décoration',
+    emoji: '🎉',
+    universe: 'event_venue',
+    sortOrder: 340,
+    searchTerms: ['arche de ballons anniversaire', 'ballon chiffre geant', 'ballon aluminium anniversaire', 'guirlande lumineuse led interieur', 'guirlande fanion anniversaire', 'banniere joyeux anniversaire', 'accessoire photobooth mariage', 'cadre photobooth', 'rideau de franges metallise', 'chemin de table paillette', 'centre de table mariage', 'nappe jetable decoration', 'canon a confettis', 'bougie anniversaire chiffre', 'lettre lumineuse led', 'pompe a ballon electrique', 'support arche ballon', 'sac cadeau invite fete', 'decoration halloween interieur', 'toile araignee halloween', 'citrouille led decoration', 'serre-tete deguisement fete', 'decoration noel sapin', 'guirlande noel led', 'couronne de porte noel', 'boule de noel lot', 'photocall anniversaire', 'lampion papier decoration'],
+    keywords: ['ballon', 'guirlande', 'fanion', 'banniere', 'photobooth', 'photocall', 'confetti', 'bougie', 'anniversaire', 'mariage', 'fete', 'deguisement', 'halloween', 'citrouille', 'araignee', 'noel', 'sapin', 'couronne', 'lampion', 'nappe', 'chemin de table', 'centre de table', 'decoration', 'deco', 'lumineuse', 'arche', 'frange', 'serre-tete', 'paillette', 'cotillon', 'pinata', 'bapteme'],
+  },
+  {
+    slug: 'ski-hiver',
+    nameFr: 'Ski & sports d\'hiver',
+    emoji: '🎿',
+    sortOrder: 350,
+    // Accessoires uniquement. Skis, snowboards et chaussures sont volumineux
+    // à expédier et se choisissent à la pointure : en importation lointaine,
+    // c'est la garantie d'un taux de retour qui mange la marge.
+    searchTerms: ['masque de ski antibuee', 'masque snowboard photochromique', 'gant de ski chauffant', 'gant snowboard impermeable', 'sous-gant thermique ski', 'chaussette de ski thermique', 'cagoule ski polaire', 'tour de cou thermique', 'bonnet ski polaire', 'chaufferette main rechargeable', 'chaufferette jetable hiver', 'casque de ski adulte', 'protection dorsale snowboard', 'housse a ski transport', 'sangle porte-ski', 'sac a dos ski randonnee', 'lunette glacier montagne', 'sous-vetement thermique ski', 'crampon chaussure neige', 'guetre neige randonnee', 'raquette a neige adulte', 'baton de ski telescopique', 'sechoir chaussure de ski', 'fart ski entretien', 'antivol ski cadenas', 'genouillere protection ski'],
+    keywords: ['ski', 'snowboard', 'neige', 'montagne', 'antibuee', 'photochromique', 'masque', 'gant', 'sous-gant', 'chaussette', 'cagoule', 'tour de cou', 'bonnet', 'thermique', 'polaire', 'chaufferette', 'chauffe-main', 'casque', 'dorsale', 'genouillere', 'housse', 'porte-ski', 'glacier', 'sous-vetement', 'crampon', 'guetre', 'raquette a neige', 'baton', 'sechoir', 'fart', 'hiver', 'impermeable'],
+  },
+  {
+    slug: 'peche',
+    nameFr: 'Pêche',
+    emoji: '🎣',
+    sortOrder: 360,
+    searchTerms: ['leurre souple carnassier', 'leurre dur poisson nageur', 'leurre cuillere tournante', 'popper leurre surface', 'moulinet spinning peche', 'moulinet casting peche', 'canne a peche telescopique', 'canne spinning carbone', 'fil de peche tresse', 'fil nylon peche bobine', 'hamecon peche lot', 'tete plombee jig', 'bas de ligne acier', 'emerillon agrafe peche', 'flotteur peche reglable', 'boite a leurre rangement', 'epuisette peche pliante', 'pince a peche inox', 'ciseaux tresse peche', 'gilet de peche multipoche', 'porte-canne support peche', 'detecteur de touche peche', 'lampe frontale peche nuit', 'sac de peche etanche', 'peson balance peche', 'amorce peche carpe'],
+    keywords: ['canne a peche', 'fil de peche', 'materiel de peche', 'peche a la ligne', 'pince a peche', 'gilet de peche', 'sac de peche', 'lampe frontale', 'pecheur', 'leurre', 'moulinet', 'spinning', 'casting', 'hamecon', 'tresse', 'nylon', 'flotteur', 'emerillon', 'epuisette', 'carnassier', 'brochet', 'truite', 'carpe', 'silure', 'sandre', 'jig', 'popper', 'cuillere tournante', 'plombee', 'bas de ligne', 'peson', 'porte-canne', 'detecteur de touche', 'appat', 'amorce', 'waders'],
+  },
+  {
+    slug: 'bebe-puericulture',
+    nameFr: 'Bébé & puériculture',
+    emoji: '👶',
+    sortOrder: 370,
+    /**
+     * Rayon volontairement limité aux articles NON réglementés.
+     *
+     * Depuis le règlement (UE) 2023/988, applicable au 13 décembre 2024,
+     * celui qui met sur le marché européen un produit venu de hors UE en
+     * répond comme importateur. En dropshipping, c'est nous — pas le vendeur,
+     * qui ne fournira aucune déclaration de conformité.
+     *
+     * Sont donc exclus, et ne doivent pas être ajoutés ici :
+     *  - biberons, tétines, anneaux de dentition (contact alimentaire, EN 14350) ;
+     *  - poussettes, porte-bébés, lits et barrières (EN 1888, EN 716) ;
+     *  - sièges auto (homologation R129 — un siège non homologué engage notre
+     *    responsabilité en cas d'accident) ;
+     *  - jouets et tapis d'éveil (marquage CE, EN 71, pièces détachables).
+     *
+     * `keywords` ne contient volontairement ni « bébé » ni « poussette » :
+     * trop larges, ils laissaient passer exactement ce que cette liste écarte
+     * — un essai sur des titres réels a vu « Poussette canne pliable » entrer
+     * par le second. Les accessoires de poussette (organisateur, chancelière,
+     * ombrelle, moustiquaire) sont reconnus par leur propre nom.
+     */
+    searchTerms: ['bavoir bebe impermeable', 'bavoir silicone recuperateur', 'sac a langer sac a dos', 'matelas a langer nomade', 'tapis a langer pliable', 'organisateur poussette rangement', 'sac rangement poussette', 'cape de bain bebe', 'sortie de bain capuche bebe', 'gigoteuse bebe coton', 'veilleuse bebe led', 'veilleuse projecteur etoile', 'thermometre de bain bebe', 'baignoire bebe pliable', 'siege de bain antiderapant', 'humidificateur chambre bebe', 'poubelle a couche', 'panier rangement chambre bebe', 'coussin allaitement grossesse', 'chanceliere poussette hiver', 'ombrelle poussette uv', 'moustiquaire poussette', 'protege-carnet de sante', 'sac a jouet rangement', 'porte-serviette chambre enfant'],
+    keywords: ['bavoir', 'langer', 'gigoteuse', 'veilleuse', 'baignoire', 'thermometre de bain', 'humidificateur', 'couche', 'allaitement', 'chanceliere', 'ombrelle', 'moustiquaire', 'cape de bain', 'sortie de bain', 'siege de bain', 'protege-carnet', 'panier', 'rangement', 'organisateur', 'chambre', 'berceuse', 'nurserie', 'puericulture'],
+  },
 ];
 
 /**
