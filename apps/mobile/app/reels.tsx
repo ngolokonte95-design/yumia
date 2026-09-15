@@ -173,7 +173,12 @@ function ReelCard({
     try { return JSON.parse(item.musicTrack) as { title?: string; artist?: string; artworkUrl?: string; previewUrl?: string; startMs?: number }; }
     catch { return null; }
   })() : null;
-  const [muted, setMuted] = useState(!!musicMeta);
+  // `muted` décrit ce que le spectateur entend — pas l'état de la piste
+  // vidéo. Une publication avec musique démarrait ici à `true` (la musique
+  // remplace le son d'origine, qui doit donc être coupé) : le bouton
+  // s'affichait barré pendant que la musique jouait. Couper la piste vidéo
+  // dans ce cas est déjà assuré par `effectiveMuted` ci-dessous.
+  const [muted, setMuted] = useState(false);
   // Le son d'origine de la vidéo est coupé pour de bon dès qu'une musique a été
   // ajoutée (elle la remplace, les deux ne doivent jamais jouer ensemble) — comme
   // le son coupé par l'auteur, ce n'est pas quelque chose que le spectateur peut
@@ -244,13 +249,15 @@ function ReelCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  // Pause/reprend la piste musicale déjà chargée quand on met la vidéo en
-  // pause manuellement (sans recharger le son, contrairement au montage/
-  // démontage ci-dessus qui suit le scroll).
+  // Seul endroit qui décide si la musique déjà chargée joue : mise en pause
+  // manuelle du reel, ou son coupé par le spectateur. (Le montage/démontage
+  // ci-dessus, lui, suit le scroll et recharge la piste.) Réunir les deux
+  // conditions ici évite qu'elles se contredisent — couper le son, mettre en
+  // pause puis reprendre relançait une musique censée être coupée.
   useEffect(() => {
-    if (paused) musicSoundRef.current?.pause();
+    if (paused || muted) musicSoundRef.current?.pause();
     else if (active) musicSoundRef.current?.play();
-  }, [paused, active]);
+  }, [paused, active, muted]);
 
   // Voix off enregistrée à la publication — même mécanisme que la musique,
   // jouée en parallèle (les deux peuvent coexister, comme une vraie piste
@@ -508,23 +515,19 @@ function ReelCard({
         )}
       </View>
 
-      {/* Icône son — mute vidéo ET piste musicale. Non interactive si l'auteur
-          a coupé le son à la publication : ce choix ne se contourne pas. */}
-      {item.videoMuted ? (
+      {/* Icône son. Deux pistes possibles, jamais ensemble : le son d'origine
+          de la vidéo, ou la musique ajoutée qui le remplace. Le bouton commande
+          celle qui joue vraiment.
+
+          Une vidéo dont l'auteur a coupé le son reste muette — ce choix ne se
+          contourne pas. Mais s'il y a une musique, c'est elle qu'on entend :
+          la rendre incoupable n'aurait servi personne. */}
+      {!musicMeta && item.videoMuted ? (
         <View style={styles.muteBtn}>
           <Text style={{ fontSize: 20, color: '#fff' }}>🔇</Text>
         </View>
       ) : (
-        <Pressable style={styles.muteBtn} onPress={() => {
-          setMuted((v) => {
-            const next = !v;
-            if (musicSoundRef.current) {
-              if (next) { musicSoundRef.current.pause(); }
-              else { musicSoundRef.current.play(); }
-            }
-            return next;
-          });
-        }}>
+        <Pressable style={styles.muteBtn} onPress={() => setMuted((v) => !v)}>
           <Text style={{ fontSize: 20, color: '#fff' }}>{muted ? '🔇' : '🔊'}</Text>
         </Pressable>
       )}
