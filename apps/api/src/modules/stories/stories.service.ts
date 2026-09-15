@@ -239,12 +239,37 @@ export class StoriesService {
     return this.prisma.storyHighlight.delete({ where: { id: highlightId } });
   }
 
+  /**
+   * Enregistre un spectateur.
+   *
+   * Une story se compte en personnes, pas en ouvertures : revenir la regarder
+   * une deuxième fois ne doit pas faire monter le compteur. C'est ce
+   * qu'exprime déjà `StoryView` (une ligne par personne), mais `viewCount`
+   * était incrémenté à chaque appel, quelle qu'en soit l'issue — le nombre
+   * affiché finissait par dépasser la liste des spectateurs, pourtant juste.
+   *
+   * Et l'auteur ne se compte pas parmi ses spectateurs : ni dans le nombre,
+   * ni dans la liste.
+   *
+   * L'insertion sert de test : la contrainte d'unicité de `StoryView` tranche
+   * en une requête, là où « lire puis écrire » laisserait deux ouvertures
+   * simultanées compter deux fois la même personne.
+   */
   async markViewed(storyId: string, userId: string) {
-    await this.prisma.storyView.upsert({
-      where: { storyId_userId: { storyId, userId } },
-      update: {},
-      create: { storyId, userId },
+    const story = await this.prisma.story.findUnique({
+      where: { id: storyId },
+      select: { userId: true },
     });
+    if (!story || story.userId === userId) return;
+
+    try {
+      await this.prisma.storyView.create({ data: { storyId, userId } });
+    } catch (err) {
+      // P2002 : cette personne l'avait déjà vue. Rien à compter.
+      if ((err as { code?: string }).code === 'P2002') return;
+      throw err;
+    }
+
     await this.prisma.story.update({
       where: { id: storyId },
       data: { viewCount: { increment: 1 } },
