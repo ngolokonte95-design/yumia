@@ -152,9 +152,22 @@ function headSegment(name: string): string {
   return name.split(/\s[–—-]\s|,|\(/)[0] ?? name;
 }
 
-export function namesMatch(a: string, b: string): boolean {
+export function namesMatch(a: string, b: string, city?: string): boolean {
   const ta = nameTokens(a);
   const tb = nameTokens(b);
+
+  // Tous les candidats viennent d'une recherche DANS cette ville : son nom n'y
+  // distingue donc rien, par construction. Sans cette coupe, « Musée
+  // d'Histoire de Marseille » se rapprochait de « Musée Subaquatique de
+  // Marseille » — deux musées différents, rapprochés par le seul mot
+  // « Marseille », « musée » étant déjà tenu pour non distinctif.
+  if (city) {
+    for (const w of nameTokens(city)) {
+      ta.delete(w);
+      tb.delete(w);
+    }
+  }
+
   if (ta.size === 0 || tb.size === 0) return false;
   let shared = 0;
   for (const w of ta) if (tb.has(w)) shared++;
@@ -594,7 +607,7 @@ ${isWeek
       const candidates = await candidatesFor(universe);
       if (candidates.length === 0) return {};
 
-      const byName = candidates.find((p) => namesMatch(name, p.name));
+      const byName = candidates.find((p) => namesMatch(name, p.name, city));
       // Un lieu trouvé par son nom n'avance pas le curseur : il est légitime
       // qu'il revienne plusieurs fois si l'itinéraire y repasse vraiment.
       if (byName) return toResolved(byName);
@@ -639,7 +652,7 @@ ${isWeek
       // inventé par le modèle, elle rendra l'établissement le plus proche du
       // texte, pas l'endroit demandé. On revérifie donc le nom — sans ce
       // contrôle, on aurait juste déplacé la photo mensongère d'un cran.
-      if (!namesMatch(name, found.name)) {
+      if (!namesMatch(name, found.name, city)) {
         this.logger.debug(`« ${name} » : le fournisseur a répondu « ${found.name} », écarté.`);
         return {};
       }

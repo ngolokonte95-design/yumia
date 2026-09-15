@@ -63,4 +63,17 @@ describe('namesMatch', () => {
       expect(namesMatch('Le Prescription Cocktail Club — Saint-Germain', 'Prescription Cocktail Club')).toBe(true);
     });
   });
+
+  describe('nom de la ville', () => {
+    // Releve en production sur Marseille : deux musees differents rapproches
+    // par le seul mot « Marseille ».
+    it('ignore le nom de la ville, qui ne distingue rien', () => {
+      expect(namesMatch("Musee d Histoire de Marseille", 'Musee Subaquatique de Marseille', 'Marseille')).toBe(false);
+      expect(namesMatch('Regain restaurant LYON', 'Regain restaurant Lyon', 'Lyon')).toBe(true);
+    });
+
+    it('sans ville fournie, se comporte comme avant', () => {
+      expect(namesMatch('Berthillon — Ile Saint-Louis', 'Berthillon')).toBe(true);
+    });
+  });
 });
