@@ -25,6 +25,25 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 const UPLOADS = join(process.cwd(), 'uploads');
 
+/**
+ * Les URL ne sont pas toutes dans des colonnes d'URL.
+ *
+ * `musicTrack` est une colonne TEXTE qui contient un JSON
+ * `{ title, artist, artworkUrl, previewUrl, … }` : l'extrait musical joué par
+ * une story y est référencé, invisible d'un simple `select`. Sans ce
+ * décodage, ce script supprimerait des musiques encore utilisées — il a
+ * justement fallu le vérifier avant de le lancer la première fois.
+ */
+function urlsInsideJson(raw: string | null | undefined): string[] {
+  if (!raw || !raw.trim().startsWith('{')) return [];
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.values(parsed).filter((v): v is string => typeof v === 'string' && v.includes('/'));
+  } catch {
+    return [];
+  }
+}
+
 /** Nom de fichier extrait d'une URL publique, quelle qu'en soit la forme. */
 function fileNameOf(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -42,9 +61,15 @@ async function referencedNames(): Promise<Set<string>> {
 
   const [posts, stories, users, messages, places] = await Promise.all([
     prisma.post.findMany({
-      select: { mediaUrls: true, videoUrl: true, coverUrl: true, voiceTrackUrl: true },
+      select: {
+        mediaUrls: true,
+        videoUrl: true,
+        coverUrl: true,
+        voiceTrackUrl: true,
+        musicTrack: true,
+      },
     }),
-    prisma.story.findMany({ select: { mediaUrl: true } }),
+    prisma.story.findMany({ select: { mediaUrl: true, musicTrack: true } }),
     prisma.user.findMany({ select: { photoUrl: true } }),
     prisma.message.findMany({ select: { mediaUrl: true } }).catch(() => []),
     prisma.place.findMany({ select: { photoUrls: true } }).catch(() => []),
@@ -55,8 +80,12 @@ async function referencedNames(): Promise<Set<string>> {
     add(p.videoUrl);
     add(p.coverUrl);
     add(p.voiceTrackUrl);
+    urlsInsideJson(p.musicTrack).forEach(add);
   }
-  for (const s of stories) add(s.mediaUrl);
+  for (const s of stories) {
+    add(s.mediaUrl);
+    urlsInsideJson(s.musicTrack).forEach(add);
+  }
   for (const u of users) add(u.photoUrl);
   for (const m of messages as Array<{ mediaUrl: string | null }>) add(m.mediaUrl);
   for (const pl of places as Array<{ photoUrls: string[] }>) pl.photoUrls.forEach(add);
