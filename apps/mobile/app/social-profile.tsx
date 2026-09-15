@@ -12,6 +12,7 @@ import { feedApi, type StoryHighlight } from '../lib/feed-api';
 import { VideoThumb } from '../components/VideoThumb';
 import { PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
+import { PhotoViewer } from '../components/PhotoViewer';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -72,6 +73,15 @@ export default function SocialProfileScreen() {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [postMenu, setPostMenu] = useState<Post | null>(null); // appui long sur un de mes posts
+  /**
+   * Photo ouverte en plein écran.
+   *
+   * Une vignette menait à la page de détail, où l'image s'affichait petite
+   * au-dessus des commentaires — même défaut que dans le fil, corrigé de la
+   * même façon. Les vidéos gardent leur destination : la page de détail, où
+   * elles se lisent.
+   */
+  const [photoViewer, setPhotoViewer] = useState<string[] | null>(null);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
 
   const photoUrl = user?.photoUrl
@@ -358,7 +368,11 @@ export default function SocialProfileScreen() {
         renderItem={({ item }) => (
           <Pressable
             style={styles.gridItem}
-            onPress={() => router.push(`/post/${item.id}` as never)}
+            onPress={() =>
+              isVideoUrl(item.mediaUrls[0])
+                ? router.push(`/post/${item.id}` as never)
+                : setPhotoViewer(item.mediaUrls)
+            }
             onLongPress={() => setPostMenu(item)}
           >
             {item.mediaUrls[0] ? (
@@ -488,6 +502,10 @@ export default function SocialProfileScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {photoViewer ? (
+        <PhotoViewer photos={photoViewer} visible onClose={() => setPhotoViewer(null)} />
+      ) : null}
     </View>
   );
 }

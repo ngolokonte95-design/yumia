@@ -12,6 +12,7 @@ import { feedApi, type FeedPost, type StoryHighlight, type Plan } from '../../li
 import { VideoThumb } from '../../components/VideoThumb';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
+import { PhotoViewer } from '../../components/PhotoViewer';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
@@ -40,6 +41,15 @@ export default function UserProfileScreen() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  /**
+   * Photo ouverte en plein écran.
+   *
+   * Une vignette menait à la page de détail, où l'image s'affichait petite
+   * au-dessus des commentaires — même défaut que dans le fil, corrigé de la
+   * même façon. Les vidéos gardent leur destination : la page de détail, où
+   * elles se lisent.
+   */
+  const [photoViewer, setPhotoViewer] = useState<string[] | null>(null);
   const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
   const [activeHighlight, setActiveHighlight] = useState<StoryHighlight | null>(null);
   const [loading, setLoading] = useState(true);
@@ -311,7 +321,14 @@ export default function UserProfileScreen() {
         keyExtractor={(p) => p.id}
         ListHeaderComponent={ListHeader}
         renderItem={({ item }) => (
-          <Pressable style={styles.gridItem} onPress={() => router.push(`/post/${item.id}` as never)}>
+          <Pressable
+            style={styles.gridItem}
+            onPress={() =>
+              isVideoUrl(item.mediaUrls[0])
+                ? router.push(`/post/${item.id}` as never)
+                : setPhotoViewer(item.mediaUrls)
+            }
+          >
             {item.mediaUrls[0] ? (
               isVideoUrl(item.mediaUrls[0])
                 ? <VideoThumb uri={item.mediaUrls[0]} style={styles.gridImg} />
@@ -390,6 +407,10 @@ export default function UserProfileScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {photoViewer ? (
+        <PhotoViewer photos={photoViewer} visible onClose={() => setPhotoViewer(null)} />
+      ) : null}
     </View>
   );
 }
