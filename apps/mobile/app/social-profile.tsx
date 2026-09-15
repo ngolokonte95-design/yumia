@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable,
   ScrollView, Share, StyleSheet, Text, View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
@@ -77,12 +77,35 @@ export default function SocialProfileScreen() {
    */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
+  const [followRequests, setFollowRequests] = useState(0);
 
   const photoUrl = user?.photoUrl
     ? (user.photoUrl.startsWith('http') ? user.photoUrl : `${API}${user.photoUrl}`)
     : null;
   const displayName = user?.displayName ?? t('sp_me_fallback');
   const bio = user?.bio ?? '';
+
+  /**
+   * Demandes d'abonnement en attente.
+   *
+   * L'API renvoie la liste, pas un compte : à ce volume, la longueur suffit et
+   * évite d'ajouter un endpoint pour un seul nombre.
+   */
+  const loadFollowRequests = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API}/social/follow-requests`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) setFollowRequests(((await res.json()) as unknown[]).length);
+    } catch {
+      // Pastille absente plutôt qu'un écran en erreur : ce n'est qu'un indicateur.
+    }
+  }, [accessToken]);
+
+  // Accepter une demande se fait sur l'autre écran ; sans ce rafraîchissement,
+  // la pastille resterait figée sur son ancienne valeur au retour.
+  useFocusEffect(useCallback(() => { void loadFollowRequests(); }, [loadFollowRequests]));
 
   const load = useCallback(async () => {
     if (!accessToken || !user?.id) return;
@@ -240,8 +263,19 @@ export default function SocialProfileScreen() {
         <Pressable style={styles.actionBtn} onPress={shareProfile}>
           <Text style={styles.actionBtnText}>{t('sp_share_profile')}</Text>
         </Pressable>
-        <Pressable style={styles.actionBtnIcon} onPress={() => router.push('/discover-people' as never)}>
+        <Pressable
+          style={styles.actionBtnIcon}
+          onPress={() => router.push('/follow-requests' as never)}
+          accessibilityLabel={t('sp_menu_follow_requests')}
+        >
           <Text style={{ fontSize: 16 }}>👤</Text>
+          {followRequests > 0 ? (
+            <View style={styles.actionBtnBadge}>
+              <Text style={styles.actionBtnBadgeTxt}>
+                {followRequests > 99 ? '99+' : followRequests}
+              </Text>
+            </View>
+          ) : null}
         </Pressable>
       </View>
 
@@ -567,6 +601,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: radius.md,
     borderWidth: 1, borderColor: colors.border,
   },
+  actionBtnBadge: {
+    position: 'absolute', top: -5, right: -5,
+    minWidth: 18, height: 18, borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.brand,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.background,
+  },
+  actionBtnBadgeTxt: { fontSize: 10, color: '#fff', fontWeight: '800' },
 
   // Highlights
   highlightsRow: { paddingHorizontal: spacing.md, paddingBottom: 8, gap: 16 },
