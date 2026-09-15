@@ -71,13 +71,34 @@ function nameTokens(value: string): Set<string> {
  * intitulé enrichi (« Castillo de Santa Bárbara & Barrio de la Santa Cruz »)
  * là où la base ne porte que « Castillo de Santa Bárbara ».
  */
+function headSegment(name: string): string {
+  // Seuls les tirets ENTOURES d'espaces separent : « Saint-Louis » et
+  // « Aix-en-Provence » doivent rester entiers.
+  return name.split(/\s[–—-]\s|,|\(/)[0] ?? name;
+}
+
 export function namesMatch(a: string, b: string): boolean {
   const ta = nameTokens(a);
   const tb = nameTokens(b);
   if (ta.size === 0 || tb.size === 0) return false;
   let shared = 0;
   for (const w of ta) if (tb.has(w)) shared++;
-  return shared / Math.min(ta.size, tb.size) >= 0.5;
+  if (shared / Math.min(ta.size, tb.size) < 0.5) return false;
+
+  // Le recouvrement rapporte au plus court accepte un nom entierement contenu
+  // dans l'autre. C'est voulu quand le nom court est la TETE de l'intitule
+  // (« Castillo de Santa Barbara » dans « Castillo … & Barrio … »), mais c'est
+  // faux quand il n'en est que le SUFFIXE : l'IA situe ses etapes par leur
+  // quartier, et « Le Sergent Recruteur – Ile Saint-Louis » se rapprochait
+  // alors du lieu nomme « Ile Saint-Louis » — l'ile elle-meme. La photo
+  // montrait une rue, la description parlait d'un restaurant aux chandelles.
+  //
+  // On exige donc que la correspondance touche la tete de l'intitule, pas
+  // seulement le complement de lieu qui la suit.
+  const head = nameTokens(headSegment(a));
+  if (head.size === 0 || head.size === ta.size) return true;
+  for (const w of head) if (tb.has(w)) return true;
+  return false;
 }
 
 /**

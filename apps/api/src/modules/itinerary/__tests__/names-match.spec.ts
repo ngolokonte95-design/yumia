@@ -29,4 +29,25 @@ describe('namesMatch', () => {
     expect(namesMatch('', 'Castillo de Santa Bárbara')).toBe(false);
     expect(namesMatch('de la', 'Castillo de Santa Bárbara')).toBe(false);
   });
+
+  describe('complement de lieu en suffixe', () => {
+    // Releve en production : l'IA situe ses etapes par leur quartier, et le
+    // rapprochement retenait le quartier lui-meme. La carte affichait alors
+    // une photo de rue sous une description de restaurant.
+    it('refuse un lieu qui ne correspond QU AU suffixe', () => {
+      expect(namesMatch('Le Sergent Recruteur – Ile Saint-Louis', 'Ile Saint-Louis')).toBe(false);
+      expect(namesMatch('Chez Julien, Marais', 'Marais')).toBe(false);
+      expect(namesMatch('Le Comptoir (Saint-Germain)', 'Saint-Germain-des-Pres')).toBe(false);
+    });
+
+    it('accepte quand la tete correspond', () => {
+      expect(namesMatch('Little Red Door – Marais', 'Little Red Door')).toBe(true);
+      expect(namesMatch('Berthillon – Ile Saint-Louis', 'Berthillon')).toBe(true);
+    });
+
+    it('ne coupe pas les noms a trait d union', () => {
+      expect(namesMatch('Saint-Louis', 'Saint-Louis')).toBe(true);
+      expect(namesMatch('Musee d Aix-en-Provence', 'Musee Aix-en-Provence')).toBe(true);
+    });
+  });
 });
