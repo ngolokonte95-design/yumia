@@ -591,6 +591,23 @@ describe('AuthService', () => {
 
       expect(order).toEqual(['revoke', 'delete']);
     });
+
+    // Une commande est une pièce comptable (dix ans de conservation) : la
+    // supprimer avec le compte effaçait des factures, et une commande payée
+    // mais pas encore transmise à AliExpress n'aurait jamais été expédiée.
+    it('conserve les commandes en les détachant du compte, sans les supprimer', async () => {
+      prismaMock.order.updateMany = jest.fn().mockResolvedValue({ count: 3 });
+      prismaMock.order.deleteMany = jest.fn();
+      prismaMock.user.delete = jest.fn().mockResolvedValue(mockUser);
+
+      await service.deleteAccount('user-1');
+
+      expect(prismaMock.order.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        data: { userId: null },
+      });
+      expect(prismaMock.order.deleteMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('exportData', () => {

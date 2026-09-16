@@ -1429,8 +1429,18 @@ model Order {
   id            String      @id @default(uuid())
   /// Référence courte lisible par le client (ex. YUM-8F3K2P).
   reference     String      @unique
-  userId        String
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Null une fois le compte supprimé : la commande, elle, reste.
+  ///
+  /// Une pièce comptable se conserve dix ans (art. L123-22 du Code de
+  /// commerce), et le RGPD le permet expressément (art. 17.3.b). Le lien vers
+  /// la personne disparaît ; montants, articles et adresse de livraison figés
+  /// dans `addressSnapshot` suffisent à la comptabilité.
+  ///
+  /// C'était un `onDelete: Cascade` : supprimer un compte effaçait ses
+  /// factures — et, entre le paiement et l'arrivée du webhook Stripe, une
+  /// commande déjà encaissée qui n'aurait alors jamais été expédiée.
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   status        OrderStatus @default(pending)
 
   subtotalCents Int

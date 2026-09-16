@@ -244,7 +244,10 @@ export class OrdersService {
       where: { id: order.id },
       data: { status: 'paid', paidAt: new Date() },
     });
-    await this.cart.clear(order.userId);
+    // Le client a pu supprimer son compte entre le paiement et ce webhook : son
+    // panier est alors parti avec lui, mais la commande est payée et doit être
+    // expédiée quand même.
+    if (order.userId) await this.cart.clear(order.userId);
 
     await this.fulfill(order.id);
   }

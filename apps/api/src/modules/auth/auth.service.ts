@@ -517,11 +517,13 @@ export class AuthService {
       this.prisma.closeFriend.deleteMany({ where: { OR: [{ userId }, { friendId: userId }] } }),
       this.prisma.favoriteUser.deleteMany({ where: { OR: [{ userId }, { favoriteId: userId }] } }),
 
-      // Registres financiers (billets, réservations guide) : conservés pour
-      // la comptabilité/commission mais anonymisés — userId y est déjà
-      // nullable pour ce cas d'usage.
+      // Registres financiers (billets, réservations guide, commandes de la
+      // boutique) : conservés pour la comptabilité mais anonymisés. Le schéma
+      // ferait déjà passer `Order.userId` à NULL (onDelete: SetNull) ; c'est
+      // écrit ici pour que la règle se lise au même endroit que les autres.
       this.prisma.ticket.updateMany({ where: { userId }, data: { userId: null } }),
       this.prisma.guideBooking.updateMany({ where: { userId }, data: { userId: null } }),
+      this.prisma.order.updateMany({ where: { userId }, data: { userId: null } }),
 
       // Révoque toutes les sessions actives avant de supprimer le compte
       // (redondant avec le cascade du schéma, gardé explicite par clarté).
