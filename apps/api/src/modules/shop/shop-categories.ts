@@ -469,7 +469,7 @@ export function normalize(s: string): string {
  *
  * Le `s`/`x` final optionnel évite de devoir lister chaque pluriel.
  */
-function containsTerm(normalizedTitle: string, term: string): boolean {
+export function containsTerm(normalizedTitle: string, term: string): boolean {
   // Séparateurs souples entre les mots du terme : « boucle d oreille » doit
   // reconnaître « boucle d'oreille », et « pique-nique » reconnaître
   // « pique nique ». Les vendeurs écrivent les deux, indifféremment.
