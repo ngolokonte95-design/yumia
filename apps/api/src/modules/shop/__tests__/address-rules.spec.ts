@@ -1,4 +1,6 @@
 import {
+  aliexpressProvince,
+  frenchRegionFromPostalCode,
   normalizeRecipientName,
   phoneProblem,
   recipientNameProblem,
@@ -65,5 +67,40 @@ describe('adresse complète', () => {
     expect(shippingAddressProblem({ fullName: 'Dupont', phone: '12', countryCode: 'FR' })).toMatch(/prénom/);
     expect(shippingAddressProblem({ fullName: 'Marie Dupont', phone: '12', countryCode: 'FR' })).toMatch(/téléphone/);
     expect(shippingAddressProblem({ fullName: 'Marie Dupont', phone: '0612345678', countryCode: 'FR' })).toBeNull();
+  });
+});
+
+describe('région française', () => {
+  // Seconde cause du refus de YUM-E2EE26 : « Please select a
+  // State/Province/County », la ville en repli n'étant pas acceptée.
+  it('déduit la région du code postal', () => {
+    expect(frenchRegionFromPostalCode('75011')).toBe('Ile-de-France');
+    expect(frenchRegionFromPostalCode('95100')).toBe('Ile-de-France');
+    expect(frenchRegionFromPostalCode('69003')).toBe('Auvergne-Rhone-Alpes');
+    expect(frenchRegionFromPostalCode('13001')).toBe("Provence-Alpes-Cote d'Azur");
+    expect(frenchRegionFromPostalCode('20000')).toBe('Corse');
+    expect(frenchRegionFromPostalCode('97400')).toBe('La Reunion');
+    expect(frenchRegionFromPostalCode('01000')).toBe('Auvergne-Rhone-Alpes');
+  });
+
+  it('ne devine rien sur un code postal invalide', () => {
+    expect(frenchRegionFromPostalCode('7501')).toBeNull();
+    expect(frenchRegionFromPostalCode('ABCDE')).toBeNull();
+    expect(frenchRegionFromPostalCode('')).toBeNull();
+  });
+
+  it("couvre les 96 départements métropolitains", () => {
+    const manquants: string[] = [];
+    for (let d = 1; d <= 95; d += 1) {
+      const dep = String(d).padStart(2, '0');
+      if (!frenchRegionFromPostalCode(`${dep}000`)) manquants.push(dep);
+    }
+    expect(manquants).toEqual([]);
+  });
+
+  it('préfère le code postal à la saisie en France, la saisie ailleurs', () => {
+    expect(aliexpressProvince({ countryCode: 'FR', postalCode: '95100', province: 'IDF', city: 'Argenteuil' })).toBe('Ile-de-France');
+    expect(aliexpressProvince({ countryCode: 'BE', postalCode: '1000', province: 'Bruxelles-Capitale', city: 'Bruxelles' })).toBe('Bruxelles-Capitale');
+    expect(aliexpressProvince({ countryCode: 'BE', postalCode: '1000', province: '', city: 'Bruxelles' })).toBe('Bruxelles');
   });
 });

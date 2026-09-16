@@ -17,6 +17,7 @@
  *
  *   --nom=…        remplace le nom du destinataire dans la commande
  *   --telephone=…  remplace son téléphone
+ *   --region=…     force la région transmise à AliExpress (sinon déduite du code postal)
  *   --envoyer      retransmet à AliExpress (sinon : diagnostic seulement)
  */
 import { NestFactory } from '@nestjs/core';
@@ -25,6 +26,7 @@ import { AppModule } from '../app.module';
 import { PrismaService } from '../infra/prisma/prisma.service';
 import { OrdersService } from '../modules/shop/orders.service';
 import {
+  aliexpressProvince,
   normalizeRecipientName,
   phoneProblem,
   recipientNameProblem,
@@ -40,6 +42,7 @@ async function main(): Promise<void> {
   const reference = args.find((a) => !a.startsWith('--'))?.toUpperCase();
   const nouveauNom = option('nom', args);
   const nouveauTelephone = option('telephone', args);
+  const regionForcee = option('region', args);
   const envoyer = args.includes('--envoyer');
 
   if (!reference) {
@@ -68,13 +71,17 @@ async function main(): Promise<void> {
 
     if (nouveauNom !== null) adresse['fullName'] = normalizeRecipientName(nouveauNom);
     if (nouveauTelephone !== null) adresse['phone'] = nouveauTelephone.trim();
+    if (regionForcee !== null) adresse['aliexpressProvince'] = regionForcee.trim();
 
     const mots = normalizeRecipientName(adresse['fullName'] ?? '').split(' ').filter(Boolean).length;
     const problemeNom = recipientNameProblem(adresse['fullName']);
     const problemeTel = phoneProblem(adresse['phone'], adresse['countryCode']);
     console.log(`  nom du destinataire : ${mots} mot(s) — ${problemeNom ? 'À CORRIGER' : 'conforme'}`);
     console.log(`  téléphone : ${problemeTel ? 'À CORRIGER' : 'conforme'}`);
-    console.log(`  région : ${adresse['province'] ? 'renseignée' : 'absente (la ville servira de repli)'}`);
+    // La région n'est pas une donnée sensible à ce niveau de détail, et c'est
+    // précisément la valeur qu'il faut pouvoir lire pour diagnostiquer un refus.
+    const region = adresse['aliexpressProvince'] || aliexpressProvince(adresse);
+    console.log(`  région transmise : ${region || 'AUCUNE'}${adresse['aliexpressProvince'] ? ' (forcée)' : ''}`);
 
     if (problemeNom || problemeTel) {
       console.log(`\n${problemeNom ?? problemeTel}`);
@@ -93,7 +100,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    if (nouveauNom !== null || nouveauTelephone !== null) {
+    if (nouveauNom !== null || nouveauTelephone !== null || regionForcee !== null) {
       await prisma.order.update({
         where: { id: order.id },
         data: { addressSnapshot: adresse as Prisma.InputJsonValue },

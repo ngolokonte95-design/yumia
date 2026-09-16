@@ -18,7 +18,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { envOr } from '../../common/env';
 import { AliExpressService } from './aliexpress.service';
 import { CartService } from './cart.service';
-import { normalizeRecipientName, shippingAddressProblem, splitPhone } from './address-rules';
+import { aliexpressProvince, normalizeRecipientName, shippingAddressProblem, splitPhone } from './address-rules';
 
 @Injectable()
 export class OrdersService {
@@ -287,12 +287,11 @@ export class OrdersService {
         line1: address['line1'] ?? '',
         line2: address['line2'] ?? null,
         city: address['city'] ?? '',
-        // AliExpress exige une province. Quand l'adresse n'en porte pas — les
-        // adresses saisies avant l'ajout du champ, et les pays ou personne ne
-        // la renseigne — la ville fait un repli acceptable : c'est ce que le
-        // transporteur lira, et une commande transmise vaut mieux qu'une
-        // commande bloquee.
-        province: address['province'] || address['city'] || '',
+        // AliExpress exige une région, et refuse la ville en repli pour la
+        // France (YUM-E2EE26). Elle est déduite du code postal — cf.
+        // aliexpressProvince. `aliexpressProvince` dans l'adresse figée est
+        // une valeur forcée par retry-order, prioritaire.
+        province: address['aliexpressProvince'] || aliexpressProvince(address),
         postalCode: address['postalCode'] ?? '',
         countryCode: address['countryCode'] ?? 'FR',
         phone: telephone?.national ?? address['phone'] ?? '',
