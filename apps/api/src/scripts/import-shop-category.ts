@@ -12,8 +12,16 @@
  *   node dist/scripts/import-shop-category.js peche ski-hiver --par-terme=4
  *   node dist/scripts/import-shop-category.js --vides --par-terme=4
  *   node dist/scripts/import-shop-category.js bebe-puericulture --nettoyer
+ *   node dist/scripts/import-shop-category.js --tous --nettoyer --sans-import
  *
  * `--vides` traite tous les rayons encore sans produit.
+ *
+ * `--tous` traite tous les rayons — seulement avec `--sans-import` : relancer
+ * un import sur 36 rayons d'un coup est une heure d'appels AliExpress, pas
+ * quelque chose à déclencher en oubliant une option.
+ *
+ * `--sans-import` saute l'import : avec `--nettoyer`, retire ce que les
+ * filtres refusent désormais sans rien ajouter.
  *
  * `--nettoyer` repasse d'abord les produits deja en rayon dans les filtres
  * actuels et retire ceux qui n'y satisfont plus. A lancer apres avoir
@@ -60,6 +68,8 @@ async function main(): Promise<void> {
   const parTerme = nombreApres('--par-terme=', args) ?? PAR_TERME_DEFAUT;
   const tousLesVides = args.includes('--vides');
   const nettoyer = args.includes('--nettoyer');
+  const tous = args.includes('--tous');
+  const sansImport = args.includes('--sans-import');
   let slugs = args.filter((a) => !a.startsWith('--'));
 
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -69,6 +79,13 @@ async function main(): Promise<void> {
   const imports = app.get(ShopImportService);
 
   try {
+    if (tous && !sansImport) {
+      console.error("--tous ne s'emploie qu'avec --sans-import (cf. en-tête du script).");
+      process.exitCode = 1;
+      return;
+    }
+    if (tous) slugs = SHOP_CATEGORIES.map((c) => c.slug);
+
     if (tousLesVides) {
       const vides = await prisma.shopCategory.findMany({
         where: { products: { none: {} } },
@@ -119,6 +136,8 @@ async function main(): Promise<void> {
         }
         console.log(`Nettoyage ${slug} : ${aRetirer.length} retiré(s) sur ${enBase.length}.`);
       }
+
+      if (sansImport) continue;
 
       const avant = Date.now();
       console.log(

@@ -1,6 +1,7 @@
 import {
   SHOP_CATEGORIES,
   isBanned,
+  isExcluded,
   isJunk,
   isRelevant,
   titleSignature,
@@ -150,6 +151,63 @@ describe('filtres de mots-clés', () => {
       }
     }
     expect(orphelins).toEqual([]);
+  });
+
+  it("ne cherche jamais un terme que le rayon refuserait ensuite", () => {
+    // Un terme contenant un mot interdit (globalement ou dans le rayon)
+    // ramènerait des résultats tous rejetés : une recherche AliExpress
+    // dépensée pour rien, et un rayon qui ne se remplit pas sans raison
+    // visible.
+    const contradictions: string[] = [];
+    for (const c of SHOP_CATEGORIES) {
+      for (const term of c.searchTerms) {
+        if (isBanned(term) || isExcluded(term, c.exclude)) contradictions.push(`${c.slug} : ${term}`);
+      }
+    }
+    expect(contradictions).toEqual([]);
+  });
+});
+
+/**
+ * Titres réellement trouvés par l'audit du 16/09/2026 dans des rayons où ils
+ * n'avaient rien à faire, et voisins légitimes qu'une règle trop large aurait
+ * emportés avec eux.
+ */
+describe("interdits issus de l'audit du catalogue", () => {
+  it('refuse le contenu pour adultes et les engins motorisés', () => {
+    for (const titre of [
+      "Huile de Massage lubrifiante d'olive huile lubrifiante érotique parfumée lubrifiant corporel",
+      'Quad électrique tout-terrain puissant 60V 1200W à transmission par arbre, pour adultes, enfants',
+    ]) {
+      expect(isBanned(titre)).toBe(true);
+    }
+  });
+
+  it('laisse passer les voisins légitimes de ces interdits', () => {
+    for (const titre of [
+      'Lubrifiant pour chaîne de vélo, huile téflon longue durée',
+      'Tablette Android 10 pouces, processeur Quad Core, 64 Go',
+      'Huile de massage relaxante aux huiles essentielles, 100 ml',
+    ]) {
+      expect(isBanned(titre)).toBe(false);
+    }
+  });
+
+  it("refuse dans un rayon ce qui n'a rien à y faire", () => {
+    const exclude = (slug: string) => SHOP_CATEGORIES.find((c) => c.slug === slug)!.exclude;
+    const cas: [string, string][] = [
+      ['barbier', '8in1 scie multi-usages main bricolage acier scie métal bois verre scie Kit 6 lames'],
+      ['barbier', '8mm 10mm rétroviseur convexe arrière poignée barre pour Scooter e-bike'],
+      ['tatouage-piercing', 'Pinces à gril en acier inoxydable, pince alimentaire pour barbecue'],
+      ['cake-design', 'Brosse murale de haute qualité pour le plâtrage lisse, rouleau à mastic'],
+      ['bijoux-montres', 'Soutien-gorge sans anneau en acier pour femmes, couleur unie'],
+      ['cils-sourcils', "Lampe à lentille grossissante dentaire, lampe d'éclairage pour examen de chirurgie buccale"],
+      ['lecture', 'Casque de jeu avec Microphone antibruit détachable, prise filaire 2.4G'],
+      ['ski-hiver', 'Masque de Protection complet Anti-buée avec filtre, masque Anti-éclaboussures et Anti-gouttelettes'],
+      ['pique-nique', "Planche à pendule en bois pour l'autel Wicca, planche décorative métaphysique"],
+    ];
+    const passes = cas.filter(([slug, titre]) => !isExcluded(titre, exclude(slug)));
+    expect(passes).toEqual([]);
   });
 });
 

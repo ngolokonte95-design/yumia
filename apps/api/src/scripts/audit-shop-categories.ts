@@ -1,32 +1,38 @@
 /**
- * Repère les produits entrés dans un rayon par un mot trop général.
+ * Repère les produits qu'aucun mot spécifique ne rattache à leur rayon.
  *
  * Lecture seule — ne modifie rien.
  *
  * Pourquoi ce script : `keywords` est une liste OU. Il suffit qu'un titre
  * contienne un seul mot du rayon pour y entrer, et certains de ces mots
- * (« rangement », « couche », « chambre », « support »…) se retrouvent dans des
- * objets de tous les rayons. Le contrôle manuel du rayon Bébé y a trouvé des
- * couches pour chien et une robe de chambre pour femme ; les autres rayons
- * n'avaient jamais été relus.
+ * (« rangement », « couche », « chambre », « rouleau »…) désignent des objets
+ * de tous les rayons. Le contrôle manuel du rayon Bébé y a trouvé des couches
+ * pour chien et une robe de chambre pour femme.
  *
- * Relire 5 000 titres à la main n'est pas réaliste. On mesure donc plutôt :
- * un mot-clé est **général** s'il apparaît dans les titres de nombreux rayons
- * différents. « moulinet » ne se trouve qu'en Pêche ; « support » se trouve
- * partout. Un produit dont TOUS les mots-clés reconnus sont généraux n'est
- * rattaché à son rayon par rien de spécifique : c'est lui qu'il faut relire.
+ * Mesure retenue — la spécificité d'un mot pour un rayon : parmi tous les
+ * titres du catalogue qui contiennent ce mot, quelle part se trouve dans ce
+ * rayon ? « moulinet » est à 100 % en Pêche ; « rouleau » est dispersé entre
+ * pâtisserie, peinture, sport et bricolage. Un produit est à relire quand même
+ * son mot le plus spécifique l'est peu.
  *
- * Le résultat est une liste à relire, pas une liste à supprimer — un mot
- * général peut très bien désigner le bon objet.
+ * Une première version comptait plutôt dans COMBIEN de rayons un mot
+ * apparaît. Elle signalait 1 704 produits, en majorité légitimes : les
+ * vendeurs glissent « voyage », « randonnée » ou « camping » dans des titres de
+ * tous les rayons, si bien que le mot central de chaque rayon passait pour
+ * général — et les bâtons de randonnée étaient « à relire ». La part relative
+ * ne tombe pas dans ce piège : le rayon Randonnée garde la majorité des titres
+ * qui disent « randonnée ».
+ *
+ * Le résultat reste une liste à relire, pas à supprimer.
  *
  * Usage (dans le conteneur) :
  *   node dist/scripts/audit-shop-categories.js
  *   node dist/scripts/audit-shop-categories.js --rayon=cuisine
- *   node dist/scripts/audit-shop-categories.js --seuil=8 --exemples=10
+ *   node dist/scripts/audit-shop-categories.js --specificite=20 --exemples=8
  *
- *   --seuil=N     un mot est général s'il apparaît dans au moins N rayons (6)
- *   --exemples=N  titres suspects affichés par rayon (5)
- *   --rayon=slug  n'affiche que ce rayon, avec tous ses titres suspects
+ *   --specificite=N  seuil en %, sous lequel un produit est à relire (25)
+ *   --exemples=N     titres affichés par rayon (6)
+ *   --rayon=slug     n'affiche que ce rayon, avec tous ses titres à relire
  */
 import { PrismaClient } from '@prisma/client';
 import {
@@ -40,9 +46,6 @@ import {
 } from '../modules/shop/shop-categories';
 
 const prisma = new PrismaClient();
-
-/** Occurrences minimales dans un rayon pour que le mot y « existe » vraiment. */
-const MIN_PAR_RAYON = 2;
 
 function option(nom: string, args: string[]): string | null {
   const arg = args.find((a) => a.startsWith(`--${nom}=`));
@@ -60,41 +63,48 @@ function tronque(s: string, n: number): string {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const seuil = entier('seuil', args, 6);
-  const exemples = entier('exemples', args, 5);
+  const seuil = entier('specificite', args, 25) / 100;
+  const exemples = entier('exemples', args, 6);
   const seulRayon = option('rayon', args);
   const debut = Date.now();
 
   const produits = await prisma.product.findMany({
-    select: { id: true, title: true, category: { select: { slug: true } } },
+    select: { title: true, category: { select: { slug: true } } },
   });
 
-  // Titres normalisés une seule fois, groupés par rayon.
-  const parRayon = new Map<string, { id: string; title: string; norm: string }[]>();
+  const parRayon = new Map<string, { title: string; norm: string }[]>();
   for (const p of produits) {
     const liste = parRayon.get(p.category.slug) ?? [];
-    liste.push({ id: p.id, title: p.title, norm: normalize(p.title) });
+    liste.push({ title: p.title, norm: normalize(p.title) });
     parRayon.set(p.category.slug, liste);
   }
 
-  // ── Étendue de chaque mot-clé : dans combien de rayons apparaît-il ? ──────
+  // ── Occurrences de chaque mot-clé, rayon par rayon ────────────────────────
   const motsCles = new Set(SHOP_CATEGORIES.flatMap((c) => c.keywords.map(normalize)));
-  const etendue = new Map<string, number>();
+  const occurrences = new Map<string, Map<string, number>>();
+  const totaux = new Map<string, number>();
   for (const mot of motsCles) {
-    let rayons = 0;
-    for (const titres of parRayon.values()) {
-      let vus = 0;
-      for (const t of titres) {
-        if (containsTerm(t.norm, mot) && ++vus >= MIN_PAR_RAYON) break;
-      }
-      if (vus >= MIN_PAR_RAYON) rayons += 1;
+    const parSlug = new Map<string, number>();
+    let total = 0;
+    for (const [slug, titres] of parRayon) {
+      let n = 0;
+      for (const t of titres) if (containsTerm(t.norm, mot)) n += 1;
+      if (n > 0) parSlug.set(slug, n);
+      total += n;
     }
-    etendue.set(mot, rayons);
+    occurrences.set(mot, parSlug);
+    totaux.set(mot, total);
   }
-  const estGeneral = (mot: string) => (etendue.get(normalize(mot)) ?? 0) >= seuil;
+
+  /** Part des titres contenant `mot` qui se trouvent dans `slug`. */
+  const specificite = (mot: string, slug: string): number => {
+    const m = normalize(mot);
+    const total = totaux.get(m) ?? 0;
+    return total === 0 ? 0 : (occurrences.get(m)?.get(slug) ?? 0) / total;
+  };
 
   // ── Audit rayon par rayon ─────────────────────────────────────────────────
-  type Ligne = { slug: string; nom: string; total: number; faibles: number; horsFiltre: number };
+  type Ligne = { slug: string; total: number; aRelire: number; horsFiltre: number };
   const bilan: Ligne[] = [];
 
   for (const seed of SHOP_CATEGORIES) {
@@ -102,86 +112,73 @@ async function main(): Promise<void> {
     const titres = parRayon.get(seed.slug) ?? [];
     if (titres.length === 0) continue;
 
-    const horsFiltre: string[] = [];
-    const faibles: { title: string; mots: string[] }[] = [];
+    let horsFiltre = 0;
+    const aRelire: { title: string; meilleur: string; part: number }[] = [];
     const responsables = new Map<string, number>();
 
     for (const t of titres) {
-      // Ce qui ne passerait plus les filtres actuels : un import plus ancien
-      // que le dernier resserrement des critères.
+      const reconnus = seed.keywords.filter((k) => containsTerm(t.norm, k));
       if (
+        reconnus.length === 0 ||
         isBanned(t.title) ||
         isExcluded(t.title, seed.exclude) ||
         !matchesContext(t.title, seed.requireContext) ||
         isJunk(t.title, seed.keywords)
       ) {
-        horsFiltre.push(t.title);
+        horsFiltre += 1;
         continue;
       }
 
-      const reconnus = seed.keywords.filter((k) => containsTerm(t.norm, k));
-      if (reconnus.length === 0) {
-        horsFiltre.push(t.title);
-        continue;
+      let meilleur = reconnus[0];
+      let part = specificite(meilleur, seed.slug);
+      for (const k of reconnus.slice(1)) {
+        const s = specificite(k, seed.slug);
+        if (s > part) { meilleur = k; part = s; }
       }
-      if (reconnus.every(estGeneral)) {
-        faibles.push({ title: t.title, mots: reconnus });
-        for (const m of reconnus) responsables.set(m, (responsables.get(m) ?? 0) + 1);
+      if (part < seuil) {
+        aRelire.push({ title: t.title, meilleur, part });
+        responsables.set(meilleur, (responsables.get(meilleur) ?? 0) + 1);
       }
     }
 
-    bilan.push({
-      slug: seed.slug,
-      nom: seed.nameFr,
-      total: titres.length,
-      faibles: faibles.length,
-      horsFiltre: horsFiltre.length,
-    });
+    bilan.push({ slug: seed.slug, total: titres.length, aRelire: aRelire.length, horsFiltre });
+    if (aRelire.length === 0 && horsFiltre === 0) continue;
 
-    if (faibles.length === 0 && horsFiltre.length === 0) continue;
-
-    const pct = Math.round((faibles.length / titres.length) * 100);
+    const pct = Math.round((aRelire.length / titres.length) * 100);
     const mots = [...responsables.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
-      .map(([m, n]) => `${m} (${n})`)
+      .map(([m, n]) => `${m} ${Math.round(specificite(m, seed.slug) * 100)} % (${n})`)
       .join(', ');
 
-    console.log(`\n■ ${seed.emoji} ${seed.nameFr} [${seed.slug}] — ${faibles.length}/${titres.length} à relire (${pct} %)`);
-    if (horsFiltre.length > 0) console.log(`  ${horsFiltre.length} ne passent plus les filtres actuels`);
-    if (mots) console.log(`  entrés par : ${mots}`);
+    console.log(`\n■ ${seed.emoji} ${seed.nameFr} [${seed.slug}] — ${aRelire.length}/${titres.length} à relire (${pct} %)`);
+    if (horsFiltre > 0) console.log(`  ${horsFiltre} ne passent plus les filtres actuels`);
+    if (mots) console.log(`  meilleur mot, et sa part dans ce rayon : ${mots}`);
 
-    const limite = seulRayon ? faibles.length : exemples;
-    for (const f of faibles.slice(0, limite)) {
-      console.log(`   · ${tronque(f.title, seulRayon ? 140 : 95)}`);
+    // Les moins rattachés d'abord : ce sont les plus probablement hors sujet.
+    aRelire.sort((a, b) => a.part - b.part);
+    const limite = seulRayon ? aRelire.length : exemples;
+    for (const r of aRelire.slice(0, limite)) {
+      console.log(`   · ${tronque(r.title, seulRayon ? 140 : 95)}`);
     }
-    if (!seulRayon && faibles.length > limite) console.log(`   … et ${faibles.length - limite} autre(s)`);
+    if (!seulRayon && aRelire.length > limite) console.log(`   … et ${aRelire.length - limite} autre(s)`);
   }
 
-  // ── Synthèse ──────────────────────────────────────────────────────────────
   if (!seulRayon) {
     const total = bilan.reduce((s, l) => s + l.total, 0);
-    const faibles = bilan.reduce((s, l) => s + l.faibles, 0);
+    const aRelire = bilan.reduce((s, l) => s + l.aRelire, 0);
     const horsFiltre = bilan.reduce((s, l) => s + l.horsFiltre, 0);
 
-    console.log('\n══ Synthèse, du rayon le plus touché au moins touché ══');
-    for (const l of [...bilan].sort((a, b) => b.faibles / b.total - a.faibles / a.total)) {
-      const pct = Math.round((l.faibles / l.total) * 100);
+    console.log(`\n══ Synthèse (spécificité < ${Math.round(seuil * 100)} %) ══`);
+    for (const l of [...bilan].sort((a, b) => b.aRelire / b.total - a.aRelire / a.total)) {
+      const pct = Math.round((l.aRelire / l.total) * 100);
       console.log(
-        `  ${String(pct).padStart(3)} %  ${String(l.faibles).padStart(4)}/${String(l.total).padEnd(4)} ${l.slug}` +
+        `  ${String(pct).padStart(3)} %  ${String(l.aRelire).padStart(4)}/${String(l.total).padEnd(4)} ${l.slug}` +
           (l.horsFiltre ? `  (+${l.horsFiltre} hors filtre)` : ''),
       );
     }
-
-    const generaux = [...etendue.entries()]
-      .filter(([, n]) => n >= seuil)
-      .sort((a, b) => b[1] - a[1])
-      .map(([m, n]) => `${m} (${n})`);
-    console.log(`\nMots-clés généraux (présents dans ${seuil} rayons ou plus) : ${generaux.length}`);
-    console.log(`  ${generaux.join(', ')}`);
-
     console.log(
-      `\n${faibles} produit(s) à relire sur ${total}, ${horsFiltre} hors filtre — ` +
+      `\n${aRelire} produit(s) à relire sur ${total}, ${horsFiltre} hors filtre — ` +
         `${Math.round((Date.now() - debut) / 1000)}s.`,
     );
   }

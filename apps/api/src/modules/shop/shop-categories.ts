@@ -76,6 +76,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🏖️',
     universe: 'beach',
     sortOrder: 30,
+    // Refusés ici : le premier audit y a trouvé des lingettes de salle de bain, entrées par « serviette ».
+    exclude: ['salle de bain', 'lingette'],
     searchTerms: ['serviette plage microfibre', 'sac etanche plage', 'parasol portable plage', 'matelas gonflable plage', 'chapeau paille plage', 'tapis de plage antisable', 'jeu raquettes plage', 'douche solaire portable', 'sandales plage antiderapantes', 'pochette telephone etanche', 'glaciere souple plage', 'hamac portable', 'tente de plage anti uv', 'bouee gonflable geante', 'ballon plage gonflable', 'sac filet plage', 'brumisateur portable rechargeable', 'ventilateur portable rechargeable', 'lunettes soleil polarisees', 'paravent plage pliable', 'coffre rangement plage', 'poncho serviette surf', 'jeux sable enfant', 'support parasol sable'],
     keywords: ['plage', 'mer', 'sable', 'balneaire', 'serviette', 'parasol', 'etanche', 'maillot', 'bouee', 'hamac', 'solaire', 'sandale', 'chapeau', 'tente', 'ballon', 'filet', 'brumisateur', 'ventilateur', 'lunette', 'paravent', 'coffre', 'poncho', 'jeu', 'tapis', 'glaciere', 'douche', 'matelas', 'pochette', 'support'],
   },
@@ -103,6 +105,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🧺',
     universe: 'picnic_area',
     sortOrder: 60,
+    // Refusés ici : le premier audit y a trouvé une planche à pendule d'autel wicca, entrée par « planche ».
+    exclude: ['wicca', 'autel', 'pendule', 'metaphysique'],
     searchTerms: ['panier pique nique', 'glaciere isotherme', 'nappe pique nique impermeable', 'couverts reutilisables pique nique', 'plaid pique nique impermeable', 'boite repas compartiment', 'sac isotherme dejeuner', 'planche apero bois', 'gourde isotherme', 'moulin poivre sel voyage', 'verres incassables plein air', 'tire bouchon pique nique', 'lunch box chauffante', 'set couteaux picnic', 'pack froid reutilisable', 'distributeur boisson picnic', 'table pliante picnic', 'coussin assise exterieur', 'sac a dos picnic equipe', 'boite salade nomade', 'thermos alimentaire soupe', 'serviettes tissu picnic', 'parasol table exterieur', 'panier osier rangement'],
     keywords: ['pique-nique', 'pique nique', 'picnic', 'panier', 'glaciere', 'isotherme', 'nappe', 'plaid', 'couvert', 'gourde', 'apero', 'planche', 'boite repas', 'lunch', 'thermos', 'moulin', 'verre', 'tire bouchon', 'pack froid', 'distributeur', 'table', 'coussin', 'sac', 'boite', 'serviette', 'parasol', 'osier', 'couteau'],
   },
@@ -148,6 +152,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '💈',
     universe: 'barber',
     sortOrder: 110,
+    // Refusés ici : le premier audit y a trouvé une scie et un rétroviseur de scooter, entrés par « kit » et « miroir ».
+    exclude: ['scie', 'retroviseur', 'scooter'],
     searchTerms: ['tondeuse barbe professionnelle', 'tondeuse barbe rechargeable', 'kit entretien barbe complet', 'rasoir de surete metal', 'ciseaux barbier professionnel', 'huile a barbe hydratante', 'blaireau rasage poils', 'tondeuse cheveux professionnelle', 'miroir barbier double face', 'peigne barbe bois', 'baume a barbe coiffant', 'tondeuse nez oreilles', 'serviette barbier chauffante', 'chauffe serviette barbier', 'rasoir electrique etanche', 'tete rasoir rotatif', 'pochette rangement barbier', 'tablier barbier impermeable', 'pinceau nettoyage tondeuse', 'shampoing barbe', 'brosse barbe sanglier', 'peigne poche metal', 'affuteur rasoir cuir', 'coffret rasage traditionnel'],
     keywords: ['barbe', 'rasage', 'rasoir', 'tondeuse', 'barbier', 'moustache', 'blaireau', 'peigne', 'huile', 'baume', 'ciseaux', 'miroir', 'serviette', 'pochette', 'tablier', 'pinceau', 'shampoing', 'brosse', 'affuteur', 'coffret', 'kit', 'tete'],
   },
@@ -166,6 +172,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '👁️',
     universe: 'lash_studio',
     sortOrder: 130,
+    // Refusés ici : le premier audit y a trouvé une lampe d'examen de chirurgie dentaire, entrée par « lampe ».
+    exclude: ['dentaire', 'chirurgie', 'chirurgical'],
     searchTerms: ['extension de cils professionnel', 'kit extension cils volume russe', 'pince a cils courbe', 'kit rehaussement cils', 'teinture sourcils kit', 'colle extension cils', 'pincettes precision cils', 'serum croissance cils', 'pochoir sourcils forme', 'brosse sourcils double', 'lampe loupe estheticienne', 'patch hydrogel yeux', 'recourbe cils chauffant', 'ventilateur sechage cils', 'plateau colle cils', 'ruban microporeux cils', 'crayon sourcils precision', 'gel fixateur sourcils', 'faux cils magnetiques', 'eyeliner magnetique cils', 'miroir grossissant maquillage', 'ciseaux sourcils precision', 'peigne cils sourcils metal', 'tapis silicone cils'],
     keywords: ['cil', 'cils', 'sourcil', 'sourcils', 'extension', 'rehaussement', 'mascara', 'teinture', 'pince', 'pincette', 'pochoir', 'serum', 'hydrogel', 'lampe', 'loupe', 'recourbe', 'ventilateur', 'plateau', 'ruban', 'crayon', 'gel', 'magnetique', 'eyeliner', 'miroir', 'ciseaux', 'peigne', 'tapis', 'colle', 'brosse', 'patch', 'kit'],
   },
@@ -175,6 +183,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🪩',
     universe: 'tattoo',
     sortOrder: 140,
+    // Refusés ici : le premier audit y a trouvé une pince à barbecue, entrée par « pince ».
+    exclude: ['barbecue', 'gril', 'steak'],
     searchTerms: ['bijou piercing titane', 'anneau septum acier chirurgical', 'piercing nombril acier', 'barbell langue titane', 'boucle oreille chirurgicale', 'creole acier inoxydable', 'ecarteur oreille bois', 'faux piercing sans trou', 'creme soin tatouage', 'baume apres tatouage', 'film protecteur tatouage', 'pansement tatouage transparent', 'tatouage temporaire adulte', 'tatouage temporaire realiste', 'pochoir tatouage temporaire', 'crayon transfert tatouage', 'gants nitrile noir', 'lampe loupe studio', 'repose bras tatouage', 'housse protection studio', 'nettoyant piercing solution', 'pince piercing acier', 'coffret piercing assorti', 'presentoir bijoux corps'],
     keywords: ['tatouage', 'tattoo', 'piercing', 'bijou', 'temporaire', 'septum', 'nombril', 'barbell', 'langue', 'boucle', 'creole', 'ecarteur', 'creme', 'baume', 'film', 'pansement', 'pochoir', 'crayon', 'nitrile', 'lampe', 'loupe', 'repose', 'housse', 'nettoyant', 'pince', 'coffret', 'presentoir', 'anneau', 'gant'],
   },
@@ -262,6 +272,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🎤',
     universe: 'karaoke',
     sortOrder: 240,
+    // Refusés ici : le premier audit y a trouvé des lampes de bureau et d'armoire, entrées par « led ».
+    exclude: ['lampe de bureau', 'sous armoire', 'placard'],
     searchTerms: ['micro karaoke bluetooth', 'micro sans fil karaoke duo', 'enceinte karaoke portable', 'enceinte lumineuse soiree', 'jeu de lumiere soiree', 'projecteur laser soiree', 'boule disco led rotative', 'barre led effet scene', 'machine a bulles fete', 'machine a fumee portable', 'guirlande led soiree', 'rideau lumineux led', 'ballons decoration fete', 'arche ballons anniversaire', 'photobooth accessoires set', 'cadre photobooth fete', 'confettis canon fete', 'bougies fontaine gateau', 'masque led fete', 'bracelets lumineux fete', 'table lumineuse led bar', 'verres led lumineux', 'banderole anniversaire personnalisable', 'ampoule led couleur telecommande'],
     keywords: ['karaoke', 'soiree', 'fete', 'micro', 'lumiere', 'disco', 'led', 'fumee', 'bulle', 'ballon', 'confetti', 'guirlande', 'photobooth', 'enceinte', 'laser', 'barre', 'rideau', 'arche', 'cadre', 'bougie', 'masque', 'bracelet', 'table', 'verre', 'banderole', 'ampoule', 'projecteur', 'machine', 'jeu'],
   },
@@ -271,6 +283,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '📚',
     universe: 'bookstore',
     sortOrder: 250,
+    // Refusés ici : le premier audit y a trouvé un casque de jeu vidéo, entré par « support ».
+    exclude: ['casque de jeu', 'gaming', 'gamer'],
     searchTerms: ['liseuse housse protection', 'support liseuse lit', 'lampe de lecture rechargeable', 'lampe clip livre led', 'support livre lecture reglable', 'coussin lecture lit ergonomique', 'marque page magnetique set', 'marque page metal design', 'serre livres decoratifs', 'etagere murale livres', 'carnet cuir notes', 'carnet pointille bullet journal', 'stylo plume calligraphie', 'set calligraphie debutant', 'stylo roller encre noire', 'encre calligraphie flacon', 'kit lettering brush pen', 'feutres coloriage adulte', 'tampons scrapbooking papeterie', 'washi tape decoratif', 'loupe lecture eclairee', 'plaid lecture polaire', 'casque audio confort lecture', 'coffret cadeau lecture the', 'boite rangement papeterie', 'trousse crayons cuir'],
     keywords: ['livre', 'lecture', 'liseuse', 'marque-page', 'marque page', 'lampe', 'carnet', 'stylo', 'plume', 'roller', 'encre', 'calligraphie', 'lettering', 'feutre', 'tampon', 'washi', 'loupe', 'plaid', 'casque', 'coffret', 'papeterie', 'boite', 'trousse', 'serre-livres', 'serre livres', 'etagere', 'support', 'coussin', 'kit', 'set'],
   },
@@ -280,6 +294,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '💍',
     universe: 'jewelry',
     sortOrder: 260,
+    // Refusés ici : le premier audit y a trouvé un soutien-gorge, entré par « acier » (armatures).
+    exclude: ['soutien-gorge', 'lingerie', 'culotte'],
     searchTerms: ['collier acier inoxydable femme', 'collier homme chaine acier', 'bracelet cuir homme tresse', 'bracelet jonc femme acier', 'montre automatique homme squelette', 'montre femme bracelet maille', 'montre homme chronographe acier', 'montre minimaliste unisexe', 'boucles oreilles argent 925', 'creoles acier dorees', 'bague acier femme reglable', 'chevaliere homme acier', 'chaine cheville femme', 'pendentif argent 925', 'bracelet perles pierre naturelle', 'collier pierre naturelle', 'broche vintage elegante', 'parure bijoux mariage', 'coffret rangement bijoux', 'boite montre rangement', 'remontoir montre automatique', 'outil reglage bracelet montre', 'presentoir bijoux comptoir', 'pochette voyage bijoux'],
     keywords: ['bijou', 'collier', 'bracelet', 'bague', 'montre', 'pendentif', 'chaine', 'boucle', 'argent', 'acier', 'perle', 'broche', 'cheville', 'coffret', 'boucle d oreille', 'creole', 'chevaliere', 'parure', 'pierre', 'remontoir', 'outil', 'presentoir', 'pochette', 'boite', 'jonc'],
   },
@@ -288,7 +304,17 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     nameFr: 'Jouets & cadeaux',
     emoji: '🎁',
     sortOrder: 280,
-    searchTerms: ['briques construction compatibles', 'blocs construction enfant creatif', 'maquette construction bois', 'circuit voitures enfant', 'voiture telecommandee tout terrain', 'voiture telecommandee cascade', 'camion telecommande chantier', 'robot telecommande enfant', 'cartes a collectionner classeur', 'classeur rangement cartes', 'protege cartes pochettes', 'jeu de cartes famille', 'jeu de societe famille', 'jeu societe strategie plateau', 'puzzle 1000 pieces adulte', 'puzzle 3d maquette', 'peluche geante douce', 'peluche animal realiste', 'doudou bebe naissance', 'poupee chiffon tissu', 'jouet montessori bois', 'kit science enfant experience', 'jeu construction magnetique', 'tableau magnetique enfant', 'veilleuse enfant projection', 'coffret cadeau naissance', 'jouet interactif bebe eveil', 'tapis eveil bebe', 'accessoires gaming enfant', 'manette retro gaming', 'velo enfant 12 pouces roulettes', 'velo enfant 16 pouces', 'porteur bebe voiture', 'trotteur porteur enfant', 'voiture electrique enfant telecommande', 'quad electrique enfant', 'moto electrique enfant', 'kart a pedales enfant', 'draisienne bois bebe', 'casque enfant velo trottinette'],
+    // Ni véhicule motorisé, ni casque. Un « quad électrique enfant » importé
+    // ici faisait 60 V et 1 200 W : AliExpress renvoie de vrais engins sous ce
+    // nom. Un casque de vélo est un équipement de protection individuelle
+    // (règlement (UE) 2016/425, norme EN 1078) — non certifié, il ne protège
+    // rien, et c'est un enfant qui le porte. Les termes de recherche
+    // correspondants ont été retirés ; ces mots les refusent s'ils reviennent
+    // par un autre chemin.
+    // « casque » seul n'y figure pas : un casque audio pour enfant reste un
+    // cadeau légitime.
+    exclude: ['quad', 'moto electrique', 'pocket bike', '48v', '60v', '72v', 'casque de velo', 'casque velo', 'casque enfant velo', 'casque de trottinette', 'casque de protection'],
+    searchTerms: ['briques construction compatibles', 'blocs construction enfant creatif', 'maquette construction bois', 'circuit voitures enfant', 'voiture telecommandee tout terrain', 'voiture telecommandee cascade', 'camion telecommande chantier', 'robot telecommande enfant', 'cartes a collectionner classeur', 'classeur rangement cartes', 'protege cartes pochettes', 'jeu de cartes famille', 'jeu de societe famille', 'jeu societe strategie plateau', 'puzzle 1000 pieces adulte', 'puzzle 3d maquette', 'peluche geante douce', 'peluche animal realiste', 'doudou bebe naissance', 'poupee chiffon tissu', 'jouet montessori bois', 'kit science enfant experience', 'jeu construction magnetique', 'tableau magnetique enfant', 'veilleuse enfant projection', 'coffret cadeau naissance', 'jouet interactif bebe eveil', 'tapis eveil bebe', 'accessoires gaming enfant', 'manette retro gaming', 'velo enfant 12 pouces roulettes', 'velo enfant 16 pouces', 'porteur bebe voiture', 'trotteur porteur enfant', 'voiture electrique enfant telecommande', 'kart a pedales enfant', 'draisienne bois bebe'],
     keywords: ['jouet', 'jeu', 'peluche', 'puzzle', 'poupee', 'montessori', 'construction', 'brique', 'bloc', 'circuit', 'voiture', 'telecommande', 'camion', 'robot', 'carte', 'classeur', 'pochette', 'maquette', 'doudou', 'veilleuse', 'coffret', 'cadeau', 'naissance', 'interactif', 'eveil', 'tapis', 'magnetique', 'tableau', 'science', 'gaming', 'manette', 'figurine', 'enfant', 'bebe', 'velo', 'porteur', 'trotteur', 'quad', 'moto', 'kart', 'draisienne', 'roulette', 'pedale', 'electrique', 'casque', 'pouce'],
   },
   {
@@ -332,6 +358,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🧁',
     universe: 'bakery',
     sortOrder: 330,
+    // Refusés ici : le premier audit y a trouvé des rouleaux de plâtrier et de peintre, entrés par « rouleau ».
+    exclude: ['platre', 'platrage', 'mastic', 'reboucher', 'enduit', 'peinture decorative'],
     searchTerms: ['moule silicone patisserie', 'moule gateau anniversaire', 'poche a douille set', 'douilles inox patisserie', 'colorant alimentaire gel', 'colorant poudre alimentaire', 'tapis silicone patisserie', 'tapis mesure patisserie', 'emporte piece patisserie', 'emporte piece biscuits set', 'plateau tournant gateau', 'plateau presentation gateau', 'spatule lissante gateau', 'lisseur pate a sucre', 'thermometre sucre cuisson', 'thermometre four numerique', 'caissettes cupcake papier', 'support cupcakes presentoir', 'decoration comestible gateau', 'perles sucre decoration', 'rouleau texture pate a sucre', 'rouleau patisserie ajustable', 'boite transport gateau', 'carton support gateau', 'pistolet decoration gateau', 'set modelage pate a sucre', 'tapis dentelle sucre', 'pochoir decoration gateau'],
     keywords: ['patisserie', 'gateau', 'moule', 'douille', 'poche', 'colorant', 'tapis', 'emporte', 'plateau', 'spatule', 'lisseur', 'thermometre', 'caissette', 'cupcake', 'decoration', 'pate a sucre', 'rouleau', 'boite', 'silicone', 'cuisson', 'presentoir', 'perle', 'carton', 'pistolet', 'modelage', 'dentelle', 'pochoir', 'support', 'set'],
   },
@@ -357,6 +385,8 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     // Accessoires uniquement. Skis, snowboards et chaussures sont volumineux
     // à expédier et se choisissent à la pointure : en importation lointaine,
     // c'est la garantie d'un taux de retour qui mange la marge.
+    // Refusés ici : le premier audit y a trouvé des masques de protection anti-gouttelettes, entrés par « masque ».
+    exclude: ['gouttelette', 'eclaboussure'],
     searchTerms: ['masque de ski antibuee', 'masque snowboard photochromique', 'gant de ski chauffant', 'gant snowboard impermeable', 'sous-gant thermique ski', 'chaussette de ski thermique', 'cagoule ski polaire', 'tour de cou thermique', 'bonnet ski polaire', 'chaufferette main rechargeable', 'chaufferette jetable hiver', 'casque de ski adulte', 'protection dorsale snowboard', 'housse a ski transport', 'sangle porte-ski', 'sac a dos ski randonnee', 'lunette glacier montagne', 'sous-vetement thermique ski', 'crampon chaussure neige', 'guetre neige randonnee', 'raquette a neige adulte', 'baton de ski telescopique', 'sechoir chaussure de ski', 'fart ski entretien', 'antivol ski cadenas', 'genouillere protection ski'],
     keywords: ['ski', 'snowboard', 'neige', 'montagne', 'antibuee', 'photochromique', 'masque', 'gant', 'sous-gant', 'chaussette', 'cagoule', 'tour de cou', 'bonnet', 'thermique', 'polaire', 'chaufferette', 'chauffe-main', 'casque', 'dorsale', 'genouillere', 'housse', 'porte-ski', 'glacier', 'sous-vetement', 'crampon', 'guetre', 'raquette a neige', 'baton', 'sechoir', 'fart', 'hiver', 'impermeable'],
   },
@@ -438,6 +468,16 @@ export const BANNED_KEYWORDS = [
   'encre de tatouage', 'kit de percage', 'pistolet a percer', 'lentille de contact',
   'medicament', 'complement alimentaire', 'e-cigarette', 'cigarette electronique',
   'arme', 'couteau papillon', 'taser', 'laser pointeur',
+  // Contenu pour adultes. L'inscription est réservée aux 16 ans et plus, et
+  // rien de ceci n'a sa place dans une boutique généraliste : un lubrifiant
+  // « érotique » est entré dans Spa & massage par le seul mot « massage ».
+  // « lubrifiant » seul n'y figure pas — celui d'une chaîne de vélo est légitime.
+  'erotique', 'lubrifiant intime', 'lubrifiant corporel', 'sextoy', 'sex toy',
+  'vibromasseur', 'godemiche', 'masturbateur', 'plug anal', 'bdsm',
+  // Engins motorisés : un quad électrique 60 V « pour adultes et enfants » est
+  // entré dans Vélo & mobilité. « quad » seul n'y figure pas : il désigne
+  // aussi les processeurs « quad core » des tablettes.
+  'quad electrique', 'quad tout-terrain', 'mini moto', 'pocket bike', 'moto cross enfant',
   // Horlogerie et joaillerie, ou la contrefacon est la plus dense.
   'cartier', 'tiffany', 'pandora', 'swarovski', 'omega', 'patek philippe',
   'audemars', 'hublot', 'tag heuer', 'bvlgari', 'van cleef', 'michael kors',
