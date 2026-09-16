@@ -17,13 +17,15 @@
  *
  *   --nom=…        remplace le nom du destinataire dans la commande
  *   --telephone=…  remplace son téléphone
- *   --region=…     force la région transmise à AliExpress (sinon déduite du code postal)
+ *   --region=…     force la province transmise à AliExpress (sinon déduite du code postal)
+ *   --ville=…      force la ville transmise à AliExpress (sinon alignée sur sa liste)
  *   --envoyer      retransmet à AliExpress (sinon : diagnostic seulement)
  */
 import { NestFactory } from '@nestjs/core';
 import { Prisma } from '@prisma/client';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../infra/prisma/prisma.service';
+import { AliExpressService } from '../modules/shop/aliexpress.service';
 import { OrdersService } from '../modules/shop/orders.service';
 import {
   aliexpressProvince,
@@ -43,6 +45,7 @@ async function main(): Promise<void> {
   const nouveauNom = option('nom', args);
   const nouveauTelephone = option('telephone', args);
   const regionForcee = option('region', args);
+  const villeForcee = option('ville', args);
   const envoyer = args.includes('--envoyer');
 
   if (!reference) {
@@ -72,6 +75,7 @@ async function main(): Promise<void> {
     if (nouveauNom !== null) adresse['fullName'] = normalizeRecipientName(nouveauNom);
     if (nouveauTelephone !== null) adresse['phone'] = nouveauTelephone.trim();
     if (regionForcee !== null) adresse['aliexpressProvince'] = regionForcee.trim();
+    if (villeForcee !== null) adresse['aliexpressCity'] = villeForcee.trim();
 
     const mots = normalizeRecipientName(adresse['fullName'] ?? '').split(' ').filter(Boolean).length;
     const problemeNom = recipientNameProblem(adresse['fullName']);
@@ -81,7 +85,21 @@ async function main(): Promise<void> {
     // La région n'est pas une donnée sensible à ce niveau de détail, et c'est
     // précisément la valeur qu'il faut pouvoir lire pour diagnostiquer un refus.
     const region = adresse['aliexpressProvince'] || aliexpressProvince(adresse);
-    console.log(`  région transmise : ${region || 'AUCUNE'}${adresse['aliexpressProvince'] ? ' (forcée)' : ''}`);
+    console.log(`  province transmise : ${region || 'AUCUNE'}${adresse['aliexpressProvince'] ? ' (forcée)' : ''}`);
+    if (adresse['aliexpressCity']) {
+      console.log(`  ville transmise : ${adresse['aliexpressCity']} (forcée)`);
+    } else {
+      const ville = await app.get(AliExpressService).resolveDeliveryCity(adresse['countryCode'] ?? 'FR', region, adresse['city'] ?? '');
+      if (ville.recognized === true) {
+        console.log(`  ville : reconnue dans la liste d'AliExpress, transmise comme « ${ville.city} »`);
+      } else if (ville.recognized === false) {
+        console.log("  ville : ABSENTE de la liste d'AliExpress pour cette province — risque de refus");
+        console.log(`    exemples de sa liste : ${ville.sample.join(' | ')}`);
+        console.log('    en cas de refus, forcer avec --ville=… en reprenant une écriture de la liste');
+      } else {
+        console.log("  ville : liste d'AliExpress indisponible, transmise telle que saisie");
+      }
+    }
 
     if (problemeNom || problemeTel) {
       console.log(`\n${problemeNom ?? problemeTel}`);
@@ -100,7 +118,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    if (nouveauNom !== null || nouveauTelephone !== null || regionForcee !== null) {
+    if (nouveauNom !== null || nouveauTelephone !== null || regionForcee !== null || villeForcee !== null) {
       await prisma.order.update({
         where: { id: order.id },
         data: { addressSnapshot: adresse as Prisma.InputJsonValue },

@@ -98,55 +98,134 @@ export function phoneProblem(
 }
 
 /**
- * Région française déduite du code postal, au format attendu par AliExpress.
+ * « Province » française au sens d'AliExpress, déduite du code postal.
  *
- * AliExpress refuse une commande française sans région (« Please select a
- * State/Province/County ») et n'accepte pas la ville en repli : c'est ce qui
- * a bloqué YUM-E2EE26 une fois le nom corrigé. Le champ saisi par le client
- * ne s'y prête pas — « 95 », « Val-d'Oise » et « IDF » désignent la même
- * chose. Le code postal, lui, est sans ambiguïté : ses deux premiers chiffres
- * sont le département (trois pour l'outre-mer).
+ * AliExpress ne découpe pas la France en régions mais en départements : sa
+ * liste (interrogée le 16/09/2026 via `aliexpress.ds.address.get`, script
+ * `aliexpress-address-probe`) compte les 96 départements métropolitains et
+ * une entrée « Other ». C'est pourquoi YUM-E2EE26 a été refusée deux fois —
+ * avec la ville, puis avec « Ile-de-France » : « Please select a
+ * State/Province/County ».
  *
- * Noms sans accents, comme dans les listes d'adresses d'AliExpress — format
- * supposé, à confirmer par la première commande acceptée. Si AliExpress en
- * attendait un autre, `retry-order --region=…` permet d'essayer sans repayer.
+ * Les noms ci-dessous sont recopiés de cette liste, à l'écriture près (sans
+ * accents, « Cote-d'Or », « Territoire de Belfort »). Ne pas les « corriger ».
+ *
+ * Le code postal plutôt que la saisie du client : « 95 », « Val-d'Oise » et
+ * « val d oise » désignent le même département, et seul le code postal est
+ * sans ambiguïté. L'outre-mer n'a pas d'entrée chez AliExpress.
  */
-const REGIONS_PAR_DEPARTEMENT: Record<string, string> = {};
-const REGIONS: Array<[string, string[]]> = [
-  ['Auvergne-Rhone-Alpes', ['01', '03', '07', '15', '26', '38', '42', '43', '63', '69', '73', '74']],
-  ['Bourgogne-Franche-Comte', ['21', '25', '39', '58', '70', '71', '89', '90']],
-  ['Bretagne', ['22', '29', '35', '56']],
-  ['Centre-Val de Loire', ['18', '28', '36', '37', '41', '45']],
-  ['Corse', ['20']],
-  ['Grand Est', ['08', '10', '51', '52', '54', '55', '57', '67', '68', '88']],
-  ['Hauts-de-France', ['02', '59', '60', '62', '80']],
-  ['Ile-de-France', ['75', '77', '78', '91', '92', '93', '94', '95']],
-  ['Normandie', ['14', '27', '50', '61', '76']],
-  ['Nouvelle-Aquitaine', ['16', '17', '19', '23', '24', '33', '40', '47', '64', '79', '86', '87']],
-  ['Occitanie', ['09', '11', '12', '30', '31', '32', '34', '46', '48', '65', '66', '81', '82']],
-  ['Pays de la Loire', ['44', '49', '53', '72', '85']],
-  ["Provence-Alpes-Cote d'Azur", ['04', '05', '06', '13', '83', '84']],
-  ['Guadeloupe', ['971']],
-  ['Martinique', ['972']],
-  ['Guyane', ['973']],
-  ['La Reunion', ['974']],
-  ['Mayotte', ['976']],
-];
-for (const [region, departements] of REGIONS) {
-  for (const d of departements) REGIONS_PAR_DEPARTEMENT[d] = region;
-}
+const DEPARTEMENTS_ALIEXPRESS: Record<string, string> = {
+  '01': 'Ain',
+  '02': 'Aisne',
+  '03': 'Allier',
+  '04': 'Alpes-de-Haute-Provence',
+  '05': 'Hautes-Alpes',
+  '06': 'Alpes-Maritimes',
+  '07': 'Ardeche',
+  '08': 'Ardennes',
+  '09': 'Ariege',
+  '10': 'Aube',
+  '11': 'Aude',
+  '12': 'Aveyron',
+  '13': 'Bouches-du-Rhone',
+  '14': 'Calvados',
+  '15': 'Cantal',
+  '16': 'Charente',
+  '17': 'Charente-Maritime',
+  '18': 'Cher',
+  '19': 'Correze',
+  '21': "Cote-d'Or",
+  '22': "Cotes-d'Armor",
+  '23': 'Creuse',
+  '24': 'Dordogne',
+  '25': 'Doubs',
+  '26': 'Drome',
+  '27': 'Eure',
+  '28': 'Eure-et-Loir',
+  '29': 'Finistere',
+  '30': 'Gard',
+  '31': 'Haute-Garonne',
+  '32': 'Gers',
+  '33': 'Gironde',
+  '34': 'Herault',
+  '35': 'Ille-et-Vilaine',
+  '36': 'Indre',
+  '37': 'Indre-et-Loire',
+  '38': 'Isere',
+  '39': 'Jura',
+  '40': 'Landes',
+  '41': 'Loir-et-Cher',
+  '42': 'Loire',
+  '43': 'Haute-Loire',
+  '44': 'Loire-Atlantique',
+  '45': 'Loiret',
+  '46': 'Lot',
+  '47': 'Lot-et-Garonne',
+  '48': 'Lozere',
+  '49': 'Maine-et-Loire',
+  '50': 'Manche',
+  '51': 'Marne',
+  '52': 'Haute-Marne',
+  '53': 'Mayenne',
+  '54': 'Meurthe-et-Moselle',
+  '55': 'Meuse',
+  '56': 'Morbihan',
+  '57': 'Moselle',
+  '58': 'Nievre',
+  '59': 'Nord',
+  '60': 'Oise',
+  '61': 'Orne',
+  '62': 'Pas-de-Calais',
+  '63': 'Puy-de-Dome',
+  '64': 'Pyrenees-Atlantiques',
+  '65': 'Hautes-Pyrenees',
+  '66': 'Pyrenees-Orientales',
+  '67': 'Bas-Rhin',
+  '68': 'Haut-Rhin',
+  '69': 'Rhone',
+  '70': 'Haute-Saone',
+  '71': 'Saone-et-Loire',
+  '72': 'Sarthe',
+  '73': 'Savoie',
+  '74': 'Haute-Savoie',
+  '75': 'Paris',
+  '76': 'Seine-Maritime',
+  '77': 'Seine-et-Marne',
+  '78': 'Yvelines',
+  '79': 'Deux-Sevres',
+  '80': 'Somme',
+  '81': 'Tarn',
+  '82': 'Tarn-et-Garonne',
+  '83': 'Var',
+  '84': 'Vaucluse',
+  '85': 'Vendee',
+  '86': 'Vienne',
+  '87': 'Haute-Vienne',
+  '88': 'Vosges',
+  '89': 'Yonne',
+  '90': 'Territoire de Belfort',
+  '91': 'Essonne',
+  '92': 'Hauts-de-Seine',
+  '93': 'Seine-Saint-Denis',
+  '94': 'Val-de-Marne',
+  '95': "Val-d'Oise",
+};
 
-export function frenchRegionFromPostalCode(postalCode: string | null | undefined): string | null {
+export function frenchDepartmentFromPostalCode(postalCode: string | null | undefined): string | null {
   const cp = (postalCode ?? '').replace(/\s/g, '');
   if (!/^\d{5}$/.test(cp)) return null;
-  return REGIONS_PAR_DEPARTEMENT[cp.slice(0, 3)] ?? REGIONS_PAR_DEPARTEMENT[cp.slice(0, 2)] ?? null;
+  // La Corse partage le préfixe 20 : 200xx et 201xx pour la Corse-du-Sud,
+  // 202xx à 206xx pour la Haute-Corse.
+  if (cp.startsWith('20')) return Number(cp[2]) <= 1 ? 'Corse-du-Sud' : 'Haute-Corse';
+  return DEPARTEMENTS_ALIEXPRESS[cp.slice(0, 2)] ?? null;
 }
 
 /**
- * Région à transmettre à AliExpress.
+ * Province à transmettre à AliExpress.
  *
- * France : toujours déduite du code postal quand il est valide, quoi qu'ait
- * saisi le client. Ailleurs : la région saisie, sinon la ville.
+ * France : le département déduit du code postal, sinon « Other » — la seule
+ * valeur hors département que sa liste accepte. Ailleurs : la région saisie,
+ * sinon la ville.
  */
 export function aliexpressProvince(address: {
   province?: string | null;
@@ -155,10 +234,36 @@ export function aliexpressProvince(address: {
   countryCode?: string | null;
 }): string {
   if ((address.countryCode ?? 'FR').toUpperCase() === 'FR') {
-    const region = frenchRegionFromPostalCode(address.postalCode);
-    if (region) return region;
+    return frenchDepartmentFromPostalCode(address.postalCode) ?? 'Other';
   }
   return address.province?.trim() || address.city?.trim() || '';
+}
+
+/**
+ * Forme comparable d'un nom de lieu : sans accents, sans casse, ponctuation
+ * ramenée à des espaces, « St » et « Ste » développés.
+ *
+ * La liste des villes d'AliExpress mêle « ARVIERE-EN-VALROMEY »,
+ * « Amberieu-en-bugey » et « Arboys en bugey » : aucune écriture saisie par un
+ * client ne s'y retrouverait à l'identique.
+ */
+export function comparablePlaceName(name: string | null | undefined): string {
+  return (name ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((mot) => (mot === 'st' ? 'saint' : mot === 'ste' ? 'sainte' : mot))
+    .join(' ');
+}
+
+/** Ville écrite comme dans la liste d'AliExpress, ou `null` si elle n'y figure pas. */
+export function matchAliexpressCity(city: string | null | undefined, candidates: string[]): string | null {
+  const cible = comparablePlaceName(city);
+  if (!cible) return null;
+  return candidates.find((c) => comparablePlaceName(c) === cible) ?? null;
 }
 
 /** Premier problème bloquant d'une adresse, ou `null`. */

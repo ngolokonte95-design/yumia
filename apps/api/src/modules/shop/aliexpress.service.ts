@@ -13,6 +13,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { createHmac } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { envOr } from '../../common/env';
+import { matchAliexpressCity } from './address-rules';
 
 const API_URL = 'https://api-sg.aliexpress.com/sync';
 const REST_URL = 'https://api-sg.aliexpress.com/rest';
@@ -436,6 +437,62 @@ export class AliExpressService {
    * (`probeTrackingMethods`) : l'API répond différemment à un paramètre
    * inconnu et à un paramètre valide.
    */
+  /**
+   * Arborescence des adresses d'un pays chez AliExpress : ses provinces et,
+   * pour chacune, ses villes.
+   *
+   * 2,3 millions de caractères pour la France : téléchargée au plus une fois
+   * par jour par pays et gardée en mémoire. `null` si AliExpress ne répond
+   * pas — la commande part alors avec la ville telle que saisie, plutôt que
+   * de ne pas partir.
+   */
+  private readonly addressTrees = new Map<string, { at: number; provinces: Map<string, string[]> }>();
+
+  private async addressTree(countryCode: string): Promise<Map<string, string[]> | null> {
+    const pays = countryCode.toUpperCase();
+    const enCache = this.addressTrees.get(pays);
+    if (enCache && Date.now() - enCache.at < 24 * 3_600_000) return enCache.provinces;
+
+    const data = await this.call('aliexpress.ds.address.get', { countryCode: pays, isMultiLanguage: 'false', language: 'en' });
+    const brut = (data['aliexpress_ds_address_get_response'] as any)?.result?.data?.children;
+    if (!brut) {
+      this.logger.warn(`Liste d'adresses AliExpress indisponible pour ${pays}`);
+      return null;
+    }
+    try {
+      const noeuds = (typeof brut === 'string' ? JSON.parse(brut) : brut) as Array<{ name?: string; children?: Array<{ name?: string }> }>;
+      const provinces = new Map<string, string[]>();
+      for (const p of noeuds) {
+        if (p.name) provinces.set(p.name.toLowerCase(), (p.children ?? []).map((v) => v.name ?? '').filter(Boolean));
+      }
+      this.addressTrees.set(pays, { at: Date.now(), provinces });
+      return provinces;
+    } catch (e) {
+      this.logger.warn(`Liste d'adresses AliExpress illisible pour ${pays} : ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Ville écrite comme AliExpress l'attend dans la province donnée.
+   *
+   * Sa liste mêle « ARVIERE-EN-VALROMEY » et « Amberieu-en-bugey » : la ville
+   * saisie par le client est comparée sans accents ni casse, et remplacée par
+   * l'écriture d'AliExpress quand elle s'y trouve. `recognized` dit si c'est
+   * le cas — utile pour diagnostiquer un refus ; `null` si la liste manque.
+   */
+  async resolveDeliveryCity(
+    countryCode: string,
+    province: string,
+    city: string,
+  ): Promise<{ city: string; recognized: boolean | null; sample: string[] }> {
+    const arbre = await this.addressTree(countryCode);
+    const villes = arbre?.get(province.toLowerCase());
+    if (!villes || villes.length === 0) return { city, recognized: null, sample: [] };
+    const trouvee = matchAliexpressCity(city, villes);
+    return { city: trouvee ?? city, recognized: !!trouvee, sample: villes.slice(0, 12) };
+  }
+
   async probeAddress(countryCode: string): Promise<Array<{ essai: string; response: unknown }>> {
     const essais: Array<[string, string, Record<string, string>]> = [
       ['ds.address.get countryCode', 'aliexpress.ds.address.get', { countryCode, isMultiLanguage: 'false', language: 'en' }],

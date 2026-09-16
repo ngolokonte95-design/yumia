@@ -280,18 +280,22 @@ export class OrdersService {
 
     const address = order.addressSnapshot as Record<string, string>;
     const telephone = splitPhone(address['phone'], address['countryCode']);
+    // `aliexpressProvince` et `aliexpressCity` dans l'adresse figée sont des
+    // valeurs forcées par retry-order : elles priment sur la déduction.
+    const province = address['aliexpressProvince'] || aliexpressProvince(address);
+    const ville = address['aliexpressCity']
+      ? { city: address['aliexpressCity'] }
+      : await this.aliexpress.resolveDeliveryCity(address['countryCode'] ?? 'FR', province, address['city'] ?? '');
     const aliexpressOrderId = await this.aliexpress.placeOrder({
       outOrderId: order.reference,
       address: {
         fullName: address['fullName'] ?? '',
         line1: address['line1'] ?? '',
         line2: address['line2'] ?? null,
-        city: address['city'] ?? '',
-        // AliExpress exige une région, et refuse la ville en repli pour la
-        // France (YUM-E2EE26). Elle est déduite du code postal — cf.
-        // aliexpressProvince. `aliexpressProvince` dans l'adresse figée est
-        // une valeur forcée par retry-order, prioritaire.
-        province: address['aliexpressProvince'] || aliexpressProvince(address),
+        city: ville.city,
+        // Département pour la France, déduit du code postal — cf.
+        // aliexpressProvince et le refus de YUM-E2EE26.
+        province,
         postalCode: address['postalCode'] ?? '',
         countryCode: address['countryCode'] ?? 'FR',
         phone: telephone?.national ?? address['phone'] ?? '',
