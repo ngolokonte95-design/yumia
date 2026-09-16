@@ -423,6 +423,31 @@ export class AliExpressService {
 
   // ── Passerelle RPC ────────────────────────────────────────────────────────
 
+  /**
+   * Interroge AliExpress sur les régions qu'il accepte pour un pays.
+   *
+   * Une commande française a été refusée avec « Please select a
+   * State/Province/County » alors qu'une région lui était transmise — ni la
+   * ville ni « Ile-de-France » ne figurent dans sa liste. Cette liste n'est
+   * pas publiée dans une documentation lisible hors navigateur : on la
+   * demande. Lecture seule, sans effet sur aucune commande.
+   *
+   * Plusieurs écritures de paramètres sont tentées, comme pour le suivi
+   * (`probeTrackingMethods`) : l'API répond différemment à un paramètre
+   * inconnu et à un paramètre valide.
+   */
+  async probeAddress(countryCode: string): Promise<Array<{ essai: string; response: unknown }>> {
+    const essais: Array<[string, string, Record<string, string>]> = [
+      ['ds.address.get countryCode', 'aliexpress.ds.address.get', { countryCode, isMultiLanguage: 'false', language: 'en' }],
+      ['ds.address.get country_code', 'aliexpress.ds.address.get', { country_code: countryCode, language: 'en' }],
+    ];
+    const results: Array<{ essai: string; response: unknown }> = [];
+    for (const [essai, method, extra] of essais) {
+      results.push({ essai, response: await this.call(method, extra) });
+    }
+    return results;
+  }
+
   private sign(params: Record<string, string>): string {
     const sorted = Object.keys(params).sort().map((k) => `${k}${params[k]}`).join('');
     return createHmac('sha256', this.appSecret ?? '').update(sorted, 'utf8').digest('hex').toUpperCase();
