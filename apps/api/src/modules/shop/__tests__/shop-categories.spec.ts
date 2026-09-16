@@ -209,6 +209,35 @@ describe("interdits issus de l'audit du catalogue", () => {
     const passes = cas.filter(([slug, titre]) => !isExcluded(titre, exclude(slug)));
     expect(passes).toEqual([]);
   });
+
+  it('refuse armes blanches, accessoires de tabac et dispositifs médicaux', () => {
+    const refuses = [
+      'Katana japonais lame en acier forgé à la main, fourreau en bois',
+      'WE PUFF – Mini Machine à rouler manuelle Portable en métal, 70/78/110 MM',
+      'Nébuliseur portatif pour animaux de compagnie Machine atomiseur médical',
+      "Dispositif d'électrotimulation EMS, stimulateur de thérapie musculaire, unité TENS",
+      'Tapis en Silicone pour plateau de stérilisation, boîte pour instruments chirurgicaux',
+    ];
+    expect(refuses.filter((t) => !isBanned(t))).toEqual([]);
+  });
+
+  it("n'emporte pas les voisins légitimes de ces interdits", () => {
+    const acceptes = [
+      'Épée en mousse pour enfants, jouet de chevalier sans danger',
+      'Attelle de genou réglable pour le sport, genouillère respirante',
+      'Rouleau à pâtisserie en bois hêtre 45 cm',
+    ];
+    expect(acceptes.filter((t) => isBanned(t))).toEqual([]);
+
+    // L'onglerie refuse « cuisine » et « pneumatique », pas son propre
+    // vocabulaire : une « couche de base » est un vernis, pas une couche.
+    const onglerie = SHOP_CATEGORIES.find((c) => c.slug === 'onglerie')!;
+    expect(isExcluded('Couche de base et couche de finition pour ongles, gel UV', onglerie.exclude)).toBe(false);
+    // Et la bijouterie refuse les lames, pas les montres en acier.
+    const bijoux = SHOP_CATEGORIES.find((c) => c.slug === 'bijoux-montres')!;
+    expect(isExcluded('Montre homme bracelet acier inoxydable, étanche', bijoux.exclude)).toBe(false);
+    expect(isExcluded('Épée chinoise Han King, lame en acier au manganèse', bijoux.exclude)).toBe(true);
+  });
 });
 
 describe('camelote relative au rayon', () => {
