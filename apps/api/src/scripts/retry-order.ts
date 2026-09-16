@@ -20,6 +20,10 @@
  *   --region=…     force la province transmise à AliExpress (sinon déduite du code postal)
  *   --ville=…      force la ville transmise à AliExpress (sinon alignée sur sa liste)
  *   --envoyer      retransmet à AliExpress (sinon : diagnostic seulement)
+ *   --marquer-transmise=<numéro AliExpress>
+ *                  enregistre une commande déjà passée chez AliExpress sans la
+ *                  retransmettre — pour une commande acceptée dont le numéro
+ *                  n'a pas été lu. Aucun appel à AliExpress.
  */
 import { NestFactory } from '@nestjs/core';
 import { Prisma } from '@prisma/client';
@@ -47,6 +51,7 @@ async function main(): Promise<void> {
   const regionForcee = option('region', args);
   const villeForcee = option('ville', args);
   const envoyer = args.includes('--envoyer');
+  const marquerTransmise = option('marquer-transmise', args);
 
   if (!reference) {
     console.error('Usage : node dist/scripts/retry-order.js <référence> [--nom=…] [--telephone=…] [--envoyer]');
@@ -63,6 +68,26 @@ async function main(): Promise<void> {
     if (!order) {
       console.error(`Commande ${reference} introuvable.`);
       process.exitCode = 1;
+      return;
+    }
+
+    if (marquerTransmise !== null) {
+      const numero = marquerTransmise.trim();
+      if (!/^\d{6,}$/.test(numero)) {
+        console.error(`Numéro AliExpress invalide : « ${numero} » (chiffres attendus).`);
+        process.exitCode = 1;
+        return;
+      }
+      if (order.status !== 'paid' && order.status !== 'fulfilling') {
+        console.error(`Refus : la commande est « ${order.status} », pas en attente de transmission.`);
+        process.exitCode = 1;
+        return;
+      }
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'shipped', shippedAt: new Date(), aliexpressOrderId: numero },
+      });
+      console.log(`Commande ${order.reference} enregistrée comme transmise (AliExpress ${numero}). Aucune nouvelle commande passée.`);
       return;
     }
 

@@ -286,7 +286,7 @@ export class OrdersService {
     const ville = address['aliexpressCity']
       ? { city: address['aliexpressCity'] }
       : await this.aliexpress.resolveDeliveryCity(address['countryCode'] ?? 'FR', province, address['city'] ?? '');
-    const aliexpressOrderId = await this.aliexpress.placeOrder({
+    const envoi = await this.aliexpress.placeOrder({
       outOrderId: order.reference,
       address: {
         fullName: address['fullName'] ?? '',
@@ -304,10 +304,20 @@ export class OrdersService {
       items,
     });
 
-    if (aliexpressOrderId) {
+    if (envoi.accepted && envoi.orderIds.length === 0) {
+      // Acceptée, mais sans numéro lisible. Surtout pas de retour en `paid` :
+      // la commande existe chez AliExpress, et `paid` inviterait à la
+      // retransmettre — donc à la passer en double. Elle reste « transmise »,
+      // à rapprocher à la main (retry-order --marquer-transmise=…).
+      await this.prisma.order.update({ where: { id: order.id }, data: { status: 'fulfilling' } });
+      this.logger.error(
+        `Commande ${order.reference} acceptée par AliExpress sans numéro lisible — ` +
+          'vérifier dans le compte AliExpress, NE PAS la retransmettre',
+      );
+    } else if (envoi.accepted) {
       await this.prisma.order.update({
         where: { id: order.id },
-        data: { status: 'shipped', shippedAt: new Date(), aliexpressOrderId },
+        data: { status: 'shipped', shippedAt: new Date(), aliexpressOrderId: envoi.orderIds.join(',') },
       });
       // Les ventes affichées sur la fiche produit reflètent les ventes réelles.
       await Promise.all(order.items.filter((i) => i.productId).map((i) =>

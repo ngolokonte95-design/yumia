@@ -707,8 +707,8 @@ export class AliExpressService {
       phoneCountry?: string | null;
     };
     items: Array<{ aliexpressProductId: string; quantity: number; skuAttr?: string | null }>;
-  }): Promise<string | null> {
-    if (!params.items.length) return null;
+  }): Promise<{ accepted: boolean; orderIds: string[] }> {
+    if (!params.items.length) return { accepted: false, orderIds: [] };
 
     const data = await this.call('aliexpress.ds.order.create', {
       param_place_order_request4_open_api_d_t_o: JSON.stringify({
@@ -735,11 +735,49 @@ export class AliExpressService {
 
     const result = (data['aliexpress_ds_order_create_response'] as Record<string, any> | undefined)?.['result'];
     if (result?.['is_success']) {
-      const orderId = String(result['order_id'] ?? '');
-      this.logger.log(`Commande AliExpress passée : ${orderId} (commande YUMIA ${params.outOrderId})`);
-      return orderId || null;
+      const orderIds = collectOrderIds(result);
+      // La réponse brute est journalisée : la première commande acceptée
+      // (YUM-E2EE26) portait ses numéros ailleurs que dans `order_id`, et la
+      // lire à tort comme un échec aurait invité à la retransmettre — donc à
+      // la passer deux fois.
+      this.logger.log(
+        `Commande AliExpress passée : ${orderIds.join(', ') || 'numéro introuvable'} ` +
+          `(commande YUMIA ${params.outOrderId}) — réponse : ${JSON.stringify(result)}`,
+      );
+      return { accepted: true, orderIds };
     }
     this.logger.error(`Commande AliExpress refusée pour ${params.outOrderId} : ${JSON.stringify(result ?? data)}`);
-    return null;
+    return { accepted: false, orderIds: [] };
   }
+}
+
+/**
+ * Numéros de commande AliExpress contenus dans une réponse de création.
+ *
+ * Une commande YUMIA peut devenir plusieurs commandes AliExpress (une par
+ * vendeur), et le numéro n'est pas toujours sous `order_id` : YUM-E2EE26 a été
+ * acceptée avec un `order_id` vide. On collecte donc tout ce qui ressemble à
+ * un numéro sous les clés connues pour en porter un, à n'importe quelle
+ * profondeur.
+ */
+export function collectOrderIds(result: unknown): string[] {
+  const cles = new Set(['order_id', 'orderid', 'number', 'order_list', 'orders']);
+  const trouves = new Set<string>();
+  const visiter = (valeur: unknown, sousCleConnue: boolean): void => {
+    if (valeur === null || valeur === undefined) return;
+    if (Array.isArray(valeur)) {
+      for (const v of valeur) visiter(v, sousCleConnue);
+      return;
+    }
+    if (typeof valeur === 'object') {
+      for (const [k, v] of Object.entries(valeur as Record<string, unknown>)) {
+        visiter(v, cles.has(k.toLowerCase()));
+      }
+      return;
+    }
+    const texte = String(valeur).trim();
+    if (sousCleConnue && /^\d{6,}$/.test(texte)) trouves.add(texte);
+  };
+  visiter(result, false);
+  return [...trouves];
 }
