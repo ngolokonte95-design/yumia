@@ -38,10 +38,17 @@ export default function ProductDetailScreen() {
       const p = await shopApi.product(accessToken, slug);
       setProduct(p);
       setWishlisted(p.isWishlisted);
-      // Présélectionne la première déclinaison disponible : obliger l'utilisateur
-      // à choisir alors qu'il n'y a qu'une option en stock n'apporte rien.
-      const firstInStock = p.variants.find((v) => v.stock > 0) ?? p.variants[0];
-      if (firstInStock) setVariantId(firstInStock.id);
+      // Présélectionne la déclinaison disponible la moins chère : obliger
+      // l'utilisateur à choisir alors qu'il n'y a qu'une option en stock
+      // n'apporte rien. La moins chère et non la première, parce que c'est
+      // elle que la carte du rayon affiche : ouvrir la fiche doit montrer le
+      // même prix que celui sur lequel on a cliqué.
+      const enStock = p.variants.filter((v) => v.stock > 0);
+      const candidates = enStock.length > 0 ? enStock : p.variants;
+      const moinsChere = [...candidates].sort(
+        (a, b) => (a.priceCents ?? p.priceCents) - (b.priceCents ?? p.priceCents),
+      )[0];
+      if (moinsChere) setVariantId(moinsChere.id);
     } catch {
       setProduct(null);
     } finally {

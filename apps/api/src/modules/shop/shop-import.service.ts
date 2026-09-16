@@ -204,7 +204,17 @@ export class ShopImportService {
     categorySlug: string,
   ): Promise<void> {
     const detail = await this.aliexpress.getProductDetail(aliexpressProductId);
-    const priceCents = sellingPriceCents(aePriceCents);
+    // Prix affiché sur la carte du rayon : celui de la déclinaison en stock la
+    // moins chère. Le prix des résultats de recherche (`aePriceCents`) était
+    // utilisé seul, alors que la fiche et le panier facturent le prix de la
+    // déclinaison choisie : la carte annonçait un montant que le client ne
+    // retrouvait pas en ouvrant le produit.
+    const prixDeclinaisons = detail.variants
+      .filter((v) => v.stock > 0 && v.priceCents != null && v.priceCents > 0)
+      .map((v) => v.priceCents!);
+    const priceCents = prixDeclinaisons.length > 0
+      ? Math.min(...prixDeclinaisons)
+      : sellingPriceCents(aePriceCents);
 
     const images = detail.images.length ? detail.images : fallbackImage ? [fallbackImage] : [];
     // La description vendeur est souvent absente ou inutilisable : un repli
