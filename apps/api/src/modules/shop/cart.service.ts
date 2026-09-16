@@ -9,9 +9,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
-/** Frais de port forfaitaires, offerts au-delà d'un seuil. */
+/**
+ * Frais de port forfaitaires, offerts à partir d'un seuil de panier.
+ *
+ * Le seuil était de 49 € : presque aucun panier ne l'atteignait, et la
+ * livraison payante s'affichait sur l'essentiel des commandes. À 20 €, elle
+ * n'est facturée que sur les petits paniers — ceux où la marge, après frais
+ * Stripe et port AliExpress (que YUMIA paie dans tous les cas), ne suffit plus
+ * à l'absorber. Le seuil porte sur le panier et non sur chaque article : trois
+ * petits articles à 7 € livrés ensemble coûtent un seul envoi.
+ *
+ * Tout changement ici doit être répercuté dans website/cgv.html.
+ */
 export const SHIPPING_FLAT_CENTS = 490;
-export const FREE_SHIPPING_THRESHOLD_CENTS = 4900;
+export const FREE_SHIPPING_THRESHOLD_CENTS = 2000;
 
 export interface CartLine {
   id: string;
