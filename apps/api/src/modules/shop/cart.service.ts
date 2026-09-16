@@ -10,19 +10,18 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
 /**
- * Frais de port forfaitaires, offerts à partir d'un seuil de panier.
+ * Frais de port forfaitaires, facturés sur toute commande.
  *
- * Le seuil était de 49 € : presque aucun panier ne l'atteignait, et la
- * livraison payante s'affichait sur l'essentiel des commandes. À 20 €, elle
- * n'est facturée que sur les petits paniers — ceux où la marge, après frais
- * Stripe et port AliExpress (que YUMIA paie dans tous les cas), ne suffit plus
- * à l'absorber. Le seuil porte sur le panier et non sur chaque article : trois
- * petits articles à 7 € livrés ensemble coûtent un seul envoi.
+ * Il n'y a plus de livraison offerte. Le premier achat réel (YUM-E2EE26,
+ * 16/09/2026) a montré le vrai coût : un article acheté 1,94 $ est revenu à
+ * 10,96 $ chez AliExpress, port et taxes compris. Les prix de vente ne
+ * tiennent compte que du prix de l'article ; offrir la livraison faisait donc
+ * vendre à perte, et d'autant plus que les articles d'un panier viennent de
+ * vendeurs différents, chacun avec son propre envoi.
  *
  * Tout changement ici doit être répercuté dans website/cgv.html.
  */
 export const SHIPPING_FLAT_CENTS = 490;
-export const FREE_SHIPPING_THRESHOLD_CENTS = 2000;
 
 export interface CartLine {
   id: string;
@@ -93,7 +92,7 @@ export class CartService {
     // Un article indisponible reste visible (pour que l'utilisateur comprenne
     // pourquoi son total a changé) mais ne compte pas dans le montant.
     const subtotalCents = lines.filter((l) => l.available).reduce((s, l) => s + l.lineTotalCents, 0);
-    const shippingCents = subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : SHIPPING_FLAT_CENTS;
+    const shippingCents = subtotalCents === 0 ? 0 : SHIPPING_FLAT_CENTS;
 
     return {
       lines,
