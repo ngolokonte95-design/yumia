@@ -621,6 +621,8 @@ export class AliExpressService {
       postalCode: string;
       countryCode: string;
       phone: string;
+      /** Indicatif sans « + » (33 pour la France) ; `mobile_no` porte alors le numéro national. */
+      phoneCountry?: string | null;
     };
     items: Array<{ aliexpressProductId: string; quantity: number; skuAttr?: string | null }>;
   }): Promise<string | null> {
@@ -638,6 +640,7 @@ export class AliExpressService {
           zip: params.address.postalCode,
           country: params.address.countryCode,
           mobile_no: params.address.phone,
+          ...(params.address.phoneCountry ? { phone_country: params.address.phoneCountry } : {}),
           contact_person: params.address.fullName,
         },
         product_items: params.items.map((i) => ({

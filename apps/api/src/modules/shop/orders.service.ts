@@ -18,6 +18,7 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { envOr } from '../../common/env';
 import { AliExpressService } from './aliexpress.service';
 import { CartService } from './cart.service';
+import { normalizeRecipientName, shippingAddressProblem, splitPhone } from './address-rules';
 
 @Injectable()
 export class OrdersService {
@@ -62,6 +63,10 @@ export class OrdersService {
     province?: string; postalCode: string; countryCode?: string;
     phone: string; isDefault?: boolean;
   }) {
+    // Refusée à la saisie plutôt qu'après le paiement : cf. address-rules.ts.
+    const probleme = shippingAddressProblem(data);
+    if (probleme) throw new BadRequestException(probleme);
+
     // Une seule adresse par défaut à la fois.
     if (data.isDefault) {
       await this.prisma.shippingAddress.updateMany({ where: { userId }, data: { isDefault: false } });
@@ -70,7 +75,7 @@ export class OrdersService {
     return this.prisma.shippingAddress.create({
       data: {
         userId,
-        fullName: data.fullName,
+        fullName: normalizeRecipientName(data.fullName),
         line1: data.line1,
         line2: data.line2 ?? null,
         city: data.city,
@@ -78,7 +83,7 @@ export class OrdersService {
         postalCode: data.postalCode,
         countryCode: data.countryCode ?? 'FR',
         phone: data.phone,
-        // La première adivresse enregistrée devient celle par défaut d'office.
+        // La première adresse enregistrée devient celle par défaut d'office.
         isDefault: data.isDefault ?? count === 0,
       },
     });
@@ -101,6 +106,11 @@ export class OrdersService {
   async checkout(userId: string, addressId: string) {
     const address = await this.prisma.shippingAddress.findFirst({ where: { id: addressId, userId } });
     if (!address) throw new NotFoundException('Adresse de livraison introuvable');
+    // Les adresses enregistrées avant ces règles passent par ici : mieux vaut
+    // demander une correction maintenant qu'encaisser une commande
+    // qu'AliExpress refusera.
+    const probleme = shippingAddressProblem(address);
+    if (probleme) throw new BadRequestException(`${probleme} Ajoute une nouvelle adresse pour continuer.`);
 
     const summary = await this.cart.getCart(userId);
     const buyable = summary.lines.filter((l) => l.available);
@@ -269,6 +279,7 @@ export class OrdersService {
     await this.prisma.order.update({ where: { id: order.id }, data: { status: 'fulfilling' } });
 
     const address = order.addressSnapshot as Record<string, string>;
+    const telephone = splitPhone(address['phone'], address['countryCode']);
     const aliexpressOrderId = await this.aliexpress.placeOrder({
       outOrderId: order.reference,
       address: {
@@ -284,7 +295,8 @@ export class OrdersService {
         province: address['province'] || address['city'] || '',
         postalCode: address['postalCode'] ?? '',
         countryCode: address['countryCode'] ?? 'FR',
-        phone: address['phone'] ?? '',
+        phone: telephone?.national ?? address['phone'] ?? '',
+        phoneCountry: telephone?.country ?? null,
       },
       items,
     });

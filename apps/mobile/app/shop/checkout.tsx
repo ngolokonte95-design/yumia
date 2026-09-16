@@ -57,7 +57,7 @@ export default function CheckoutScreen() {
   async function saveAddress() {
     if (!accessToken) return;
     const required: Array<[keyof typeof form, string]> = [
-      ['fullName', 'Nom complet'], ['line1', 'Adresse'], ['city', 'Ville'],
+      ['fullName', 'Prénom et nom'], ['line1', 'Adresse'], ['city', 'Ville'],
       // La région est exigée par le transporteur : la rendre facultative
       // ferait échouer l'expédition après le paiement, au pire moment.
       ['province', 'Région / département'],
@@ -141,7 +141,9 @@ export default function CheckoutScreen() {
           <View style={styles.form}>
             <Text style={styles.formTitle}>Nouvelle adresse</Text>
             {([
-              ['fullName', 'Nom complet', 'default'],
+              // « Prénom et nom » et non « Nom complet » : AliExpress refuse une
+              // commande dont le destinataire tient en un seul mot.
+              ['fullName', 'Prénom et nom', 'default'],
               ['line1', 'Adresse', 'default'],
               ['line2', 'Complément (optionnel)', 'default'],
               ['postalCode', 'Code postal', 'number-pad'],
