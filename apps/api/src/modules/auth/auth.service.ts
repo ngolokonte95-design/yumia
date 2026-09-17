@@ -402,6 +402,11 @@ export class AuthService {
 
   /** Émet une paire access + refresh et persiste le hash du refresh. */
   private async issueTokens(user: User): Promise<AuthTokens> {
+    // Ici plutôt qu'à chaque connexion : Google, Apple et le rafraîchissement
+    // de session passent tous par là. Seule la connexion par mot de passe
+    // vérifiait la suspension, et un compte banni restait connecté tant que
+    // l'app renouvelait sa session.
+    assertNotSuspended(user);
     const jwtCfg = this.config.get<AppConfig['jwt']>('jwt')!;
 
     const payload: JwtPayload = { sub: user.id, email: user.email };

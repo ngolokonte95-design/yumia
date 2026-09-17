@@ -118,6 +118,28 @@ export class AdminController {
     return this.moderation.resolve(id, dto.action, { days: dto.days, reason: dto.reason });
   }
 
+  /**
+   * GET /admin/users — centre de contrôle : recherche (email, nom), segment
+   * (celui d'une carte de la vue d'ensemble, ou suspended / banned), pays.
+   */
+  @Get('users')
+  @UseGuards(AdminGuard)
+  listUsers(
+    @Query('segment') segment?: string,
+    @Query('q') q?: string,
+    @Query('country') country?: string,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.listUsers({
+      segment,
+      q,
+      country,
+      offset: offset ? parseInt(offset, 10) || 0 : 0,
+      limit: limit ? parseInt(limit, 10) || 30 : 30,
+    });
+  }
+
   /** Comptes suspendus, pour pouvoir revenir sur une décision. */
   @Get('users/suspended')
   @UseGuards(AdminGuard)
@@ -133,6 +155,13 @@ export class AdminController {
     @Body() dto: { days?: number; reason?: string },
   ) {
     return { suspendedUntil: await this.moderation.suspend(id, dto.days, dto.reason) };
+  }
+
+  /** Fiche complète d'un compte. Déclarée après les routes fixes users/…. */
+  @Get('users/:id')
+  @UseGuards(AdminGuard)
+  userDetail(@Param('id') id: string) {
+    return this.adminService.getUserDetail(id);
   }
 
   @Post('users/:id/unsuspend')

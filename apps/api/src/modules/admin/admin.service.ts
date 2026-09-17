@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PLANS, type Plan } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { isAdminEmail } from '../auth/is-admin-email';
@@ -33,6 +34,115 @@ export class AdminService {
       select: { plan: true, isPremium: true },
     });
     return { plan: updated.plan as Plan, isPremium: updated.isPremium };
+  }
+
+  /**
+   * Liste des comptes du centre de contrôle.
+   *
+   * `segment` reprend exactement les cartes de la vue d'ensemble (mêmes
+   * bornes de date que getOverview) : toucher « Nouveaux (7 j) » doit lister
+   * les comptes que la carte a comptés, pas une approximation.
+   */
+  async listUsers(params: {
+    segment?: string;
+    q?: string;
+    country?: string;
+    offset?: number;
+    limit?: number;
+  }) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 86400000);
+    const monthAgo = new Date(today.getTime() - 30 * 86400000);
+    // Au-delà, une suspension est un bannissement (cf. PERMANENT_YEARS).
+    const banThreshold = new Date(now.getTime() + 50 * 365 * 86400000);
+
+    const and: Prisma.UserWhereInput[] = [];
+    switch (params.segment) {
+      case 'premium': and.push({ isPremium: true }); break;
+      case 'active7d': and.push({ visits: { some: { visitedAt: { gte: weekAgo } } } }); break;
+      case 'newToday': and.push({ createdAt: { gte: today } }); break;
+      case 'new7d': and.push({ createdAt: { gte: weekAgo } }); break;
+      case 'new30d': and.push({ createdAt: { gte: monthAgo } }); break;
+      case 'suspended': and.push({ suspendedUntil: { gt: now, lte: banThreshold } }); break;
+      case 'banned': and.push({ suspendedUntil: { gt: banThreshold } }); break;
+      default: break;
+    }
+    if (params.country) {
+      and.push(params.country === 'XX' ? { countryCode: null } : { countryCode: params.country });
+    }
+    const q = params.q?.trim();
+    if (q) {
+      and.push({
+        OR: [
+          { email: { contains: q, mode: 'insensitive' } },
+          { displayName: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    const where: Prisma.UserWhereInput = and.length ? { AND: and } : {};
+    const take = Math.min(Math.max(params.limit ?? 30, 1), 100);
+    const skip = Math.max(params.offset ?? 0, 0);
+
+    const [total, items] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        select: {
+          id: true, email: true, displayName: true, photoUrl: true, countryCode: true,
+          plan: true, isPremium: true, createdAt: true, suspendedUntil: true, suspendedReason: true,
+        },
+      }),
+    ]);
+    return {
+      total,
+      items: items.map((u) => ({ ...u, isAdmin: isAdminEmail(u.email) })),
+    };
+  }
+
+  /** Fiche d'un compte : identité, forfait, activité, signalements. */
+  async getUserDetail(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true, email: true, displayName: true, photoUrl: true, bio: true, countryCode: true,
+        locale: true, authProvider: true, plan: true, isPremium: true, premiumSince: true,
+        createdAt: true, updatedAt: true, suspendedUntil: true, suspendedReason: true,
+        _count: { select: { visits: true, savedPlaces: true, orders: true, savedItineraries: true } },
+      },
+    });
+    if (!user) throw new NotFoundException('Utilisateur introuvable.');
+
+    const safe = (p: Promise<number>) => p.catch(() => 0);
+    const [posts, reportsAgainst, reportsMade, lastVisit, activeSessions] = await Promise.all([
+      safe(this.prisma.post.count({ where: { userId: id } })),
+      safe(this.prisma.report.count({ where: { targetType: 'user', targetId: id } })),
+      safe(this.prisma.report.count({ where: { reporterId: id } })),
+      this.prisma.visit
+        .findFirst({ where: { userId: id }, orderBy: { visitedAt: 'desc' }, select: { visitedAt: true } })
+        .catch(() => null),
+      safe(this.prisma.refreshToken.count({ where: { userId: id, revokedAt: null, expiresAt: { gt: new Date() } } })),
+    ]);
+
+    const { _count, ...rest } = user;
+    return {
+      ...rest,
+      isAdmin: isAdminEmail(user.email),
+      stats: {
+        visits: _count.visits,
+        savedPlaces: _count.savedPlaces,
+        orders: _count.orders,
+        savedItineraries: _count.savedItineraries,
+        posts,
+        reportsAgainst,
+        reportsMade,
+        activeSessions,
+      },
+      lastVisitAt: lastVisit?.visitedAt ?? null,
+    };
   }
 
   async getOverview() {

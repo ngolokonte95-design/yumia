@@ -331,6 +331,16 @@ describe('AuthService', () => {
   });
 
   describe('refresh', () => {
+    it("refuse de renouveler la session d'un compte suspendu", async () => {
+      prismaMock.refreshToken.findUnique.mockResolvedValue({
+        ...mockRefreshTokenRecord,
+        user: { ...mockRefreshTokenRecord.user, suspendedUntil: new Date(Date.now() + 86400000), suspendedReason: 'Spam' },
+      });
+      prismaMock.refreshToken.update.mockResolvedValue({});
+
+      await expect(service.refresh('raw-refresh-token')).rejects.toThrow(ForbiddenException);
+    });
+
     it('rotation : révoque l\'ancien token et émet une nouvelle paire', async () => {
       prismaMock.refreshToken.findUnique.mockResolvedValue(mockRefreshTokenRecord);
       prismaMock.refreshToken.update.mockResolvedValue({});

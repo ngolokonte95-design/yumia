@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { isAdminEmail } from '../auth/is-admin-email';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { StorageService } from '../../infra/storage/storage.service';
 
@@ -26,7 +27,7 @@ export interface ReportWithTarget {
 }
 
 /** Suspension « définitive » : une date si lointaine qu'elle ne reviendra pas. */
-const PERMANENT_YEARS = 100;
+export const PERMANENT_YEARS = 100;
 
 @Injectable()
 export class ModerationService {
@@ -102,6 +103,14 @@ export class ModerationService {
    * aussi les échanges des autres qui y répondaient. Une suspension se lève.
    */
   async suspend(userId: string, days?: number, reason?: string): Promise<Date> {
+    const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (!target) throw new NotFoundException('Utilisateur introuvable.');
+    // Un admin ne se suspend pas depuis l'app : une erreur de manipulation
+    // fermerait le tableau de bord à la seule personne capable de la réparer.
+    if (isAdminEmail(target.email)) {
+      throw new ForbiddenException('Un compte administrateur ne peut pas être suspendu.');
+    }
+
     const until = new Date();
     if (days && days > 0) until.setDate(until.getDate() + days);
     else until.setFullYear(until.getFullYear() + PERMANENT_YEARS);
@@ -109,6 +118,12 @@ export class ModerationService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { suspendedUntil: until, suspendedReason: reason ?? null },
+    });
+    // Sessions fermées : la personne est déconnectée dès l'expiration de son
+    // jeton d'accès, au lieu de rester connectée tant que l'app le renouvelle.
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
     });
     this.logger.log(`Compte ${userId} suspendu jusqu'au ${until.toISOString()}`);
     return until;

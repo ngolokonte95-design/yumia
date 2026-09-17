@@ -51,13 +51,18 @@ function fmtDate(iso: string, locale = 'fr') {
   return new Date(iso).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-function StatCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: boolean }) {
+function StatCard({ label, value, sub, accent, onPress }: {
+  label: string; value: string | number; sub?: string; accent?: boolean;
+  /** Carte cliquable : ouvre la liste des comptes qu'elle compte. */
+  onPress?: () => void;
+}) {
   return (
-    <View style={[styles.statCard, accent && styles.statCardAccent]}>
+    <Pressable style={[styles.statCard, accent && styles.statCardAccent]} onPress={onPress} disabled={!onPress}>
       <Text style={[styles.statVal, accent && styles.statValAccent]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
       {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
-    </View>
+      {onPress ? <Text style={styles.statOpen}>Voir ›</Text> : null}
+    </Pressable>
   );
 }
 
@@ -120,6 +125,8 @@ export default function AdminScreen() {
       setSwitchingPlan(null);
     }
   }
+
+  const openUsers = (segment: string) => router.push(`/admin-users?segment=${segment}` as never);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -207,6 +214,24 @@ export default function AdminScreen() {
         <Text style={styles.moderationChevron}>›</Text>
       </Pressable>
 
+      {/* ── Centre de contrôle des comptes ── */}
+      <Pressable style={styles.moderationCard} onPress={() => router.push('/admin-users' as never)}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.moderationTitle}>Utilisateurs</Text>
+          <Text style={styles.planHint}>Emails, fiches, suspensions et bannissements</Text>
+        </View>
+        {overview?.users ? <Text style={styles.usersCount}>{overview.users.total}</Text> : null}
+        <Text style={styles.moderationChevron}>›</Text>
+      </Pressable>
+      <View style={styles.quickRow}>
+        <Pressable style={styles.quickBtn} onPress={() => router.push('/admin-users?segment=suspended' as never)}>
+          <Text style={styles.quickTxt}>⏸ Suspendus</Text>
+        </Pressable>
+        <Pressable style={styles.quickBtn} onPress={() => router.push('/admin-users?segment=banned' as never)}>
+          <Text style={styles.quickTxt}>⛔ Bannis</Text>
+        </Pressable>
+      </View>
+
       {/* ── Forfait du compte admin ──
           Placé en tête : c'est un outil de test, pas une statistique, et on
           le cherche avant de parcourir les chiffres. */}
@@ -241,12 +266,12 @@ export default function AdminScreen() {
         <>
           <Text style={styles.sectionTitle}>{t('adm_overview')}</Text>
           <View style={styles.statsGrid}>
-            <StatCard label={t('adm_users')} value={overview.users.total} accent />
-            <StatCard label={t('adm_premium')} value={overview.users.premium} sub={`${Math.round((overview.users.premium / Math.max(overview.users.total, 1)) * 100)}%`} />
-            <StatCard label={t('adm_active_7d')} value={overview.users.active7d} />
-            <StatCard label={t('adm_new_today')} value={overview.users.newToday} />
-            <StatCard label={t('adm_new_7d')} value={overview.users.newThisWeek} />
-            <StatCard label={t('adm_new_30d')} value={overview.users.newThisMonth} />
+            <StatCard label={t('adm_users')} value={overview.users.total} accent onPress={() => openUsers('all')} />
+            <StatCard label={t('adm_premium')} value={overview.users.premium} sub={`${Math.round((overview.users.premium / Math.max(overview.users.total, 1)) * 100)}%`} onPress={() => openUsers('premium')} />
+            <StatCard label={t('adm_active_7d')} value={overview.users.active7d} onPress={() => openUsers('active7d')} />
+            <StatCard label={t('adm_new_today')} value={overview.users.newToday} onPress={() => openUsers('newToday')} />
+            <StatCard label={t('adm_new_7d')} value={overview.users.newThisWeek} onPress={() => openUsers('new7d')} />
+            <StatCard label={t('adm_new_30d')} value={overview.users.newThisMonth} onPress={() => openUsers('new30d')} />
           </View>
           <View style={styles.statsGrid}>
             <StatCard label={t('adm_places')} value={overview.content.places} />
@@ -261,7 +286,7 @@ export default function AdminScreen() {
           <Text style={styles.sectionTitle}>{t('adm_users_by_country')}</Text>
           <View style={styles.card}>
             {byCountry.slice(0, 20).map((row) => (
-              <View key={row.countryCode} style={styles.countryRow}>
+              <Pressable key={row.countryCode} style={styles.countryRow} onPress={() => router.push(`/admin-users?country=${row.countryCode}` as never)}>
                 <Text style={styles.countryFlag}>{flagOf(row.countryCode)}</Text>
                 <Text style={styles.countryCode}>{row.countryCode}</Text>
                 <View style={styles.barTrack}>
@@ -269,7 +294,7 @@ export default function AdminScreen() {
                 </View>
                 <Text style={styles.countryCount}>{row.count}</Text>
                 <Text style={styles.countryPct}>{row.pct}%</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         </>
@@ -363,7 +388,7 @@ export default function AdminScreen() {
           <Text style={styles.sectionTitle}>{t('adm_recent_signups')}</Text>
           <View style={styles.card}>
             {recentUsers.map((u) => (
-              <View key={u.id} style={styles.userRow}>
+              <Pressable key={u.id} style={styles.userRow} onPress={() => router.push(`/admin-user?id=${u.id}` as never)}>
                 <View style={styles.userAvatar}>
                   <Text style={styles.userAvatarText}>{u.displayName[0]?.toUpperCase()}</Text>
                 </View>
@@ -376,7 +401,7 @@ export default function AdminScreen() {
                   <Text style={styles.userEmail}>{u.email}</Text>
                 </View>
                 <Text style={styles.userDate}>{fmtDate(u.createdAt, locale)}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         </>
@@ -437,6 +462,14 @@ const styles = StyleSheet.create({
   statValAccent: { color: colors.brand },
   statLabel: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
   statSub: { fontSize: 11, color: colors.brand, fontWeight: '700', marginTop: 2 },
+  statOpen: { fontSize: 10, color: colors.brand, fontWeight: '700', marginTop: 4 },
+  usersCount: { ...typography.h3, color: colors.brand },
+  quickRow: { flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.sm },
+  quickBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.md,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  quickTxt: { fontSize: 13, fontWeight: '700', color: colors.text },
   card: { marginHorizontal: spacing.md, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
   countryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 },
   countryFlag: { fontSize: 18, width: 26 },
