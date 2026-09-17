@@ -441,14 +441,14 @@ function UniverseRow({
   const meta = UNIVERSE_META[universe];
   if (!loading && places.length === 0) return null;
   return (
-    <View style={styles.section}>
-      <View style={styles.rowHeader}>
-        <Text style={styles.sectionTitle}>{meta.emoji}  {universeLabel(t, universe)}</Text>
-        <Pressable onPress={onSeeAll}><Text style={styles.rowSeeAll}>{t('explorer_see_all')}</Text></Pressable>
+    <View style={styles.uniSection}>
+      <View style={styles.uniHeader}>
+        <Text style={styles.uniTitle}>{meta.emoji}  {universeLabel(t, universe)}</Text>
+        <Pressable onPress={onSeeAll} hitSlop={8}><Text style={styles.uniSeeAll}>{t('explorer_see_all')}</Text></Pressable>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.uniRow}>
         {loading
-          ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.trendingSkeletonCard} />)
+          ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.uniSkeleton} />)
           : places.map((p) => <PlaceCard key={p.id} place={p} onPress={() => onCardPress(p)} />)
         }
       </ScrollView>
@@ -462,17 +462,17 @@ function PlaceCard({ place, onPress }: { place: NearbyPlace; onPress: () => void
     ? `${Math.round(place.distanceMeters)} m`
     : `${(place.distanceMeters / 1000).toFixed(1)} km`;
   return (
-    <Pressable style={styles.trendingCard} onPress={onPress}>
+    <Pressable style={styles.uniCard} onPress={onPress}>
       {place.photoUrls?.[0] ? (
-        <Image source={{ uri: place.photoUrls[0] }} style={styles.trendingImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
+        <Image source={{ uri: place.photoUrls[0] }} style={styles.uniImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
       ) : (
-        <View style={styles.trendingImgPlaceholder}>
-          <Text style={{ fontSize: 32 }}>{meta?.emoji ?? '📍'}</Text>
+        <View style={[styles.uniImg, styles.uniImgPlaceholder]}>
+          <Text style={{ fontSize: 22 }}>{meta?.emoji ?? '📍'}</Text>
         </View>
       )}
-      <View style={styles.trendingInfo}>
-        <Text style={styles.trendingName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.trendingMeta}>{distText} · ⭐ {place.rating.toFixed(1)}</Text>
+      <View style={styles.uniInfo}>
+        <Text style={styles.uniName} numberOfLines={1}>{place.name}</Text>
+        <Text style={styles.uniMeta} numberOfLines={1}>{distText} · ⭐ {place.rating.toFixed(1)}</Text>
       </View>
     </Pressable>
   );
@@ -627,6 +627,27 @@ const styles = StyleSheet.create({
   trendingInfo: { padding: spacing.sm, gap: 2 },
   trendingName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
   trendingMeta: { ...typography.caption, color: colors.textSecondary },
+  // Rangées Restaurant / Dessert / Lieu de culte : volontairement plus
+  // compactes que les Tendances, pour laisser le Top 3 remonter à l'écran.
+  uniSection: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
+  uniHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  uniTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  uniSeeAll: { fontSize: 12, color: colors.brand, fontWeight: '600' },
+  uniRow: { gap: spacing.sm, paddingRight: spacing.md },
+  uniCard: {
+    width: 112,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+  },
+  uniImg: { width: '100%', height: 68 },
+  uniImgPlaceholder: { backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  uniInfo: { paddingHorizontal: 6, paddingVertical: 5, gap: 1 },
+  uniName: { fontSize: 12, fontWeight: '600', color: colors.textPrimary },
+  uniMeta: { fontSize: 10, color: colors.textSecondary },
+  uniSkeleton: { width: 112, height: 104, backgroundColor: colors.surfaceElevated, borderRadius: radius.sm },
   trendingSkeletonCard: {
     width: 148,
     height: 148,
