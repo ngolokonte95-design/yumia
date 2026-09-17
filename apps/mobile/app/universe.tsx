@@ -26,8 +26,8 @@ import { universeSearchRadius } from '../lib/universeRadius';
 export default function UniverseScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { u, lat: latParam, lng: lngParam, place: placeParam } = useLocalSearchParams<{
-    u: string; lat?: string; lng?: string; place?: string;
+  const { u, lat: latParam, lng: lngParam, place: placeParam, from } = useLocalSearchParams<{
+    u: string; lat?: string; lng?: string; place?: string; from?: string;
   }>();
   const { coords: gpsCoords, resolving } = useLocation();
 
@@ -81,7 +81,7 @@ export default function UniverseScreen() {
   // Le serveur en renvoie jusqu'à 60 ; le forfait en montre 5. Couper ici
   // plutôt qu'à la requête garde le cache utilisable tel quel le jour d'un
   // passage à Plus.
-  const places = allPlaces.slice(0, displayCap('universePlaces'));
+  const places = allPlaces.slice(0, displayCap(from === 'weather' ? 'weatherUniversePlaces' : 'universePlaces'));
 
   /** Rafraîchir consomme un chargement de plus — c'en est un. */
   const reloadWithQuota = async () => {

@@ -27,11 +27,11 @@ import type { TranslationKey } from '../translations';
 // s'abonne à une app dont il n'a pas vu ce qu'elle sait faire.
 export const FREE_LIMITS = {
   chatbotPerDay: 10,         // messages envoyés à l'assistant
-  desirePerDay: 10,          // réponses de « Dis-moi ton envie »
+  desirePerDay: 6,           // réponses de « Dis-moi ton envie »
   itineraryPerModePerDay: 3, // COMPTÉ PAR MODE (date, amis, voyage…)
   surprisePerDay: 5,         // lancers de dé
-  universeLoadsPerDay: 6,    // COMPTÉ PAR UNIVERS
-  mapLoadsPerDay: 6,         // COMPTÉ PAR UNIVERS, « tous » compris
+  universeLoadsPerDay: 5,    // COMPTÉ PAR UNIVERS
+  mapLoadsPerDay: 5,         // COMPTÉ PAR UNIVERS, « tous » compris
   // Pas d'entrée « météo » : les cartes « À faire maintenant » ouvrent
   // l'écran univers, qui applique déjà ses chargements et ses lieux. Un
   // compteur séparé doublerait le quota pour qui passe par la météo.
@@ -39,7 +39,7 @@ export const FREE_LIMITS = {
   peopleSuggestionsPerDay: 10,
   eventsPerDay: 2,
   circleMaxMembers: 5,
-  passportMaxEntries: 30,
+  passportMaxEntries: 15,
 } as const;
 
 /**
@@ -54,9 +54,12 @@ export const FREE_DISPLAY_CAPS = {
   // payés. C'est un levier de perception, et le plus mal vécu — d'où des
   // valeurs qui laissent une page pleine plutôt qu'une page qui semble
   // cassée.
-  universePlaces: 8,
+  universePlaces: 7,
   mapPlaces: 8,
-  explorerSectionPlaces: 5,
+  explorerSectionPlaces: 4,
+  // Univers ouvert depuis une suggestion de la météo : un aperçu, pas la
+  // liste complète. Les forfaits payants y voient leur liste habituelle.
+  weatherUniversePlaces: 3,
 } as const;
 
 export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
@@ -64,9 +67,9 @@ export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
 /** Plafonds d'affichage du palier courant — Gratuit seul est bridé. */
 export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
-  plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8 },
-  gold: { universePlaces: 25, mapPlaces: 30, explorerSectionPlaces: 12 },
-  diamond: { universePlaces: 30, mapPlaces: 40, explorerSectionPlaces: 15 },
+  plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8, weatherUniversePlaces: 15 },
+  gold: { universePlaces: 25, mapPlaces: 30, explorerSectionPlaces: 12, weatherUniversePlaces: 25 },
+  diamond: { universePlaces: 30, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 30 },
 };
 
 /**

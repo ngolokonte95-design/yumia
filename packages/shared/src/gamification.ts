@@ -117,7 +117,7 @@ export type Plan = (typeof PLANS)[number];
  * table est le SEUL endroit à modifier pour ajuster les paliers plus tard.
  */
 export const PLAN_LIMITS = {
-  free: { savedPlacesMax: 50, simultaneousFilters: 3, streakFreezePerMonth: 0, travelItineraryDays: 3 },
+  free: { savedPlacesMax: 20, simultaneousFilters: 3, streakFreezePerMonth: 0, travelItineraryDays: 3 },
   plus: { savedPlacesMax: Infinity, simultaneousFilters: Infinity, streakFreezePerMonth: 2, travelItineraryDays: 7 },
   gold: { savedPlacesMax: Infinity, simultaneousFilters: Infinity, streakFreezePerMonth: 4, travelItineraryDays: 14 },
   diamond: { savedPlacesMax: Infinity, simultaneousFilters: Infinity, streakFreezePerMonth: Infinity, travelItineraryDays: Infinity },

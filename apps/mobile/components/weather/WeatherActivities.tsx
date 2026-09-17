@@ -45,7 +45,9 @@ export function WeatherActivities({
             <PressableScale
               haptic
               onPress={() => {
-                const params = new URLSearchParams({ u: s.universe });
+                // `from=weather` : l'écran univers applique alors le plafond
+                // d'aperçu de la météo (3 lieux en Gratuit).
+                const params = new URLSearchParams({ u: s.universe, from: 'weather' });
                 // On ne force les coordonnées que pour une ville recherchée —
                 // avec la position réelle, l'écran univers suit le GPS en direct
                 // (utile si l'utilisateur se déplace), comme avant cette fonctionnalité.
