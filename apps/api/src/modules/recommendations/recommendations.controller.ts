@@ -7,6 +7,7 @@ import { ExperienceDto } from './dto/experience.dto';
 import { FeedDto } from './dto/feed.dto';
 import { SearchDto } from './dto/search.dto';
 import { Top3Dto } from './dto/top3.dto';
+import { Quota } from '../../common/quota/quota.interceptor';
 import { RecommendationsService, type ExperienceResult, type Top3Result } from './recommendations.service';
 
 /** Recommandations contextuelles : le Top 3 « anti-paralysie du choix ». */
@@ -24,6 +25,8 @@ export class RecommendationsController {
    */
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('top3')
+  // Dé Surprise, plus les Top 3 que l'Explorer charge seul à l'ouverture.
+  @Quota({ name: 'top3', feature: 'surprisePerDay', margin: 30 })
   @HttpCode(HttpStatus.OK)
   top3(@Body() dto: Top3Dto): Promise<Top3Result> {
     return this.recommendations.top3({
@@ -50,6 +53,8 @@ export class RecommendationsController {
    */
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('experience')
+  // Chargé par l'Explorer en mode Date / Voyage, sans compteur dans l'app.
+  @Quota({ name: 'experience', feature: 'itineraryPerModePerDay', margin: 20 })
   @HttpCode(HttpStatus.OK)
   experience(@Body() dto: ExperienceDto): Promise<ExperienceResult> {
     return this.recommendations.buildExperience({
@@ -71,6 +76,8 @@ export class RecommendationsController {
    */
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   @Post('search')
+  // « Dis-moi ton envie », plus la recherche de lieux des sorties de groupe.
+  @Quota({ name: 'search', feature: 'desirePerDay', margin: 10 })
   @HttpCode(HttpStatus.OK)
   search(@Body() dto: SearchDto): Promise<Top3Result> {
     return this.recommendations.top3({
@@ -96,6 +103,7 @@ export class RecommendationsController {
    */
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('chat')
+  @Quota({ name: 'place-chat', feature: 'chatbotPerDay' })
   @HttpCode(HttpStatus.OK)
   async chat(@Body() dto: ChatDto): Promise<{ reply: string }> {
     const system = [
@@ -115,6 +123,9 @@ export class RecommendationsController {
    */
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('feed')
+  // L'app ne compte que les pages suivantes ; premier chargement et
+  // rafraîchissements passent par la marge.
+  @Quota({ name: 'feed', feature: 'suggestionsPerDay', margin: 30 })
   @HttpCode(HttpStatus.OK)
   feed(@Body() dto: FeedDto): Promise<Top3Result> {
     return this.recommendations.feed({

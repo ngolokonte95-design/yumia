@@ -29,6 +29,7 @@ import { CreatePlaceDto } from './dto/create-place.dto';
 import { ListPlacesDto } from './dto/list-places.dto';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { PlacesService, type PlaceWithDistance } from './places.service';
+import { Quota } from '../../common/quota/quota.interceptor';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -57,6 +58,9 @@ export class PlacesController {
   /** GET /api/places/nearby — lieux proches d'un point, triés par distance. 60/60s. */
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('nearby')
+  // Routes publiques : compté par IP, large (IP partagées sur mobile). Un
+  // garde-fou contre les scripts, pas une limite de forfait.
+  @Quota({ name: 'places-nearby', anonymousPerDay: 3000 })
   async nearby(@Query() query: NearbyQueryDto) {
     const places = await this.places.nearby({
       lat: query.lat,
@@ -103,6 +107,7 @@ export class PlacesController {
   /** GET /api/places/city?name=...&universe=... — recherche par ville, sans géoloc. 30/60s. */
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('city')
+  @Quota({ name: 'places-city', anonymousPerDay: 300 })
   searchByCity(
     @Query('name') name: string,
     @Query('universe') universe?: string,
@@ -124,6 +129,7 @@ export class PlacesController {
    */
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('resolve')
+  @Quota({ name: 'places-resolve', anonymousPerDay: 300 })
   async resolveByName(
     @Query('name') name: string,
     @Query('city') city: string,

@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { ChatbotService } from './chatbot.service';
+import { Quota } from '../../common/quota/quota.interceptor';
 
 @Controller('chatbot')
 @UseGuards(JwtAuthGuard)
@@ -12,6 +13,7 @@ export class ChatbotController {
 
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('message')
+  @Quota({ name: 'chatbot', feature: 'chatbotPerDay' })
   sendMessage(
     @CurrentUser() user: JwtPayload,
     @Body() dto: {

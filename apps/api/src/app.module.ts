@@ -1,3 +1,4 @@
+import { QuotaModule } from './common/quota/quota.module';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
@@ -74,6 +75,7 @@ import { ShopModule } from './modules/shop/shop.module';
     // Infrastructure (globale)
     PrismaModule,
     RedisModule,
+    QuotaModule,
     ElasticsearchModule,
     // Cœur IA (global)
     AiModule,

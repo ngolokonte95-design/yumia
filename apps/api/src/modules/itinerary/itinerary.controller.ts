@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
+import { Quota } from '../../common/quota/quota.interceptor';
 import { ItineraryService, type ItineraryRequest, type ItineraryStep } from './itinerary.service';
 
 @Controller('itinerary')
@@ -12,6 +13,8 @@ export class ItineraryController {
 
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('generate')
+  // Par mode, comme dans l'app : trois en Date n'entament pas le quota Voyage.
+  @Quota({ name: 'itinerary', feature: 'itineraryPerModePerDay', scope: (req) => String(req.body?.mood ?? 'none') })
   generate(@CurrentUser() user: JwtPayload, @Body() dto: ItineraryRequest) {
     return this.itinerary.generate(user.sub, dto);
   }

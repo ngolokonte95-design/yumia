@@ -5,5 +5,6 @@ export * from './universes';
 export * from './modes';
 export * from './ai-engines';
 export * from './gamification';
+export * from './plan-quotas';
 export * from './i18n';
 export * from './types';

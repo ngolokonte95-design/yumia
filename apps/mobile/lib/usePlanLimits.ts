@@ -15,8 +15,8 @@
  * où chaque limite vaut Infinity.
  *
  * Ces compteurs vivent sur l'APPAREIL : réinstaller l'app les remet à zéro.
- * C'est une limite de confort, pas une serrure — le jour où l'abonnement
- * rapportera de l'argent, ils devront être tenus par le serveur.
+ * Ils servent l'affichage (message, upsell) ; la serrure est côté API
+ * (common/quota), sur les routes qui coûtent, avec la même table de quotas.
  */
 import { useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
