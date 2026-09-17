@@ -92,7 +92,7 @@ export default function ExplorerScreen() {
   const [selectedMode] = useState<Mode | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
-  const { checkLimit, recordUsage, planTier, lockedMessage } = usePlanLimits();
+  const { checkLimit, recordUsage } = usePlanLimits();
 
   const [genericLinkLoading, setGenericLinkLoading] = useState<string | null>(null);
 
@@ -291,12 +291,7 @@ export default function ExplorerScreen() {
           lat={coords.lat}
           lng={coords.lng}
           enabled={!resolving}
-          onSeeAll={() => {
-            // Gratuit : la rangée (4 lieux) est tout ce qu'il voit ici. « Voir
-            // tout » ouvrirait l'écran univers et un chargement de plus.
-            if (planTier === 'free') { setUpsell(lockedMessage()); return; }
-            router.push(`/universe?u=${u}` as never);
-          }}
+          onSeeAll={() => router.push(`/universe?u=${u}` as never)}
           onCardPress={(p) => {
             placeStore.set({
               place: {
@@ -440,8 +435,8 @@ function UniverseRow({
   const { t } = useI18n();
   const { displayCap, planTier } = usePlanLimits();
   const { places: allPlaces, loading } = useNearbyUniverse({ lat, lng, universe, radius: universeSearchRadius(universe), limit: 8, enabled });
-  // Le forfait Gratuit voit 4 lieux par rangée, et « Voir tout » lui est
-  // fermé (cf. onSeeAll) : pas d'écran univers ni de chargement en plus.
+  // Le forfait Gratuit voit 4 lieux par rangée, sans « Voir tout » : pas
+  // d'écran univers ni de chargement en plus depuis ici.
   const places = allPlaces.slice(0, displayCap('explorerSectionPlaces'));
   const meta = UNIVERSE_META[universe];
   if (!loading && places.length === 0) return null;
@@ -449,7 +444,9 @@ function UniverseRow({
     <View style={styles.uniSection}>
       <View style={styles.uniHeader}>
         <Text style={styles.uniTitle}>{meta.emoji}  {universeLabel(t, universe)}</Text>
-        <Pressable onPress={onSeeAll} hitSlop={8}><Text style={styles.uniSeeAll}>{planTier === 'free' ? '🔒 ' : ''}{t('explorer_see_all')}</Text></Pressable>
+        {planTier !== 'free' ? (
+          <Pressable onPress={onSeeAll} hitSlop={8}><Text style={styles.uniSeeAll}>{t('explorer_see_all')}</Text></Pressable>
+        ) : null}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.uniRow}>
         {loading
