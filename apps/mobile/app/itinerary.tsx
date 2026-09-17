@@ -282,7 +282,10 @@ export default function ItineraryScreen() {
                 }}
               >
                 <Text style={styles.moodEmoji}>{mm.emoji}</Text>
-                <Text style={[styles.moodLabel, mood === m && styles.moodLabelActive]}>{itineraryMoodLabel(tr, m, mm.label).split(' ')[0]}</Text>
+                <Text style={[styles.moodLabel, mood === m && styles.moodLabelActive]}>{m === 'touriste'
+                  // « Mode Voyage » : le premier mot serait « Mode ».
+                  ? tr('itinmood_touriste_short')
+                  : itineraryMoodLabel(tr, m, mm.label).split(' ')[0]}</Text>
               </Pressable>
             );
           })}
