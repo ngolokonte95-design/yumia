@@ -47,10 +47,16 @@ export function useFeed(params: {
   const seenIds = useRef(new Set<string>());
 
   const ck = cacheKey('feed', { lat: lat.toFixed(3), lng: lng.toFixed(3), mood: mood ?? '' });
+  // Clé du flux affiché : une réponse arrivée pour une humeur qu'on vient de
+  // quitter ne doit pas remplacer celle de l'humeur choisie.
+  const currentCk = useRef(ck);
+  currentCk.current = ck;
 
   const fetchPage = useCallback(async (append = false) => {
     try {
+      const requestedCk = ck;
       const res = await fetchFeed({ lat, lng, mood, limit: 20, favoriteUniverses, restrictions, weather }, accessToken ?? undefined);
+      if (requestedCk !== currentCk.current) return;
       const fresh = res.suggestions.filter((s) => !seenIds.current.has(s.place.id));
       fresh.forEach((s) => seenIds.current.add(s.place.id));
       setSuggestions((prev) => append ? [...prev, ...fresh] : fresh);

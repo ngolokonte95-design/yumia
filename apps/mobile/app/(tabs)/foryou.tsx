@@ -127,13 +127,19 @@ export default function ForYouScreen() {
 
       {/* Filtre d'humeur flottant en haut */}
       <View style={styles.moodBar} pointerEvents="box-none">
+        <Pressable
+          style={[styles.moodChip, mood === null && styles.moodChipActive]}
+          onPress={() => setMood(null)}
+        >
+          <Text style={styles.moodText}>✨ {t('foryou_mood_all')}</Text>
+        </Pressable>
         {MOODS.map((m) => {
           const active = mood === m;
           return (
             <Pressable
               key={m}
               style={[styles.moodChip, active && styles.moodChipActive]}
-              onPress={() => setMood(active ? null : m)}
+              onPress={() => setMood(m)}
             >
               <Text style={styles.moodText}>
                 {MOOD_META[m].emoji} {moodLabel(t, m, MOOD_META[m].labelFr)}

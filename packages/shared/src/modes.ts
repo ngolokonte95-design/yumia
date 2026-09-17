@@ -37,3 +37,27 @@ export const MOOD_META: Record<Mood, { emoji: string; i18nKey: string; labelFr: 
   explore: { emoji: '🌍', i18nKey: 'mood.explore', labelFr: 'Explorer' },
   relax: { emoji: '😌', i18nKey: 'mood.relax', labelFr: 'Me détendre' },
 };
+
+/**
+ * Univers que couvre chaque humeur du flux For You — un FILTRE, pas une
+ * préférence.
+ *
+ * L'humeur n'était transmise qu'à l'IA, qui en déduisait des univers à
+ * favoriser : le tirage « variété » du flux reprenait ensuite tout le reste,
+ * et « Faim » proposait encore des musées et des bars. Les premiers univers de
+ * chaque liste sont les plus représentatifs : ce sont eux que le serveur va
+ * chercher en priorité quand la zone en manque.
+ */
+export const MOOD_UNIVERSES: Record<Mood, readonly string[]> = {
+  hungry: ['restaurant', 'brunch', 'food_truck', 'bakery', 'dessert'],
+  thirsty: ['bar', 'cafe', 'pub', 'tea_house', 'juice_bar', 'wine_cellar', 'rooftop', 'hookah'],
+  going_out: [
+    'nightclub', 'bar', 'live_music', 'pub', 'rooftop', 'karaoke', 'comedy_club', 'cinema',
+    'theater', 'bowling', 'escape_game', 'laser_game', 'karting', 'casino', 'event_venue',
+  ],
+  explore: [
+    'museum', 'monument', 'tourist_activity', 'park', 'photo_spot', 'cultural_outing',
+    'botanical_garden', 'natural_site', 'zoo', 'amusement_park', 'beach', 'hiking',
+  ],
+  relax: ['park', 'spa', 'cafe', 'tea_house', 'massage', 'botanical_garden', 'beach', 'picnic_area', 'yoga_studio'],
+};

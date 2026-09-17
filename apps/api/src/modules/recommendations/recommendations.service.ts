@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Place as PrismaPlace } from '@prisma/client';
-import {
+import { MOOD_UNIVERSES,
   DEFAULT_LOCALE,
   UNIVERSE_META,
   isUniverse,
@@ -268,7 +268,12 @@ export class RecommendationsService {
     // "load more") doit renvoyer un échantillon frais. Le client déduplique déjà
     // par id et garde son propre cache offline (useFeed). Caché → on verrait
     // toujours les 20 mêmes lieux et "load more" n'ajouterait rien.
-    const { reason, suggestions } = await this.rank(ctx, input.radius, input.limit, 'discovery');
+    const moodUniverses = input.mood
+      ? new Set(MOOD_UNIVERSES[input.mood as keyof typeof MOOD_UNIVERSES] ?? [])
+      : undefined;
+    const { reason, suggestions } = await this.rank(
+      ctx, input.radius, input.limit, 'discovery', undefined, moodUniverses?.size ? moodUniverses : undefined,
+    );
     this.logger.debug(`Feed généré : ${suggestions.length} lieux (mood: ${input.mood ?? '∅'})`);
 
     return {
@@ -431,6 +436,8 @@ export class RecommendationsService {
      * résultat, faute de savoir a priori si le top-N contient l'univers voulu.
      */
     universeFilter?: Universe,
+    /** Filtre strict à plusieurs univers : l'humeur choisie dans For You. */
+    universeSet?: Set<string>,
   ): Promise<{ reason: string; suggestions: Suggestion[] }> {
     const selectedEngine = this.selectEngine(ctx);
     this.logger.debug(`Moteur sélectionné : ${selectedEngine}`);
@@ -449,12 +456,36 @@ export class RecommendationsService {
     const favoriteUniverses = (ctx.preferences?.favoriteUniverses ?? []) as Universe[];
     const restrictions = ctx.preferences?.restrictions ?? [];
 
-    const raw = await this.places.nearby({
+    let raw = await this.places.nearby({
       lat: ctx.location!.lat,
       lng: ctx.location!.lng,
       radius,
-      limit: Math.max(40, limit * 3),
+      // Avec une humeur, un pool plus large : les lieux les plus proches, tous
+      // univers confondus, n'en contiennent souvent que quelques-uns du bon type.
+      limit: universeSet ? 200 : Math.max(40, limit * 3),
     });
+
+    if (universeSet) {
+      const inSet = raw.filter((p) => universeSet.has(p.universe as string));
+      // Zone pauvre pour cette humeur : on va chercher ses trois univers
+      // principaux, un par un — c'est ce qui peut déclencher un import de
+      // lieux, d'où la limite à trois plutôt que toute la liste.
+      if (inSet.length < limit) {
+        const core = [...universeSet].slice(0, 3) as Universe[];
+        const extra = await Promise.all(
+          core.map((u) =>
+            this.places
+              .nearby({ lat: ctx.location!.lat, lng: ctx.location!.lng, radius, universe: u, limit: Math.max(20, limit) })
+              .catch(() => [] as PlaceWithDistance[]),
+          ),
+        );
+        const seen = new Map(inSet.map((p) => [p.id, p]));
+        for (const p of extra.flat()) if (!seen.has(p.id)) seen.set(p.id, p);
+        raw = [...seen.values()];
+      } else {
+        raw = inSet;
+      }
+    }
 
     // Recherche par plat : si l'utilisateur tape un mot-clé (« couscous »,
     // « ramen »…), on interroge le Text Search géolocalisé, qui remonte les lieux
@@ -485,6 +516,9 @@ export class RecommendationsService {
     const recommendable = raw.filter(
       (p) => dishMatchIds.has(p.id)
         || p.universe === universeFilter
+        // Univers choisi via l'humeur (spa, massage pour « Me détendre ») :
+        // un choix assumé, comme universeFilter.
+        || universeSet?.has(p.universe as string)
         || !RECO_EXCLUDED_UNIVERSES.has(p.universe as string),
     );
 
@@ -499,7 +533,9 @@ export class RecommendationsService {
     // résultats appartiennent à cet univers, jamais juste le favoriser.
     const candidates = universeFilter
       ? withRestrictions.filter((p) => p.universe === universeFilter)
-      : withRestrictions;
+      : universeSet
+        ? withRestrictions.filter((p) => universeSet.has(p.universe as string))
+        : withRestrictions;
 
     const scored = candidates.map((place) => {
       const base = this.scoreOf(place, radius, suggestedUniverses, favoriteUniverses);

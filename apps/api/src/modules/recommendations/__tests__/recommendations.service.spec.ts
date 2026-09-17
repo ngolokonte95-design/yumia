@@ -135,6 +135,37 @@ describe('RecommendationsService', () => {
   });
 
   describe('feed', () => {
+    it("avec une humeur, ne propose que ses univers (« Faim » : pas de musée ni de bar)", async () => {
+      aiMock.runStructured.mockResolvedValue({ reason: 'Faim', universesSuggested: [] });
+      placesMock.nearby.mockImplementation(async (params: { universe?: string }) =>
+        params.universe
+          ? [mockPlace({ id: `extra-${params.universe}`, universe: params.universe, distanceMeters: 900 })]
+          : [
+            mockPlace({ id: 'r1', universe: 'restaurant', distanceMeters: 200 }),
+            mockPlace({ id: 'm1', universe: 'museum', distanceMeters: 100 }),
+            mockPlace({ id: 'b1', universe: 'bar', distanceMeters: 150 }),
+          ]);
+
+      const result = await service.feed({ lat: 48.856, lng: 2.352, radius: 3000, limit: 10, mood: 'hungry' as never });
+
+      const universes = new Set(result.suggestions.map((s) => s.place.universe));
+      expect(universes.has('museum' as never)).toBe(false);
+      expect(universes.has('bar' as never)).toBe(false);
+      expect(universes.has('restaurant' as never)).toBe(true);
+    });
+
+    it("sans humeur (« Tous »), garde tous les univers", async () => {
+      aiMock.runStructured.mockResolvedValue({ reason: 'Tous', universesSuggested: [] });
+      placesMock.nearby.mockResolvedValue([
+        mockPlace({ id: 'r1', universe: 'restaurant' }),
+        mockPlace({ id: 'm1', universe: 'museum' }),
+      ]);
+
+      const result = await service.feed({ lat: 48.856, lng: 2.352, radius: 3000, limit: 10 });
+
+      expect(new Set(result.suggestions.map((s) => s.place.universe)).size).toBe(2);
+    });
+
     it('génère le feed via l\'IA (échantillon frais, sans mise en cache)', async () => {
       aiMock.runStructured.mockResolvedValue({ reason: 'Découverte du jour', universesSuggested: ['cafe'] });
       placesMock.nearby.mockResolvedValue([
