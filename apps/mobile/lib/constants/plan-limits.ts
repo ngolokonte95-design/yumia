@@ -39,7 +39,7 @@ export const FREE_LIMITS = {
   peopleSuggestionsPerDay: 10,
   eventsPerDay: 2,
   circleMaxMembers: 5,
-  passportMaxEntries: 15,
+  passportMaxEntries: 30,
 } as const;
 
 /**
