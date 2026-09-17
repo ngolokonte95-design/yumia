@@ -291,8 +291,10 @@ export class PassportService {
    */
   async freezeStreak(userId: string): Promise<{ freezesLeft: number; streakCurrent: number }> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    if (user.plan !== 'plus') {
-      throw new ForbiddenException('Les freezes de streak sont réservés à YUMIA Plus.');
+    // Tout forfait payant, et non `plus` seul : Plus n'est plus vendu, et Gold
+    // et Diamond se voyaient refuser un avantage que l'app leur affiche.
+    if (user.plan === 'free') {
+      throw new ForbiddenException('Les freezes de streak sont réservés aux forfaits payants.');
     }
 
     const streak = await this.prisma.streak.findUnique({ where: { userId } });

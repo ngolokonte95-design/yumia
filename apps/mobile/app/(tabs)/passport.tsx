@@ -78,7 +78,7 @@ export default function PassportScreen() {
           <Text style={styles.passportFullEmoji}>👑</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.passportFullTitle}>{t('passport_full_title')} ({getLimit('passportMaxEntries')} {t('passport_full_visits')})</Text>
-            <Text style={styles.passportFullSub}>{t('passport_full_sub')} → 2.99€/mois</Text>
+            <Text style={styles.passportFullSub}>{t('passport_full_sub')}</Text>
           </View>
           <Text style={styles.passportFullArrow}>›</Text>
         </Pressable>

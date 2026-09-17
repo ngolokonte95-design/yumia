@@ -28,7 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { PurchasesOfferings } from 'react-native-purchases';
-import { PLAN_PRICE_EUR, PLANS, type Plan } from '@yumia/shared';
+import { PLAN_PRICE_EUR, PLANS, SOLD_PLANS, type Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { buyPackage, fetchOfferings, packageForTier, restorePurchases } from '../lib/purchases';
@@ -45,7 +45,7 @@ import {
 
 type PaidTier = Exclude<Plan, 'free'>;
 
-const PAID_TIERS: PaidTier[] = ['plus', 'gold', 'diamond'];
+const PAID_TIERS: PaidTier[] = [...SOLD_PLANS];
 
 /** Noms commerciaux — identiques dans toutes les langues. */
 const PLAN_NAME: Record<Plan, string> = {

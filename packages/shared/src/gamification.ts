@@ -125,9 +125,19 @@ export const PLAN_LIMITS = {
 
 export const PLAN_PRICE_EUR: Record<Exclude<Plan, 'free'>, number> = {
   plus: 2.99,
-  gold: 5.99,
+  gold: 4.99,
   diamond: 9.99,
 };
+
+/**
+ * Les forfaits réellement en vente, du moins cher au plus cher.
+ *
+ * Plus n'est plus vendu depuis le 17/09/2026 : trois paliers qui ne
+ * différaient que par des quotas faisaient hésiter, et à 2,99 € la marge ne
+ * couvrait pas un abonné actif. `plus` reste dans `PLANS` (enum en base, anciens
+ * comptes) mais ne doit plus être proposé nulle part.
+ */
+export const SOLD_PLANS = ['gold', 'diamond'] as const satisfies ReadonlyArray<Exclude<Plan, 'free'>>;
 /** @deprecated Utiliser PLAN_PRICE_EUR.plus — gardé pour compatibilité. */
 export const PLUS_PRICE_EUR = PLAN_PRICE_EUR.plus;
 

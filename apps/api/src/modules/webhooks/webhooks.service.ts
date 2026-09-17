@@ -98,8 +98,8 @@ export class WebhooksService {
    * Détermine le plan à partir des entitlements actifs de l'événement
    * (le plus élevé si plusieurs), avec repli sur `product_id` si
    * `entitlement_ids` est absent (anciens événements / config RevenueCat
-   * minimale). Retourne 'plus' par défaut si rien n'est reconnu — préserve
-   * le comportement d'avant l'ajout de Gold/Diamond.
+   * minimale). Retourne 'gold' par défaut si rien n'est reconnu : Plus
+   * n'est plus vendu, Gold est le forfait d'entrée.
    */
   private resolvePlan(event: Record<string, unknown>): Plan {
     const entitlementIds = Array.isArray(event['entitlement_ids'])
@@ -114,6 +114,6 @@ export class WebhooksService {
       if (productId.includes(key)) return plan;
     }
 
-    return 'plus';
+    return 'gold';
   }
 }

@@ -114,14 +114,14 @@ describe('WebhooksService', () => {
       });
     });
 
-    it('retombe sur "plus" si rien n\'est reconnu (comportement historique préservé)', async () => {
+    it('retombe sur "gold" si rien n\'est reconnu (Plus n\'est plus vendu)', async () => {
       await service.handleRevenueCat({
         event: { type: 'INITIAL_PURCHASE', app_user_id: 'user-1' },
       });
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { plan: 'plus', isPremium: true },
+        data: { plan: 'gold', isPremium: true },
       });
     });
   });
@@ -153,7 +153,7 @@ describe('WebhooksService', () => {
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-fallback' },
-      data: { plan: 'plus', isPremium: true },
+      data: { plan: 'gold', isPremium: true },
     });
   });
 

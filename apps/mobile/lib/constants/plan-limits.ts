@@ -79,7 +79,9 @@ export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
  */
 export function nextPaidPlan(current: Plan): Exclude<Plan, 'free'> | null {
   switch (current) {
-    case 'free': return 'plus';
+    // Plus n'est plus vendu (cf. SOLD_PLANS) : Gratuit et les anciens Plus
+    // montent directement à Gold.
+    case 'free':
     case 'plus': return 'gold';
     case 'gold': return 'diamond';
     default: return null;

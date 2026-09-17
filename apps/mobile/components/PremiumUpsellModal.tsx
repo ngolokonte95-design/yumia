@@ -2,7 +2,7 @@ import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
-import { PLAN_PRICE_EUR, type Plan } from '@yumia/shared';
+import { PLAN_PRICE_EUR, SOLD_PLANS, type Plan } from '@yumia/shared';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PlanBadgeIcon } from './Avatar';
 
@@ -73,7 +73,7 @@ export function PremiumUpsellModal({ visible, message, onClose, onDismiss, plan 
    * montre pas les paliers déjà possédés ou inférieurs — ils ne lèveraient
    * rien.
    */
-  const ALL_TIERS: Exclude<Plan, 'free'>[] = ['plus', 'gold', 'diamond'];
+  const ALL_TIERS: Exclude<Plan, 'free'>[] = [...SOLD_PLANS];
   const tiers = ALL_TIERS.slice(ALL_TIERS.indexOf(offered));
 
   return (

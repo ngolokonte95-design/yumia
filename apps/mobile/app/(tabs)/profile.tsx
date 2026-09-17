@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable, Animated, Share, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { PLAN_PRICE_EUR, type Plan } from '@yumia/shared';
+import { PLAN_PRICE_EUR, SOLD_PLANS, type Plan } from '@yumia/shared';
 import { nextPaidPlan } from '../../lib/constants/plan-limits';
 import { safeMeta, universeLabel } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -55,7 +55,7 @@ export default function ProfileScreen() {
   const isPaid = plan !== 'free';
   const nextTier = nextPaidPlan(plan);
   /** Les paliers strictement au-dessus de l'actuel, du moins cher au plus cher. */
-  const PAID_TIERS: Exclude<Plan, 'free'>[] = ['plus', 'gold', 'diamond'];
+  const PAID_TIERS: Exclude<Plan, 'free'>[] = [...SOLD_PLANS];
   const upgrades = nextTier ? PAID_TIERS.slice(PAID_TIERS.indexOf(nextTier)) : [];
   const photoUrl = user?.photoUrl
     ? user.photoUrl.startsWith('http') ? user.photoUrl : `${API_BASE_URL}${user.photoUrl}`

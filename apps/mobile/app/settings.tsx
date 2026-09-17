@@ -169,7 +169,7 @@ export default function SettingsScreen() {
             <Text style={styles.plusTitle}>
               {isPaid
                 ? t('settings_plus_active').replace('YUMIA Plus', PLAN_NAME[plan])
-                : t('settings_plus_upgrade').replace('YUMIA Plus', PLAN_NAME[nextTier ?? 'plus'])}
+                : t('settings_plus_upgrade').replace('YUMIA Plus', PLAN_NAME[nextTier ?? 'gold'])}
             </Text>
             <Text style={styles.plusSub}>
               {isPaid ? t('settings_plus_thanks') : t('settings_plus_pitch')}
