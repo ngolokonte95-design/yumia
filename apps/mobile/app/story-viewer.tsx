@@ -96,8 +96,13 @@ export default function StoryViewerScreen() {
   useEffect(() => {
     if (!accessToken || !userId) return;
     void (async () => {
-      const groups = await feedApi.globalStories(accessToken);
-      setGroup(groups.find((g) => g.user?.id === userId) ?? null);
+      // D'abord les comptes suivis : la liste globale est plafonnée aux 300
+      // stories les plus récentes, et pouvait ne plus contenir celle d'un ami.
+      // Repli sur la liste globale pour un profil que l'on ne suit pas.
+      const followed = await feedApi.feedStories(accessToken);
+      const found = followed.find((g) => g.user?.id === userId)
+        ?? (await feedApi.globalStories(accessToken)).find((g) => g.user?.id === userId);
+      setGroup(found ?? null);
       setLoading(false);
     })();
   }, [accessToken, userId]);

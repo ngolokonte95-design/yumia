@@ -156,6 +156,10 @@ export const feedApi = {
       .then((r) => safe<{ reposted: boolean; repostsCount: number }>(r, { reposted: false, repostsCount: 0 })),
 
   // ── Stories ────────────────────────────────────────────────────────────
+  /** Barre de stories : les miennes et celles des comptes que je suis. */
+  feedStories: (token: string) =>
+    fetch(`${API}/stories/feed`, { headers: auth(token) }).then((r) => safe<StoryGroup[]>(r, [])),
+
   globalStories: (token: string) =>
     fetch(`${API}/stories/global`, { headers: auth(token) }).then((r) => safe<StoryGroup[]>(r, [])),
 

@@ -137,11 +137,20 @@ export class StoriesService {
       byUser.get(s.userId)!.push(s);
     }
 
-    return [...byUser.entries()].map(([uid, userStories]) => ({
+    const groups = [...byUser.entries()].map(([uid, userStories]) => ({
       user: userMap[uid],
       stories: userStories.map((s) => ({ ...s, seen: viewedIds.has(s.id) })),
       hasUnseen: userStories.some((s) => !viewedIds.has(s.id)),
     }));
+
+    // Comme Instagram : mes stories, puis celles pas encore vues, puis le
+    // reste — chaque bloc gardant l'ordre de publication le plus récent.
+    return groups.sort((a, b) => {
+      if (a.user?.id === userId) return -1;
+      if (b.user?.id === userId) return 1;
+      if (a.hasUnseen !== b.hasUnseen) return a.hasUnseen ? -1 : 1;
+      return 0;
+    });
   }
 
   /**

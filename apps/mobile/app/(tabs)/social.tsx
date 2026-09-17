@@ -105,7 +105,7 @@ function StoriesBar({
         <Text style={styles.storyName} numberOfLines={1}>{t('social_your_story')}</Text>
       </Pressable>
 
-      {/* Stories des autres utilisateurs Yumia */}
+      {/* Stories des comptes que je suis (amis ou non) */}
       {others.map((group) => (
         <Pressable key={group.user.id} style={styles.storyItem} onPress={() => onOpen(group.user.id)}>
           <View style={[styles.storyRing, group.hasUnseen && styles.storyRingActive]}>
@@ -641,7 +641,8 @@ export default function SocialTab() {
     if (!accessToken) return;
     const h = { Authorization: `Bearer ${accessToken}` };
     const [storiesRes, globalRes, followRes, actRes, encRes, followingRes, suggestionsRes] = await Promise.allSettled([
-      feedApi.globalStories(accessToken),
+      // Seulement moi et les comptes que je suis, comme sur Instagram.
+      feedApi.feedStories(accessToken),
       feedApi.globalFeed(accessToken),
       feedApi.followingFeed(accessToken),
       fetch(`${API}/social/feed`, { headers: h }),
