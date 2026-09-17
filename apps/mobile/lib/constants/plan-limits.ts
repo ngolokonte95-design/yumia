@@ -35,7 +35,7 @@ export const FREE_LIMITS = {
   // Pas d'entrée « météo » : les cartes « À faire maintenant » ouvrent
   // l'écran univers, qui applique déjà ses chargements et ses lieux. Un
   // compteur séparé doublerait le quota pour qui passe par la météo.
-  suggestionsPerDay: 15,     // For You
+  suggestionsPerDay: 20,     // For You
   peopleSuggestionsPerDay: 10,
   eventsPerDay: 2,
   circleMaxMembers: 5,
@@ -57,8 +57,8 @@ export const FREE_DISPLAY_CAPS = {
   universePlaces: 7,
   mapPlaces: 8,
   explorerSectionPlaces: 4,
-  // Univers ouvert depuis une suggestion de la météo : un aperçu de 3 lieux,
-  // pas la liste complète — identique pour tous les forfaits.
+  // Univers ouvert depuis une suggestion de la météo : un aperçu, pas la
+  // liste complète (3 en Gratuit, 6 en Gold, 9 en Diamond).
   weatherUniversePlaces: 3,
 } as const;
 
@@ -68,8 +68,8 @@ export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
 export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
   plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8, weatherUniversePlaces: 3 },
-  gold: { universePlaces: 12, mapPlaces: 30, explorerSectionPlaces: 10, weatherUniversePlaces: 3 },
-  diamond: { universePlaces: 20, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 3 },
+  gold: { universePlaces: 12, mapPlaces: 30, explorerSectionPlaces: 10, weatherUniversePlaces: 6 },
+  diamond: { universePlaces: 20, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 9 },
 };
 
 /**

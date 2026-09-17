@@ -46,7 +46,7 @@ export function WeatherActivities({
               haptic
               onPress={() => {
                 // `from=weather` : l'écran univers applique alors le plafond
-                // d'aperçu de la météo (3 lieux, tous forfaits).
+                // d'aperçu de la météo (3, 6 ou 9 lieux selon le forfait).
                 const params = new URLSearchParams({ u: s.universe, from: 'weather' });
                 // On ne force les coordonnées que pour une ville recherchée —
                 // avec la position réelle, l'écran univers suit le GPS en direct
