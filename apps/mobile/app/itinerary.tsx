@@ -306,8 +306,14 @@ export default function ItineraryScreen() {
             <Text style={styles.headerSub}>{itineraryMoodSub(tr, mood, meta.sub)}</Text>
           </View>
         </View>
-        <Pressable onPress={() => router.push('/saved-itineraries' as never)} style={styles.shareBtn}>
-          <Text style={styles.shareIcon}>📚</Text>
+        <Pressable onPress={() => router.push('/saved-itineraries' as never)} style={styles.savedLink} hitSlop={6}>
+          <View style={styles.shareBtn}>
+            <Text style={styles.shareIcon}>📚</Text>
+          </View>
+          {/* Même libellé que le titre de l'écran, sans son emoji. */}
+          <Text style={styles.savedLinkTxt} numberOfLines={1}>
+            {tr('si_title').replace(/^[^\p{L}]+/u, '')}
+          </Text>
         </Pressable>
         {result && result.steps.length > 0 && (
           <Pressable onPress={() => void shareItinerary()} style={[styles.shareBtn, { marginLeft: 8 }]}>
@@ -625,6 +631,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   shareIcon: { fontSize: 18, color: '#fff', fontWeight: '700' },
+  savedLink: { alignItems: 'center', gap: 3, maxWidth: 84 },
+  savedLinkTxt: { fontSize: 10, color: '#fff', fontWeight: '600', textAlign: 'center' },
 
   label: { fontWeight: '700', color: colors.text, fontSize: 14, marginTop: spacing.lg, marginBottom: 8 },
 
