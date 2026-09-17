@@ -5,7 +5,7 @@
  * plusieurs endroits dont un seul était cliquable. Ce panneau déroule la
  * journée moment par moment : chacun a sa photo, son texte et son lieu.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -38,22 +38,40 @@ interface Props {
    * Ouvre le lieu d'un moment. Peut être long : un moment sans `placeId` fait
    * chercher l'endroit par son nom avant de pouvoir naviguer.
    */
-  onOpenPlace: (moment: DayMoment) => Promise<void> | void;
+  onOpenPlace: (moment: DayMoment, scrollY: number) => Promise<void> | void;
+  /**
+   * Position de défilement à retrouver à l'ouverture — celle où l'on était
+   * en partant voir un lieu, pour revenir exactement au même moment.
+   */
+  restoreScrollY?: number;
   seePlaceLabel: string;
   closeLabel: string;
 }
 
-export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, seePlaceLabel, closeLabel }: Props) {
+export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, restoreScrollY, seePlaceLabel, closeLabel }: Props) {
   const insets = useSafeAreaInsets();
   // Index du moment en cours de résolution — le bouton doit montrer qu'il
   // travaille, la recherche du lieu pouvant prendre une seconde.
   const [opening, setOpening] = useState<number | null>(null);
 
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const viewportH = useRef(0);
+  // Position encore à restaurer. Le contenu grandit après l'ouverture (entrée
+  // animée, photos) : on ne défile qu'une fois assez de hauteur disponible.
+  const pendingRestore = useRef<number | null>(null);
+  useEffect(() => {
+    if (visible) {
+      scrollY.current = 0;
+      pendingRestore.current = restoreScrollY && restoreScrollY > 0 ? restoreScrollY : null;
+    }
+  }, [visible, restoreScrollY]);
+
   async function open(moment: DayMoment, index: number) {
     if (opening !== null) return;
     setOpening(index);
     try {
-      await onOpenPlace(moment);
+      await onOpenPlace(moment, scrollY.current);
     } finally {
       setOpening(null);
     }
@@ -92,7 +110,20 @@ export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, see
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          <ScrollView
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scroll}
+            scrollEventThrottle={32}
+            onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+            onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; }}
+            onContentSizeChange={(_w, h) => {
+              const target = pendingRestore.current;
+              if (target === null || h - viewportH.current < target) return;
+              pendingRestore.current = null;
+              scrollRef.current?.scrollTo({ y: target, animated: false });
+            }}
+          >
             {day?.description ? (
               <View style={[styles.summary, { borderLeftColor: accent }]}>
                 <Text style={styles.summaryTxt}>{day.description}</Text>

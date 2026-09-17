@@ -74,12 +74,15 @@ export default function ItineraryScreen() {
   const [openDay, setOpenDay] = useState<Step | null>(null);
   // Journée à rouvrir au retour de l'écran d'un lieu ouvert depuis elle :
   // « retour » doit ramener à la journée complète, pas à la semaine.
-  const dayToReopen = useRef<Step | null>(null);
+  // Avec sa position de défilement : on revient au moment d'où l'on est parti.
+  const dayToReopen = useRef<{ day: Step; scrollY: number } | null>(null);
+  const [reopenScrollY, setReopenScrollY] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       if (!dayToReopen.current) return;
-      setOpenDay(dayToReopen.current);
+      setReopenScrollY(dayToReopen.current.scrollY);
+      setOpenDay(dayToReopen.current.day);
       dayToReopen.current = null;
     }, []),
   );
@@ -564,12 +567,13 @@ export default function ItineraryScreen() {
       </ScrollView>
       <DayDetailModal
         visible={openDay !== null}
-        onClose={() => setOpenDay(null)}
+        onClose={() => { setOpenDay(null); setReopenScrollY(0); }}
+        restoreScrollY={reopenScrollY}
         day={openDay}
         accent={meta.color}
         seePlaceLabel={tr('itin_see_place')}
         closeLabel={tr('itin_close_day')}
-        onOpenPlace={async (moment) => {
+        onOpenPlace={async (moment, scrollY) => {
           // Un moment n'a un `placeId` que si son nom correspondait à un lieu
           // déjà en base. Sinon on le cherche maintenant, par son nom : le
           // faire à la génération coûterait une vingtaine de recherches par
@@ -592,7 +596,7 @@ export default function ItineraryScreen() {
           }
           // On ferme avant de naviguer (une feuille ouverte resterait par-dessus
           // l'écran du lieu), et on la rouvre au retour.
-          dayToReopen.current = openDay;
+          if (openDay) dayToReopen.current = { day: openDay, scrollY };
           setOpenDay(null);
           navigateToPlace(target);
         }}
