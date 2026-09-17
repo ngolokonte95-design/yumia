@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, formatPrice, type CartSummary, type ShippingAddress } from '../../lib/shop-api';
+import { CGV_URL } from '../../lib/legal';
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
@@ -201,7 +202,11 @@ export default function CheckoutScreen() {
         )}
 
         <Text style={styles.legal}>
-          Paiement sécurisé par Stripe. Tu disposes d'un droit de rétractation de 14 jours
+          En payant, tu acceptes nos{' '}
+          <Text style={styles.legalLink} onPress={() => void Linking.openURL(CGV_URL)}>
+            conditions générales de vente
+          </Text>
+          . Paiement sécurisé par Stripe. Tu disposes d'un droit de rétractation de 14 jours
           et de la garantie légale de conformité de 2 ans.
         </Text>
       </ScrollView>
@@ -274,6 +279,7 @@ const styles = StyleSheet.create({
   free: { color: colors.success },
 
   legal: { fontSize: 11, color: colors.textMuted, lineHeight: 17, marginTop: spacing.lg, textAlign: 'center' },
+  legalLink: { color: colors.brandSoft, textDecorationLine: 'underline' },
 
   payBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row',

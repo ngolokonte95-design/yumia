@@ -7,3 +7,5 @@
  */
 export const PRIVACY_URL = 'https://yumia.eu/privacy';
 export const TERMS_URL = 'https://yumia.eu/terms';
+/** Conditions générales de vente : à proposer avant tout paiement en boutique. */
+export const CGV_URL = 'https://yumia.eu/cgv';
