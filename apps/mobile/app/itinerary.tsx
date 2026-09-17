@@ -75,6 +75,7 @@ export default function ItineraryScreen() {
   // Journée à rouvrir au retour de l'écran d'un lieu ouvert depuis elle :
   // « retour » doit ramener à la journée complète, pas à la semaine.
   const dayToReopen = useRef<Step | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       if (!dayToReopen.current) return;
@@ -105,6 +106,46 @@ export default function ItineraryScreen() {
   const [result, setResult] = useState<{ itinerary: string; steps: Step[]; error?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Photos des moments d'une journée, cherchées à son ouverture : les
+  // chercher à la génération coûterait une recherche par moment de la
+  // semaine, pour deux ou trois journées réellement ouvertes. Une seule
+  // tentative par moment (`photoTried`).
+  const photoTried = useRef(new Set<string>());
+  useEffect(() => {
+    const day = openDay;
+    const moments = day?.moments ?? [];
+    const todo = moments
+      .map((m, i) => ({ m, i, key: `${day?.time}|${m.time}|${m.name}` }))
+      .filter(({ m, key }) => !m.placePhoto && !photoTried.current.has(key));
+    if (!day || todo.length === 0) return;
+    todo.forEach(({ key }) => photoTried.current.add(key));
+
+    void Promise.all(
+      todo.map(({ m }) => resolvePlaceByName(m.name, city || 'Paris', m.type as never, true)),
+    ).then((found) => {
+      if (found.every((f) => !f)) return;
+      const nextMoments = moments.map((m) => ({ ...m }));
+      todo.forEach(({ i }, k) => {
+        const f = found[k];
+        if (!f) return;
+        Object.assign(nextMoments[i], {
+          // Le nom du lieu trouvé : pour un intitulé générique (« Un café
+          // cosy »), le serveur propose un vrai endroit, et titre et photo
+          // doivent désigner le même.
+          name: f.name,
+          placeId: f.id,
+          placeRating: f.rating,
+          placePhoto: f.photoUrls[0],
+          placeLat: f.lat,
+          placeLng: f.lng,
+        });
+      });
+      const nextDay = { ...day, moments: nextMoments };
+      setOpenDay((current) => (current === day ? nextDay : current));
+      setResult((r) => (r ? { ...r, steps: r.steps.map((s) => (s === day ? nextDay : s)) } : r));
+    });
+  }, [openDay, city]);
 
   const meta = MOOD_META[mood];
 

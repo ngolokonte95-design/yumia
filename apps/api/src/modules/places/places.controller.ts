@@ -30,6 +30,7 @@ import { ListPlacesDto } from './dto/list-places.dto';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { PlacesService, type PlaceWithDistance } from './places.service';
 import { Quota } from '../../common/quota/quota.interceptor';
+import { isGenericName, namesMatch } from '../itinerary/itinerary.service';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -134,6 +135,11 @@ export class PlacesController {
     @Query('name') name: string,
     @Query('city') city: string,
     @Query('universe') universe?: string,
+    // `verify=1` : pour illustrer, pas pour ouvrir. Le lieu renvoyé doit
+    // porter le nom demandé (ou le nom être générique) — une recherche
+    // textuelle rend toujours quelque chose, et une photo d'un autre endroit
+    // mentirait.
+    @Query('verify') verify?: string,
   ): Promise<Place> {
     if (!name || name.trim().length < 3) {
       throw new BadRequestException('Paramètre « name » requis.');
@@ -144,6 +150,9 @@ export class PlacesController {
       universe: universe as Parameters<typeof this.places.findOrImportByName>[0]['universe'],
     });
     if (!place) throw new NotFoundException('Aucun lieu trouvé pour ce nom.');
+    if (verify === '1' && !namesMatch(name, place.name, city) && !isGenericName(name)) {
+      throw new NotFoundException('Aucun lieu trouvé pour ce nom.');
+    }
     return place;
   }
 

@@ -638,8 +638,13 @@ ${isWeek
      * n'ouvrira pas. Ce qui est trouvé est persisté, donc une ville
      * consultée souvent cesse vite de coûter.
      */
-    let importBudget = 8;
-    const resolveByProvider = async (name: string, type: string): Promise<ResolvedPlace> => {
+    // 16 : les 4 à 6 étapes d'une sortie, ou deux essais par journée d'une
+    // semaine pour lui trouver une image.
+    let importBudget = 16;
+    const resolveByProvider = async (
+      name: string,
+      type: string,
+    ): Promise<ResolvedPlace & { placeName?: string }> => {
       if (importBudget <= 0) return {};
       const universe = stepTypeToUniverse(type);
       importBudget -= 1;
@@ -652,11 +657,17 @@ ${isWeek
       // inventé par le modèle, elle rendra l'établissement le plus proche du
       // texte, pas l'endroit demandé. On revérifie donc le nom — sans ce
       // contrôle, on aurait juste déplacé la photo mensongère d'un cran.
-      if (!namesMatch(name, found.name, city)) {
-        this.logger.debug(`« ${name} » : le fournisseur a répondu « ${found.name} », écarté.`);
-        return {};
-      }
-      return toResolved(found);
+      if (namesMatch(name, found.name, city)) return toResolved(found);
+
+      // Un intitulé générique (« Un bar à cocktails ») ne désigne aucun
+      // endroit : le fournisseur en propose un vrai, et on adopte son NOM avec
+      // sa photo — la même règle que pour une substitution depuis la base.
+      // Sans ça, une ville encore absente de la base laissait toutes ces
+      // cartes sans image.
+      if (isGenericName(name)) return { ...toResolved(found), placeName: found.name };
+
+      this.logger.debug(`« ${name} » : le fournisseur a répondu « ${found.name} », écarté.`);
+      return {};
     };
 
     // Séquentiel, et non `Promise.all` : le curseur doit avancer de façon
@@ -676,7 +687,11 @@ ${isWeek
 
         // Rien en base pour ce nom précis : on va le chercher chez le
         // fournisseur plutôt que de laisser une carte nue.
-        if (!step.placeId) Object.assign(step, await resolveByProvider(step.name, step.type));
+        if (!step.placeId) {
+          const { placeName: providerName, ...fromProvider } = await resolveByProvider(step.name, step.type);
+          Object.assign(step, fromProvider);
+          if (providerName) step.name = providerName;
+        }
       }
 
       for (const moment of step.moments ?? []) {
@@ -695,9 +710,17 @@ ${isWeek
       // Les moments suivants gardent leur résolution au clic, qui ne coûte
       // que ce que l'utilisateur consulte vraiment.
       if (isDay) {
-        const first = step.moments?.[0];
-        if (first && !first.placeId) {
-          Object.assign(first, await resolveByProvider(first.name, first.type));
+        // Jusqu'à deux moments essayés chez le fournisseur, jusqu'à obtenir
+        // une image pour la journée. Les autres moments sont illustrés par
+        // l'app à l'ouverture de la journée, pour ne payer que ce qui est vu.
+        let tries = 0;
+        for (const moment of step.moments ?? []) {
+          if (step.moments?.some((m) => m.placePhoto) || tries >= 2) break;
+          if (moment.placeId) continue;
+          tries += 1;
+          const { placeName: providerName, ...fromProvider } = await resolveByProvider(moment.name, moment.type);
+          Object.assign(moment, fromProvider);
+          if (providerName) moment.name = providerName;
         }
         if (!step.placePhoto) {
           step.placePhoto = step.moments?.find((m) => m.placePhoto)?.placePhoto;

@@ -95,11 +95,14 @@ export async function resolvePlaceByName(
   name: string,
   city: string,
   universe?: Universe,
+  /** Pour illustrer : n'accepter qu'un lieu qui porte vraiment ce nom. */
+  verify = false,
 ): Promise<CityPlace | null> {
   const q = new URLSearchParams();
   q.set('name', name);
   q.set('city', city);
   if (universe) q.set('universe', universe);
+  if (verify) q.set('verify', '1');
   try {
     return await request<CityPlace>(`/places/resolve?${q.toString()}`);
   } catch {
