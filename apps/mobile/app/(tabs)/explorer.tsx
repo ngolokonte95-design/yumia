@@ -87,12 +87,12 @@ export default function ExplorerScreen() {
   const { coords, resolving, isFallback, city, refreshIfMoved } = useLocation();
   // Explorer reste monté quand on change d'onglet : sans relecture, ses lieux
   // restaient ceux du point de départ. Au retour sur l'onglet, on relit la
-  // position, et les lieux ne se rechargent que si l'on a bougé de 500 m.
+  // position, et les lieux ne se rechargent que si l'on a bougé de 1 km.
   const explorerFocused = useRef(false);
   useFocusEffect(
     useCallback(() => {
       if (!explorerFocused.current) { explorerFocused.current = true; return; }
-      void refreshIfMoved(500);
+      void refreshIfMoved(1000);
     }, [refreshIfMoved]),
   );
   const weather = useWeather(coords.lat, coords.lng);
