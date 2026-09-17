@@ -69,7 +69,7 @@ export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
   plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8, weatherUniversePlaces: 3 },
   gold: { universePlaces: 12, mapPlaces: 30, explorerSectionPlaces: 10, weatherUniversePlaces: 3 },
-  diamond: { universePlaces: 30, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 3 },
+  diamond: { universePlaces: 20, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 3 },
 };
 
 /**
@@ -132,8 +132,8 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     desirePerDay: 20,
     itineraryPerModePerDay: 10,
     surprisePerDay: 20,
-    universeLoadsPerDay: 12,
-    mapLoadsPerDay: 12,
+    universeLoadsPerDay: 10,
+    mapLoadsPerDay: 10,
     suggestionsPerDay: 40,
     // Ce qui ne coûte qu'à notre propre serveur s'ouvre dès Gold : le saut de
     // palier se sent, sans nous exposer.
@@ -151,12 +151,12 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   // hautes pour qu'aucun usage humain ne les rencontre, assez basses pour
   // qu'un script ne vide pas le budget.
   diamond: {
-    chatbotPerDay: 60,
-    desirePerDay: 60,
+    chatbotPerDay: 50,
+    desirePerDay: 40,
     itineraryPerModePerDay: 15,
     surprisePerDay: 40,
-    universeLoadsPerDay: 30,
-    mapLoadsPerDay: 25,
+    universeLoadsPerDay: 15,
+    mapLoadsPerDay: 15,
     suggestionsPerDay: 80,
     peopleSuggestionsPerDay: Infinity,
     eventsPerDay: Infinity,
