@@ -23,6 +23,7 @@ import { useI18n } from '../../lib/useI18n';
 import { PRIVACY_URL, TERMS_URL } from '../../lib/legal';
 import { AgeGateFields, AgeGateModal } from '../../components/AgeGateModal';
 import { MIN_SIGNUP_AGE, ageFromIso, toIsoBirthDate } from '../../lib/age-gate';
+import { PasswordInput } from '../../components/PasswordInput';
 
 /** Création de compte par email + mot de passe. */
 export default function RegisterScreen() {
@@ -119,11 +120,10 @@ export default function RegisterScreen() {
             value={email}
             onChangeText={setEmail}
           />
-          <TextInput
+          <PasswordInput
             style={styles.input}
             placeholder={t('password_hint')}
             placeholderTextColor={colors.textMuted}
-            secureTextEntry
             value={password}
             onChangeText={setPassword}
           />

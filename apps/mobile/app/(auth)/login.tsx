@@ -20,6 +20,7 @@ import { useGoogleAuth } from '../../lib/useGoogleAuth';
 import { useAppleAuth } from '../../lib/useAppleAuth';
 import { useI18n } from '../../lib/useI18n';
 import { AgeGateModal } from '../../components/AgeGateModal';
+import { PasswordInput } from '../../components/PasswordInput';
 
 /** Connexion par email + mot de passe. */
 export default function LoginScreen() {
@@ -83,11 +84,10 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
           />
-          <TextInput
+          <PasswordInput
             style={styles.input}
             placeholder={t('password_placeholder')}
             placeholderTextColor={colors.textMuted}
-            secureTextEntry
             value={password}
             onChangeText={setPassword}
           />

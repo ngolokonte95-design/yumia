@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { resetPasswordRequest } from '../lib/auth-api';
 import { useI18n } from '../lib/useI18n';
+import { PasswordInput } from '../components/PasswordInput';
 
 export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -103,14 +104,13 @@ export default function ResetPasswordScreen() {
           {/* Nouveau mdp */}
           <View style={styles.field}>
             <Text style={styles.label}>{t('rp_new_password_label')}</Text>
-            <TextInput
+            <PasswordInput
               ref={passwordRef}
               style={styles.input}
               placeholder="••••••••"
               placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
               returnKeyType="next"
             />
           </View>
@@ -118,13 +118,12 @@ export default function ResetPasswordScreen() {
           {/* Confirmation */}
           <View style={styles.field}>
             <Text style={styles.label}>{t('rp_confirm_label')}</Text>
-            <TextInput
+            <PasswordInput
               style={[styles.input, confirm.length > 0 && !passwordMatch && styles.inputError]}
               placeholder="••••••••"
               placeholderTextColor={colors.textMuted}
               value={confirm}
               onChangeText={setConfirm}
-              secureTextEntry
               returnKeyType="done"
               onSubmitEditing={handleReset}
             />
