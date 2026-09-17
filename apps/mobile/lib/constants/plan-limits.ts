@@ -57,8 +57,8 @@ export const FREE_DISPLAY_CAPS = {
   universePlaces: 7,
   mapPlaces: 8,
   explorerSectionPlaces: 4,
-  // Univers ouvert depuis une suggestion de la météo : un aperçu, pas la
-  // liste complète. Les forfaits payants y voient leur liste habituelle.
+  // Univers ouvert depuis une suggestion de la météo : un aperçu de 3 lieux,
+  // pas la liste complète — identique pour tous les forfaits.
   weatherUniversePlaces: 3,
 } as const;
 
@@ -67,9 +67,9 @@ export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
 /** Plafonds d'affichage du palier courant — Gratuit seul est bridé. */
 export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
-  plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8, weatherUniversePlaces: 15 },
-  gold: { universePlaces: 25, mapPlaces: 30, explorerSectionPlaces: 12, weatherUniversePlaces: 25 },
-  diamond: { universePlaces: 30, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 30 },
+  plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8, weatherUniversePlaces: 3 },
+  gold: { universePlaces: 12, mapPlaces: 30, explorerSectionPlaces: 10, weatherUniversePlaces: 3 },
+  diamond: { universePlaces: 30, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 3 },
 };
 
 /**
@@ -128,13 +128,13 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
   },
 
   gold: {
-    chatbotPerDay: 40,
-    desirePerDay: 40,
+    chatbotPerDay: 30,
+    desirePerDay: 20,
     itineraryPerModePerDay: 10,
-    surprisePerDay: 25,
-    universeLoadsPerDay: 20,
-    mapLoadsPerDay: 18,
-    suggestionsPerDay: 60,
+    surprisePerDay: 20,
+    universeLoadsPerDay: 12,
+    mapLoadsPerDay: 12,
+    suggestionsPerDay: 40,
     // Ce qui ne coûte qu'à notre propre serveur s'ouvre dès Gold : le saut de
     // palier se sent, sans nous exposer.
     peopleSuggestionsPerDay: Infinity,
