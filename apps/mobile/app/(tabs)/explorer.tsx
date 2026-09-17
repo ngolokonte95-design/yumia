@@ -5,10 +5,10 @@
  * sections « Tendances » et « Top 3 / Itinéraire » (déménagées depuis Home,
  * qui ne montre plus que la grille d'univers).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image as RNImage, Linking, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MODE_META, UNIVERSE_META } from '@yumia/shared';
 import type { Mode, Universe } from '@yumia/shared';
@@ -84,7 +84,17 @@ export default function ExplorerScreen() {
   const router = useRouter();
   const { accessToken, user } = useAuth();
   const { t } = useI18n();
-  const { coords, resolving, isFallback, city } = useLocation();
+  const { coords, resolving, isFallback, city, refreshIfMoved } = useLocation();
+  // Explorer reste monté quand on change d'onglet : sans relecture, ses lieux
+  // restaient ceux du point de départ. Au retour sur l'onglet, on relit la
+  // position, et les lieux ne se rechargent que si l'on a bougé de 500 m.
+  const explorerFocused = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!explorerFocused.current) { explorerFocused.current = true; return; }
+      void refreshIfMoved(500);
+    }, [refreshIfMoved]),
+  );
   const weather = useWeather(coords.lat, coords.lng);
   // Aucune sélection de mode dans Explorer (les boutons Date/Famille/Voyage
   // restent sur Home mais n'agissent plus sur cette section) : la section
