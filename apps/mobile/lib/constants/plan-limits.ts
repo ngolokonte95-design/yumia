@@ -68,7 +68,7 @@ export type DisplayCap = keyof typeof FREE_DISPLAY_CAPS;
 export const DISPLAY_CAPS_BY_PLAN: Record<Plan, Record<DisplayCap, number>> = {
   free: FREE_DISPLAY_CAPS,
   plus: { universePlaces: 15, mapPlaces: 20, explorerSectionPlaces: 8, weatherUniversePlaces: 3 },
-  gold: { universePlaces: 12, mapPlaces: 30, explorerSectionPlaces: 10, weatherUniversePlaces: 6 },
+  gold: { universePlaces: 12, mapPlaces: 25, explorerSectionPlaces: 10, weatherUniversePlaces: 6 },
   diamond: { universePlaces: 20, mapPlaces: 40, explorerSectionPlaces: 15, weatherUniversePlaces: 9 },
 };
 
