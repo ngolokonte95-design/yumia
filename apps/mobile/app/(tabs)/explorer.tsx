@@ -301,7 +301,6 @@ export default function ExplorerScreen() {
           lat={coords.lat}
           lng={coords.lng}
           enabled={!resolving}
-          onSeeAll={() => router.push(`/universe?u=${u}` as never)}
           onCardPress={(p) => {
             placeStore.set({
               place: {
@@ -433,20 +432,19 @@ export default function ExplorerScreen() {
 }
 
 function UniverseRow({
-  universe, lat, lng, enabled, onSeeAll, onCardPress,
+  universe, lat, lng, enabled, onCardPress,
 }: {
   universe: Universe;
   lat: number;
   lng: number;
   enabled: boolean;
-  onSeeAll: () => void;
   onCardPress: (p: NearbyPlace) => void;
 }) {
   const { t } = useI18n();
-  const { displayCap, planTier } = usePlanLimits();
+  const { displayCap } = usePlanLimits();
   const { places: allPlaces, loading } = useNearbyUniverse({ lat, lng, universe, radius: universeSearchRadius(universe), limit: 8, enabled });
-  // Le forfait Gratuit voit 4 lieux par rangée, sans « Voir tout » : pas
-  // d'écran univers ni de chargement en plus depuis ici.
+  // Pas de « Voir tout », quel que soit le forfait : la rangée est un aperçu,
+  // sans écran univers ni chargement en plus depuis ici.
   const places = allPlaces.slice(0, displayCap('explorerSectionPlaces'));
   const meta = UNIVERSE_META[universe];
   if (!loading && places.length === 0) return null;
@@ -454,9 +452,6 @@ function UniverseRow({
     <View style={styles.uniSection}>
       <View style={styles.uniHeader}>
         <Text style={styles.uniTitle}>{meta.emoji}  {universeLabel(t, universe)}</Text>
-        {planTier !== 'free' ? (
-          <Pressable onPress={onSeeAll} hitSlop={8}><Text style={styles.uniSeeAll}>{t('explorer_see_all')}</Text></Pressable>
-        ) : null}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.uniRow}>
         {loading
@@ -644,7 +639,6 @@ const styles = StyleSheet.create({
   uniSection: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
   uniHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   uniTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  uniSeeAll: { fontSize: 12, color: colors.brand, fontWeight: '600' },
   uniRow: { gap: spacing.sm, paddingRight: spacing.md },
   uniCard: {
     width: 112,
