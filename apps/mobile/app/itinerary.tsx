@@ -3,12 +3,12 @@
  * Chaque mode a son identité visuelle et un prompt contextuel côté backend.
  * Les étapes sont liées aux vrais lieux YUMIA quand disponibles.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, Pressable, ScrollView,
   Share, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
@@ -72,6 +72,16 @@ export default function ItineraryScreen() {
 
   // Journée ouverte dans le panneau flottant — `null` quand il est fermé.
   const [openDay, setOpenDay] = useState<Step | null>(null);
+  // Journée à rouvrir au retour de l'écran d'un lieu ouvert depuis elle :
+  // « retour » doit ramener à la journée complète, pas à la semaine.
+  const dayToReopen = useRef<Step | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!dayToReopen.current) return;
+      setOpenDay(dayToReopen.current);
+      dayToReopen.current = null;
+    }, []),
+  );
   const [upsell, setUpsell] = useState<string | null>(null);
   const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
   // Étape dont on cherche le lieu — le bouton doit montrer qu'il travaille,
@@ -539,8 +549,9 @@ export default function ItineraryScreen() {
               placeLng: found.lng,
             };
           }
-          // On ferme avant de naviguer : laisser la feuille ouverte derrière
-          // l'écran du lieu la ferait réapparaître au retour.
+          // On ferme avant de naviguer (une feuille ouverte resterait par-dessus
+          // l'écran du lieu), et on la rouvre au retour.
+          dayToReopen.current = openDay;
           setOpenDay(null);
           navigateToPlace(target);
         }}
