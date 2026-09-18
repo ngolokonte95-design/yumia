@@ -40,28 +40,28 @@ model User {
   appleId      String?      @unique
 
   // i18n / contexte
-  locale       String       @default("fr")
-  currency     String       @default("EUR")
-  countryCode  String?
-  timezone     String?
+  locale      String  @default("fr")
+  currency    String  @default("EUR")
+  countryCode String?
+  timezone    String?
 
-  plan         Plan         @default(free)
+  plan         Plan      @default(free)
   // Abonnement Premium (RevenueCat). `plan` reste synchro (plus = premium).
-  isPremium    Boolean      @default(false)
+  isPremium    Boolean   @default(false)
   premiumSince DateTime?
-  premiumPlan  String?      // 'monthly' | 'annual'
-  totalXp      Int          @default(0)
-  level        Int          @default(1)
+  premiumPlan  String? // 'monthly' | 'annual'
+  totalXp      Int       @default(0)
+  level        Int       @default(1)
 
   // Préférences (restrictions, univers favoris) — flexibles, donc JSON.
-  preferences    Json         @default("{}")
-  expoPushToken  String?
+  preferences   Json    @default("{}")
+  expoPushToken String?
 
   // Profil social
-  gender         String?      // 'male' | 'female' | 'other'
-  birthYear      Int?         // année de naissance → âge calculé côté client
-  interestedIn   String       @default("everyone") // 'male' | 'female' | 'everyone'
-  isPrivate      Boolean      @default(false) // compte privé → follow via demande d'abonnement
+  gender       String? // 'male' | 'female' | 'other'
+  birthYear    Int? // année de naissance → âge calculé côté client
+  interestedIn String  @default("everyone") // 'male' | 'female' | 'everyone'
+  isPrivate    Boolean @default(false) // compte privé → follow via demande d'abonnement
 
   /// Suspension : date de fin, ou null si le compte est actif. Une date très
   /// lointaine vaut bannissement définitif. Exigé par la règle 1.2 de l'App
@@ -70,8 +70,8 @@ model User {
   /// Motif communiqué à la personne suspendue, et gardé pour la trace.
   suspendedReason String?
 
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
@@ -87,11 +87,11 @@ model User {
   savedItineraries    SavedItinerary[]
 
   // Boutique
-  cart                Cart?
-  wishlist            WishlistItem[]
-  shippingAddresses   ShippingAddress[]
-  orders              Order[]
-  productReviews      ProductReview[]
+  cart              Cart?
+  wishlist          WishlistItem[]
+  shippingAddresses ShippingAddress[]
+  orders            Order[]
+  productReviews    ProductReview[]
 
   @@index([countryCode])
   @@index([expoPushToken])
@@ -100,13 +100,13 @@ model User {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
@@ -117,11 +117,11 @@ model RefreshToken {
 
 enum Universe {
   // Manger & Boire
-  restaurant    // inclut fast_food (fusionné)
+  restaurant // inclut fast_food (fusionné)
   cafe
   bakery
   brunch
-  fast_food     // LEGACY — fusionné dans restaurant (migration 20260708180000)
+  fast_food // LEGACY — fusionné dans restaurant (migration 20260708180000)
   dessert
   ice_cream
   chocolatier
@@ -160,10 +160,10 @@ enum Universe {
   botanical_garden
   picnic_area
   // Sport & Loisirs
-  fitness       // inclut padel/tennis (fusionné)
+  fitness // inclut padel/tennis (fusionné)
   gym
   aquatic
-  padel         // LEGACY — fusionné dans fitness (migration 20260708180000)
+  padel // LEGACY — fusionné dans fitness (migration 20260708180000)
   escape_game
   laser_game
   karting
@@ -266,22 +266,22 @@ enum Universe {
 }
 
 model Place {
-  id          String   @id @default(uuid())
-  name        String
-  universe    Universe
+  id       String   @id @default(uuid())
+  name     String
+  universe Universe
 
   lat         Float
   lng         Float
   city        String
   countryCode String
 
-  rating      Float    @default(0)
-  priceTier   Int      @default(2) // 1..4
-  photoUrls   String[] @default([])
+  rating    Float    @default(0)
+  priceTier Int      @default(2) // 1..4
+  photoUrls String[] @default([])
 
   // Attributs exploités par les moteurs IA (terrasse, kid_friendly, halal…).
-  tags        String[] @default([])
-  metadata    Json     @default("{}")
+  tags     String[] @default([])
+  metadata Json     @default("{}")
 
   // Provenance : 'seed' (données locales) ou 'google' (hydraté à la demande).
   // providerPlaceId déduplique les lieux importés (NULL pour les lieux seed).
@@ -289,11 +289,11 @@ model Place {
   providerPlaceId String? @unique
   address         String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  visits      Visit[]
-  savedBy     SavedPlace[]
+  visits          Visit[]
+  savedBy         SavedPlace[]
   affiliateClicks AffiliateClick[]
 
   @@index([universe])
@@ -329,16 +329,16 @@ model Visit {
 }
 
 model SavedPlace {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  placeId   String
-  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  listName  String   @default("a_essayer")
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placeId      String
+  place        Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  listName     String   @default("a_essayer")
   /// Collection de favoris (partagée avec les publications enregistrées).
   /// Nullable : un lieu peut rester dans les favoris sans être rangé.
   collectionId String?
-  createdAt DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   @@unique([userId, placeId, listName])
   @@index([userId])
@@ -350,25 +350,25 @@ model SavedPlace {
 // ----------------------------------------------------------------------------
 
 model EarnedBadge {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badgeKey  String
-  earnedAt  DateTime @default(now())
+  id       String   @id @default(uuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeKey String
+  earnedAt DateTime @default(now())
 
   @@unique([userId, badgeKey])
   @@index([userId])
 }
 
 model Streak {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  current         Int      @default(0)
-  best            Int      @default(0)
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  current         Int       @default(0)
+  best            Int       @default(0)
   lastActivityDay DateTime?
-  freezesLeft     Int      @default(0) // YUMIA Plus
-  updatedAt       DateTime @updatedAt
+  freezesLeft     Int       @default(0) // YUMIA Plus
+  updatedAt       DateTime  @updatedAt
 
   // Optimise la requête cron "danger de streak" qui filtre sur current > 0 + lastActivityDay
   @@index([current, lastActivityDay])
@@ -379,13 +379,13 @@ model Streak {
 // ----------------------------------------------------------------------------
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
@@ -395,19 +395,19 @@ model PasswordResetToken {
 // ----------------------------------------------------------------------------
 
 enum GroupStatus {
-  waiting    // en attente que d'autres rejoignent
-  voting     // l'hôte a lancé les suggestions, vote en cours
-  done       // un lieu a été choisi
+  waiting // en attente que d'autres rejoignent
+  voting // l'hôte a lancé les suggestions, vote en cours
+  done // un lieu a été choisi
 }
 
 model GroupSession {
-  id             String      @id @default(uuid())
-  inviteCode     String      @unique
-  status         GroupStatus @default(waiting)
+  id             String        @id @default(uuid())
+  inviteCode     String        @unique
+  status         GroupStatus   @default(waiting)
   createdById    String?
-  suggestions    Json        @default("[]") // PlaceId[]
+  suggestions    Json          @default("[]") // PlaceId[]
   decidedPlaceId String?
-  createdAt      DateTime    @default(now())
+  createdAt      DateTime      @default(now())
   members        GroupMember[]
 
   @@index([inviteCode])
@@ -435,7 +435,7 @@ model GroupMember {
 /// Établissement partenaire — boost payant des suggestions + billetterie.
 model Venue {
   id             String    @id @default(uuid())
-  placeId        String?   // lien optionnel vers un Place existant
+  placeId        String? // lien optionnel vers un Place existant
   name           String
   city           String?
   countryCode    String?
@@ -454,7 +454,7 @@ model Venue {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  tickets        Ticket[]
+  tickets Ticket[]
 
   @@index([boostLevel])
   @@index([placeId])
@@ -470,7 +470,7 @@ model Ticket {
   quantity   Int      @default(1)
   unitPrice  Float
   totalPrice Float
-  commission Float    // part YUMIA (15%)
+  commission Float // part YUMIA (15%)
   // paiement réel branché plus tard (Stripe) — statut applicatif pour l'instant
   status     String   @default("pending") // pending | paid | cancelled
   createdAt  DateTime @default(now())
@@ -507,9 +507,9 @@ model MenuItem {
   description String?
   price       Float?
   currency    String    @default("EUR")
-  category    String?   // 'entrée' | 'plat' | 'dessert' | 'boisson' | 'snack' | 'autre'
+  category    String? // 'entrée' | 'plat' | 'dessert' | 'boisson' | 'snack' | 'autre'
   photoUrl    String?
-  tags        String[]  @default([])  // ['végétarien','halal','sans_gluten'…]
+  tags        String[]  @default([]) // ['végétarien','halal','sans_gluten'…]
   available   Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -520,20 +520,20 @@ model MenuItem {
 
 /// Événement lié à un lieu (concert, feu d'artifice, soirée thématique…).
 model PlaceEvent {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   placeId     String
   title       String
   description String?
   startAt     DateTime
   endAt       DateTime?
   price       Float?
-  currency    String   @default("EUR")
+  currency    String    @default("EUR")
   ticketUrl   String?
   photoUrl    String?
-  source      String   @default("manual") // 'manual' | 'ticketmaster' | 'eventbrite' | 'facebook'
-  externalId  String?  // ID dans le système source (évite les doublons)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  source      String    @default("manual") // 'manual' | 'ticketmaster' | 'eventbrite' | 'facebook'
+  externalId  String? // ID dans le système source (évite les doublons)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@unique([placeId, source, externalId])
   @@index([placeId, startAt])
@@ -545,8 +545,8 @@ model PlaceReview {
   id        String   @id @default(uuid())
   placeId   String
   userId    String
-  rating    Int      // 1..5
-  body      String?  // texte optionnel
+  rating    Int // 1..5
+  body      String? // texte optionnel
   photoUrl  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -560,7 +560,7 @@ model PlaceReview {
 model EnrichmentJob {
   id        String   @id @default(uuid())
   placeId   String
-  type      String   // 'menu_photo' | 'menu_scrape' | 'events_fetch' | 'photo_tag'
+  type      String // 'menu_photo' | 'menu_scrape' | 'events_fetch' | 'photo_tag'
   status    String   @default("pending") // 'pending' | 'running' | 'done' | 'failed'
   input     Json     @default("{}")
   output    Json?
@@ -578,29 +578,29 @@ model EnrichmentJob {
 // ----------------------------------------------------------------------------
 
 model Post {
-  id         String        @id @default(uuid())
+  id         String   @id @default(uuid())
   userId     String
   caption    String?
   placeId    String?
   mediaUrls  String[]
-  videoUrl   String?       // URL vidéo uploadée (optionnel)
-  musicTrack String?       // ex: "Blinding Lights - The Weeknd"
-  likesCount Int           @default(0)
-  viewsCount Int           @default(0)  // stats : nombre de vues
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  videoUrl   String? // URL vidéo uploadée (optionnel)
+  musicTrack String? // ex: "Blinding Lights - The Weeknd"
+  likesCount Int      @default(0)
+  viewsCount Int      @default(0) // stats : nombre de vues
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Gestion de contenu (façon Instagram)
   pinned           Boolean   @default(false) // épinglé en haut du profil (max 3 côté service)
   archived         Boolean   @default(false) // masqué sans suppression
   isDraft          Boolean   @default(false) // brouillon non publié
-  editedAt         DateTime?                 // dernière modification de la légende
+  editedAt         DateTime? // dernière modification de la légende
   commentsDisabled Boolean   @default(false)
   hideLikeCount    Boolean   @default(false)
-  coverUrl         String?                   // couverture choisie pour un reel/vidéo
-  taggedUserIds    String[]  @default([])    // personnes identifiées
-  collabUserId     String?                   // co-auteur (post en collaboration)
-  hashtags         String[]  @default([])    // extraits de la légende, pour la recherche
+  coverUrl         String? // couverture choisie pour un reel/vidéo
+  taggedUserIds    String[]  @default([]) // personnes identifiées
+  collabUserId     String? // co-auteur (post en collaboration)
+  hashtags         String[]  @default([]) // extraits de la légende, pour la recherche
 
   /// Texte et dessins superposés à la vidéo, façon CapCut. Recomposés à la
   /// LECTURE par le client (comme Story.stickers) — jamais gravés dans le
@@ -613,10 +613,10 @@ model Post {
   /// musicTrack, mais un simple fichier audio et non un JSON).
   voiceTrackUrl String?
 
-  likes      PostLike[]
-  comments   PostComment[]
-  saves      PostSave[]
-  reposts    Repost[]
+  likes    PostLike[]
+  comments PostComment[]
+  saves    PostSave[]
+  reposts  Repost[]
 
   @@index([userId])
   @@index([placeId])
@@ -627,7 +627,7 @@ model Post {
 model PostSave {
   postId       String
   userId       String
-  collectionId String?  // rangé dans une collection (optionnel)
+  collectionId String? // rangé dans une collection (optionnel)
   createdAt    DateTime @default(now())
   post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
@@ -661,15 +661,15 @@ model PostLike {
 }
 
 model PostComment {
-  id         String   @id @default(uuid())
+  id         String        @id @default(uuid())
   postId     String
   userId     String
   content    String
-  parentId   String?  // réponse en fil à un autre commentaire
-  likesCount Int      @default(0)
-  pinned     Boolean  @default(false) // épinglé par l'auteur du post
-  createdAt  DateTime @default(now())
-  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId   String? // réponse en fil à un autre commentaire
+  likesCount Int           @default(0)
+  pinned     Boolean       @default(false) // épinglé par l'auteur du post
+  createdAt  DateTime      @default(now())
+  post       Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
   likes      CommentLike[]
 
   @@index([postId])
@@ -726,11 +726,11 @@ model MeetupRsvp {
 // ----------------------------------------------------------------------------
 
 model Encounter {
-  id        String   @id @default(uuid())
-  userAId   String
-  userBId   String
-  placeId   String
-  seenAt    DateTime @default(now())
+  id      String   @id @default(uuid())
+  userAId String
+  userBId String
+  placeId String
+  seenAt  DateTime @default(now())
 
   @@unique([userAId, userBId, placeId])
   @@index([userAId])
@@ -799,11 +799,11 @@ model CalendarEvent {
   startAt  DateTime
   endAt    DateTime?
   /// Fuseau IANA du lieu de l'événement (ex. « Europe/Paris »).
-  timezone String   @default("UTC")
-  allDay   Boolean  @default(false)
+  timezone String    @default("UTC")
+  allDay   Boolean   @default(false)
 
   /// Règle de récurrence RFC 5545. Null = événement ponctuel.
-  rrule    String?
+  rrule         String?
   /// Occurrences supprimées d'une série, en instants ISO UTC.
   excludedDates DateTime[] @default([])
 
@@ -854,12 +854,12 @@ model NotebookNote {
   links     String[] @default([])
 
   /// Rattachements — c'est ce qui relie le bloc-notes au reste de Yumia.
-  placeId   String?
-  placeName String?
-  lat       Float?
-  lng       Float?
+  placeId         String?
+  placeName       String?
+  lat             Float?
+  lng             Float?
   /// Journée à laquelle la note se rapporte (note de voyage, de sortie…).
-  noteDate  DateTime?
+  noteDate        DateTime?
   /// Événement du calendrier lié.
   calendarEventId String?
 
@@ -914,18 +914,18 @@ model Mute {
 
 /// Signalement d'un contenu ou d'un compte.
 model Report {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   reporterId String
-  targetType String   // 'post' | 'comment' | 'story' | 'user' | 'message'
+  targetType String // 'post' | 'comment' | 'story' | 'user' | 'message'
   targetId   String
   reason     String
   details    String?
-  status     String   @default("pending") // 'pending' | 'reviewed' | 'dismissed'
+  status     String    @default("pending") // 'pending' | 'reviewed' | 'dismissed'
   /// Ce qui a été décidé, et quand. Sans ça, un signalement traité et un
   /// signalement oublié se ressemblent.
   resolution String?
   reviewedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([targetType, targetId])
   @@index([status])
@@ -951,21 +951,24 @@ model FavoriteUser {
 
 /// Conversation privée entre deux utilisateurs.
 model Conversation {
-  id           String                    @id @default(uuid())
-  isGroup      Boolean                   @default(false)
-  title        String?                   // nom du groupe
-  photoUrl     String?                   // photo du groupe
-  creatorId    String?                   // créateur du groupe
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
-  participants ConversationParticipant[]
-  messages     Message[]
+  id              String                    @id @default(uuid())
+  isGroup         Boolean                   @default(false)
+  /// Messages éphémères : durée de vie d'un message, en secondes. `null` =
+  /// désactivé (comportement par défaut, les messages restent).
+  ephemeralTtlSec Int?
+  title           String? // nom du groupe
+  photoUrl        String? // photo du groupe
+  creatorId       String? // créateur du groupe
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  participants    ConversationParticipant[]
+  messages        Message[]
 }
 
 model ConversationParticipant {
   conversationId String
   userId         String
-  joinedAt       DateTime  @default(now())
+  joinedAt       DateTime     @default(now())
   lastReadAt     DateTime?
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -986,30 +989,35 @@ enum MessageType {
 }
 
 model Message {
-  id             String      @id @default(uuid())
+  id             String            @id @default(uuid())
   conversationId String
   senderId       String
   content        String
-  type           MessageType @default(text)
+  type           MessageType       @default(text)
   mediaUrl       String?
   placeId        String?
-  postId         String?     // post partagé en DM
-  storyId        String?     // story à laquelle on répond
-  replyToId      String?     // réponse à un message précis
-  durationSec    Int?        // durée d'un message vocal
-  oneTime        Boolean     @default(false) // vue unique (photo/vidéo éphémère)
-  viewedOnceAt   DateTime?   // consommé (vue unique)
+  postId         String? // post partagé en DM
+  storyId        String? // story à laquelle on répond
+  replyToId      String? // réponse à un message précis
+  durationSec    Int? // durée d'un message vocal
+  oneTime        Boolean           @default(false) // vue unique (photo/vidéo éphémère)
+  viewedOnceAt   DateTime? // consommé (vue unique)
   // Événement d'appel (type = 'call' uniquement) — nommés pour correspondre
   // exactement aux champs attendus par CallEventBubble côté mobile.
-  callType       String?     // 'voice' | 'video'
-  callStatus     String?     // 'missed' | 'answered' | 'declined'
-  callDuration   Int?        // secondes, uniquement si callStatus = 'answered'
-  createdAt      DateTime    @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  callType       String? // 'voice' | 'video'
+  callStatus     String? // 'missed' | 'answered' | 'declined'
+  callDuration   Int? // secondes, uniquement si callStatus = 'answered'
+  /// Date de disparition d'un message éphémère (cf. Conversation.ephemeralTtlSec).
+  /// `null` = message permanent. Posée à l'envoi, d'après le réglage en vigueur :
+  /// changer le réglage ne rallonge ni n'écourte les messages déjà envoyés.
+  expiresAt      DateTime?
+  createdAt      DateTime          @default(now())
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   reactions      MessageReaction[]
 
   @@index([conversationId, createdAt])
   @@index([senderId])
+  @@index([expiresAt])
 }
 
 /// Réaction emoji sur un message (une par utilisateur et par message).
@@ -1030,18 +1038,18 @@ enum StoryType {
 }
 
 model Story {
-  id               String    @id @default(uuid())
+  id               String          @id @default(uuid())
   userId           String
   mediaUrl         String
-  type             StoryType @default(photo)
+  type             StoryType       @default(photo)
   caption          String?
   placeId          String?
   expiresAt        DateTime
-  viewCount        Int       @default(0)
-  closeFriendsOnly Boolean   @default(false) // visible uniquement par les amis proches
-  stickers         Json?     // stickers posés sur la story : sondage, question, mention, lieu, texte… [{ kind, x, y, ... }]
-  musicTrack       String?   // JSON : { title, artist, artworkUrl, previewUrl, startMs, durationMs }
-  createdAt        DateTime  @default(now())
+  viewCount        Int             @default(0)
+  closeFriendsOnly Boolean         @default(false) // visible uniquement par les amis proches
+  stickers         Json? // stickers posés sur la story : sondage, question, mention, lieu, texte… [{ kind, x, y, ... }]
+  musicTrack       String? // JSON : { title, artist, artworkUrl, previewUrl, startMs, durationMs }
+  createdAt        DateTime        @default(now())
   views            StoryView[]
   pollVotes        StoryPollVote[]
 
@@ -1071,12 +1079,12 @@ model StoryView {
 
 /// Story « à la une » épinglée sur le profil (survit aux 24h). Regroupe des médias.
 model StoryHighlight {
-  id        String                @id @default(uuid())
+  id        String               @id @default(uuid())
   userId    String
   title     String
   coverUrl  String?
-  createdAt DateTime              @default(now())
-  updatedAt DateTime              @updatedAt
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
   items     StoryHighlightItem[]
 
   @@index([userId])
@@ -1097,33 +1105,33 @@ model StoryHighlightItem {
 
 /// Défi / quête à accomplir pour gagner de l'XP et des badges.
 model Quest {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  emoji       String   @default("🏆")
-  type        String   // 'universe_visit' | 'review_count' | 'visit_count' | 'friend_count' | 'swipe_count'
-  target      Int
-  universe    String?
-  xpReward    Int      @default(100)
-  badgeId     String?
-  startsAt    DateTime?
-  endsAt      DateTime?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id           String      @id @default(uuid())
+  title        String
+  description  String
+  emoji        String      @default("🏆")
+  type         String // 'universe_visit' | 'review_count' | 'visit_count' | 'friend_count' | 'swipe_count'
+  target       Int
+  universe     String?
+  xpReward     Int         @default(100)
+  badgeId      String?
+  startsAt     DateTime?
+  endsAt       DateTime?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
   userProgress UserQuest[]
 
   @@index([isActive])
 }
 
 model UserQuest {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   userId      String
   questId     String
-  progress    Int      @default(0)
-  completed   Boolean  @default(false)
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
   completedAt DateTime?
-  createdAt   DateTime @default(now())
-  quest       Quest    @relation(fields: [questId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  quest       Quest     @relation(fields: [questId], references: [id], onDelete: Cascade)
 
   @@unique([userId, questId])
   @@index([userId])
@@ -1132,17 +1140,17 @@ model UserQuest {
 
 /// Guide de randonnée local certifié — réservable (commission 20%).
 model Guide {
-  id             String         @id @default(uuid())
+  id             String   @id @default(uuid())
   name           String
   city           String
   countryCode    String
-  certified      Boolean        @default(false)
+  certified      Boolean  @default(false)
   pricePerPerson Float
-  rating         Float          @default(0)
+  rating         Float    @default(0)
   bio            String?
-  createdAt      DateTime       @default(now())
+  createdAt      DateTime @default(now())
 
-  bookings       GuideBooking[]
+  bookings GuideBooking[]
 
   @@index([city])
 }
@@ -1156,7 +1164,7 @@ model GuideBooking {
   date       DateTime
   people     Int      @default(1)
   totalPrice Float
-  commission Float    // part YUMIA (20%)
+  commission Float // part YUMIA (20%)
   status     String   @default("pending") // pending | confirmed | cancelled
   createdAt  DateTime @default(now())
 
@@ -1194,15 +1202,15 @@ model Notification {
 /// identifiant de tracking repris dans le lien, permettant de rapprocher une
 /// conversion (webhook partenaire) de sa source une fois celle-ci rapportée.
 model AffiliateClick {
-  id          String    @id @default(uuid())
-  userId      String?
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  placeId     String?
-  place       Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
-  universe    Universe?
+  id        String    @id @default(uuid())
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  placeId   String?
+  place     Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  universe  Universe?
   /// booking | getyourguide | viator | fever | shotgun | trainline | treatwell
-  provider    String
-  createdAt   DateTime  @default(now())
+  provider  String
+  createdAt DateTime  @default(now())
 
   conversions AffiliateConversion[]
 
@@ -1280,19 +1288,19 @@ enum OrderStatus {
 /// `parentId`. `universe` relie le rayon à un univers YUMIA pour recommander
 /// des produits en contexte (ex. univers `hiking` → rayon Randonnée).
 model ShopCategory {
-  id        String    @id @default(uuid())
-  slug      String    @unique
+  id        String         @id @default(uuid())
+  slug      String         @unique
   nameFr    String
-  emoji     String    @default("🛍️")
+  emoji     String         @default("🛍️")
   universe  Universe?
   parentId  String?
   parent    ShopCategory?  @relation("ShopCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
   children  ShopCategory[] @relation("ShopCategoryTree")
-  sortOrder Int       @default(0)
-  isActive  Boolean   @default(true)
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
   products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 
   @@index([parentId, sortOrder])
   @@index([universe])
@@ -1321,19 +1329,19 @@ model Product {
   salesCount     Int           @default(0)
   deliveryDays   Int?
 
-  categoryId     String
-  category       ShopCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryId String
+  category   ShopCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   /// Provenance AliExpress — `aliexpressProductId` déduplique les imports.
   aliexpressProductId  String? @unique
   aliexpressPriceCents Int?
   aliexpressCategoryId Int?
 
-  variants    ProductVariant[]
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
-  wishlisted  WishlistItem[]
-  reviews     ProductReview[]
+  variants   ProductVariant[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  wishlisted WishlistItem[]
+  reviews    ProductReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1356,7 +1364,7 @@ model ProductVariant {
   stock      Int     @default(0)
   imageUrl   String?
 
-  cartItems  CartItem[]
+  cartItems CartItem[]
 
   @@index([productId])
 }
@@ -1420,15 +1428,15 @@ model ShippingAddress {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orders      Order[]
+  orders Order[]
 
   @@index([userId])
 }
 
 model Order {
-  id            String      @id @default(uuid())
+  id        String      @id @default(uuid())
   /// Référence courte lisible par le client (ex. YUM-8F3K2P).
-  reference     String      @unique
+  reference String      @unique
   /// Null une fois le compte supprimé : la commande, elle, reste.
   ///
   /// Une pièce comptable se conserve dix ans (art. L123-22 du Code de
@@ -1439,14 +1447,14 @@ model Order {
   /// C'était un `onDelete: Cascade` : supprimer un compte effaçait ses
   /// factures — et, entre le paiement et l'arrivée du webhook Stripe, une
   /// commande déjà encaissée qui n'aurait alors jamais été expédiée.
-  userId        String?
-  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  status        OrderStatus @default(pending)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status    OrderStatus @default(pending)
 
   subtotalCents Int
-  shippingCents Int         @default(0)
+  shippingCents Int    @default(0)
   totalCents    Int
-  currency      String      @default("EUR")
+  currency      String @default("EUR")
 
   stripePaymentIntentId String? @unique
 
@@ -1461,11 +1469,11 @@ model Order {
   trackingNumber    String?
   trackingUrl       String?
 
-  items      OrderItem[]
-  paidAt     DateTime?
-  shippedAt  DateTime?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  items     OrderItem[]
+  paidAt    DateTime?
+  shippedAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([userId, createdAt])
   @@index([status])
@@ -1474,17 +1482,17 @@ model Order {
 /// Ligne de commande. Titre/image/prix sont figés à l'achat : le catalogue
 /// évolue (prix AliExpress, produit retiré), la facture non.
 model OrderItem {
-  id             String   @id @default(uuid())
-  orderId        String
-  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId      String?
-  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  titleSnapshot  String
-  imageSnapshot  String?
-  variantLabel   String?
-  skuAttr        String?
-  quantity       Int      @default(1)
-  unitPriceCents Int
+  id                  String   @id @default(uuid())
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String?
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  titleSnapshot       String
+  imageSnapshot       String?
+  variantLabel        String?
+  skuAttr             String?
+  quantity            Int      @default(1)
+  unitPriceCents      Int
   /// Identifiant AliExpress figé, nécessaire pour passer la commande même si
   /// le produit a été supprimé du catalogue entre-temps.
   aliexpressProductId String?

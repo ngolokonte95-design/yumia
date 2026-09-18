@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { MessageType } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -105,6 +105,16 @@ export class ChatController {
   /** POST /api/chat/conversations/:id/messages — envoyer un message.
    *  Compatibilité : accepte aussi `audioUrl`/`duration` (anciens noms côté mobile). */
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  /** Messages éphémères : `ttlSec` en secondes, `null` pour désactiver. */
+  @Patch('conversations/:id/ephemeral')
+  setEphemeral(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('ttlSec') ttlSec: number | null,
+  ) {
+    return this.chat.setEphemeral(id, user.sub, ttlSec ?? null);
+  }
+
   @Post('conversations/:id/messages')
   sendMessage(
     @CurrentUser() user: JwtPayload,

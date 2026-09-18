@@ -25,6 +25,7 @@ import { SUPPORTED_LOCALES } from '../../lib/locales';
 import { haptics } from '../../lib/useHaptics';
 import { appendFile } from '../../lib/upload';
 import { saveRemoteMediaToGallery } from '../../lib/save-to-gallery';
+import type { TranslationKey } from '../../lib/translations';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -155,6 +156,19 @@ function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => 
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+/** Durées proposées pour les messages éphémères — `null` = désactivé. */
+const EPHEMERAL_OPTIONS: Array<number | null> = [null, 3600, 86400, 7 * 86400];
+
+/** « 1 heure », « 24 heures », « 7 jours » — traduit. */
+function ephemeralLabel(t: (k: TranslationKey) => string, ttlSec: number): string {
+  if (ttlSec >= 86400) {
+    const days = Math.round(ttlSec / 86400);
+    return `${days} ${days > 1 ? t('chat_ephemeral_days') : t('chat_ephemeral_day')}`;
+  }
+  const hours = Math.max(1, Math.round(ttlSec / 3600));
+  return `${hours} ${hours > 1 ? t('chat_ephemeral_hours') : t('chat_ephemeral_hour')}`;
+}
+
 export default function ChatRoomScreen() {
   const { id: convId } = useLocalSearchParams<{ id: string }>();
   const { accessToken, user } = useAuth();
@@ -175,6 +189,10 @@ export default function ChatRoomScreen() {
   const [voicePreview, setVoicePreview] = useState<{ uri: string; duration: number } | null>(null);
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const [partner, setPartner] = useState<Partner | null>(null);
+  // Messages éphémères : durée de vie en secondes, `null` = désactivé. Réglage
+  // de la CONVERSATION, donc partagé avec l'interlocuteur.
+  const [ephemeralTtl, setEphemeralTtl] = useState<number | null>(null);
+  const [showEphemeral, setShowEphemeral] = useState(false);
   const [e2eActive, setE2eActive] = useState(false);
   // ── Clavier nouvelle génération : emojis, pièces jointes, traduction ──────
   const [showEmoji, setShowEmoji] = useState(false);
@@ -207,9 +225,12 @@ export default function ChatRoomScreen() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) return;
-      const data = await res.json() as { participants?: Partner[]; partner?: Partner };
+      const data = await res.json() as {
+        participants?: Partner[]; partner?: Partner; ephemeralTtlSec?: number | null;
+      };
       const p = data.partner ?? data.participants?.find((u) => u.id !== user?.id) ?? null;
       setPartner(p);
+      setEphemeralTtl(data.ephemeralTtlSec ?? null);
       if (p?.e2ePublicKey && isE2EAvailable()) setE2eActive(true);
     } catch { /* silencieux */ }
   }, [accessToken, convId, user?.id]);
@@ -597,6 +618,31 @@ export default function ChatRoomScreen() {
     }
   };
 
+  /**
+   * Active, change ou désactive les messages éphémères.
+   *
+   * Ne touche que les messages À VENIR : ceux déjà envoyés gardent la règle en
+   * vigueur au moment de leur envoi (côté serveur, l'échéance est posée à
+   * l'envoi). Désactiver ne ressuscite donc rien.
+   */
+  const applyEphemeral = async (ttlSec: number | null) => {
+    if (!accessToken || !convId) return;
+    setShowEphemeral(false);
+    const previous = ephemeralTtl;
+    setEphemeralTtl(ttlSec);
+    try {
+      const res = await fetch(`${API}/chat/conversations/${convId}/ephemeral`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ ttlSec }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+    } catch {
+      setEphemeralTtl(previous);
+      Alert.alert(t('chat_delete_error_title'), t('chat_ephemeral_error'));
+    }
+  };
+
   /** Agrège les réactions d'un message : { '❤️': 2, '😂': 1 } */
   const reactionSummary = (msg: Message) => {
     const counts = new Map<string, number>();
@@ -639,8 +685,24 @@ export default function ChatRoomScreen() {
           <Pressable style={styles.headerActionBtn} onPress={() => startCall('video')}>
             <Text style={styles.headerActionIcon}>📹</Text>
           </Pressable>
+          {/* Messages éphémères — actif = sablier plein, sinon barré. */}
+          <Pressable
+            style={styles.headerActionBtn}
+            onPress={() => setShowEphemeral(true)}
+            accessibilityLabel={t('chat_ephemeral_title')}
+          >
+            <Text style={styles.headerActionIcon}>{ephemeralTtl ? '⏳' : '⌛'}</Text>
+          </Pressable>
         </View>
       </View>
+
+      {ephemeralTtl ? (
+        <Pressable style={styles.ephemeralBanner} onPress={() => setShowEphemeral(true)}>
+          <Text style={styles.ephemeralBannerTxt}>
+            ⏳ {t('chat_ephemeral_on').replace('{duration}', ephemeralLabel(t, ephemeralTtl))}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {/* ── Messages ────────────────────────────────────────────────────────── */}
       {/* Padding mesuré par événement plutôt que KeyboardAvoidingView natif —
@@ -914,6 +976,33 @@ export default function ChatRoomScreen() {
         </Pressable>
       </Modal>
 
+      {/* ── Messages éphémères ──────────────────────────────────────────────── */}
+      <Modal visible={showEphemeral} transparent animationType="fade" onRequestClose={() => setShowEphemeral(false)}>
+        <Pressable style={styles.actionOverlay} onPress={() => setShowEphemeral(false)}>
+          <View style={styles.attachSheet}>
+            <Text style={styles.attachTitle}>{t('chat_ephemeral_title')}</Text>
+            <Text style={styles.ephemeralHint}>{t('chat_ephemeral_hint')}</Text>
+            {EPHEMERAL_OPTIONS.map((opt) => {
+              const active = ephemeralTtl === opt;
+              return (
+                <Pressable
+                  key={String(opt)}
+                  style={styles.attachRow}
+                  onPress={() => void applyEphemeral(opt)}
+                >
+                  <Text style={[styles.attachRowTxt, active && { color: colors.brand }]}>
+                    {opt === null ? t('chat_ephemeral_off') : ephemeralLabel(t, opt)}{active ? '  ✓' : ''}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <Pressable style={styles.attachCancelBtn} onPress={() => setShowEphemeral(false)}>
+              <Text style={styles.attachCancelTxt}>{t('chat_cancel')}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* ── Choix de la langue de traduction (bouton 🌐) ─────────────────────── */}
       <Modal visible={showLangPicker} transparent animationType="fade" onRequestClose={() => setShowLangPicker(false)}>
         <Pressable style={styles.actionOverlay} onPress={() => setShowLangPicker(false)}>
@@ -1136,6 +1225,12 @@ const styles = StyleSheet.create({
   reactionChip: { backgroundColor: colors.surfaceElevated, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, fontSize: 12, color: colors.text, overflow: 'hidden' },
   actionOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   actionSheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, width: '80%', gap: 10 },
+  ephemeralBanner: {
+    backgroundColor: colors.surface, paddingVertical: 6, alignItems: 'center',
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  ephemeralBannerTxt: { color: colors.textSecondary, fontSize: 12 },
+  ephemeralHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   reactionPicker: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6 },
   reactionPickerEmoji: { fontSize: 30 },
   actionRow: { paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },

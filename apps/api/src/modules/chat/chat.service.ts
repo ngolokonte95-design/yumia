@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import type { MessageType } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { Prisma, type MessageType } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { assertClean } from '../../common/moderation/moderation';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -23,8 +24,18 @@ export interface SendMessageOptions {
   oneTime?: boolean;
 }
 
+/**
+ * Un message éphémère déjà échu est invisible, même avant le ménage horaire
+ * (`purgeExpiredMessages`) : l'échéance fait foi, pas la suppression.
+ */
+function notExpired(): Prisma.MessageWhereInput {
+  return { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] };
+}
+
 @Injectable()
 export class ChatService {
+  private readonly logger = new Logger(ChatService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -171,6 +182,7 @@ export class ChatService {
       id: conv.id,
       isGroup: conv.isGroup,
       title: conv.title,
+      ephemeralTtlSec: conv.ephemeralTtlSec,
       partner: !conv.isGroup && otherIds[0] ? (userMap[otherIds[0]] ?? null) : null,
       participants: otherIds.map((id) => userMap[id] ?? { id, displayName: '?', photoUrl: null }),
     };
@@ -182,6 +194,7 @@ export class ChatService {
     const messages = await this.prisma.message.findMany({
       where: {
         conversationId,
+        ...notExpired(),
         ...(before ? { createdAt: { lt: new Date(before) } } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -200,10 +213,31 @@ export class ChatService {
   async getNewMessages(conversationId: string, userId: string, after: string) {
     await this.assertParticipant(conversationId, userId);
     const messages = await this.prisma.message.findMany({
-      where: { conversationId, createdAt: { gt: new Date(after) } },
+      where: { conversationId, ...notExpired(), createdAt: { gt: new Date(after) } },
       orderBy: { createdAt: 'asc' },
     });
     return this.hydrateMessages(messages, userId);
+  }
+
+  /**
+   * Active ou désactive les messages éphémères de la conversation.
+   *
+   * Le réglage vaut pour tout le monde (c'est une conversation, pas une vue
+   * personnelle) et ne touche QUE les messages à venir : déjà envoyés, ils
+   * gardent la règle en vigueur au moment de leur envoi. Sans ça, désactiver
+   * l'option ressusciterait des messages que l'autre croyait effacés.
+   */
+  async setEphemeral(conversationId: string, userId: string, ttlSec: number | null) {
+    await this.assertParticipant(conversationId, userId);
+    if (ttlSec !== null && (!Number.isFinite(ttlSec) || ttlSec < 60 || ttlSec > 7 * 86400)) {
+      throw new BadRequestException('Durée invalide (entre 1 minute et 7 jours, ou aucune).');
+    }
+    const conv = await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { ephemeralTtlSec: ttlSec },
+      select: { ephemeralTtlSec: true },
+    });
+    return { ephemeralTtlSec: conv.ephemeralTtlSec };
   }
 
   async sendMessage(conversationId: string, senderId: string, opts: SendMessageOptions) {
@@ -214,11 +248,20 @@ export class ChatService {
       if (!target || target.conversationId !== conversationId) throw new NotFoundException('Message cité introuvable');
     }
 
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { ephemeralTtlSec: true },
+    });
+    const expiresAt = conv?.ephemeralTtlSec
+      ? new Date(Date.now() + conv.ephemeralTtlSec * 1000)
+      : null;
+
     const [message] = await Promise.all([
       this.prisma.message.create({
         data: {
           conversationId,
           senderId,
+          expiresAt,
           content: opts.content,
           type: opts.type ?? 'text',
           mediaUrl: opts.mediaUrl,
@@ -365,6 +408,21 @@ export class ChatService {
         sharedPost: m.postId ? (postMap[m.postId] ?? null) : null,
       };
     });
+  }
+
+  /**
+   * Efface les messages éphémères arrivés à échéance.
+   *
+   * Les requêtes les masquent déjà (`NOT_EXPIRED`) : ce ménage horaire est ce
+   * qui les fait réellement disparaître de la base, pour que « éphémère » ne
+   * soit pas qu'un affichage.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async purgeExpiredMessages(): Promise<void> {
+    const { count } = await this.prisma.message.deleteMany({
+      where: { expiresAt: { lte: new Date() } },
+    });
+    if (count > 0) this.logger.log(`Messages éphémères effacés : ${count}`);
   }
 
   private async assertParticipant(conversationId: string, userId: string) {
