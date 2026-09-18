@@ -27,10 +27,19 @@ type ReelTab = 'foryou' | 'following';
 
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
 function ReelVideo({
-  uri, active, muted, progressAnim, startAtSec, overlays, onLoop, posterUri,
+  uri, active, isCurrent, muted, progressAnim, startAtSec, overlays, onLoop, posterUri,
 }: {
   uri: string;
+  /** La vidéo doit jouer (reel regardé et non mis en pause). */
   active: boolean;
+  /**
+   * Ce reel est celui affiché, qu'il joue ou non.
+   *
+   * Distingue les deux raisons de ne pas jouer : mis en pause par un appui
+   * (l'image doit rester là où on s'est arrêté), ou reel voisin (on précharge,
+   * et le poster masque le lecteur).
+   */
+  isCurrent: boolean;
   muted: boolean;
   /** Avancement 0→1 de la lecture, piloté sans re-render (Animated.Value). */
   progressAnim: Animated.Value;
@@ -71,7 +80,10 @@ function ReelVideo({
   // `play()` au moment de l'activation peut lui-même provoquer une frame
   // noire côté Android qu'un poster déjà caché ne masque plus.
   useEffect(() => {
-    if (!active) { setReady(false); return; }
+    // `isCurrent` et non `active` : une PAUSE ne doit pas ramener le poster,
+    // sinon l'écran montre la miniature (première image de la vidéo) au lieu
+    // de l'image où l'on s'est arrêté.
+    if (!isCurrent) { setReady(false); return; }
     let timer: ReturnType<typeof setTimeout> | null = null;
     const scheduleHide = () => {
       if (timer) return;
@@ -82,7 +94,7 @@ function ReelVideo({
       if (status === 'readyToPlay') scheduleHide();
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
-  }, [player, active]);
+  }, [player, isCurrent]);
 
   useEffect(() => {
     if (ready) {
@@ -97,8 +109,8 @@ function ReelVideo({
     // Un reel voisin est TOUJOURS muet : il ne joue que pour remplir sa
     // mémoire tampon, son son ne doit jamais se superposer à celui du reel
     // regardé.
-    try { player.muted = muted || !active; } catch {}
-  }, [muted, active, player]);
+    try { player.muted = muted || !isCurrent; } catch {}
+  }, [muted, isCurrent, player]);
 
   // Sans ça, la musique/voix off (chargées à part, avec leur propre boucle)
   // dérivent au fil du temps et ne redémarrent plus avec la vidéo.
@@ -109,9 +121,15 @@ function ReelVideo({
 
   useEffect(() => {
     if (!active) {
-      // Le lecteur est monté mais hors écran : on le laisse se mettre en
-      // tampon (il a démarré muet à la création), puis on l'arrête dès qu'il
-      // est prêt. Au swipe suivant, la vidéo repart d'un tampon déjà rempli.
+      // Mis en pause par l'utilisateur : on s'arrête là, l'image reste celle
+      // du moment de l'appui.
+      if (isCurrent) {
+        player.pause();
+        return;
+      }
+      // Reel voisin : monté mais hors écran. Il a démarré muet à la création
+      // pour remplir sa mémoire tampon ; on l'arrête dès qu'il est prêt. Au
+      // swipe suivant, la vidéo repart d'un tampon déjà rempli.
       if (player.status === 'readyToPlay') {
         player.pause();
         return;
@@ -138,7 +156,7 @@ function ReelVideo({
       if (player.status === 'readyToPlay' && !player.playing) player.play();
     }, 400);
     return () => { sub.remove(); clearInterval(watchdog); };
-  }, [active, player]);
+  }, [active, isCurrent, player]);
 
   // Alimente la barre de progression en lisant directement la position réelle
   // du player à intervalle régulier (plutôt qu'un chrono figé type
@@ -404,6 +422,7 @@ function ReelCardBase({
       <ReelVideo
         uri={url}
         active={playing}
+        isCurrent={active && pageActive}
         muted={effectiveMuted}
         progressAnim={progressAnim}
         startAtSec={startAtSec}
