@@ -120,6 +120,7 @@
       },
       "blockedPermissions": [
         "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
         "com.google.android.gms.permission.AD_ID"
       ],
       "permissions": [
