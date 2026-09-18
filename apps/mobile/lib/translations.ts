@@ -9175,7 +9175,7 @@ const NL: Record<TranslationKey, string> = {
   chat_upload_error: 'Fout bij het uploaden van het bestand.',
   chat_translate_action: 'Vertalen',
   chat_action_save: 'Opslaan in galerij',
-  chat_saved_body: 'Opgeslagen in je foto's.',
+  chat_saved_body: "Opgeslagen in je foto's.",
   chat_save_error: 'Dit bestand kon niet worden opgeslagen.',
   chat_translate_hide: 'Vertaling verbergen',
   chat_translate_loading: 'Vertalen...',
