@@ -24,6 +24,7 @@ import { translateMessage } from '../../lib/chat-translate-api';
 import { SUPPORTED_LOCALES } from '../../lib/locales';
 import { haptics } from '../../lib/useHaptics';
 import { appendFile } from '../../lib/upload';
+import { saveRemoteMediaToGallery } from '../../lib/save-to-gallery';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -962,6 +963,22 @@ export default function ChatRoomScreen() {
                 <Text style={styles.actionRowTxt}>
                   {translations.has(actionMsg.id) ? t('chat_translate_hide') : t('chat_translate_action')}
                 </Text>
+              </Pressable>
+            ) : null}
+            {actionMsg && (actionMsg.type === 'image' || actionMsg.type === 'video') && actionMsg.mediaUrl ? (
+              <Pressable
+                style={styles.actionRow}
+                onPress={() => {
+                  const url = actionMsg.mediaUrl!;
+                  setActionMsg(null);
+                  void saveRemoteMediaToGallery(url).then((r) => {
+                    if (r === 'saved') Alert.alert(t('sv_saved_title'), t('chat_saved_body'));
+                    else if (r === 'denied') Alert.alert(t('sv_perm_denied_title'), t('sv_perm_denied_body'));
+                    else Alert.alert(t('sv_error'), t('chat_save_error'));
+                  });
+                }}
+              >
+                <Text style={styles.actionRowTxt}>{t('chat_action_save')}</Text>
               </Pressable>
             ) : null}
             {actionMsg?.senderId === myId ? (
