@@ -429,7 +429,7 @@ function ReelCard({
       )}
 
       {/* Boutons droite */}
-      <View style={styles.reelActions}>
+      <View style={[styles.reelActions, { bottom: 100 + insets.bottom }]}>
         {/* Avatar auteur */}
         <Pressable onPress={() => item.user && onUserPress(item.user.id)} style={styles.reelAvatarWrap}>
           {item.user?.photoUrl ? (
@@ -495,7 +495,9 @@ function ReelCard({
       </View>
 
       {/* Infos bas */}
-      <View style={styles.reelInfo}>
+      {/* Les infos et les actions remontent du même cran que la barre de
+          progression, sinon le nom et « Suivre » passaient dessous. */}
+      <View style={[styles.reelInfo, { paddingBottom: 24 + insets.bottom }]}>
         <Pressable style={styles.reelAuthorRow} onPress={() => item.user && onUserPress(item.user.id)}>
           <Text style={styles.reelAuthorName}>{item.user?.displayName ?? 'Yumia'}</Text>
           {/* Bouton Suivre inline */}
@@ -800,6 +802,7 @@ const styles = StyleSheet.create({
   reelActions: {
     position: 'absolute', right: 12, bottom: 100,
     alignItems: 'center', gap: 20,
+    // `bottom` ajusté à l'affichage (insets.bottom), cf. reelInfo.
   },
   reelAvatarWrap: { position: 'relative', marginBottom: 4 },
   reelAvatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: '#fff' },
