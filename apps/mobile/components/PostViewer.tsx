@@ -71,7 +71,14 @@ interface Props {
 }
 
 export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onClose, onChange }: Props) {
-  const { width, height } = useWindowDimensions();
+  const { width, height: windowHeight } = useWindowDimensions();
+  // Hauteur RÉELLE de la visionneuse, mesurée. Sur Android, la hauteur de
+  // fenêtre exclut selon les versions la barre d'état et/ou la barre de
+  // navigation, alors que la modale (statusBarTranslucent) les recouvre : des
+  // pages plus courtes que l'écran, et deux publications visibles à la fois
+  // après un swipe. Tant que rien n'est mesuré, on part de la fenêtre.
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+  const height = measuredHeight ?? windowHeight;
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -180,13 +187,25 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
 
   return (
     <Modal visible transparent={false} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.screen}>
+      <View
+        style={styles.screen}
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          if (h > 0) setMeasuredHeight((prev) => (prev === h ? prev : h));
+        }}
+      >
         {Platform.OS === 'android' ? <StatusBar hidden /> : null}
 
         <FlatList
+          // La hauteur de page fait partie de la géométrie de la liste : la
+          // remonter après mesure évite un décalage entre pages déjà posées et
+          // la nouvelle hauteur.
+          key={height}
           data={posts}
           keyExtractor={(p) => p.id}
           pagingEnabled
+          snapToInterval={height}
+          decelerationRate="fast"
           showsVerticalScrollIndicator={false}
           initialScrollIndex={initialIndex}
           getItemLayout={(_, i) => ({ length: height, offset: height * i, index: i })}
