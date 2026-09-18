@@ -381,6 +381,16 @@ export default function SocialProfileScreen() {
           <Pressable style={styles.topBarIconBtn} onPress={() => router.push('/chat' as never)}>
             <Text style={styles.topBarIcon}>✉</Text>
           </Pressable>
+          {/* Favoris (lieux + publications enregistrées) : accessible d'un
+              geste depuis le profil, comme le signet d'Instagram — il n'était
+              atteignable que par le menu ☰. */}
+          <Pressable
+            style={styles.topBarIconBtn}
+            onPress={() => router.push('/favorites' as never)}
+            accessibilityLabel={t('sp_menu_favorites_collections')}
+          >
+            <Text style={styles.topBarIcon}>🔖</Text>
+          </Pressable>
           <Pressable style={styles.topBarIconBtn} onPress={() => setShowMenu(true)}>
             <Text style={styles.topBarIcon}>☰</Text>
           </Pressable>
