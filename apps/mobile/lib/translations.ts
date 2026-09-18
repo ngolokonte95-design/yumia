@@ -508,7 +508,7 @@ const FR = {
   chat_translate_action: 'Traduire',
   chat_action_save: 'Enregistrer dans la galerie',
   chat_saved_body: 'Enregistré dans tes photos.',
-  chat_save_error: 'Impossible d'enregistrer ce fichier.',
+  chat_save_error: "Impossible d'enregistrer ce fichier.",
   chat_translate_hide: 'Masquer la traduction',
   chat_translate_loading: 'Traduction...',
   chat_translate_error: 'Traduction indisponible.',
