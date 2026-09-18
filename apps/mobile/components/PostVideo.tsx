@@ -5,7 +5,6 @@ import { Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle }
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { PostOverlays } from './PostOverlays';
 import type { PostOverlay } from '../lib/feed-api';
-import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
 
 /**
  * Lecteur vidéo inline pour le feed. Son activé par défaut (contrôlé par le
@@ -63,7 +62,6 @@ export function PostVideo({
     p.loop = true;
     p.muted = videoMuted;
     p.audioMixingMode = 'doNotMix';
-    p.bufferOptions = SHORT_VIDEO_BUFFER;
     if (active) p.play();
   });
 
@@ -136,28 +134,12 @@ export function PostVideo({
     else voiceSoundRef.current?.pause();
   }, [playing]);
 
-  // Pause manuelle (tap) : le garde-fou ci-dessous ne doit pas la défaire.
-  // Elle ne « colle » pas au scroll : quitter puis revenir sur la vidéo la
-  // relance, comme dans les reels.
-  const manuallyPaused = useRef(false);
-
+  // Relance simple. Les tentatives d'aujourd'hui (tampon raccourci, relance
+  // périodique) empêchaient la vidéo du fil de démarrer : on revient à ce qui
+  // marchait, et la fluidité se traite dans les reels, où elle est visible.
   useEffect(() => {
-    manuallyPaused.current = false;
-    if (!active) {
-      player.pause();
-      return;
-    }
-    // Même mécanique que ReelVideo (app/reels.tsx) : un `play()` reçu avant que
-    // le lecteur soit prêt est ignoré, et la vidéo restait figée sur sa
-    // première image au swipe suivant. On relance dès qu'elle est prête, et
-    // un garde-fou rattrape toute lecture perdue tant qu'elle est affichée.
-    player.play();
-    const resume = () => {
-      if (!manuallyPaused.current && player.status === 'readyToPlay' && !player.playing) player.play();
-    };
-    const sub = player.addListener('statusChange', resume);
-    const watchdog = setInterval(resume, 400);
-    return () => { sub.remove(); clearInterval(watchdog); };
+    if (active) player.play();
+    else player.pause();
   }, [active, player]);
 
   // La voix off suit l'activité de la vidéo — chargée/déchargée à chaque
@@ -203,13 +185,7 @@ export function PostVideo({
   };
 
   const toggle = () => {
-    if (player.playing) {
-      manuallyPaused.current = true;
-      player.pause();
-    } else {
-      manuallyPaused.current = false;
-      player.play();
-    }
+    if (player.playing) player.pause(); else player.play();
     flashIcon();
   };
 
