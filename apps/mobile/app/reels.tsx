@@ -109,7 +109,14 @@ function ReelVideo({
     // Un reel voisin est TOUJOURS muet : il ne joue que pour remplir sa
     // mémoire tampon, son son ne doit jamais se superposer à celui du reel
     // regardé.
-    try { player.muted = muted || !isCurrent; } catch {}
+    try {
+      player.muted = muted || !isCurrent;
+      // Les reels voisins se préchargent en jouant en sourdine. Sur iOS, un
+      // lecteur qui démarre s'empare de la session audio : sans ce partage
+      // explicite, le dernier lecteur monté (un voisin) coupait le son du reel
+      // regardé. Seul le reel affiché prend la session pour lui.
+      player.audioMixingMode = isCurrent ? 'doNotMix' : 'mixWithOthers';
+    } catch {}
   }, [muted, isCurrent, player]);
 
   // Sans ça, la musique/voix off (chargées à part, avec leur propre boucle)
