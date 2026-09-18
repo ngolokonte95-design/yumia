@@ -196,6 +196,10 @@ function ReelCard({
   // s'affichait barré pendant que la musique jouait. Couper la piste vidéo
   // dans ce cas est déjà assuré par `effectiveMuted` ci-dessous.
   const [muted, setMuted] = useState(false);
+  // Sur iPhone, la barre de progression et les points du carrousel doivent
+  // rester au-dessus de la zone du geste d'accueil (bord bas inutilisable) :
+  // collés au bord, ils se confondaient avec l'indicateur du système.
+  const insets = useSafeAreaInsets();
   // Le son d'origine de la vidéo est coupé pour de bon dès qu'une musique a été
   // ajoutée (elle la remplace, les deux ne doivent jamais jouer ensemble) — comme
   // le son coupé par l'auteur, ce n'est pas quelque chose que le spectateur peut
@@ -510,7 +514,7 @@ function ReelCard({
       {/* Carrousel : mêmes repères que dans le fil, juste au-dessus de la
           barre de progression. */}
       {isCarousel ? (
-        <View style={styles.reelDots} pointerEvents="none">
+        <View style={[styles.reelDots, { bottom: insets.bottom + 18 }]} pointerEvents="none">
           {media.map((_, i) => (
             <View key={i} style={[styles.reelDot, i === imageIndex && styles.reelDotActive]} />
           ))}
@@ -519,7 +523,7 @@ function ReelCard({
 
       {/* Barre de progression — pleine largeur, indépendante du padding des
           infos ; suit la lecture pour une vidéo, pleine pour un reel photo. */}
-      <View style={styles.reelProgressBar}>
+      <View style={[styles.reelProgressBar, { bottom: insets.bottom + 10 }]}>
         {isVideo ? (
           <Animated.View
             style={[
