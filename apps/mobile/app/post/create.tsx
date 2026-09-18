@@ -66,6 +66,10 @@ export default function CreatePostScreen() {
       // secondes"), qui n'était jusqu'ici qu'indicative.
       videoMaxDuration: 60,
       quality: 0.8,
+      // Qualité « moyenne » : une minute filmée en 4K dépasse largement la
+      // limite d'envoi (nginx refuse alors en HTTP 413). Le rendu reste net
+      // sur un écran de téléphone, pour un fichier plusieurs fois plus petit.
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
     });
     if (!result.canceled && result.assets[0]) {
       setVideoUri(result.assets[0].uri);
@@ -89,6 +93,7 @@ export default function CreatePostScreen() {
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
+      if (res.status === 413) throw new Error(t('postcreate_upload_too_large'));
       throw new Error(t('postcreate_upload_failed').replace('{status}', String(res.status)).replace('{detail}', txt.slice(0, 160)));
     }
     return await res.json() as { url: string; thumbnailUrl?: string };

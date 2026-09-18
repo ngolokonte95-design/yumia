@@ -222,6 +222,9 @@ export const feedApi = {
     appendFile(form, 'file', uri);
     const r = await fetch(`${API}/posts/upload`, { method: 'POST', headers: auth(token), body: form });
     if (!r.ok) {
+      // 413 : le fichier dépasse la limite d'envoi. Le corps est alors une
+      // page HTML de nginx, illisible pour l'utilisateur — on dit les choses.
+      if (r.status === 413) throw new Error(tRuntime('postcreate_upload_too_large'));
       const txt = await r.text().catch(() => '');
       throw new Error(tRuntime('postcreate_upload_failed').replace('{status}', String(r.status)).replace('{detail}', txt.slice(0, 160)));
     }

@@ -46,6 +46,9 @@ export default function CreateStoryScreen() {
       quality: 0.85,
       videoMaxDuration: 30,
       allowsEditing: true,
+      // Cf. post/create.tsx : sans plafond de qualité, une vidéo 4K dépasse la
+      // limite d'envoi.
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
     });
     if (!result.canceled && result.assets[0]) {
       setUri(result.assets[0].uri);

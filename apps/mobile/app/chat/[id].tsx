@@ -374,6 +374,7 @@ export default function ChatRoomScreen() {
         mediaTypes: ['images', 'videos'],
         quality: 0.85,
         videoMaxDuration: 60,
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
       });
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -382,6 +383,7 @@ export default function ChatRoomScreen() {
         mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
         quality: 0.85,
         videoMaxDuration: 60,
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
       });
     }
     if (result.canceled || !result.assets?.[0]) return;

@@ -53,7 +53,10 @@ export class PostsController {
     // saturation RAM sur le VPS (memoryStorage charge tout le fichier avant
     // de le passer au storage service). 50 Mo couvre largement une story ou
     // un reel ; nginx (client_max_body_size) est aligné en conséquence.
-    limits: { fileSize: 50 * 1024 * 1024 },
+    // 200 Mo : une minute de vidéo filmée par un téléphone récent dépasse
+    // facilement 50 Mo. La durée est déjà bornée côté app (60 s), et la vidéo
+    // est ré-encodée à la réception.
+    limits: { fileSize: 200 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       const ok = new Set([
         // images
