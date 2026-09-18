@@ -16,6 +16,8 @@ import {
   type FavoriteCollection, type FavoriteItem, type FavoriteKind, type FavoriteSort,
 } from '../lib/favorites-api';
 import type { TranslationKey } from '../lib/translations';
+import { PostViewer } from '../components/PostViewer';
+import { feedApi, type FeedPost } from '../lib/feed-api';
 
 /** Onglet de type — `null` signifie « tout ». */
 type KindFilter = FavoriteKind | null;
@@ -118,9 +120,36 @@ export default function FavoritesScreen() {
     void load({ silent: true });
   };
 
-  const openItem = (item: FavoriteItem) => {
-    if (item.kind === 'post') router.push(`/post/${item.id}` as never);
-    else router.push(`/place?id=${item.id}` as never);
+  /**
+   * Publications enregistrées, chargées à la demande : la liste des favoris
+   * ne porte qu'un aperçu (titre, image), pas de quoi alimenter la
+   * visionneuse plein écran.
+   */
+  const [viewerPosts, setViewerPosts] = useState<FeedPost[] | null>(null);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [openingPost, setOpeningPost] = useState<string | null>(null);
+
+  const openItem = async (item: FavoriteItem) => {
+    if (item.kind !== 'post') {
+      router.push(`/place?id=${item.id}` as never);
+      return;
+    }
+    if (!accessToken || openingPost) return;
+    setOpeningPost(item.id);
+    try {
+      const saved = await feedApi.savedPosts(accessToken, 60);
+      const index = saved.findIndex((p) => p.id === item.id);
+      if (index < 0) {
+        // Plus dans les enregistrements (désenregistrée ou supprimée) : on
+        // retombe sur la page de la publication, qui sait le dire.
+        router.push(`/post/${item.id}` as never);
+        return;
+      }
+      setViewerPosts(saved);
+      setViewerIndex(index);
+    } finally {
+      setOpeningPost(null);
+    }
   };
 
   const total = useMemo(
@@ -235,13 +264,26 @@ export default function FavoritesScreen() {
             <Reveal index={Math.min(index, 8)}>
               <FavoriteRow
                 item={item}
-                onPress={() => openItem(item)}
+                onPress={() => void openItem(item)}
                 onOrganize={() => setAssigning(item)}
               />
             </Reveal>
           )}
         />
       )}
+
+      {viewerPosts ? (
+        <PostViewer
+          posts={viewerPosts}
+          initialIndex={viewerIndex}
+          onClose={() => {
+            setViewerPosts(null);
+            // Une publication désenregistrée depuis la visionneuse doit
+            // disparaître de la liste.
+            void load({ silent: true });
+          }}
+        />
+      ) : null}
 
       <CreateCollectionModal
         visible={showCreate}
