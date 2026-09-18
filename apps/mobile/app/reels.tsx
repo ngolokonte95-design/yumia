@@ -51,9 +51,18 @@ function ReelVideo({
   const posterOpacity = useRef(new Animated.Value(1)).current;
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
-    p.muted = muted;
     p.bufferOptions = SHORT_VIDEO_BUFFER;
+    // Muet à la création : le préchargement ci-dessous fait jouer les reels
+    // voisins quelques instants, et l'effet du son rétablit la valeur réelle
+    // dès que ce reel devient celui qu'on regarde.
+    p.muted = true;
     if (startAtSec) p.currentTime = startAtSec;
+    // Démarrage muet et immédiat, même sur un reel pas encore affiché : c'est
+    // ce qui remplit la mémoire tampon à l'avance. L'effet actif/inactif
+    // ci-dessous remet en pause aussitôt s'il ne s'agit pas du reel regardé.
+    // Sans ça, le téléchargement ne commençait qu'à l'arrivée sur la vidéo, et
+    // les premières secondes se voyaient figées.
+    p.play();
   });
 
   // Cf. PostVideo.tsx : le poster/fond neutre reste tant que le lecteur n'est
@@ -85,8 +94,11 @@ function ReelVideo({
   }, [ready, posterOpacity]);
 
   useEffect(() => {
-    try { player.muted = muted; } catch {}
-  }, [muted, player]);
+    // Un reel voisin est TOUJOURS muet : il ne joue que pour remplir sa
+    // mémoire tampon, son son ne doit jamais se superposer à celui du reel
+    // regardé.
+    try { player.muted = muted || !active; } catch {}
+  }, [muted, active, player]);
 
   // Sans ça, la musique/voix off (chargées à part, avec leur propre boucle)
   // dérivent au fil du temps et ne redémarrent plus avec la vidéo.
@@ -97,8 +109,18 @@ function ReelVideo({
 
   useEffect(() => {
     if (!active) {
-      player.pause();
-      return;
+      // Le lecteur est monté mais hors écran : on le laisse se mettre en
+      // tampon (il a démarré muet à la création), puis on l'arrête dès qu'il
+      // est prêt. Au swipe suivant, la vidéo repart d'un tampon déjà rempli.
+      if (player.status === 'readyToPlay') {
+        player.pause();
+        return;
+      }
+      const sub = player.addListener('statusChange', ({ status }) => {
+        if (status === 'readyToPlay') player.pause();
+      });
+      const stop = setTimeout(() => player.pause(), 1500);
+      return () => { sub.remove(); clearTimeout(stop); };
     }
     // `play()` sur un lecteur pas encore prêt est ignoré : au swipe, la vidéo
     // suivante restait alors figée sur sa première image jusqu'à ce qu'on
@@ -773,7 +795,7 @@ export default function ReelsScreen() {
           // Fenêtre serrée : 3 pages montées au plus (la précédente, l'actuelle,
           // la suivante). Au-delà, autant de lecteurs vidéo natifs vivants, que
           // le décodeur du téléphone finit par ne plus suivre.
-          windowSize={3}
+          windowSize={5}
           initialNumToRender={2}
           maxToRenderPerBatch={2}
           updateCellsBatchingPeriod={50}
@@ -784,10 +806,10 @@ export default function ReelsScreen() {
             <ReelCard
               item={item}
               active={index === activeIndex && screenFocused}
-              // Précharge le reel suivant (et le précédent, pour un retour en
-              // arrière tout aussi fluide) — au plus 3 lecteurs montés à la
-              // fois, largement dans la marge du décodeur Android.
-              shouldMount={Math.abs(index - activeIndex) <= 1}
+              // Précharge DEUX reels en avant (sens de lecture) et un en
+              // arrière : au swipe, la vidéo suivante a déjà commencé à se
+              // charger. Quatre lecteurs au plus, ce que le décodeur encaisse.
+              shouldMount={index - activeIndex >= -1 && index - activeIndex <= 2}
               onLike={toggleLike}
               onComment={(id) => router.push(`/post/${id}` as never)}
               onShare={() => void Share.share({ message: tr('reels_share_message') })}
