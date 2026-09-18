@@ -19,13 +19,14 @@ import { feedApi, type StoryGroup, type StorySticker } from '../lib/feed-api';
 import { colors, radius, spacing } from '../theme/tokens';
 import type { MusicTrack } from '../components/MusicPicker';
 import { useI18n } from '../lib/useI18n';
+import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
 
 const { width, height } = Dimensions.get('window');
 const STORY_MS = 5000;
 const VIDEO_STORY_MS = 15000;
 
 function StoryVideo({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri, (p) => { p.loop = false; p.play(); });
+  const player = useVideoPlayer(uri, (p) => { p.loop = false; p.bufferOptions = SHORT_VIDEO_BUFFER; p.play(); });
   return <VideoView player={player} style={styles.media} contentFit="cover" nativeControls={false} />;
 }
 

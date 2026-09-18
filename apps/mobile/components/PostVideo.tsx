@@ -5,6 +5,7 @@ import { Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle }
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { PostOverlays } from './PostOverlays';
 import type { PostOverlay } from '../lib/feed-api';
+import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
 
 /**
  * Lecteur vidéo inline pour le feed. Son activé par défaut (contrôlé par le
@@ -62,6 +63,7 @@ export function PostVideo({
     p.loop = true;
     p.muted = videoMuted;
     p.audioMixingMode = 'doNotMix';
+    p.bufferOptions = SHORT_VIDEO_BUFFER;
     if (active) p.play();
   });
 

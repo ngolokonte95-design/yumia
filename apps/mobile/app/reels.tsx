@@ -17,6 +17,7 @@ import { PostOverlays } from '../components/PostOverlays';
 import { useI18n } from '../lib/useI18n';
 import { formatCount } from '../lib/format-count';
 import { isVideoUrl } from '../lib/is-video-url';
+import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
 
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -50,6 +51,7 @@ function ReelVideo({
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.muted = muted;
+    p.bufferOptions = SHORT_VIDEO_BUFFER;
     if (startAtSec) p.currentTime = startAtSec;
   });
 

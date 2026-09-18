@@ -190,6 +190,14 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
           showsVerticalScrollIndicator={false}
           initialScrollIndex={initialIndex}
           getItemLayout={(_, i) => ({ length: height, offset: height * i, index: i })}
+          // Une page de chaque côté reste montée : la vidéo suivante se
+          // précharge en coulisses (son lecteur existe, en pause), sans les
+          // ~21 écrans que FlatList garde par défaut — autant de lecteurs
+          // natifs qui, sur Android, saccadent la lecture.
+          windowSize={3}
+          maxToRenderPerBatch={2}
+          initialNumToRender={2}
+          removeClippedSubviews={Platform.OS === 'android'}
           onViewableItemsChanged={onViewable}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
           renderItem={({ item, index }) => (
