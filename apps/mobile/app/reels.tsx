@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Dimensions, FlatList, Platform, Pressable,
-  Share, StyleSheet, Text, View, ViewToken,
+  Share, StyleSheet, Text, View,
+  type NativeScrollEvent, type NativeSyntheticEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
@@ -163,7 +164,15 @@ function ReelVideo({
 }
 
 // ── Carte d'un reel ──────────────────────────────────────────────────────────
-function ReelCard({
+/**
+ * Une page de reel.
+ *
+ * Mémoïsée : `activeIndex` change à chaque image du défilement, et sans ce
+ * filtre React re-rendait les trois pages montées à chaque fois — le travail
+ * inutile qui hachait le glissement. Seule la page dont `active`,
+ * `shouldMount` ou le contenu change est re-rendue.
+ */
+function ReelCardBase({
   item, active, shouldMount, onLike, onComment, onShare, onUserPress, onFollow,
   screenHeight, startAtSec, initialImageIndex,
 }: {
@@ -559,6 +568,12 @@ function ReelCard({
 }
 
 // ── Écran principal Reels ────────────────────────────────────────────────────
+const ReelCard = memo(ReelCardBase, (prev, next) =>
+  prev.item === next.item
+  && prev.active === next.active
+  && prev.shouldMount === next.shouldMount
+  && prev.initialImageIndex === next.initialImageIndex);
+
 export default function ReelsScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
@@ -642,15 +657,25 @@ export default function ReelsScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (viewableItems.length > 0) {
-      setActiveIndex(viewableItems[0].index ?? 0);
-    }
-  }).current;
+  /**
+   * Page active déduite de la POSITION de défilement, pas de la visibilité.
+   *
+   * `onViewableItemsChanged` ne se déclenche qu'une fois le seuil de visibilité
+   * franchi, et son premier élément visible peut encore être la page qu'on
+   * quitte : l'ancienne vidéo continuait donc de jouer pendant le glissement,
+   * et la nouvelle ne démarrait qu'après coup — le à-coup ressenti au scroll.
+   * Ici, la page change dès qu'on a dépassé la moitié de l'écran, comme sur
+   * TikTok ou Instagram.
+   */
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.y / screenH);
+    setActiveIndex((prev) => (prev === index ? prev : index));
+  }, [screenH]);
 
-  // Une vue est comptée quand un reel occupe vraiment l'écran — pas quand il
-  // est préchargé en coulisses, ni quand on le traverse en défilant vite.
-  // `itemVisiblePercentThreshold: 60` fait ce tri en amont.
+  // Une vue est comptée pour le reel réellement affiché — celui qui occupe
+  // l'écran une fois le glissement terminé (cf. onScroll), pas ceux qu'on
+  // traverse en défilant vite : l'effet ne part qu'après stabilisation de
+  // `activeIndex`.
   //
   // Regarder sa propre publication ne compte pas. Le serveur applique déjà la
   // règle ; sans le même test ici, l'incrément optimiste ferait monter le
@@ -743,8 +768,18 @@ export default function ReelsScreen() {
           onScrollToIndexFailed={({ index }) => {
             setTimeout(() => flatListRef.current?.scrollToIndex({ index, animated: false }), 50);
           }}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          // Fenêtre serrée : 3 pages montées au plus (la précédente, l'actuelle,
+          // la suivante). Au-delà, autant de lecteurs vidéo natifs vivants, que
+          // le décodeur du téléphone finit par ne plus suivre.
+          windowSize={3}
+          initialNumToRender={2}
+          maxToRenderPerBatch={2}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={Platform.OS === 'android'}
+          // Le rendu d'une page hors écran ne doit pas retarder le glissement.
+          disableIntervalMomentum
           renderItem={({ item, index }) => (
             <ReelCard
               item={item}
