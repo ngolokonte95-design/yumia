@@ -134,9 +134,28 @@ export function PostVideo({
     else voiceSoundRef.current?.pause();
   }, [playing]);
 
+  // Pause manuelle (tap) : le garde-fou ci-dessous ne doit pas la défaire.
+  // Elle ne « colle » pas au scroll : quitter puis revenir sur la vidéo la
+  // relance, comme dans les reels.
+  const manuallyPaused = useRef(false);
+
   useEffect(() => {
-    if (active) player.play();
-    else player.pause();
+    manuallyPaused.current = false;
+    if (!active) {
+      player.pause();
+      return;
+    }
+    // Même mécanique que ReelVideo (app/reels.tsx) : un `play()` reçu avant que
+    // le lecteur soit prêt est ignoré, et la vidéo restait figée sur sa
+    // première image au swipe suivant. On relance dès qu'elle est prête, et
+    // un garde-fou rattrape toute lecture perdue tant qu'elle est affichée.
+    player.play();
+    const resume = () => {
+      if (!manuallyPaused.current && player.status === 'readyToPlay' && !player.playing) player.play();
+    };
+    const sub = player.addListener('statusChange', resume);
+    const watchdog = setInterval(resume, 400);
+    return () => { sub.remove(); clearInterval(watchdog); };
   }, [active, player]);
 
   // La voix off suit l'activité de la vidéo — chargée/déchargée à chaque
@@ -182,7 +201,13 @@ export function PostVideo({
   };
 
   const toggle = () => {
-    if (player.playing) player.pause(); else player.play();
+    if (player.playing) {
+      manuallyPaused.current = true;
+      player.pause();
+    } else {
+      manuallyPaused.current = false;
+      player.play();
+    }
     flashIcon();
   };
 
