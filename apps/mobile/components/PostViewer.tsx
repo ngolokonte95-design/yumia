@@ -77,6 +77,11 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
   // navigation, alors que la modale (statusBarTranslucent) les recouvre : des
   // pages plus courtes que l'écran, et deux publications visibles à la fois
   // après un swipe. Tant que rien n'est mesuré, on part de la fenêtre.
+  //
+  // Mesurée UNE fois : sur Android, le premier rendu de la modale peut être
+  // suivi d'un second passage de mise en page (barre d'état masquée après
+  // coup), et refaire la liste à ce moment-là la remontait en plein
+  // défilement — d'où un défilement emballé qui sautait des publications.
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
   const height = measuredHeight ?? windowHeight;
   const insets = useSafeAreaInsets();
@@ -191,16 +196,15 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
         style={styles.screen}
         onLayout={(e) => {
           const h = Math.round(e.nativeEvent.layout.height);
-          if (h > 0) setMeasuredHeight((prev) => (prev === h ? prev : h));
+          if (h > 0) setMeasuredHeight((prev) => prev ?? h);
         }}
       >
         {Platform.OS === 'android' ? <StatusBar hidden /> : null}
 
+        {/* La liste n'est posée qu'une fois la hauteur connue : sa géométrie
+            (pages, alignement du swipe) ne change plus ensuite. */}
+        {measuredHeight === null ? null : (
         <FlatList
-          // La hauteur de page fait partie de la géométrie de la liste : la
-          // remonter après mesure évite un décalage entre pages déjà posées et
-          // la nouvelle hauteur.
-          key={height}
           data={posts}
           keyExtractor={(p) => p.id}
           pagingEnabled
@@ -238,6 +242,7 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
             />
           )}
         />
+        )}
 
         {chrome ? (
           <Pressable style={[styles.close, { top: insets.top + 12 }]} onPress={onClose} hitSlop={12}>
