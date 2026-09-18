@@ -336,19 +336,36 @@ export default function ChatRoomScreen() {
     }
   };
 
-  // ─── Photo / vidéo depuis la galerie ───────────────────────────────────────
-  const pickAndSendMedia = async (kind: 'image' | 'video') => {
+  // ─── Photo / vidéo, depuis la galerie ou l'appareil photo ──────────────────
+  //
+  // L'appareil photo est celui du système, pas l'écran caméra de l'app : ce
+  // dernier sert à PUBLIER (post, story, reel) et proposait donc une
+  // publication alors qu'on voulait envoyer l'image à son interlocuteur.
+  const pickAndSendMedia = async (kind: 'image' | 'video', source: 'library' | 'camera' = 'library') => {
     setShowAttachSheet(false);
     if (!accessToken || !convId) return;
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
-      quality: 0.85,
-      videoMaxDuration: 60,
-    });
+    let result: ImagePicker.ImagePickerResult;
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) return;
+      result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images', 'videos'],
+        quality: 0.85,
+        videoMaxDuration: 60,
+      });
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: kind === 'image' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
+        quality: 0.85,
+        videoMaxDuration: 60,
+      });
+    }
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+    // Depuis l'appareil photo, le genre dépend de ce qui a été capturé.
+    if (source === 'camera') kind = asset.type === 'video' ? 'video' : 'image';
 
     setUploadingMedia(true);
     try {
@@ -876,7 +893,7 @@ export default function ChatRoomScreen() {
             <Text style={styles.attachTitle}>{t('chat_attach_title')}</Text>
             <Pressable
               style={styles.attachRow}
-              onPress={() => { setShowAttachSheet(false); router.push('/camera' as never); }}
+              onPress={() => void pickAndSendMedia('image', 'camera')}
             >
               <View style={styles.attachIconBox}><Text style={{ fontSize: 20 }}>📷</Text></View>
               <Text style={styles.attachRowTxt}>{t('chat_attach_camera')}</Text>
