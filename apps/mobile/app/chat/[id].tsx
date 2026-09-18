@@ -454,6 +454,10 @@ export default function ChatRoomScreen() {
     await recorder.stop();
     const uri = recorder.uri;
     if (uri) setVoicePreview({ uri, duration: dur });
+    // Retour en session de LECTURE : sans ça, iOS reste en « lecture +
+    // enregistrement » et tout le son de l'app (fil, reels, stories) devient
+    // quasi inaudible jusqu'au redémarrage.
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
   };
 
   const cancelVoice = async () => {
@@ -461,6 +465,7 @@ export default function ChatRoomScreen() {
     if (recorder.isRecording) await recorder.stop();
     setIsRecordingVoice(false);
     setRecordingSeconds(0);
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
   };
 
   /** Rejoue/pause l'extrait en attente d'envoi. */

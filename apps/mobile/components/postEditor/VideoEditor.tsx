@@ -8,7 +8,7 @@
  * C'est ce qui permet de livrer cette fonctionnalité sans nouveau moteur
  * vidéo natif ni build supplémentaire.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated, Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View,
   type GestureResponderEvent, type PanResponderGestureState,
@@ -164,6 +164,11 @@ export function VideoEditor({
     await recorder.stop();
     const rec = recorder.uri;
     if (rec) setVoiceUri(rec);
+    // Sortie du mode enregistrement, sans quoi iOS garde la session audio en
+    // « lecture + enregistrement » : tout le son de l'app (vidéos du fil,
+    // reels, stories, musique) reste alors quasi inaudible jusqu'au
+    // redémarrage.
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
   };
 
   const previewVoice = async () => {
@@ -177,6 +182,13 @@ export function VideoEditor({
       sound.play();
     } catch {}
   };
+
+  // Filet de sécurité : quel que soit le chemin de sortie (fermeture,
+  // démontage, enregistrement interrompu), la session audio redevient une
+  // session de lecture.
+  useEffect(() => () => {
+    void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+  }, []);
 
   const done = () => {
     // `overlays` est déjà l'état à jour ici — pas besoin de passer par le
