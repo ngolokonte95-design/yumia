@@ -105,7 +105,14 @@ function ReelVideo({
     const sub = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay' && !player.playing) player.play();
     });
-    return () => sub.remove();
+    // Garde-fou : quelle que soit la raison pour laquelle la lecture s'est
+    // perdue (ordre reçu trop tôt, retour de préchargement, interruption
+    // système), un reel actif qui n'est pas en lecture est relancé. Sans ça,
+    // il restait figé sur sa première image jusqu'à un appui sur lecture.
+    const watchdog = setInterval(() => {
+      if (player.status === 'readyToPlay' && !player.playing) player.play();
+    }, 400);
+    return () => { sub.remove(); clearInterval(watchdog); };
   }, [active, player]);
 
   // Alimente la barre de progression en lisant directement la position réelle
