@@ -14,6 +14,7 @@ import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
 import { appendFile } from '../lib/upload';
+import { restorePlaybackAudio } from '../lib/audio-session';
 
 const { width: SW } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -185,7 +186,12 @@ export default function CameraScreen() {
   const cameraRef = useRef<CameraView>(null);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => () => { if (recordTimerRef.current) clearInterval(recordTimerRef.current); }, []);
+  useEffect(() => () => {
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    // Filmer utilise le micro : on rend la sortie audio à la lecture en
+    // quittant, sinon le son des vidéos reste faible (cf. lib/audio-session).
+    restorePlaybackAudio();
+  }, []);
 
   // ─── Geste swipe pour les filtres ────────────────────────────────────────
   const panResponder = useRef(

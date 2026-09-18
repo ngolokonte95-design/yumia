@@ -19,6 +19,7 @@ import { useI18n } from '../lib/useI18n';
 import { formatCount } from '../lib/format-count';
 import { isVideoUrl } from '../lib/is-video-url';
 import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
+import { restorePlaybackAudio } from '../lib/audio-session';
 
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
@@ -638,6 +639,10 @@ export default function ReelsScreen() {
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [screenFocused, setScreenFocused] = useState(true);
+  // Filet : un appel, un vocal ou un enregistrement vidéo laisse la sortie
+  // audio en mode micro, et les vidéos deviennent inaudibles. Cf.
+  // lib/audio-session.ts.
+  useFocusEffect(useCallback(() => { restorePlaybackAudio(); }, []));
   const [following, setFollowing] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList<FeedPost>>(null);
   /**

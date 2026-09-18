@@ -22,6 +22,7 @@ import { useHasUnreadMessages, clearUnreadMessagesLocally } from '../../lib/useU
 import { formatCount } from '../../lib/format-count';
 import { parseMusicTrack, isPlayableAudioUrl, type MusicMeta } from '../../lib/music-track';
 import { isVideoUrl } from '../../lib/is-video-url';
+import { restorePlaybackAudio } from '../../lib/audio-session';
 
 const API = API_BASE_URL;
 
@@ -481,6 +482,10 @@ export default function SocialTab() {
   // Coupe les vidéos du feed quand on quitte l'écran (ex: bascule plein écran
   // vers /reels) pour éviter que les deux sons se chevauchent.
   const [screenFocused, setScreenFocused] = useState(true);
+  // Filet : après un appel, un vocal ou un enregistrement vidéo, la sortie
+  // audio reste en mode micro et les vidéos du fil deviennent inaudibles.
+  useFocusEffect(useCallback(() => { restorePlaybackAudio(); }, []));
+
   useFocusEffect(useCallback(() => {
     setScreenFocused(true);
     return () => setScreenFocused(false);
