@@ -93,11 +93,19 @@ function ReelVideo({
   }, [player, onLoop]);
 
   useEffect(() => {
-    if (active) {
-      player.play();
-    } else {
+    if (!active) {
       player.pause();
+      return;
     }
+    // `play()` sur un lecteur pas encore prêt est ignoré : au swipe, la vidéo
+    // suivante restait alors figée sur sa première image jusqu'à ce qu'on
+    // appuie sur lecture. On rejoue donc dès qu'elle devient prête, tant
+    // qu'elle est toujours la vidéo active.
+    player.play();
+    const sub = player.addListener('statusChange', ({ status }) => {
+      if (status === 'readyToPlay' && !player.playing) player.play();
+    });
+    return () => sub.remove();
   }, [active, player]);
 
   // Alimente la barre de progression en lisant directement la position réelle
