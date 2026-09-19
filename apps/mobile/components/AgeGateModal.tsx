@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.md,
-    paddingVertical: spacing.md,
+    paddingVertical: 12,
     paddingHorizontal: spacing.md,
     ...typography.body,
     color: colors.textPrimary,
