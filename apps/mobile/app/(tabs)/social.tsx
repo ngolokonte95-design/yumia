@@ -266,7 +266,20 @@ function PostCard({
             <Text style={styles.postAuthorName}>{item.user?.displayName ?? tr('social_user_fallback')}</Text>
             <PlanBadgeIcon plan={item.user?.plan} size={32} />
           </View>
-          {item.place && <Text style={styles.postPlace}>📍 {item.place.name}</Text>}
+          {/* Le lieu mène à sa fiche : une publication géolocalisée sert aussi
+              à faire découvrir l'endroit. `stopPropagation` évite d'ouvrir en
+              même temps le profil de l'auteur, dont la ligne englobe celle-ci. */}
+          {item.place && (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                if (item.place?.id) router.push(`/place?id=${item.place.id}` as never);
+              }}
+              hitSlop={6}
+            >
+              <Text style={styles.postPlace}>📍 {item.place.name}</Text>
+            </Pressable>
+          )}
         </View>
         <Text style={styles.postAgo}>{formatAgo(item.createdAt, tr)}</Text>
         <Pressable onPress={handleMenu} hitSlop={12} style={{ marginLeft: 'auto', paddingHorizontal: 6 }}>

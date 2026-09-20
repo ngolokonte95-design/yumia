@@ -42,6 +42,27 @@ export function fetchNearby(params: NearbyParams): Promise<NearbyPlace[]> {
   return request<NearbyPlace[]>(`/places/nearby?${q.toString()}`);
 }
 
+/**
+ * Recherche de lieux par nom (`/places/search`).
+ *
+ * La position n'est qu'une préférence : elle fait remonter les résultats
+ * proches en premier, mais on peut chercher un lieu à l'autre bout du monde.
+ */
+export function searchPlacesByName(
+  query: string,
+  near?: { lat: number; lng: number },
+  limit = 20,
+): Promise<NearbyPlace[]> {
+  const q = new URLSearchParams();
+  q.set('q', query);
+  if (near) {
+    q.set('lat', String(near.lat));
+    q.set('lng', String(near.lng));
+  }
+  q.set('limit', String(limit));
+  return request<NearbyPlace[]>(`/places/search?${q.toString()}`);
+}
+
 /** Lieu tendance : NearbyPlace enrichi du nombre de visites récentes. */
 export interface TrendingPlace extends NearbyPlace {
   visitCount: number;

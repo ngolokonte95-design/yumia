@@ -88,6 +88,8 @@ export interface StoryItem {
   userId?: string;
   createdAt: string;
   musicTrack?: string | null;
+  /** Lieu associé, renvoyé enrichi par l'API (cf. stories.service). */
+  place?: { id?: string; name: string; city?: string; universe?: string } | null;
 }
 
 export interface StoryGroup {

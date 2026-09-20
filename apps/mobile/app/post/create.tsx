@@ -11,6 +11,7 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
 import { PostVideo } from '../../components/PostVideo';
+import { PlacePicker, type PickedPlace } from '../../components/PlacePicker';
 import { VideoEditor } from '../../components/postEditor/VideoEditor';
 import type { PostOverlay } from '../../lib/feed-api';
 import { useI18n } from '../../lib/useI18n';
@@ -30,6 +31,8 @@ export default function CreatePostScreen() {
   const [images, setImages] = useState<string[]>(params.uri && params.mediaType !== 'video' ? [params.uri] : []);
   const [videoUri, setVideoUri] = useState<string | null>(params.uri && params.mediaType === 'video' ? params.uri : null);
   const [caption, setCaption] = useState('');
+  const [place, setPlace] = useState<PickedPlace | null>(null);
+  const [placePickerOpen, setPlacePickerOpen] = useState(false);
   const [selectedMusic, setSelectedMusic] = useState<MusicTrack | null>(null);
   const [musicModalVisible, setMusicModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -136,6 +139,7 @@ export default function CreatePostScreen() {
       const body: Record<string, unknown> = {
         mediaUrls,
         caption: caption.trim() || undefined,
+        placeId: place?.id,
         videoUrl,
         coverUrl,
         commentsDisabled: commentsDisabled || undefined,
@@ -322,6 +326,26 @@ export default function CreatePostScreen() {
         />
         <Text style={styles.charCount}>{caption.length}/500</Text>
 
+        {/* Lieu — rattaché à la base YUMIA plutôt qu'à du texte libre :
+            il devient cliquable dans le fil et relie la publication à la
+            fiche du lieu. */}
+        <Pressable style={styles.placeRow} onPress={() => setPlacePickerOpen(true)}>
+          <Text style={styles.placeRowIcon}>📍</Text>
+          <Text style={[styles.placeRowLabel, place ? styles.placeRowLabelSet : null]} numberOfLines={1}>
+            {place ? place.name : t('place_tag_add')}
+          </Text>
+          {place ? (
+            <Pressable onPress={() => setPlace(null)} hitSlop={12} accessibilityLabel={t('place_tag_remove')}>
+              <Text style={styles.placeRowClear}>✕</Text>
+            </Pressable>
+          ) : null}
+        </Pressable>
+        <PlacePicker
+          visible={placePickerOpen}
+          onClose={() => setPlacePickerOpen(false)}
+          onSelect={setPlace}
+        />
+
         {/* Options */}
         <View style={styles.optionsBox}>
           <Pressable style={styles.optionRow} onPress={() => setCommentsDisabled((v) => !v)}>
@@ -483,4 +507,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   draftBtnText: { color: colors.text, fontWeight: '600', fontSize: 14 },
+  // Ligne « Ajouter un lieu » : même allure que les autres champs de l'écran.
+  placeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  placeRowIcon: { fontSize: 16 },
+  placeRowLabel: { ...typography.body, color: colors.textMuted, flex: 1 },
+  placeRowLabelSet: { color: colors.textPrimary },
+  placeRowClear: { ...typography.body, color: colors.textSecondary },
 });

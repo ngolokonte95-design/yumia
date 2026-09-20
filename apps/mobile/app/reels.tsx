@@ -299,6 +299,7 @@ function ReelCardBase({
   const voiceSoundRef = useRef<AudioPlayer | null>(null);
   const diskAnim = useRef(new Animated.Value(0)).current;
   const diskLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const router = useRouter();
   const progressAnim = useRef(new Animated.Value(0)).current;
   // Déplacement manuel de la lecture depuis la barre du bas.
   const seekRef = useRef<((ratio: number) => void) | null>(null);
@@ -628,6 +629,17 @@ function ReelCardBase({
             <Text style={styles.reelFollowTxt}>{t('reels_follow')}</Text>
           </Pressable>
         </Pressable>
+        {/* Lieu : juste sous l'auteur, comme sur Instagram, et cliquable
+            vers sa fiche. */}
+        {item.place ? (
+          <Pressable
+            style={styles.reelPlaceRow}
+            onPress={() => item.place?.id && router.push(`/place?id=${item.place.id}` as never)}
+            hitSlop={6}
+          >
+            <Text style={styles.reelPlaceTxt} numberOfLines={1}>📍 {item.place.name}</Text>
+          </Pressable>
+        ) : null}
         {item.caption ? (
           <Text style={styles.reelCaption} numberOfLines={2}>{item.caption}</Text>
         ) : null}
@@ -1000,6 +1012,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 4,
   },
   reelFollowTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  reelPlaceRow: { alignSelf: 'flex-start', marginBottom: 6 },
+  // Fond sombre translucide : le nom d'un lieu doit rester lisible sur une
+  // vidéo claire, sans alourdir l'image.
+  reelPlaceTxt: {
+    color: '#fff', fontSize: 13, fontWeight: '600',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+    overflow: 'hidden',
+  },
   reelCaption: { color: '#fff', fontSize: 14, lineHeight: 20, marginBottom: 10 },
   // Zone de saisie : transparente et haute de 22 px, pour attraper un trait
   // de 2 px au doigt. Le trait reste collé en bas de cette zone.

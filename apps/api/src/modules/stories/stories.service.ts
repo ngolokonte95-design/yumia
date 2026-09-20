@@ -101,6 +101,23 @@ export class StoriesService {
   }
 
   /** Stories des gens que je suis + les miennes, non expirées */
+  /**
+   * Lieux des stories, en une seule requête.
+   *
+   * `placeId` était stocké depuis toujours mais n'était jamais relu : le lieu
+   * ne pouvait donc pas s'afficher. Mêmes champs que pour les publications
+   * (cf. posts.service), pour que le mobile traite les deux pareil.
+   */
+  private async loadPlaces(stories: Array<{ placeId: string | null }>) {
+    const ids = [...new Set(stories.map((s) => s.placeId).filter(Boolean))] as string[];
+    if (!ids.length) return {} as Record<string, { id: string; name: string; universe: string; city: string }>;
+    const places = await this.prisma.place.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, universe: true, city: true },
+    });
+    return Object.fromEntries(places.map((pl) => [pl.id, pl]));
+  }
+
   async getFeedStories(userId: string) {
     const follows = await this.prisma.follow.findMany({ where: { followerId: userId } });
     const followingIds = [userId, ...follows.map((f) => f.followingId)];
@@ -116,7 +133,7 @@ export class StoriesService {
 
     // Enrichir avec infos user + vu ou non
     const userIds = [...new Set(stories.map((s) => s.userId))];
-    const [users, myViews] = await Promise.all([
+    const [users, myViews, placeMap] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true, displayName: true, photoUrl: true, plan: true },
@@ -125,6 +142,7 @@ export class StoriesService {
         where: { userId, storyId: { in: stories.map((s) => s.id) } },
         select: { storyId: true },
       }),
+      this.loadPlaces(stories),
     ]);
 
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
@@ -139,7 +157,11 @@ export class StoriesService {
 
     const groups = [...byUser.entries()].map(([uid, userStories]) => ({
       user: userMap[uid],
-      stories: userStories.map((s) => ({ ...s, seen: viewedIds.has(s.id) })),
+      stories: userStories.map((s) => ({
+        ...s,
+        seen: viewedIds.has(s.id),
+        place: s.placeId ? (placeMap[s.placeId] ?? null) : null,
+      })),
       hasUnseen: userStories.some((s) => !viewedIds.has(s.id)),
     }));
 
@@ -167,7 +189,7 @@ export class StoriesService {
     const stories = await this.filterVisible(allStories, userId);
 
     const userIds = [...new Set(stories.map((s) => s.userId))];
-    const [users, myViews] = await Promise.all([
+    const [users, myViews, placeMap] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true, displayName: true, photoUrl: true, plan: true },
@@ -176,6 +198,7 @@ export class StoriesService {
         where: { userId, storyId: { in: stories.map((s) => s.id) } },
         select: { storyId: true },
       }),
+      this.loadPlaces(stories),
     ]);
 
     const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
@@ -189,7 +212,11 @@ export class StoriesService {
 
     const groups = [...byUser.entries()].map(([uid, userStories]) => ({
       user: userMap[uid],
-      stories: userStories.map((s) => ({ ...s, seen: viewedIds.has(s.id) })),
+      stories: userStories.map((s) => ({
+        ...s,
+        seen: viewedIds.has(s.id),
+        place: s.placeId ? (placeMap[s.placeId] ?? null) : null,
+      })),
       hasUnseen: userStories.some((s) => !viewedIds.has(s.id)),
     }));
 

@@ -275,6 +275,8 @@ function PostPage({
   onSave: () => void;
   onComment: () => void;
 }) {
+  // PostPage ne naviguait pas jusqu'ici ; le lieu mène à sa fiche.
+  const router = useRouter();
   const [imageIndex, setImageIndex] = useState(initialImageIndex);
   const media = post.mediaUrls.length ? post.mediaUrls : (post.videoUrl ? [post.videoUrl] : []);
 
@@ -353,6 +355,16 @@ function PostPage({
 
             {post.user?.displayName ? (
               <Text style={styles.author} numberOfLines={1}>{post.user.displayName}</Text>
+            ) : null}
+            {/* Lieu, comme dans les reels : le plein écran du profil montre la
+                même publication, il doit donner les mêmes repères. */}
+            {post.place ? (
+              <Pressable
+                onPress={() => post.place?.id && router.push(`/place?id=${post.place.id}` as never)}
+                hitSlop={6}
+              >
+                <Text style={styles.place} numberOfLines={1}>📍 {post.place.name}</Text>
+              </Pressable>
             ) : null}
             {post.caption ? <Text style={styles.caption} numberOfLines={3}>{post.caption}</Text> : null}
 
@@ -445,6 +457,7 @@ const styles = StyleSheet.create({
   musicToggleIcon: { color: '#fff', fontSize: 10, fontWeight: '700' },
   author: { color: '#fff', ...typography.body, fontWeight: '700' },
   caption: { color: 'rgba(255,255,255,0.9)', ...typography.caption, lineHeight: 18 },
+  place: { color: '#fff', ...typography.caption, fontWeight: '600', marginBottom: 2 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.sm },
   action: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   icon: { fontSize: 22 },

@@ -304,7 +304,19 @@ export default function StoryViewerScreen() {
             <Text style={{ color: '#fff', fontWeight: '700' }}>{group.user.displayName[0]}</Text>
           </View>
         )}
-        <Text style={styles.name}>{group.user.displayName}</Text>
+        <View style={styles.headerText}>
+          <Text style={[styles.name, styles.nameInHeader]}>{group.user.displayName}</Text>
+          {/* Lieu de CETTE story (pas du groupe) : il change d'une story à
+              l'autre au sein du même auteur. */}
+          {story.place ? (
+            <Pressable
+              onPress={() => story.place?.id && router.push(`/place?id=${story.place.id}` as never)}
+              hitSlop={6}
+            >
+              <Text style={styles.headerPlace} numberOfLines={1}>📍 {story.place.name}</Text>
+            </Pressable>
+          ) : null}
+        </View>
         {story.closeFriendsOnly ? (
           <View style={styles.cfBadge}><Text style={styles.cfBadgeTxt}>{t('sv_close_friends')}</Text></View>
         ) : null}
@@ -467,6 +479,11 @@ const styles = StyleSheet.create({
   musicTrackText: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
   captionWrap: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 12, padding: 12 },
   caption: { color: '#fff', fontSize: 15, textAlign: 'center' },
+  headerText: { flex: 1 },
+  headerPlace: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', marginTop: 1 },
+  // `name` porte flex:1 pour pousser la croix a droite ; ce role revient
+  // desormais au conteneur, sinon le texte s'etire dans la colonne.
+  nameInHeader: { flex: 0 },
   tapLeft: { position: 'absolute', left: 0, top: 80, bottom: 110, width: width * 0.3 },
   tapRight: { position: 'absolute', right: 0, top: 80, bottom: 110, width: width * 0.7 },
   // Stickers
