@@ -87,18 +87,25 @@ export function PostVideo({
     // Déjà prêt = le lecteur a été monté en avance (voisin du post actif, cf.
     // `shouldMount`) et a donc déjà rendu sa première image : on découvre tout
     // de suite, sans délai — sinon on masquerait une image parfaitement valide.
+    // La lecture a réellement commencé : plus rien à masquer. Sans cette
+    // écoute, le poster restait le temps du délai ci-dessous alors que la
+    // vidéo tournait déjà dessous, et elle réapparaissait avancée — lu comme
+    // un arrêt juste après le démarrage.
+    const playSub = player.addListener('playingChange', ({ isPlaying }) => {
+      if (isPlaying) setReady(true);
+    });
     if (player.status === 'readyToPlay') {
       setReady(true);
-    } else {
-      // Pas encore prêt (scroll très rapide qui saute plusieurs posts) : on
-      // laisse un court délai après `readyToPlay`, le temps que la première
-      // image soit réellement peinte à l'écran (Android/TextureView).
-      const sub = player.addListener('statusChange', ({ status }) => {
-        if (status === 'readyToPlay' && !timer) timer = setTimeout(() => setReady(true), 120);
-      });
-      return () => { sub.remove(); if (timer) clearTimeout(timer); };
+      return () => playSub.remove();
     }
-    return undefined;
+    // Pas encore prêt (défilement très rapide qui saute plusieurs posts) : on
+    // laisse un court délai après `readyToPlay`, le temps que la première
+    // image soit peinte — utile au TextureView d'Android, inutile sur iOS.
+    const delay = Platform.OS === 'android' ? 120 : 0;
+    const sub = player.addListener('statusChange', ({ status }) => {
+      if (status === 'readyToPlay' && !timer) timer = setTimeout(() => setReady(true), delay);
+    });
+    return () => { sub.remove(); playSub.remove(); if (timer) clearTimeout(timer); };
   }, [player, active]);
 
   // Fondu du poster synchronisé sur `ready` — remplace le changement instantané

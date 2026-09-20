@@ -90,15 +90,25 @@ function ReelVideo({
     // de l'image où l'on s'est arrêté.
     if (!isCurrent) { setReady(false); return; }
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Le délai ne sert qu'à Android, dont le TextureView met un instant à
+    // peindre sa première image. Sur iOS, attendre 120 ms laissait voir une
+    // image FIXE alors que la vidéo jouait déjà dessous : elle réapparaissait
+    // ensuite avancée, ce qui se lit comme un arrêt juste après le démarrage.
+    const HIDE_DELAY = Platform.OS === 'android' ? 120 : 0;
     const scheduleHide = () => {
       if (timer) return;
-      timer = setTimeout(() => setReady(true), 120);
+      timer = setTimeout(() => setReady(true), HIDE_DELAY);
     };
+    // La lecture a réellement commencé : plus rien à masquer, quel que soit
+    // l'état rapporté par `status`.
+    const playSub = player.addListener('playingChange', ({ isPlaying }) => {
+      if (isPlaying) setReady(true);
+    });
     if (player.status === 'readyToPlay') scheduleHide();
     const sub = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay') scheduleHide();
     });
-    return () => { sub.remove(); if (timer) clearTimeout(timer); };
+    return () => { sub.remove(); playSub.remove(); if (timer) clearTimeout(timer); };
   }, [player, isCurrent]);
 
   useEffect(() => {
