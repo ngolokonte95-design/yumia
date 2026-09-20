@@ -790,6 +790,7 @@ export default function ReelsScreen() {
 
       setReels(list);
       setActiveIndex(targetIndex);
+      setPlayIndex(targetIndex);
     } catch {
       setReels([]);
     } finally {
@@ -818,11 +819,27 @@ export default function ReelsScreen() {
    * regarde plus d'une seconde garde le préchargement ; qui enchaîne les
    * swipes verra une miniature un instant, plutôt qu'un gel à chaque page.
    */
-  const [settledIndex, setSettledIndex] = useState(0);
+  /**
+   * Page dont la vidéo JOUE. Ne change qu'une fois le défilement posé
+   * (`onMomentumScrollEnd`), jamais à mi-écran : activer un lecteur pendant
+   * l'animation lui faisait perdre une image — mesuré sur un enregistrement,
+   * la décélération native passait de -128 à -232 px d'une image à l'autre,
+   * le « saut » ressenti au retour sur une vidéo.
+   *
+   * Repli 600 ms après le franchissement de la mi-écran : iOS n'émet pas
+   * toujours la fin de momentum quand on relâche pile sur une page.
+   */
+  const [playIndex, setPlayIndex] = useState(0);
   useEffect(() => {
-    const timer = setTimeout(() => setSettledIndex(activeIndex), 1200);
+    const timer = setTimeout(() => setPlayIndex(activeIndex), 600);
     return () => clearTimeout(timer);
   }, [activeIndex]);
+
+  const [settledIndex, setSettledIndex] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledIndex(playIndex), 1200);
+    return () => clearTimeout(timer);
+  }, [playIndex]);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.y / screenH);
@@ -927,6 +944,9 @@ export default function ReelsScreen() {
           }}
           onScroll={onScroll}
           scrollEventThrottle={16}
+          // Le défilement est posé : c'est maintenant que la vidéo de la page
+          // s'active, cf. `playIndex`.
+          onMomentumScrollEnd={(e) => setPlayIndex(Math.round(e.nativeEvent.contentOffset.y / screenH))}
           // Fenêtre serrée : 3 pages montées au plus (la précédente, l'actuelle,
           // la suivante). Au-delà, autant de lecteurs vidéo natifs vivants, que
           // le décodeur du téléphone finit par ne plus suivre.
@@ -940,14 +960,14 @@ export default function ReelsScreen() {
           renderItem={({ item, index }) => (
             <ReelCard
               item={item}
-              active={index === activeIndex && screenFocused}
+              active={index === playIndex && screenFocused}
               // La page courante, toujours. Les voisins (un devant, un
               // derrière) seulement une fois posé sur une page depuis 1,2 s,
               // cf. `settledIndex` : leur montage ne doit pas coïncider avec
               // le démarrage de la vidéo qu'on regarde.
               shouldMount={
-                index === activeIndex
-                || (settledIndex === activeIndex && Math.abs(index - settledIndex) <= 1)
+                index === playIndex
+                || (settledIndex === playIndex && Math.abs(index - settledIndex) <= 1)
               }
               onLike={toggleLike}
               onComment={(id) => router.push(`/post/${id}` as never)}
