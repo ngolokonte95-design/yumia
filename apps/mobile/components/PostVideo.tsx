@@ -57,9 +57,12 @@ export function PostVideo({
   // brutal (qui se voyait comme un "saut" une fois le flash noir supprimé).
   const posterOpacity = useRef(new Animated.Value(1)).current;
   const voiceSoundRef = useRef<AudioPlayer | null>(null);
-  // Pause demandee par un appui. Sans cette distinction, le rattrapage
-  // ci-dessous relancerait une video que l'utilisateur vient d'arreter.
-  const userPausedRef = useRef(false);
+  /**
+   * Pause demandée par un appui : le garde-fou ci-dessous ne doit pas la
+   * défaire. Elle ne « colle » pas au défilement — quitter puis revenir sur
+   * la vidéo la relance, comme dans les reels.
+   */
+  const manuallyPaused = useRef(false);
 
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -137,34 +140,35 @@ export function PostVideo({
     else voiceSoundRef.current?.pause();
   }, [playing]);
 
-  // Relance. `play()` est ignoré EN SILENCE par expo-video tant que le lecteur
-  // n'est pas `readyToPlay` : apres un swipe, la video suivante est encore en
-  // chargement, l'appel se perd, et plus rien ne le rattrape — il fallait
-  // appuyer sur play. On rejoue donc des que le lecteur est pret.
-  //
-  // L'ecoute s'arrete au PREMIER demarrage : sans ca, une mise en pause
-  // manuelle pendant un rechargement du tampon serait annulee par la reprise.
-  // C'est la difference avec la relance periodique essayee plus tot, qui
-  // repassait sans cesse et empechait la lecture.
+  /**
+   * Lecture automatique de la publication regardée.
+   *
+   * `play()` reçu avant que le lecteur soit `readyToPlay` est ignoré EN
+   * SILENCE par expo-video : au swipe, la vidéo suivante est encore en
+   * chargement, la commande se perd, et l'image restait figée — il fallait
+   * appuyer pour la lancer. On relance donc dès qu'elle est prête, et un
+   * garde-fou périodique rattrape toute lecture perdue tant que la vidéo est
+   * affichée : le statut peut repasser par un rechargement de tampon bien
+   * après le premier `readyToPlay`.
+   *
+   * Ce garde-fou avait été retiré par erreur en même temps que le tampon
+   * raccourci (`SHORT_VIDEO_BUFFER`), qui était, lui, la vraie cause des
+   * vidéos qui ne démarraient plus du tout. Il est sans danger : `resume()`
+   * ne fait rien si la vidéo joue déjà, ou si un appui a demandé la pause.
+   */
   useEffect(() => {
-    if (!active) { player.pause(); return undefined; }
-    if (player.status === 'readyToPlay') { player.play(); return undefined; }
-    userPausedRef.current = false;
-    let sub: { remove: () => void } | null = null;
-    sub = player.addListener('statusChange', ({ status }) => {
-      if (status !== 'readyToPlay') return;
-      player.play();
-      sub?.remove();
-      sub = null;
-    });
-    // Filet de securite, une seule fois : `play()` peut aussi se perdre dans
-    // la course entre le montage de la vue et la commande, alors meme que le
-    // statut est deja `readyToPlay`. On verifie donc une fois, et seulement si
-    // l'utilisateur n'a pas appuye pour mettre en pause entre-temps.
-    const retry = setTimeout(() => {
-      if (!userPausedRef.current && !player.playing) player.play();
-    }, 350);
-    return () => { sub?.remove(); clearTimeout(retry); };
+    manuallyPaused.current = false;
+    if (!active) {
+      player.pause();
+      return undefined;
+    }
+    player.play();
+    const resume = () => {
+      if (!manuallyPaused.current && player.status === 'readyToPlay' && !player.playing) player.play();
+    };
+    const sub = player.addListener('statusChange', resume);
+    const watchdog = setInterval(resume, 400);
+    return () => { sub.remove(); clearInterval(watchdog); };
   }, [active, player]);
 
   // La voix off suit l'activité de la vidéo — chargée/déchargée à chaque
@@ -211,10 +215,10 @@ export function PostVideo({
 
   const toggle = () => {
     if (player.playing) {
-      userPausedRef.current = true;
+      manuallyPaused.current = true;
       player.pause();
     } else {
-      userPausedRef.current = false;
+      manuallyPaused.current = false;
       player.play();
     }
     flashIcon();
