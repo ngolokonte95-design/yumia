@@ -56,7 +56,7 @@ vérification d'identité. Ce qui est exigé, c'est que la question soit posée 
 | Conditions d'utilisation | https://yumia.eu/terms | en ligne |
 | Suppression de compte (exigée par Google **en plus** du parcours dans l'app) | https://yumia.eu/delete-account | en ligne |
 | Support | https://yumia.eu/support | en ligne |
-| Courriel de support | md.developpeur.paris@gmail.com | affiché publiquement par Google |
+| Courriel de support | contact@yumia.eu | affiché publiquement par Google |
 
 ---
 
@@ -227,7 +227,7 @@ Les trois abonnements passent par l'achat intégré.
 | Description courte | `Sorties, itinéraires, cadeaux : l'IA choisit le lieu parfait autour de toi.` |
 | Description complète | `FICHES-STORES.md` |
 | Catégorie | Style de vie |
-| Courriel | md.developpeur.paris@gmail.com |
+| Courriel | contact@yumia.eu |
 | Site | https://yumia.eu |
 | Confidentialité | https://yumia.eu/privacy |
 
