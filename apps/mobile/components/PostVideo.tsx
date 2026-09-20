@@ -57,6 +57,9 @@ export function PostVideo({
   // brutal (qui se voyait comme un "saut" une fois le flash noir supprimé).
   const posterOpacity = useRef(new Animated.Value(1)).current;
   const voiceSoundRef = useRef<AudioPlayer | null>(null);
+  // Pause demandee par un appui. Sans cette distinction, le rattrapage
+  // ci-dessous relancerait une video que l'utilisateur vient d'arreter.
+  const userPausedRef = useRef(false);
 
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
@@ -146,6 +149,7 @@ export function PostVideo({
   useEffect(() => {
     if (!active) { player.pause(); return undefined; }
     if (player.status === 'readyToPlay') { player.play(); return undefined; }
+    userPausedRef.current = false;
     let sub: { remove: () => void } | null = null;
     sub = player.addListener('statusChange', ({ status }) => {
       if (status !== 'readyToPlay') return;
@@ -153,7 +157,14 @@ export function PostVideo({
       sub?.remove();
       sub = null;
     });
-    return () => { sub?.remove(); };
+    // Filet de securite, une seule fois : `play()` peut aussi se perdre dans
+    // la course entre le montage de la vue et la commande, alors meme que le
+    // statut est deja `readyToPlay`. On verifie donc une fois, et seulement si
+    // l'utilisateur n'a pas appuye pour mettre en pause entre-temps.
+    const retry = setTimeout(() => {
+      if (!userPausedRef.current && !player.playing) player.play();
+    }, 350);
+    return () => { sub?.remove(); clearTimeout(retry); };
   }, [active, player]);
 
   // La voix off suit l'activité de la vidéo — chargée/déchargée à chaque
@@ -199,7 +210,13 @@ export function PostVideo({
   };
 
   const toggle = () => {
-    if (player.playing) player.pause(); else player.play();
+    if (player.playing) {
+      userPausedRef.current = true;
+      player.pause();
+    } else {
+      userPausedRef.current = false;
+      player.play();
+    }
     flashIcon();
   };
 
