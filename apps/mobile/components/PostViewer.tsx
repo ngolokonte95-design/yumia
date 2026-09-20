@@ -89,6 +89,17 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
   const { accessToken } = useAuth();
 
   const [current, setCurrent] = useState(initialIndex);
+  /**
+   * Page sur laquelle on s'est ARRÊTÉ depuis au moins 1,2 s. Les voisins ne
+   * montent leur lecteur que par rapport à elle : créer un lecteur natif
+   * pendant que la vidéo courante démarre la figeait ~0,7 s (même cause que
+   * dans les reels, cf. reels.tsx `settledIndex`).
+   */
+  const [settledIndex, setSettledIndex] = useState(initialIndex);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledIndex(current), 1200);
+    return () => clearTimeout(timer);
+  }, [current]);
   const [chrome, setChrome] = useState(true);
   /**
    * État local des actions, par publication.
@@ -229,6 +240,10 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
               width={width}
               height={height}
               active={index === current}
+              mountPlayer={
+                index === current
+                || (settledIndex === current && Math.abs(index - settledIndex) <= 1)
+              }
               chrome={chrome}
               onToggleChrome={() => setChrome((c) => !c)}
               insets={insets}
@@ -256,13 +271,15 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
 
 /** Une publication occupant tout l'écran. */
 function PostPage({
-  post, width, height, active, chrome, onToggleChrome, insets, initialImageIndex,
+  post, width, height, active, mountPlayer, chrome, onToggleChrome, insets, initialImageIndex,
   music, musicPaused, onToggleMusic, onLike, onSave, onComment,
 }: {
   post: FeedPost;
   width: number;
   height: number;
   active: boolean;
+  /** Faux tant que la page est un voisin fraîchement arrivé : pas de lecteur, la couverture suffit. */
+  mountPlayer: boolean;
   chrome: boolean;
   onToggleChrome: () => void;
   insets: { top: number; bottom: number };
@@ -292,7 +309,15 @@ function PostPage({
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         onMomentumScrollEnd={(e) => setImageIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
         renderItem={({ item: uri, index }) =>
-          isVideoUrl(uri) ? (
+          isVideoUrl(uri) && !mountPlayer ? (
+            // Voisin fraîchement arrivé : la couverture, sans lecteur natif.
+            // Le lecteur viendra une fois la page courante stabilisée.
+            <View style={{ width, height, backgroundColor: '#111' }}>
+              {post.coverUrl ? (
+                <Image source={{ uri: post.coverUrl }} style={{ width, height }} contentFit="cover" />
+              ) : null}
+            </View>
+          ) : isVideoUrl(uri) ? (
             // Le lecteur n'est actif que sur la publication affichée ET sur la
             // diapositive regardée : deux vidéos ne jouent jamais ensemble.
             <View style={{ width, height }}>
