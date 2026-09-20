@@ -134,12 +134,26 @@ export function PostVideo({
     else voiceSoundRef.current?.pause();
   }, [playing]);
 
-  // Relance simple. Les tentatives d'aujourd'hui (tampon raccourci, relance
-  // périodique) empêchaient la vidéo du fil de démarrer : on revient à ce qui
-  // marchait, et la fluidité se traite dans les reels, où elle est visible.
+  // Relance. `play()` est ignoré EN SILENCE par expo-video tant que le lecteur
+  // n'est pas `readyToPlay` : apres un swipe, la video suivante est encore en
+  // chargement, l'appel se perd, et plus rien ne le rattrape — il fallait
+  // appuyer sur play. On rejoue donc des que le lecteur est pret.
+  //
+  // L'ecoute s'arrete au PREMIER demarrage : sans ca, une mise en pause
+  // manuelle pendant un rechargement du tampon serait annulee par la reprise.
+  // C'est la difference avec la relance periodique essayee plus tot, qui
+  // repassait sans cesse et empechait la lecture.
   useEffect(() => {
-    if (active) player.play();
-    else player.pause();
+    if (!active) { player.pause(); return undefined; }
+    if (player.status === 'readyToPlay') { player.play(); return undefined; }
+    let sub: { remove: () => void } | null = null;
+    sub = player.addListener('statusChange', ({ status }) => {
+      if (status !== 'readyToPlay') return;
+      player.play();
+      sub?.remove();
+      sub = null;
+    });
+    return () => { sub?.remove(); };
   }, [active, player]);
 
   // La voix off suit l'activité de la vidéo — chargée/déchargée à chaque
