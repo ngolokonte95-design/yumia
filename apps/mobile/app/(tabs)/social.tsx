@@ -26,16 +26,22 @@ import { restorePlaybackAudio } from '../../lib/audio-session';
 
 const API = API_BASE_URL;
 
-// Android uniquement : sans réglage explicite, FlatList garde par défaut
-// jusqu'à ~21 "écrans" de contenu montés autour de la zone visible
-// (windowSize). Chaque post vidéo instancie un lecteur natif — sur Android,
-// moins de décodeurs matériels concurrents que sur iOS, donc trop de vidéos
-// montées en même temps saccadent la lecture. On réduit la fenêtre montée
-// (le `active` de PostVideo coupe déjà la lecture hors-écran, mais ne
-// démonte pas le player tant que la fenêtre FlatList le garde en mémoire).
-const ANDROID_FEED_PERF_PROPS = Platform.OS === 'android'
-  ? { windowSize: 5, maxToRenderPerBatch: 4, initialNumToRender: 4, removeClippedSubviews: true }
-  : {};
+// Sans réglage explicite, FlatList garde par défaut jusqu'à ~21 "écrans" de
+// contenu montés autour de la zone visible (windowSize). Chaque post vidéo
+// instancie un lecteur natif, et les décodeurs matériels sont un pool limité
+// partagé par tout le système — sur iOS AUSSI. Ce réglage n'existait que
+// pour Android ; sur iPhone, au bout d'un moment de navigation, plus aucune
+// vidéo du fil ne démarrait (appui sur lecture ignoré) jusqu'au redémarrage
+// de l'app : le pool était vide. Le `active` de PostVideo coupe la lecture
+// hors-écran mais ne démonte pas le lecteur tant que la fenêtre le garde.
+// removeClippedSubviews reste Android : sur iOS il fait disparaître des
+// vues pendant le défilement.
+const FEED_PERF_PROPS = {
+  windowSize: 5,
+  maxToRenderPerBatch: 4,
+  initialNumToRender: 4,
+  removeClippedSubviews: Platform.OS === 'android',
+};
 
 
 
@@ -148,10 +154,10 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
             <Pressable onPress={() => onPress(index)}>
               {!isVideoUrl(url) ? (
                 <Image source={{ uri: url }} style={{ width: SCREEN_W, aspectRatio: 1 }} />
-              ) : (Platform.OS === 'android' && !itemActive) ? (
+              ) : !itemActive ? (
                 // Cf. le commentaire équivalent plus bas dans PostCard : un
-                // lecteur vidéo natif par slide inactif épuiserait vite le
-                // pool de décodeurs matériels Android sur un carrousel.
+                // lecteur vidéo natif par diapositive inactive épuise le pool
+                // de décodeurs matériels — sur iOS comme sur Android.
                 <View style={{ width: SCREEN_W, aspectRatio: 1, backgroundColor: colors.surfaceAlt }} />
               ) : (
                 <PostVideo uri={url} style={{ width: SCREEN_W, aspectRatio: 1 }} active={itemActive} onExpand={onExpand} />
@@ -316,14 +322,16 @@ function PostCard({
                   <Text style={{ fontSize: 48 }}>🎬</Text>
                 </View>
               )
-              // Android : ne monte un lecteur vidéo natif QUE pour le post
-              // actif — les décodeurs matériels sont un pool très limité et
-              // partagé par tout le système. En garder plusieurs alloués en
-              // même temps (même en pause, un post juste scrollé hors-écran
-              // reste monté) épuisait ce pool en scrollant, provoquant un
-              // mélange d'images entre vidéos puis un crash. iOS gère mieux
-              // plusieurs décodeurs concurrents, donc inchangé.
-              : (Platform.OS === 'android' && !isActive && !shouldMount)
+              // Ne monte un lecteur vidéo natif QUE pour le post actif et
+              // ses voisins immédiats (`shouldMount`) — les décodeurs
+              // matériels sont un pool très limité et partagé par tout le
+              // système. En garder plusieurs alloués en même temps (même en
+              // pause, un post juste scrollé hors-écran reste monté) épuisait
+              // ce pool : sur Android, mélange d'images puis crash ; sur iOS,
+              // plus aucune vidéo ne démarrait jusqu'au redémarrage de l'app.
+              // iOS était exempté au motif qu'il « gère mieux » : faux à
+              // l'usage, cf. FEED_PERF_PROPS.
+              : (!isActive && !shouldMount)
               ? (
                 <View style={styles.postVideo}>
                   {item.coverUrl ? (
@@ -793,7 +801,7 @@ export default function SocialTab() {
       data={data}
       keyExtractor={(p) => p.id}
       viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
-      {...ANDROID_FEED_PERF_PROPS}
+      {...FEED_PERF_PROPS}
       ListHeaderComponent={withStories ? (
         <StoriesBar
           groups={stories}
