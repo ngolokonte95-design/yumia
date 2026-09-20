@@ -482,7 +482,11 @@ function ReelCardBase({
       return <Image source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" />;
     }
     const playing = effectiveActive && pageActive;
-    const holdOff = Platform.OS === 'android' ? !playing && !shouldMount : !playing && isCarousel;
+    // iOS était exempté de `shouldMount` : avec windowSize=5, chaque swipe
+    // montait jusqu'à quatre lecteurs natifs voisins, lancés en sourdine.
+    // Un décodeur matériel qui s'initialise pendant que la vidéo courante
+    // démarre la fige ~0,7 s — vu image par image sur un enregistrement.
+    const holdOff = !playing && (!shouldMount || (Platform.OS !== 'android' && isCarousel));
     if (holdOff) {
       return item.coverUrl ? (
         <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -805,6 +809,21 @@ export default function ReelsScreen() {
    * Ici, la page change dès qu'on a dépassé la moitié de l'écran, comme sur
    * TikTok ou Instagram.
    */
+  /**
+   * Index sur lequel on s'est ARRÊTÉ depuis au moins 1,2 s.
+   *
+   * Les voisins ne se montent que par rapport à lui, jamais à `activeIndex` :
+   * monter un lecteur natif (et le lancer pour précharger) pendant que la
+   * vidéo courante démarre la figeait le temps de l'initialisation. Qui
+   * regarde plus d'une seconde garde le préchargement ; qui enchaîne les
+   * swipes verra une miniature un instant, plutôt qu'un gel à chaque page.
+   */
+  const [settledIndex, setSettledIndex] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledIndex(activeIndex), 1200);
+    return () => clearTimeout(timer);
+  }, [activeIndex]);
+
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.y / screenH);
     setActiveIndex((prev) => (prev === index ? prev : index));
@@ -922,10 +941,14 @@ export default function ReelsScreen() {
             <ReelCard
               item={item}
               active={index === activeIndex && screenFocused}
-              // Précharge DEUX reels en avant (sens de lecture) et un en
-              // arrière : au swipe, la vidéo suivante a déjà commencé à se
-              // charger. Quatre lecteurs au plus, ce que le décodeur encaisse.
-              shouldMount={index - activeIndex >= -1 && index - activeIndex <= 2}
+              // La page courante, toujours. Les voisins (un devant, un
+              // derrière) seulement une fois posé sur une page depuis 1,2 s,
+              // cf. `settledIndex` : leur montage ne doit pas coïncider avec
+              // le démarrage de la vidéo qu'on regarde.
+              shouldMount={
+                index === activeIndex
+                || (settledIndex === activeIndex && Math.abs(index - settledIndex) <= 1)
+              }
               onLike={toggleLike}
               onComment={(id) => router.push(`/post/${id}` as never)}
               onShare={() => void Share.share({ message: tr('reels_share_message') })}
