@@ -19,12 +19,6 @@ const REENCODE_TIMEOUT_MS = 240_000;
 // l'arrêt). Au-delà de cette file, on abandonne le ré-encodage — la vidéo
 // remuxée reste parfaitement lisible.
 const MAX_QUEUE_DEPTH = 2;
-// Au-delà de ce débit, la vidéo est ré-encodée même si sa résolution et son
-// codec sont déjà bons. Mesuré en prod : des 720p iPhone à 5,2 Mbit/s, servies
-// telles quelles — le lecteur iOS démarrait sur les premiers octets, vidait
-// son tampon et marquait un arrêt d'une fraction de seconde à chaque reel.
-// Instagram sert la même résolution entre 2 et 3 Mbit/s.
-const MAX_BITRATE_BPS = 3_000_000;
 
 export interface PreparedVideo {
   /** MP4 remuxé avec faststart, prêt à servir (ou l'original si le remux échoue). */
@@ -137,24 +131,11 @@ export class VideoTranscodeService {
         '-i', input,
         // Ne réduit que si plus large que 1280px — ne remonte jamais en
         // qualité une vidéo déjà petite. -2 garde une hauteur paire (requis
-        // par libx264). 30 i/s : les 60 i/s d'un iPhone doublent le travail
-        // du décodeur sans rien apporter à un reel.
-        '-vf', "scale='min(1280,iw)':-2,fps=30",
+        // par libx264).
+        '-vf', "scale='min(1280,iw)':-2",
         '-c:v', 'libx264',
-        // veryfast plutôt qu'ultrafast : à débit plafonné, c'est la qualité
-        // par bit qui compte, et ultrafast la gaspille. Coût : ~2× plus lent,
-        // en tâche de fond et sur un seul thread — acceptable.
-        '-preset', 'veryfast',
-        '-crf', '25',
-        // Plafond de débit : c'est LUI qui supprime l'arrêt au démarrage. Le
-        // CRF fixe la qualité visée, maxrate/bufsize l'empêchent de déborder.
-        '-maxrate', '2500k',
-        '-bufsize', '5000k',
-        // Image-clé toutes les 2 s : démarrage et déplacement dans la barre
-        // de progression ne cherchent plus une clé loin en arrière.
-        '-g', '60',
-        '-keyint_min', '60',
-        '-pix_fmt', 'yuv420p',
+        '-preset', 'ultrafast',
+        '-crf', '26',
         // Un seul thread : borne le pic RAM/CPU par job, plutôt que de laisser
         // x264 paralléliser sur tous les cœurs d'un serveur déjà à l'étroit.
         '-threads', '1',
@@ -172,43 +153,21 @@ export class VideoTranscodeService {
     }
   }
 
-  /**
-   * true si la source dépasse 1280px de large, n'est pas en H.264, ou dépasse
-   * {@link MAX_BITRATE_BPS}. Ce dernier critère manquait : une 720p H.264 à
-   * 5 Mbit/s passait sans ré-encodage et saccadait au démarrage.
-   */
+  /** true si la source dépasse 1280px de large ou n'est pas déjà en H.264. */
   private async probeNeedsReencode(input: string): Promise<boolean> {
     try {
       const { stdout } = await execFileAsync('ffprobe', [
         '-v', 'error',
         '-select_streams', 'v:0',
-        // Le débit est demandé sur le flux ET sur le conteneur : certains
-        // fichiers ne le renseignent qu'à un seul des deux niveaux.
-        '-show_entries', 'stream=width,codec_name,bit_rate:format=bit_rate',
-        '-of', 'default=nw=1',
+        '-show_entries', 'stream=width,codec_name',
+        '-of', 'csv=p=0',
         input,
       ], { timeout: 10_000 });
-      const kv: Record<string, string> = {};
-      for (const line of stdout.split('\n')) {
-        const i = line.indexOf('=');
-        if (i <= 0) continue;
-        const key = line.slice(0, i).trim();
-        const value = line.slice(i + 1).trim();
-        // Le flux est listé avant le conteneur : sa valeur gagne, sauf si
-        // elle est absente (N/A).
-        if (!(key in kv) || kv[key] === 'N/A') kv[key] = value;
-      }
-      const width = parseInt(kv.width ?? '', 10);
-      const codec = kv.codec_name;
-      const bitrate = parseInt(kv.bit_rate ?? '', 10);
+      const [widthStr, codec] = stdout.trim().split(',');
+      const width = parseInt(widthStr, 10);
       if (!Number.isFinite(width) || !codec) return true; // sondage ambigu → prudence
       if (width > 1280) return true;
-      if (codec !== 'h264') return true;
-      if (Number.isFinite(bitrate) && bitrate > MAX_BITRATE_BPS) {
-        this.logger.log(`Débit ${Math.round(bitrate / 1000)} kbit/s > ${MAX_BITRATE_BPS / 1000} : ré-encodage`);
-        return true;
-      }
-      return false;
+      return codec.trim() !== 'h264';
     } catch {
       return true; // ffprobe indisponible → on ré-encode par sécurité
     }
