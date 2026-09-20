@@ -62,10 +62,6 @@ function ReelVideo({
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.bufferOptions = SHORT_VIDEO_BUFFER;
-    // Posé avant le `play()` de préchargement ci-dessous : changer ce mode
-    // pendant qu'un lecteur joue force iOS à reconfigurer sa session audio,
-    // ce qui interrompt brièvement l'image.
-    p.audioMixingMode = isCurrent ? 'doNotMix' : 'mixWithOthers';
     // Muet à la création : le préchargement ci-dessous fait jouer les reels
     // voisins quelques instants, et l'effet du son rétablit la valeur réelle
     // dès que ce reel devient celui qu'on regarde.
@@ -90,46 +86,16 @@ function ReelVideo({
     // de l'image où l'on s'est arrêté.
     if (!isCurrent) { setReady(false); return; }
     let timer: ReturnType<typeof setTimeout> | null = null;
-    // Le délai ne sert qu'à Android, dont le TextureView met un instant à
-    // peindre sa première image. Sur iOS, attendre 120 ms laissait voir une
-    // image FIXE alors que la vidéo jouait déjà dessous : elle réapparaissait
-    // ensuite avancée, ce qui se lit comme un arrêt juste après le démarrage.
-    const HIDE_DELAY = Platform.OS === 'android' ? 120 : 0;
     const scheduleHide = () => {
       if (timer) return;
-      timer = setTimeout(() => setReady(true), HIDE_DELAY);
+      timer = setTimeout(() => setReady(true), 120);
     };
-    // La lecture a réellement commencé : plus rien à masquer, quel que soit
-    // l'état rapporté par `status`.
-    const playSub = player.addListener('playingChange', ({ isPlaying }) => {
-      if (isPlaying) setReady(true);
-    });
     if (player.status === 'readyToPlay') scheduleHide();
     const sub = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay') scheduleHide();
     });
-    return () => { sub.remove(); playSub.remove(); if (timer) clearTimeout(timer); };
+    return () => { sub.remove(); if (timer) clearTimeout(timer); };
   }, [player, isCurrent]);
-
-  /**
-    * Retour au début quand ce reel devient celui qu'on regarde.
-    *
-    * Son lecteur arrive rarement à zéro : le préchargement le fait JOUER en
-    * sourdine jusqu'à 1,5 s, et un reel déjà vu garde la position où on l'a
-    * laissé. La miniature montrant l'image 0, la reprise se voyait comme une
-    * image fixe suivie d'un saut.
-    *
-    * `startAtSec` (continuité depuis le fil) est respecté au premier montage.
-    * Une pause volontaire ne passe pas ici : elle ne change pas `isCurrent`.
-    */
-  const seenAsCurrent = useRef(false);
-  useEffect(() => {
-    if (!isCurrent) { seenAsCurrent.current = false; return; }
-    const keepStart = !seenAsCurrent.current && !!startAtSec;
-    seenAsCurrent.current = true;
-    if (keepStart) return;
-    try { player.currentTime = 0; } catch {}
-  }, [isCurrent, player, startAtSec]);
 
   useEffect(() => {
     if (ready) {
@@ -144,11 +110,14 @@ function ReelVideo({
     // Un reel voisin est TOUJOURS muet : il ne joue que pour remplir sa
     // mémoire tampon, son son ne doit jamais se superposer à celui du reel
     // regardé.
-    // Le mode audio n'est PAS réglé ici : cet effet se déclenche au moment où
-    // le reel devient celui qu'on regarde, donc en pleine lecture, et la
-    // bascule provoquait un arrêt d'une fraction de seconde. Il est désormais
-    // posé à la création et dans l'effet de lecture, lecteur à l'arrêt.
-    try { player.muted = muted || !isCurrent; } catch {}
+    try {
+      player.muted = muted || !isCurrent;
+      // Les reels voisins se préchargent en jouant en sourdine. Sur iOS, un
+      // lecteur qui démarre s'empare de la session audio : sans ce partage
+      // explicite, le dernier lecteur monté (un voisin) coupait le son du reel
+      // regardé. Seul le reel affiché prend la session pour lui.
+      player.audioMixingMode = isCurrent ? 'doNotMix' : 'mixWithOthers';
+    } catch {}
   }, [muted, isCurrent, player]);
 
   // Sans ça, la musique/voix off (chargées à part, avec leur propre boucle)
@@ -169,10 +138,6 @@ function ReelVideo({
       // Reel voisin : monté mais hors écran. Il a démarré muet à la création
       // pour remplir sa mémoire tampon ; on l'arrête dès qu'il est prêt. Au
       // swipe suivant, la vidéo repart d'un tampon déjà rempli.
-      //
-      // Il rend la session audio : sur iOS, un lecteur qui démarre s'en
-      // empare, et le dernier voisin monté coupait le son du reel regardé.
-      try { player.audioMixingMode = 'mixWithOthers'; } catch {}
       if (player.status === 'readyToPlay') {
         player.pause();
         return;
@@ -183,10 +148,6 @@ function ReelVideo({
       const stop = setTimeout(() => player.pause(), 1500);
       return () => { sub.remove(); clearTimeout(stop); };
     }
-    // Session audio prise ICI, lecteur encore à l'arrêt (il arrivait en pause
-    // depuis son préchargement). Posée après le `play()`, la bascule coupait
-    // l'image le temps qu'iOS reconfigure sa session.
-    try { player.audioMixingMode = 'doNotMix'; } catch {}
     // `play()` sur un lecteur pas encore prêt est ignoré : au swipe, la vidéo
     // suivante restait alors figée sur sa première image jusqu'à ce qu'on
     // appuie sur lecture. On rejoue donc dès qu'elle devient prête, tant
