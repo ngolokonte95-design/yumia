@@ -5,6 +5,7 @@ import { Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle }
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { PostOverlays } from './PostOverlays';
 import type { PostOverlay } from '../lib/feed-api';
+import { assertPlays, trackPlayer, watchPlayerErrors } from '../lib/video-debug';
 
 /**
  * Lecteur vidéo inline pour le feed. Son activé par défaut (contrôlé par le
@@ -70,6 +71,14 @@ export function PostVideo({
     p.audioMixingMode = 'doNotMix';
     if (active) p.play();
   });
+
+  // Diagnostic (cf. lib/video-debug.ts) : lecteurs vivants et erreurs
+  // remontées, pour le jour où plus aucune vidéo ne démarre.
+  useEffect(() => {
+    const untrack = trackPlayer('PostVideo');
+    const unwatch = watchPlayerErrors(player, 'PostVideo');
+    return () => { unwatch(); untrack(); };
+  }, [player]);
 
   // Masque le lecteur (poster ou fond neutre, cf. plus bas) tant que la vidéo
   // n'est pas à la fois PRÊTE et ACTIVE. Piège initial : `readyToPlay` peut se
@@ -163,6 +172,7 @@ export function PostVideo({
       return undefined;
     }
     player.play();
+    assertPlays(player, 'PostVideo/activation');
     const resume = () => {
       if (!manuallyPaused.current && player.status === 'readyToPlay' && !player.playing) player.play();
     };
@@ -220,6 +230,7 @@ export function PostVideo({
     } else {
       manuallyPaused.current = false;
       player.play();
+      assertPlays(player, 'PostVideo/appui');
     }
     flashIcon();
   };

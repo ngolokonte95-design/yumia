@@ -20,6 +20,7 @@ import { useI18n } from '../lib/useI18n';
 import { formatCount } from '../lib/format-count';
 import { isVideoUrl } from '../lib/is-video-url';
 import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
+import { assertPlays, trackPlayer, watchPlayerErrors } from '../lib/video-debug';
 import { restorePlaybackAudio } from '../lib/audio-session';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -99,6 +100,14 @@ function ReelVideo({
     p.play();
   });
 
+  // Diagnostic (cf. lib/video-debug.ts) : lecteurs vivants et erreurs
+  // remontées, pour le jour où plus aucune vidéo ne démarre.
+  useEffect(() => {
+    const untrack = trackPlayer('ReelVideo');
+    const unwatch = watchPlayerErrors(player, 'ReelVideo');
+    return () => { unwatch(); untrack(); };
+  }, [player]);
+
   // Cf. PostVideo.tsx : le poster/fond neutre reste tant que le lecteur n'est
   // pas à la fois prêt ET actif — `readyToPlay` peut se déclencher pendant le
   // préchargement (montage anticipé en pause), avant l'activation, et
@@ -177,6 +186,7 @@ function ReelVideo({
     // appuie sur lecture. On rejoue donc dès qu'elle devient prête, tant
     // qu'elle est toujours la vidéo active.
     player.play();
+    assertPlays(player, 'ReelVideo/activation');
     const sub = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay' && !player.playing) player.play();
     });
