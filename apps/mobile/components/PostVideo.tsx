@@ -169,6 +169,11 @@ export function PostVideo({
       player.pause();
       return undefined;
     }
+    // Retour au début : une vidéo qu'on a quittée garde la position où on
+    // l'a laissée, et la miniature affiche l'image 0 — la reprise se voyait
+    // comme une image fixe suivie d'un saut. Une pause volontaire ne passe
+    // pas ici : elle ne change pas `active`.
+    try { player.currentTime = 0; } catch {}
     player.play();
     const resume = () => {
       if (!manuallyPaused.current && player.status === 'readyToPlay' && !player.playing) player.play();

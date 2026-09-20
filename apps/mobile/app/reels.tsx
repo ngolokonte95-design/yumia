@@ -111,6 +111,26 @@ function ReelVideo({
     return () => { sub.remove(); playSub.remove(); if (timer) clearTimeout(timer); };
   }, [player, isCurrent]);
 
+  /**
+    * Retour au début quand ce reel devient celui qu'on regarde.
+    *
+    * Son lecteur arrive rarement à zéro : le préchargement le fait JOUER en
+    * sourdine jusqu'à 1,5 s, et un reel déjà vu garde la position où on l'a
+    * laissé. La miniature montrant l'image 0, la reprise se voyait comme une
+    * image fixe suivie d'un saut.
+    *
+    * `startAtSec` (continuité depuis le fil) est respecté au premier montage.
+    * Une pause volontaire ne passe pas ici : elle ne change pas `isCurrent`.
+    */
+  const seenAsCurrent = useRef(false);
+  useEffect(() => {
+    if (!isCurrent) { seenAsCurrent.current = false; return; }
+    const keepStart = !seenAsCurrent.current && !!startAtSec;
+    seenAsCurrent.current = true;
+    if (keepStart) return;
+    try { player.currentTime = 0; } catch {}
+  }, [isCurrent, player, startAtSec]);
+
   useEffect(() => {
     if (ready) {
       Animated.timing(posterOpacity, { toValue: 0, duration: 80, useNativeDriver: true }).start();
