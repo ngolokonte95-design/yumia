@@ -1,6 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MutableRefObject } from 'react';
 import {
-  ActivityIndicator, Animated, Dimensions, FlatList, Platform, Pressable,
+  ActivityIndicator, Animated, Dimensions, FlatList, PanResponder, Platform, Pressable,
   Share, StyleSheet, Text, View,
   type NativeScrollEvent, type NativeSyntheticEvent,
 } from 'react-native';
@@ -29,6 +30,7 @@ type ReelTab = 'foryou' | 'following';
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
 function ReelVideo({
   uri, active, isCurrent, muted, progressAnim, startAtSec, overlays, onLoop, posterUri,
+  seekRef, scrubbingRef,
 }: {
   uri: string;
   /** La vidéo doit jouer (reel regardé et non mis en pause). */
@@ -44,6 +46,17 @@ function ReelVideo({
   muted: boolean;
   /** Avancement 0→1 de la lecture, piloté sans re-render (Animated.Value). */
   progressAnim: Animated.Value;
+  /**
+   * Rempli par ce composant : permet à la carte parente de déplacer la lecture
+   * depuis la barre de progression, sans lui exposer le lecteur entier.
+   */
+  seekRef?: MutableRefObject<((ratio: number) => void) | null>;
+  /**
+   * Vrai pendant que le doigt déplace la barre. La position lue au lecteur ne
+   * doit alors PAS écraser celle que le doigt impose, sinon la barre revient
+   * en arrière à chaque rafraîchissement.
+   */
+  scrubbingRef?: MutableRefObject<boolean>;
   /** Position de départ (continuité avec la lecture depuis le feed). */
   startAtSec?: number;
   /** Texte et dessins superposés à la publication d'origine. */
@@ -166,6 +179,19 @@ function ReelVideo({
     return () => { sub.remove(); clearInterval(watchdog); };
   }, [active, isCurrent, player]);
 
+  // Déplacement de la lecture, piloté par la barre de progression.
+  useEffect(() => {
+    if (!seekRef) return undefined;
+    seekRef.current = (ratio: number) => {
+      const dur = player.duration;
+      if (!(dur > 0)) return;
+      // On s'arrête juste avant la fin : se poser exactement dessus déclenche
+      // le bouclage, et la vidéo repartait de zéro au lieu de rester là.
+      try { player.currentTime = Math.max(0, Math.min(dur - 0.05, ratio * dur)); } catch {}
+    };
+    return () => { seekRef.current = null; };
+  }, [player, seekRef]);
+
   // Alimente la barre de progression en lisant directement la position réelle
   // du player à intervalle régulier (plutôt qu'un chrono figé type
   // Animated.timing, qui suppose une durée fixe depuis 0 et dérive dès que la
@@ -177,6 +203,8 @@ function ReelVideo({
       return;
     }
     const interval = setInterval(() => {
+      // Le doigt a la main : ne pas écraser sa position.
+      if (scrubbingRef?.current) return;
       const dur = player.duration;
       if (dur > 0) {
         const ratio = Math.min(1, Math.max(0, player.currentTime / dur));
@@ -184,7 +212,7 @@ function ReelVideo({
       }
     }, 150);
     return () => clearInterval(interval);
-  }, [active, player, progressAnim, startAtSec]);
+  }, [active, player, progressAnim, startAtSec, scrubbingRef]);
 
   return (
     <>
@@ -272,6 +300,41 @@ function ReelCardBase({
   const diskAnim = useRef(new Animated.Value(0)).current;
   const diskLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
+  // Déplacement manuel de la lecture depuis la barre du bas.
+  const seekRef = useRef<((ratio: number) => void) | null>(null);
+  const scrubbingRef = useRef(false);
+  const [scrubbing, setScrubbing] = useState(false);
+  const barWidthRef = useRef(0);
+
+  const applyScrub = useCallback((x: number) => {
+    const w = barWidthRef.current;
+    if (w <= 0) return;
+    const ratio = Math.min(1, Math.max(0, x / w));
+    // La barre suit le doigt immédiatement, sans attendre que le lecteur ait
+    // effectué le déplacement — sinon elle traîne derrière le geste.
+    progressAnim.setValue(ratio);
+    seekRef.current?.(ratio);
+  }, [progressAnim]);
+
+  /**
+   * Gestes sur la barre de progression.
+   *
+   * Le geste n'est pris qu'à partir d'un mouvement HORIZONTAL franc : un
+   * appui simple continue d'atteindre la vidéo (pause), et un glissement
+   * vertical parti du bas de l'écran passe toujours au reel suivant.
+   */
+  const panResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
+    onPanResponderGrant: () => { scrubbingRef.current = true; setScrubbing(true); },
+    onPanResponderMove: (e) => applyScrub(e.nativeEvent.locationX),
+    onPanResponderRelease: (e) => {
+      applyScrub(e.nativeEvent.locationX);
+      scrubbingRef.current = false;
+      setScrubbing(false);
+    },
+    onPanResponderTerminate: () => { scrubbingRef.current = false; setScrubbing(false); },
+  }), [applyScrub]);
   // Reprend en lecture automatique quand on revient sur ce reel après l'avoir
   // quitté (comme Instagram : la pause manuelle ne "colle" pas au scroll).
   useEffect(() => { if (!active) setPaused(false); }, [active]);
@@ -433,6 +496,8 @@ function ReelCardBase({
         isCurrent={active && pageActive}
         muted={effectiveMuted}
         progressAnim={progressAnim}
+        seekRef={seekRef}
+        scrubbingRef={scrubbingRef}
         startAtSec={startAtSec}
         overlays={item.overlays}
         onLoop={() => {
@@ -582,18 +647,26 @@ function ReelCardBase({
       ) : null}
 
       {/* Barre de progression — pleine largeur, indépendante du padding des
-          infos ; suit la lecture pour une vidéo, pleine pour un reel photo. */}
-      <View style={[styles.reelProgressBar, { bottom: insets.bottom + 10 }]}>
-        {isVideo ? (
-          <Animated.View
-            style={[
-              styles.reelProgressFill,
-              { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
-            ]}
-          />
-        ) : (
-          <View style={[styles.reelProgressFill, { width: active ? '100%' : '0%' }]} />
-        )}
+          infos ; suit la lecture pour une vidéo, pleine pour un reel photo.
+          Elle se déplace au doigt pour avancer ou rembobiner : la zone tactile
+          est bien plus haute que le trait, qui ne ferait que 2 px à viser. */}
+      <View
+        style={[styles.reelProgressTouch, { bottom: insets.bottom + 10 }]}
+        onLayout={(e) => { barWidthRef.current = e.nativeEvent.layout.width; }}
+        {...(isVideo ? panResponder.panHandlers : {})}
+      >
+        <View style={[styles.reelProgressBar, scrubbing ? styles.reelProgressBarActive : null]}>
+          {isVideo ? (
+            <Animated.View
+              style={[
+                styles.reelProgressFill,
+                { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+              ]}
+            />
+          ) : (
+            <View style={[styles.reelProgressFill, { width: active ? '100%' : '0%' }]} />
+          )}
+        </View>
       </View>
 
       {/* Icône son. Deux pistes possibles, jamais ensemble : le son d'origine
@@ -928,10 +1001,17 @@ const styles = StyleSheet.create({
   },
   reelFollowTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
   reelCaption: { color: '#fff', fontSize: 14, lineHeight: 20, marginBottom: 10 },
+  // Zone de saisie : transparente et haute de 22 px, pour attraper un trait
+  // de 2 px au doigt. Le trait reste collé en bas de cette zone.
+  reelProgressTouch: {
+    position: 'absolute', left: 0, right: 0,
+    height: 22, justifyContent: 'flex-end',
+  },
   reelProgressBar: {
-    position: 'absolute', bottom: 10, left: 0, right: 0,
     height: 2, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 1,
   },
+  // Pendant le déplacement : trait épaissi, pour qu'on voie ce qu'on manipule.
+  reelProgressBarActive: { height: 4, borderRadius: 2 },
   reelProgressFill: { height: '100%', backgroundColor: '#fff', borderRadius: 1 },
   reelDots: {
     position: 'absolute', bottom: 18, left: 0, right: 0,
