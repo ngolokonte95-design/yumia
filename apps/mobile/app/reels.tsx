@@ -108,27 +108,27 @@ function ReelVideo({
     return () => { unwatch(); untrack(); };
   }, [player]);
 
-  // Cf. PostVideo.tsx : le poster/fond neutre reste tant que le lecteur n'est
-  // pas à la fois prêt ET actif — `readyToPlay` peut se déclencher pendant le
-  // préchargement (montage anticipé en pause), avant l'activation, et
-  // `play()` au moment de l'activation peut lui-même provoquer une frame
-  // noire côté Android qu'un poster déjà caché ne masque plus.
+  // La première image RÉELLEMENT peinte dans la vue, signalée par VideoView.
+  // `readyToPlay` ne suffit pas : le lecteur se dit prêt, puis va chercher la
+  // position demandée (`startAtSec`, reprise) avant d'afficher quoi que ce
+  // soit — sa vue est noire entre-temps. Mesuré : 0,8 s de noir.
+  const [firstFrame, setFirstFrame] = useState(false);
+
+  // Le poster reste tant que la vidéo n'est pas à la fois AFFICHÉE (`isCurrent`, pas `active` : une pause ne doit pas le ramener) et
+  // peinte. Repli : si la vue ne signale jamais de première image, on se
+  // rabat sur readyToPlay + 1,5 s plutôt que de garder le poster pour
+  // toujours.
   useEffect(() => {
-    // `isCurrent` et non `active` : une PAUSE ne doit pas ramener le poster,
-    // sinon l'écran montre la miniature (première image de la vidéo) au lieu
-    // de l'image où l'on s'est arrêté.
-    if (!isCurrent) { setReady(false); return; }
+    if (!isCurrent) { setReady(false); return undefined; }
+    if (firstFrame) { setReady(true); return undefined; }
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleHide = () => {
-      if (timer) return;
-      timer = setTimeout(() => setReady(true), 120);
-    };
-    if (player.status === 'readyToPlay') scheduleHide();
+    const fallback = () => { if (!timer) timer = setTimeout(() => setReady(true), 1500); };
+    if (player.status === 'readyToPlay') fallback();
     const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay') scheduleHide();
+      if (status === 'readyToPlay') fallback();
     });
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
-  }, [player, isCurrent]);
+  }, [player, isCurrent, firstFrame]);
 
   useEffect(() => {
     if (ready) {
@@ -242,6 +242,7 @@ function ReelVideo({
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         nativeControls={false}
+        onFirstFrameRender={() => setFirstFrame(true)}
         // Cf. le commentaire équivalent dans PostVideo.tsx : évite le "bleed"
         // d'une vidéo sur une autre pendant un défilement rapide sur Android.
         {...(Platform.OS === 'android' ? { surfaceType: 'textureView' as const } : {})}

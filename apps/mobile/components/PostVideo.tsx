@@ -80,35 +80,27 @@ export function PostVideo({
     return () => { unwatch(); untrack(); };
   }, [player]);
 
-  // Masque le lecteur (poster ou fond neutre, cf. plus bas) tant que la vidéo
-  // n'est pas à la fois PRÊTE et ACTIVE. Piège initial : `readyToPlay` peut se
-  // déclencher pendant le préchargement, alors que la vidéo est encore en
-  // pause (le montage anticipé côté Android, cf. shouldMount dans social.tsx/
-  // reels.tsx) — masquer le poster à ce moment-là ne servait à rien de mal en
-  // soi, MAIS le redémarrage réel (`play()`) au moment où le post devient
-  // actif peut lui-même provoquer une frame noire côté Android (le rendu
-  // reprend), et à cet instant le poster était déjà caché depuis longtemps :
-  // plus rien ne la masquait. On attend maintenant explicitement l'activation
-  // avant de lancer le petit délai qui cache le poster.
+  // La première image RÉELLEMENT peinte dans la vue, signalée par VideoView.
+  // `readyToPlay` ne suffit pas : le lecteur se dit prêt, puis va chercher la
+  // position demandée (`startAtSec`, reprise) avant d'afficher quoi que ce
+  // soit — sa vue est noire entre-temps. Mesuré : 0,8 s de noir.
+  const [firstFrame, setFirstFrame] = useState(false);
+
+  // Le poster reste tant que la vidéo n'est pas à la fois ACTIVE et
+  // peinte. Repli : si la vue ne signale jamais de première image, on se
+  // rabat sur readyToPlay + 1,5 s plutôt que de garder le poster pour
+  // toujours.
   useEffect(() => {
-    if (!active) { setReady(false); return; }
+    if (!active) { setReady(false); return undefined; }
+    if (firstFrame) { setReady(true); return undefined; }
     let timer: ReturnType<typeof setTimeout> | null = null;
-    // Déjà prêt = le lecteur a été monté en avance (voisin du post actif, cf.
-    // `shouldMount`) et a donc déjà rendu sa première image : on découvre tout
-    // de suite, sans délai — sinon on masquerait une image parfaitement valide.
-    if (player.status === 'readyToPlay') {
-      setReady(true);
-    } else {
-      // Pas encore prêt (scroll très rapide qui saute plusieurs posts) : on
-      // laisse un court délai après `readyToPlay`, le temps que la première
-      // image soit réellement peinte à l'écran (Android/TextureView).
-      const sub = player.addListener('statusChange', ({ status }) => {
-        if (status === 'readyToPlay' && !timer) timer = setTimeout(() => setReady(true), 120);
-      });
-      return () => { sub.remove(); if (timer) clearTimeout(timer); };
-    }
-    return undefined;
-  }, [player, active]);
+    const fallback = () => { if (!timer) timer = setTimeout(() => setReady(true), 1500); };
+    if (player.status === 'readyToPlay') fallback();
+    const sub = player.addListener('statusChange', ({ status }) => {
+      if (status === 'readyToPlay') fallback();
+    });
+    return () => { sub.remove(); if (timer) clearTimeout(timer); };
+  }, [player, active, firstFrame]);
 
   // Fondu du poster synchronisé sur `ready` — remplace le changement instantané
   // (poster affiché/retiré d'un coup) par une transition douce vers la vidéo.
@@ -242,6 +234,7 @@ export function PostVideo({
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         nativeControls={false}
+        onFirstFrameRender={() => setFirstFrame(true)}
         // Android : la SurfaceView par défaut ne se découpe pas toujours
         // proprement pendant un défilement rapide de liste, laissant une
         // vidéo "baver" par-dessus le contenu voisin le temps que le scroll
