@@ -30,7 +30,7 @@ type ReelTab = 'foryou' | 'following';
 // ── Lecteur vidéo d'un seul reel ─────────────────────────────────────────────
 function ReelVideo({
   uri, active, isCurrent, muted, progressAnim, startAtSec, overlays, onLoop, posterUri,
-  seekRef, scrubbingRef,
+  seekRef, scrubbingRef, onReadyChange,
 }: {
   uri: string;
   /** La vidéo doit jouer (reel regardé et non mis en pause). */
@@ -57,6 +57,11 @@ function ReelVideo({
    * en arrière à chaque rafraîchissement.
    */
   scrubbingRef?: MutableRefObject<boolean>;
+  /**
+   * Signale à la carte qu'une image est peinte (ou plus, au démontage). Elle
+   * garde sa propre couverture par-dessus jusque-là, cf. `renderMedia`.
+   */
+  onReadyChange?: (ready: boolean) => void;
   /** Position de départ (continuité avec la lecture depuis le feed). */
   startAtSec?: number;
   /** Texte et dessins superposés à la publication d'origine. */
@@ -72,6 +77,12 @@ function ReelVideo({
   // changement brutal (qui se voyait comme un "saut" une fois le flash noir
   // supprimé).
   const posterOpacity = useRef(new Animated.Value(1)).current;
+  // Ref : la carte passe une fonction fléchée neuve à chaque rendu ; on ne
+  // veut ni la mettre en dépendance, ni rappeler une version périmée.
+  const onReadyChangeRef = useRef(onReadyChange);
+  onReadyChangeRef.current = onReadyChange;
+  useEffect(() => { onReadyChangeRef.current?.(ready); }, [ready]);
+  useEffect(() => () => { onReadyChangeRef.current?.(false); }, []);
   const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.bufferOptions = SHORT_VIDEO_BUFFER;
@@ -306,6 +317,18 @@ function ReelCardBase({
   const scrubbingRef = useRef(false);
   const [scrubbing, setScrubbing] = useState(false);
   const barWidthRef = useRef(0);
+  // URLs dont le lecteur a peint une image : jusque-là, la couverture de la
+  // carte reste par-dessus (cf. renderMedia). Par URL, car un carrousel peut
+  // contenir plusieurs vidéos.
+  const [paintedUrls, setPaintedUrls] = useState<Set<string>>(() => new Set());
+  const markPainted = useCallback((url: string, painted: boolean) => {
+    setPaintedUrls((prev) => {
+      if (prev.has(url) === painted) return prev;
+      const next = new Set(prev);
+      if (painted) next.add(url); else next.delete(url);
+      return next;
+    });
+  }, []);
 
   const applyScrub = useCallback((x: number) => {
     const w = barWidthRef.current;
@@ -487,30 +510,42 @@ function ReelCardBase({
     // Un décodeur matériel qui s'initialise pendant que la vidéo courante
     // démarre la fige ~0,7 s — vu image par image sur un enregistrement.
     const holdOff = !playing && (!shouldMount || (Platform.OS !== 'android' && isCarousel));
-    if (holdOff) {
-      return item.coverUrl ? (
-        <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
-      );
-    }
+    const cover = item.coverUrl ? (
+      <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+    ) : (
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
+    );
+    // La couverture est rendue PAR-DESSUS le lecteur, et occupe la même
+    // position dans l'arbre qu'il soit monté ou non : React la conserve d'un
+    // état à l'autre. Sans ça, à l'arrivée sur la page, la vue vidéo
+    // (noire jusqu'à sa première image) apparaissait avant que le poster de
+    // ReelVideo ait fini de se charger — un flash noir d'une ou deux images.
+    // Ici rien ne change à l'écran tant qu'aucune image n'est peinte.
     return (
-      <ReelVideo
-        uri={url}
-        active={playing}
-        isCurrent={active && pageActive}
-        muted={effectiveMuted}
-        progressAnim={progressAnim}
-        seekRef={seekRef}
-        scrubbingRef={scrubbingRef}
-        startAtSec={startAtSec}
-        overlays={item.overlays}
-        onLoop={() => {
-          void musicSoundRef.current?.seekTo(0).catch(() => null);
-          void voiceSoundRef.current?.seekTo(0).catch(() => null);
-        }}
-        posterUri={item.coverUrl}
-      />
+      <View style={StyleSheet.absoluteFill}>
+        {holdOff ? null : (
+          <ReelVideo
+            uri={url}
+            active={playing}
+            isCurrent={active && pageActive}
+            muted={effectiveMuted}
+            progressAnim={progressAnim}
+            seekRef={seekRef}
+            scrubbingRef={scrubbingRef}
+            startAtSec={startAtSec}
+            overlays={item.overlays}
+            onLoop={() => {
+              void musicSoundRef.current?.seekTo(0).catch(() => null);
+              void voiceSoundRef.current?.seekTo(0).catch(() => null);
+            }}
+            posterUri={item.coverUrl}
+            onReadyChange={(painted) => markPainted(url, painted)}
+          />
+        )}
+        {holdOff || !paintedUrls.has(url) ? (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">{cover}</View>
+        ) : null}
+      </View>
     );
   };
 
