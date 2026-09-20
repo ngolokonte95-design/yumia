@@ -95,11 +95,25 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
    * pendant que la vidéo courante démarre la figeait ~0,7 s (même cause que
    * dans les reels, cf. reels.tsx `settledIndex`).
    */
-  const [settledIndex, setSettledIndex] = useState(initialIndex);
+  /**
+   * Page dont la vidéo JOUE — posée à la fin du momentum, jamais à 60 % de
+   * visibilité comme `current`. Activer un lecteur (et charger sa musique)
+   * pendant l'animation lui faisait perdre une image : le saut ressenti à la
+   * transition. Même règle que les reels (cf. reels.tsx `playIndex`).
+   * Repli 600 ms : iOS n'émet pas toujours la fin de momentum quand on
+   * relâche pile sur une page.
+   */
+  const [playIndex, setPlayIndex] = useState(initialIndex);
   useEffect(() => {
-    const timer = setTimeout(() => setSettledIndex(current), 1200);
+    const timer = setTimeout(() => setPlayIndex(current), 600);
     return () => clearTimeout(timer);
   }, [current]);
+
+  const [settledIndex, setSettledIndex] = useState(initialIndex);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledIndex(playIndex), 1200);
+    return () => clearTimeout(timer);
+  }, [playIndex]);
   const [chrome, setChrome] = useState(true);
   /**
    * État local des actions, par publication.
@@ -125,7 +139,7 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
     soundRef.current = null;
   }, []);
 
-  const currentPost = posts[current] as FeedPost | undefined;
+  const currentPost = posts[playIndex] as FeedPost | undefined;
   const currentMusic = parseMusicTrack(currentPost?.musicTrack);
 
   useEffect(() => {
@@ -234,21 +248,23 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
           removeClippedSubviews={Platform.OS === 'android'}
           onViewableItemsChanged={onViewable}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          // Le défilement est posé : c'est maintenant que la page s'active.
+          onMomentumScrollEnd={(e) => setPlayIndex(Math.round(e.nativeEvent.contentOffset.y / height))}
           renderItem={({ item, index }) => (
             <PostPage
               post={{ ...item, ...patches[item.id] }}
               width={width}
               height={height}
-              active={index === current}
+              active={index === playIndex}
               mountPlayer={
-                index === current
-                || (settledIndex === current && Math.abs(index - settledIndex) <= 1)
+                index === playIndex
+                || (settledIndex === playIndex && Math.abs(index - settledIndex) <= 1)
               }
               chrome={chrome}
               onToggleChrome={() => setChrome((c) => !c)}
               insets={insets}
               initialImageIndex={index === initialIndex ? initialImageIndex : 0}
-              music={index === current ? currentMusic : null}
+              music={index === playIndex ? currentMusic : null}
               musicPaused={musicPaused}
               onToggleMusic={toggleMusic}
               onLike={() => void toggleLike(item)}
