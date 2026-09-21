@@ -82,8 +82,43 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
   // suivi d'un second passage de mise en page (barre d'état masquée après
   // coup), et refaire la liste à ce moment-là la remontait en plein
   // défilement — d'où un défilement emballé qui sautait des publications.
+  /**
+   * Hauteur réelle de l'écran, mesurée sur la vue racine.
+   *
+   * On garde la PLUS GRANDE mesure, jamais la première : sur Android, à
+   * l'ouverture, la première arrive avant la prise en compte de la barre
+   * d'état translucide (774 au lieu de 806, vu au journal), la bonne juste
+   * après. Ne retenir que la première donnait des pages plus courtes que
+   * l'écran — un bout de la publication suivante visible sous chacune — et
+   * un défaut intermittent, selon l'ordre d'arrivée des deux mesures.
+   *
+   * La liste n'est posée qu'une fois la valeur stable (`stableHeight`) : sa
+   * géométrie ne doit pas bouger sous les doigts, c'est ce qui emballait le
+   * défilement quand on re-mesurait en continu.
+   */
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
-  const height = measuredHeight ?? windowHeight;
+  const [stableHeight, setStableHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (measuredHeight === null) return undefined;
+    const timer = setTimeout(() => setStableHeight(measuredHeight), 80);
+    return () => clearTimeout(timer);
+  }, [measuredHeight]);
+  const height = stableHeight ?? windowHeight;
+  // Si la hauteur stable change APRÈS la pose de la liste (mesure plus grande
+  // arrivée tard), les pages sont recalculées : on réaligne sur la page
+  // courante, sinon le défilement resterait à l'ancienne position.
+  const listRef = useRef<FlatList<FeedPost>>(null);
+  const lastAppliedHeight = useRef<number | null>(null);
+  useEffect(() => {
+    if (stableHeight === null) return;
+    if (lastAppliedHeight.current !== null && lastAppliedHeight.current !== stableHeight) {
+      listRef.current?.scrollToOffset({ offset: current * stableHeight, animated: false });
+    }
+    lastAppliedHeight.current = stableHeight;
+    // `current` volontairement hors dépendances : on ne réaligne que sur un
+    // changement de hauteur, pas à chaque page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stableHeight]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -224,16 +259,17 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
           // Diagnostic (Android : une page atterrit parfois décalée, on voit
           // un bout de la suivante) : toute mesure est journalisée, même
           // celles qu'on ignore — si la première était fausse, ça se verra.
-          console.warn(`[viewer] mesure=${h} fenêtre=${Math.round(windowHeight)} retenue=${measuredHeight ?? h}`);
-          if (h > 0) setMeasuredHeight((prev) => prev ?? h);
+          console.warn(`[viewer] mesure=${h} fenêtre=${Math.round(windowHeight)} retenue=${Math.max(measuredHeight ?? 0, h)}`);
+          if (h > 0) setMeasuredHeight((prev) => (prev === null || h > prev ? h : prev));
         }}
       >
         {Platform.OS === 'android' ? <StatusBar hidden /> : null}
 
         {/* La liste n'est posée qu'une fois la hauteur connue : sa géométrie
             (pages, alignement du swipe) ne change plus ensuite. */}
-        {measuredHeight === null ? null : (
+        {stableHeight === null ? null : (
         <FlatList
+          ref={listRef}
           data={posts}
           keyExtractor={(p) => p.id}
           // Un seul mécanisme de pagination. `pagingEnabled` cale les pages
