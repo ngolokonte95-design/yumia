@@ -21,6 +21,7 @@ import { formatCount } from '../lib/format-count';
 import { isVideoUrl } from '../lib/is-video-url';
 import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
 import { assertPlays, trackPlayer, watchPlayerErrors } from '../lib/video-debug';
+import { epochSource, useMediaEpoch } from '../lib/media-epoch';
 import { restorePlaybackAudio } from '../lib/audio-session';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -84,7 +85,10 @@ function ReelVideo({
   onReadyChangeRef.current = onReadyChange;
   useEffect(() => { onReadyChangeRef.current?.(ready); }, [ready]);
   useEffect(() => () => { onReadyChangeRef.current?.(false); }, []);
-  const player = useVideoPlayer(uri, (p) => {
+  // Après une réinitialisation du service média d'iOS, la source change et
+  // le lecteur natif est recréé (cf. lib/media-epoch.ts).
+  const mediaEpoch = useMediaEpoch();
+  const player = useVideoPlayer(epochSource(uri, mediaEpoch), (p) => {
     p.loop = true;
     p.bufferOptions = SHORT_VIDEO_BUFFER;
     // Muet à la création : le préchargement ci-dessous fait jouer les reels

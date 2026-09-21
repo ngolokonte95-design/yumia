@@ -6,6 +6,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 import { PostOverlays } from './PostOverlays';
 import type { PostOverlay } from '../lib/feed-api';
 import { assertPlays, trackPlayer, watchPlayerErrors } from '../lib/video-debug';
+import { epochSource, useMediaEpoch } from '../lib/media-epoch';
 
 /**
  * Lecteur vidéo inline pour le feed. Son activé par défaut (contrôlé par le
@@ -65,7 +66,10 @@ export function PostVideo({
    */
   const manuallyPaused = useRef(false);
 
-  const player = useVideoPlayer(uri, (p) => {
+  // Après une réinitialisation du service média d'iOS, la source change et
+  // le lecteur natif est recréé (cf. lib/media-epoch.ts).
+  const mediaEpoch = useMediaEpoch();
+  const player = useVideoPlayer(epochSource(uri, mediaEpoch), (p) => {
     p.loop = true;
     p.muted = videoMuted;
     p.audioMixingMode = 'doNotMix';

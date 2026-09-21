@@ -13,6 +13,7 @@
  * retirer une fois la cause trouvée.
  */
 import type { VideoPlayer } from 'expo-video';
+import { reportPlayerError } from './media-epoch';
 
 let alive = 0;
 
@@ -31,6 +32,8 @@ export function watchPlayerErrors(player: VideoPlayer, where: string): () => voi
   const sub = player.addListener('statusChange', ({ status, error }) => {
     if (status === 'error') {
       console.warn(`[video] ERREUR ${where} : ${error?.message ?? 'sans message'}`);
+      // Réinitialisation du service média : tous les lecteurs sont à refaire.
+      reportPlayerError(error?.message);
     }
   });
   return () => sub.remove();
