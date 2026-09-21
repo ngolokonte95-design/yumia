@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ActivityIndicator, Alert, FlatList, Keyboard, Modal, Platform, Pressable,
   StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -120,8 +120,35 @@ export function CommentsSheet({
       top.value = withSpring(target, SPRING);
     });
 
+  // ── Clavier ─────────────────────────────────────────────────────────────
+  // Écoute directe plutôt que KeyboardAvoidingView : dans une fenêtre modale
+  // à barre d'état translucide, Android ne redimensionne rien et iOS décale
+  // faux — on ne voyait pas ce qu'on écrivait. Ici la fenêtre est relevée de
+  // la hauteur exacte du clavier, et se déploie en même temps pour que la
+  // liste reste lisible au-dessus, comme sur Instagram.
+  const keyboard = useSharedValue(0);
+  const [keyboardShown, setKeyboardShown] = useState(false);
+  useEffect(() => {
+    if (!visible) return undefined;
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, (e) => {
+      keyboard.value = withTiming(e.endCoordinates.height, { duration: Platform.OS === 'ios' ? 250 : 120 });
+      top.value = withSpring(expandedTop, SPRING);
+      setKeyboardShown(true);
+    });
+    const hide = Keyboard.addListener(hideEvt, () => {
+      keyboard.value = withTiming(0, { duration: Platform.OS === 'ios' ? 250 : 120 });
+      setKeyboardShown(false);
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, [visible, expandedTop, keyboard, top]);
+
   const sheetStyle = useAnimatedStyle(() => ({
     height: screenH - top.value,
+    // Le clavier pousse la fenêtre vers le haut : la barre de saisie reste
+    // juste au-dessus de lui, la liste se réduit d'autant.
+    paddingBottom: keyboard.value,
   }));
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: interpolate(top.value, [screenH, collapsedTop], [0, 0.55], Extrapolation.CLAMP),
@@ -308,10 +335,7 @@ export function CommentsSheet({
         </Animated.View>
 
         <Animated.View style={[styles.sheet, sheetStyle]}>
-          <KeyboardAvoidingView
-            style={styles.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
+          <View style={styles.flex}>
             {/* Poignée + titre : c'est la zone qu'on saisit pour déplacer ou
                 fermer la fenêtre. */}
             <GestureDetector gesture={pan}>
@@ -347,7 +371,7 @@ export function CommentsSheet({
             )}
 
             {!disabled ? (
-              <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+              <View style={[styles.composer, { paddingBottom: keyboardShown ? 8 : Math.max(insets.bottom, 8) }]}>
                 {replyTo ? (
                   <View style={styles.replyBanner}>
                     <Text style={styles.replyBannerTxt} numberOfLines={1}>
@@ -396,7 +420,7 @@ export function CommentsSheet({
                 </View>
               </View>
             ) : null}
-          </KeyboardAvoidingView>
+          </View>
         </Animated.View>
       </View>
     </Modal>
