@@ -47,7 +47,10 @@ export function watchPlayerErrors(player: VideoPlayer, where: string): () => voi
 export function assertPlays(player: VideoPlayer, where: string): void {
   setTimeout(() => {
     try {
-      if (!player.playing) {
+      // Seul le cas qui compte : PRÊT et pourtant à l'arrêt. Un lecteur encore
+      // en chargement (réseau lent, Android) n'est pas une anomalie — le
+      // garde-fou d'activation le relance dès qu'il est prêt.
+      if (player.status === 'readyToPlay' && !player.playing) {
         console.warn(
           `[video] play() SANS EFFET ${where} — status=${player.status} `
           + `playing=${player.playing} muted=${player.muted} `

@@ -232,8 +232,14 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
         <FlatList
           data={posts}
           keyExtractor={(p) => p.id}
-          pagingEnabled
+          // Un seul mécanisme de pagination. `pagingEnabled` cale les pages
+          // sur la hauteur de la VUE de liste, `snapToInterval` sur la
+          // hauteur MESURÉE : sur iOS le second l'emporte, sur Android les
+          // deux tirent, et quand elles diffèrent (barre d'état translucide)
+          // une page atterrit décalée — on voyait un bout de la suivante.
           snapToInterval={height}
+          snapToAlignment="start"
+          disableIntervalMomentum
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
           initialScrollIndex={initialIndex}
