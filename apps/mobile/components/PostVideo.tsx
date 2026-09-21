@@ -5,7 +5,7 @@ import { Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle }
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { PostOverlays } from './PostOverlays';
 import type { PostOverlay } from '../lib/feed-api';
-import { assertPlays, trackPlayer, watchPlayerErrors } from '../lib/video-debug';
+import { watchPlayerErrors } from '../lib/video-debug';
 import { epochSource, useMediaEpoch } from '../lib/media-epoch';
 
 /**
@@ -76,13 +76,9 @@ export function PostVideo({
     if (active) p.play();
   });
 
-  // Diagnostic (cf. lib/video-debug.ts) : lecteurs vivants et erreurs
-  // remontées, pour le jour où plus aucune vidéo ne démarre.
-  useEffect(() => {
-    const untrack = trackPlayer('PostVideo');
-    const unwatch = watchPlayerErrors(player, 'PostVideo');
-    return () => { unwatch(); untrack(); };
-  }, [player]);
+  // Une erreur de lecteur peut signifier que le service média d'iOS a été
+  // réinitialisé : tous les lecteurs sont alors à recréer (lib/media-epoch.ts).
+  useEffect(() => watchPlayerErrors(player, 'PostVideo'), [player]);
 
   // La première image RÉELLEMENT peinte dans la vue, signalée par VideoView.
   // `readyToPlay` ne suffit pas : le lecteur se dit prêt, puis va chercher la
@@ -168,7 +164,6 @@ export function PostVideo({
       return undefined;
     }
     player.play();
-    assertPlays(player, 'PostVideo/activation');
     const resume = () => {
       if (!manuallyPaused.current && player.status === 'readyToPlay' && !player.playing) player.play();
     };
@@ -226,7 +221,6 @@ export function PostVideo({
     } else {
       manuallyPaused.current = false;
       player.play();
-      assertPlays(player, 'PostVideo/appui');
     }
     flashIcon();
   };

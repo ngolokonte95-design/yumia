@@ -20,7 +20,7 @@ import { useI18n } from '../lib/useI18n';
 import { formatCount } from '../lib/format-count';
 import { isVideoUrl } from '../lib/is-video-url';
 import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
-import { assertPlays, trackPlayer, watchPlayerErrors } from '../lib/video-debug';
+import { watchPlayerErrors } from '../lib/video-debug';
 import { epochSource, useMediaEpoch } from '../lib/media-epoch';
 import { restorePlaybackAudio } from '../lib/audio-session';
 
@@ -104,13 +104,9 @@ function ReelVideo({
     p.play();
   });
 
-  // Diagnostic (cf. lib/video-debug.ts) : lecteurs vivants et erreurs
-  // remontées, pour le jour où plus aucune vidéo ne démarre.
-  useEffect(() => {
-    const untrack = trackPlayer('ReelVideo');
-    const unwatch = watchPlayerErrors(player, 'ReelVideo');
-    return () => { unwatch(); untrack(); };
-  }, [player]);
+  // Une erreur de lecteur peut signifier que le service média d'iOS a été
+  // réinitialisé : tous les lecteurs sont alors à recréer (lib/media-epoch.ts).
+  useEffect(() => watchPlayerErrors(player, 'ReelVideo'), [player]);
 
   // La première image RÉELLEMENT peinte dans la vue, signalée par VideoView.
   // `readyToPlay` ne suffit pas : le lecteur se dit prêt, puis va chercher la
@@ -190,7 +186,6 @@ function ReelVideo({
     // appuie sur lecture. On rejoue donc dès qu'elle devient prête, tant
     // qu'elle est toujours la vidéo active.
     player.play();
-    assertPlays(player, 'ReelVideo/activation');
     const sub = player.addListener('statusChange', ({ status }) => {
       if (status === 'readyToPlay' && !player.playing) player.play();
     });
