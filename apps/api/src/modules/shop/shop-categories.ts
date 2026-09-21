@@ -302,16 +302,40 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     keywords: ['velo', 'vtt', 'bicyclette', 'cycliste', 'cyclisme', 'trottinette', 'gyroroue', 'hoverboard', 'skateboard', 'draisienne', 'tricycle', 'electrique', 'antivol', 'sacoche', 'casque', 'pompe', 'compteur', 'selle', 'crevaison', 'bidon', 'eclairage', 'support', 'porte bagage', 'roue', 'batterie', 'pliant', 'pliable', 'adulte', 'enfant', 'pouce'],
   },
   {
-    slug: 'soiree-karaoke',
-    nameFr: 'Soirée & karaoké',
-    emoji: '🎤',
-    universe: 'karaoke',
+    slug: 'mode-accessoires',
+    nameFr: 'Mode & accessoires',
+    emoji: '👜',
     sortOrder: 240,
-    // Refusés ici : le premier audit y a trouvé des lampes de bureau et d'armoire, entrées par « led ».
-    // Second audit : des accessoires photo pour nouveau-né.
-    exclude: ['lampe de bureau', 'sous armoire', 'placard', 'nouveau-ne'],
-    searchTerms: ['micro karaoke bluetooth', 'micro sans fil karaoke duo', 'enceinte karaoke portable', 'enceinte lumineuse soiree', 'jeu de lumiere soiree', 'projecteur laser soiree', 'boule disco led rotative', 'barre led effet scene', 'machine a bulles fete', 'machine a fumee portable', 'guirlande led soiree', 'rideau lumineux led', 'ballons decoration fete', 'arche ballons anniversaire', 'photobooth accessoires set', 'cadre photobooth fete', 'confettis canon fete', 'bougies fontaine gateau', 'masque led fete', 'bracelets lumineux fete', 'table lumineuse led bar', 'verres led lumineux', 'banderole anniversaire personnalisable', 'ampoule led couleur telecommande'],
-    keywords: ['karaoke', 'soiree', 'fete', 'micro', 'lumiere', 'disco', 'led', 'fumee', 'bulle', 'ballon', 'confetti', 'guirlande', 'photobooth', 'enceinte', 'laser', 'barre', 'rideau', 'arche', 'cadre', 'bougie', 'masque', 'bracelet', 'table', 'verre', 'banderole', 'ampoule', 'projecteur', 'machine', 'jeu'],
+    // Remplace Soiree & karaoke (retire le 21/09 : 52 % de titres mal
+    // rattaches au dernier audit, chevauchait massivement Fetes &
+    // decoration). Aucun rayon ne couvrait la mode — sacs, lunettes,
+    // ceintures, foulards, chapeaux — grosse famille de produits sur
+    // AliExpress, absente du catalogue jusqu'ici.
+    //
+    // La mode est la famille la plus contrefaite d'AliExpress : les marques
+    // de luxe correspondantes sont dans BANNED_KEYWORDS (liste globale), pas
+    // ici — un « sac Gucci » est refuse partout, pas seulement dans ce rayon.
+    searchTerms: [
+      // -- Sacs --
+      'sac a main femme tendance', 'sac bandouliere femme', 'sac a dos mode femme', 'pochette soiree femme', 'sac cabas femme grande capacite', 'petit sac a main chaine', 'sac besace homme', 'sac banane mode fashion',
+      // -- Lunettes de soleil --
+      'lunettes de soleil femme tendance', 'lunettes de soleil homme classique', 'lunettes de soleil retro vintage', 'lunettes de soleil oversize',
+      // -- Ceintures --
+      'ceinture cuir homme boucle', 'ceinture femme tendance', 'ceinture tressee mode',
+      // -- Foulards et echarpes --
+      'foulard soie femme motif', 'echarpe mode femme hiver', 'bandana mode accessoire', 'chale mode femme elegant',
+      // -- Chapeaux --
+      'chapeau de paille femme ete', 'casquette mode unisexe', 'bob mode unisexe', 'beret mode femme', 'bonnet mode hiver',
+      // -- Portefeuilles et petite maroquinerie --
+      'portefeuille femme cuir tendance', 'portefeuille homme cuir slim', 'porte carte cuir mode', 'porte monnaie femme tendance',
+      // -- Gants mode --
+      'gants mode femme hiver elegant', 'gants cuir homme mode',
+      // -- Bijoux fantaisie et cheveux --
+      'collier fantaisie mode femme', 'bracelet fantaisie mode femme', 'boucles d oreilles fantaisie tendance', 'epingle a cheveux mode', 'barrette cheveux mode femme', 'headband mode femme', 'pince a cheveux mode',
+      // -- Autres accessoires --
+      'porte cles mode fantaisie', 'bandeau cheveux mode', 'noeud papillon homme mode', 'cravate homme mode', 'bretelles homme mode', 'broche mode fantaisie', 'chaussettes mode motif', 'gilet sans manche mode femme', 'kimono plage femme mode', 'housse de telephone mode fashion', 'porte passeport mode fashion', 'parapluie mode fashion',
+    ],
+    keywords: ['sac', 'pochette', 'lunettes de soleil', 'ceinture', 'foulard', 'echarpe', 'bandana', 'chale', 'chapeau', 'casquette', 'bob', 'beret', 'bonnet', 'portefeuille', 'porte carte', 'porte monnaie', 'gants mode', 'collier', 'bracelet', 'boucle d oreille', 'epingle', 'barrette', 'headband', 'pince a cheveux', 'porte cles', 'bandeau', 'noeud papillon', 'cravate', 'bretelles', 'broche', 'chaussettes', 'gilet', 'kimono', 'housse de telephone', 'porte passeport', 'parapluie', 'mode', 'fantaisie', 'tendance', 'fashion'],
   },
   {
     slug: 'lecture',
@@ -521,6 +545,11 @@ export const BANNED_KEYWORDS = [
   'nike', 'adidas', 'gucci', 'louis vuitton', 'chanel', 'rolex', 'apple', 'airpods',
   'samsung', 'dior', 'prada', 'hermes', 'balenciaga', 'supreme', 'the north face',
   'disney', 'lego', 'nintendo', 'playstation', 'xbox',
+  // Marques de mode (sacs, lunettes, ceintures) — ajoutees a la creation du
+  // rayon Mode & accessoires plutot qu'apres un audit qui les trouverait.
+  'ray-ban', 'rayban', 'michael kors', 'coach', 'fendi', 'burberry', 'versace',
+  'saint laurent', 'ysl', 'celine', 'givenchy', 'valentino', 'chloe',
+  'tommy hilfiger', 'calvin klein', 'ralph lauren', 'lacoste',
   // Matériel réglementé / sensible
   'aiguille tatouage', 'aiguilles tatouage', 'dermographe', 'machine a tatouer',
   'encre de tatouage', 'kit de percage', 'pistolet a percer', 'lentille de contact',
