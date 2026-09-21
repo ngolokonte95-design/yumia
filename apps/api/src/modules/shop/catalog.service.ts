@@ -45,6 +45,12 @@ const LIST_SELECT = {
   deliveryDays: true,
   featured: true,
   category: { select: { slug: true, nameFr: true, emoji: true } },
+  // Nombre de VRAIS avis YUMIA (relation ProductReview), distinct de
+  // `reviewsCount` : ce dernier vaut l'agregat AliExpress tant qu'aucun
+  // client n'a encore note le produit sur YUMIA (cf. shop-import.service).
+  // Le client mobile n'affiche l'etoile que si ce compte est > 0 — directive
+  // Omnibus (UE) 2019/2161, meme regle que pour le faux prix barre.
+  _count: { select: { reviews: true } },
 } satisfies Prisma.ProductSelect;
 
 const ACTIVE: ProductStatus[] = ['active', 'out_of_stock'];

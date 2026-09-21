@@ -164,7 +164,12 @@ export default function ProductDetailScreen() {
           <Text style={styles.title}>{product.title}</Text>
 
           <View style={styles.metaRow}>
-            {product.rating != null && (
+            {/* rating/reviewsCount restent l'agregat AliExpress tant que
+                product.reviews (les vrais avis YUMIA, listes plus bas) est
+                vide : on n'affiche l'etoile que si de vrais avis existent,
+                meme regle que la section « Avis clients » juste en dessous —
+                directive Omnibus (UE) 2019/2161. */}
+            {product.rating != null && product.reviews.length > 0 && (
               <View style={styles.ratingPill}>
                 <Text style={styles.star}>★</Text>
                 <Text style={styles.ratingTxt}>{product.rating.toFixed(1)}</Text>

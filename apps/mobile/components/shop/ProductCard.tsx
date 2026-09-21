@@ -42,11 +42,15 @@ export function ProductCard({ product, onPress, variant = 'row' }: Props) {
 
       <Text style={styles.title} numberOfLines={2}>{product.title}</Text>
 
-      {product.rating != null && (
+      {/* `rating`/`reviewsCount` sont l'agregat AliExpress tant qu'aucun vrai
+          avis YUMIA n'existe (cf. shop-api.ts) : on n'affiche l'etoile que si
+          _count.reviews le confirme, sinon on presenterait des avis clients
+          qui ne sont pas les notres — directive Omnibus (UE) 2019/2161. */}
+      {product.rating != null && product._count.reviews > 0 && (
         <View style={styles.ratingRow}>
           <Text style={styles.star}>★</Text>
           <Text style={styles.rating}>{product.rating.toFixed(1)}</Text>
-          {product.reviewsCount > 0 && <Text style={styles.reviews}>({product.reviewsCount})</Text>}
+          <Text style={styles.reviews}>({product.reviewsCount})</Text>
         </View>
       )}
 

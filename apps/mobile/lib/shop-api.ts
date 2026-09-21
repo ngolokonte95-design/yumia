@@ -43,6 +43,13 @@ export interface ProductListItem {
   featured: boolean;
   category: { slug: string; nameFr: string; emoji: string };
   adminMargin?: AdminMargin | null;
+  /**
+   * Nombre de VRAIS avis YUMIA. `rating`/`reviewsCount` restent l'agregat
+   * AliExpress tant qu'aucun client n'a note le produit sur YUMIA (cf.
+   * shop-import.service) — ne jamais les afficher sans avoir verifie ce
+   * compte, sous peine d'afficher des avis qui ne sont pas les notres.
+   */
+  _count: { reviews: number };
 }
 
 export interface ProductVariant {
