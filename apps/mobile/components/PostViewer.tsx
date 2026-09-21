@@ -45,6 +45,7 @@ import { feedApi, type FeedPost } from '../lib/feed-api';
 import { formatCount } from '../lib/format-count';
 import type { MusicMeta } from '../lib/music-track';
 import { PostVideo } from './PostVideo';
+import { CommentsSheet } from './CommentsSheet';
 import { parseMusicTrack, isPlayableAudioUrl } from '../lib/music-track';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
@@ -124,6 +125,8 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
   const { accessToken } = useAuth();
 
   const [current, setCurrent] = useState(initialIndex);
+  // Publication dont la fenêtre des commentaires est ouverte (null = fermée).
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
   /**
    * Page sur laquelle on s'est ARRÊTÉ depuis au moins 1,2 s. Les voisins ne
    * montent leur lecteur que par rapport à elle : créer un lecteur natif
@@ -244,11 +247,12 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
     apply(post.id, { savedByMe: res.saved });
   }, [accessToken, patches, apply]);
 
-  /** Les commentaires vivent sur la page de la publication : on y va. */
-  const openComments = useCallback((postId: string) => {
-    onClose();
-    router.push(`/post/${postId}` as never);
-  }, [onClose, router]);
+  /** Les commentaires s'ouvrent par-dessus, sans quitter le plein écran. */
+  const openComments = useCallback((postId: string) => setCommentsFor(postId), []);
+  const bumpComments = useCallback((postId: string, delta: number) => {
+    const base = patches[postId]?.commentsCount ?? posts.find((p) => p.id === postId)?.commentsCount ?? 0;
+    apply(postId, { commentsCount: Math.max(0, base + delta) });
+  }, [patches, posts, apply]);
 
   return (
     <Modal visible transparent={false} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -325,6 +329,12 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
             <Text style={styles.closeIcon}>✕</Text>
           </Pressable>
         ) : null}
+
+        <CommentsSheet
+          postId={commentsFor}
+          onClose={() => setCommentsFor(null)}
+          onCountChange={bumpComments}
+        />
       </View>
     </Modal>
   );

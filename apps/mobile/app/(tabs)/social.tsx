@@ -14,6 +14,7 @@ import { API_BASE_URL } from '../../lib/config';
 import { feedApi, type FeedPost, type StoryGroup, type Plan } from '../../lib/feed-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PostVideo } from '../../components/PostVideo';
+import { CommentsSheet } from '../../components/CommentsSheet';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
@@ -468,6 +469,15 @@ export default function SocialTab() {
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [globalPosts, setGlobalPosts] = useState<FeedPost[]>([]);
   const [followingPosts, setFollowingPosts] = useState<FeedPost[]>([]);
+  // Publication dont la fenêtre des commentaires est ouverte (null = fermée).
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const bumpComments = useCallback((postId: string, delta: number) => {
+    const fn = (list: FeedPost[]) => list.map((p) => (
+      p.id === postId ? { ...p, commentsCount: Math.max(0, p.commentsCount + delta) } : p
+    ));
+    setGlobalPosts(fn);
+    setFollowingPosts(fn);
+  }, []);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -752,7 +762,9 @@ export default function SocialTab() {
     }
   };
 
-  const openComments = (postId: string) => router.push(`/post/${postId}` as never);
+  // Les commentaires s'ouvrent PAR-DESSUS le fil, comme sur Instagram : on
+  // ne quitte pas la publication qu'on regarde.
+  const openComments = (postId: string) => setCommentsFor(postId);
   /**
    * Photo ouverte en plein écran.
    *
@@ -1114,6 +1126,12 @@ export default function SocialTab() {
 
       {/* Photo en plein écran — l'équivalent du reel pour les images, avec
           les mêmes actions que la carte du fil. */}
+
+      <CommentsSheet
+        postId={commentsFor}
+        onClose={() => setCommentsFor(null)}
+        onCountChange={bumpComments}
+      />
     </View>
   );
 }

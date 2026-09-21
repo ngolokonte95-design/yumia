@@ -16,6 +16,7 @@ import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { feedApi, type FeedPost, type PostOverlay } from '../lib/feed-api';
 import { PostOverlays } from '../components/PostOverlays';
+import { CommentsSheet } from '../components/CommentsSheet';
 import { useI18n } from '../lib/useI18n';
 import { formatCount } from '../lib/format-count';
 import { isVideoUrl } from '../lib/is-video-url';
@@ -770,6 +771,9 @@ export default function ReelsScreen() {
   const insets = useSafeAreaInsets();
   const [reelTab, setReelTab] = useState<ReelTab>('foryou');
   const [reels, setReels] = useState<FeedPost[]>([]);
+  // Reel dont la fenêtre des commentaires est ouverte (null = fermée). La
+  // vidéo continue derrière, comme sur Instagram.
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [screenFocused, setScreenFocused] = useState(true);
@@ -1015,7 +1019,7 @@ export default function ReelsScreen() {
                 || (settledIndex === playIndex && Math.abs(index - settledIndex) <= 1)
               }
               onLike={toggleLike}
-              onComment={(id) => router.push(`/post/${id}` as never)}
+              onComment={(id) => setCommentsFor(id)}
               onShare={() => void Share.share({ message: tr('reels_share_message') })}
               onUserPress={(id) => router.push(`/user/${id}` as never)}
               onFollow={toggleFollow}
@@ -1026,6 +1030,14 @@ export default function ReelsScreen() {
           )}
         />
       )}
+
+      <CommentsSheet
+        postId={commentsFor}
+        onClose={() => setCommentsFor(null)}
+        onCountChange={(id, delta) => setReels((prev) => prev.map((p) => (
+          p.id === id ? { ...p, commentsCount: Math.max(0, p.commentsCount + delta) } : p
+        )))}
+      />
     </View>
   );
 }
