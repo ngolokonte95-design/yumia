@@ -221,6 +221,10 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
         style={styles.screen}
         onLayout={(e) => {
           const h = Math.round(e.nativeEvent.layout.height);
+          // Diagnostic (Android : une page atterrit parfois décalée, on voit
+          // un bout de la suivante) : toute mesure est journalisée, même
+          // celles qu'on ignore — si la première était fausse, ça se verra.
+          console.warn(`[viewer] mesure=${h} fenêtre=${Math.round(windowHeight)} retenue=${measuredHeight ?? h}`);
           if (h > 0) setMeasuredHeight((prev) => prev ?? h);
         }}
       >
@@ -255,7 +259,13 @@ export function PostViewer({ posts, initialIndex = 0, initialImageIndex = 0, onC
           onViewableItemsChanged={onViewable}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
           // Le défilement est posé : c'est maintenant que la page s'active.
-          onMomentumScrollEnd={(e) => setPlayIndex(Math.round(e.nativeEvent.contentOffset.y / height))}
+          onMomentumScrollEnd={(e) => {
+            const y = e.nativeEvent.contentOffset.y;
+            const index = Math.round(y / height);
+            // Écart au cran : 0 = page parfaitement calée ; sinon, de combien.
+            console.warn(`[viewer] arrêt y=${Math.round(y)} page=${index} écart=${Math.round(y - index * height)}px hauteur=${height}`);
+            setPlayIndex(index);
+          }}
           renderItem={({ item, index }) => (
             <PostPage
               post={{ ...item, ...patches[item.id] }}
