@@ -541,7 +541,15 @@ ${isWeek
     // pré-définie adaptée au mood, tronquée selon la durée demandée.
     if (steps.length === 0) {
       const sequence = isWeek ? WEEK_FALLBACK : (FALLBACK_SEQUENCES[req.mood] ?? FALLBACK_SEQUENCES.amis);
-      steps = sequence.slice(0, stepCountForDuration(req.duration)).map((s) => ({ ...s }));
+      // Copie EN PROFONDEUR : `{ ...s }` laissait le tableau `moments`
+      // partagé avec la constante globale. La résolution écrivant ses
+      // `placeId` et ses photos dans ces objets, la trame se polluait au
+      // premier repli — et la génération suivante, dans une autre ville,
+      // héritait des lieux de la précédente sans jamais les rechercher.
+      steps = sequence.slice(0, stepCountForDuration(req.duration)).map((s) => ({
+        ...s,
+        moments: s.moments?.map((m) => ({ ...m })),
+      }));
       if (!summary) {
         summary = `Un itinéraire ${req.duration} à ${city} pensé pour un moment ${req.mood}. Chaque étape est un vrai lieu près de toi.`;
       }
@@ -670,28 +678,44 @@ ${isWeek
       return {};
     };
 
-    // Séquentiel, et non `Promise.all` : le curseur doit avancer de façon
-    // déterministe, et paralléliser viderait le cache de son intérêt puisque
-    // toutes les requêtes partiraient avant la première réponse.
+    // ── 1. Préchargement des univers, en parallèle ──────────────────────
+    //
+    // `candidatesFor` met en cache par univers, mais la première demande de
+    // chaque univers partait au milieu de la boucle : autant d'attentes
+    // réseau sérialisées. On les lance toutes d'un coup ici — le cache est
+    // alors déjà chaud quand la boucle commence, et son intérêt intact.
+    const universes = new Set<Universe>();
     for (const step of steps) {
-      // Une journée de séjour (mode semaine) n'est pas un lieu : « Marché et
-      // gastronomie locale » ne se remplace par aucun restaurant. On ne lui
-      // attache donc rien directement — ses moments, eux, nomment de vrais
-      // endroits.
+      const isDay = (step.moments?.length ?? 0) > 0;
+      if (!isDay) {
+        const u = stepTypeToUniverse(step.type);
+        if (u) universes.add(u);
+      }
+      for (const moment of step.moments ?? []) {
+        const u = stepTypeToUniverse(moment.type);
+        if (u) universes.add(u);
+      }
+    }
+    await Promise.all([...universes].map((u) => candidatesFor(u)));
+
+    // ── 2. Rattachement depuis la base ──────────────────────────────────
+    //
+    // Toujours séquentiel : le curseur par univers doit avancer de façon
+    // déterministe, sans quoi les sept dîners d'une semaine pointeraient le
+    // même restaurant. Mais plus aucune attente réseau ici — tout est en
+    // mémoire depuis la phase 1.
+    //
+    // Une journée de séjour (mode semaine) n'est pas un lieu : « Marché et
+    // gastronomie locale » ne se remplace par aucun restaurant. On ne lui
+    // attache donc rien directement — ses moments, eux, nomment de vrais
+    // endroits.
+    for (const step of steps) {
       const isDay = (step.moments?.length ?? 0) > 0;
 
       if (!isDay) {
         const { placeName, ...resolved } = await resolvePlace(step.name, step.type, true);
         Object.assign(step, resolved);
         if (placeName) step.name = placeName;
-
-        // Rien en base pour ce nom précis : on va le chercher chez le
-        // fournisseur plutôt que de laisser une carte nue.
-        if (!step.placeId) {
-          const { placeName: providerName, ...fromProvider } = await resolveByProvider(step.name, step.type);
-          Object.assign(step, fromProvider);
-          if (providerName) step.name = providerName;
-        }
       }
 
       for (const moment of step.moments ?? []) {
@@ -699,32 +723,67 @@ ${isWeek
         Object.assign(moment, resolved);
         if (placeName) moment.name = placeName;
       }
+    }
 
-      // La photo de la journée vient de son premier moment : elle illustre un
-      // endroit où l'on va vraiment ce jour-là. Aucun `placeId` n'est copié —
-      // la vignette illustre, elle ne prétend pas que la journée entière soit
-      // ce lieu.
-      //
-      // Le premier moment est résolu chez le fournisseur au besoin : sans ça,
-      // une journée dont aucun moment n'est déjà en base restait sans image.
-      // Les moments suivants gardent leur résolution au clic, qui ne coûte
-      // que ce que l'utilisateur consulte vraiment.
-      if (isDay) {
-        // Jusqu'à deux moments essayés chez le fournisseur, jusqu'à obtenir
-        // une image pour la journée. Les autres moments sont illustrés par
-        // l'app à l'ouverture de la journée, pour ne payer que ce qui est vu.
-        let tries = 0;
-        for (const moment of step.moments ?? []) {
-          if (step.moments?.some((m) => m.placePhoto) || tries >= 2) break;
-          if (moment.placeId) continue;
-          tries += 1;
-          const { placeName: providerName, ...fromProvider } = await resolveByProvider(moment.name, moment.type);
-          Object.assign(moment, fromProvider);
-          if (providerName) moment.name = providerName;
-        }
-        if (!step.placePhoto) {
-          step.placePhoto = step.moments?.find((m) => m.placePhoto)?.placePhoto;
-        }
+    // ── 3. Fournisseur de lieux, en parallèle ───────────────────────────
+    //
+    // Ce qui reste sans lieu après la base part chez le fournisseur. Ces
+    // appels-là sont indépendants les uns des autres — un nom propre ne
+    // partage ni cache ni curseur — donc rien n'impose de les enchaîner.
+    // En file, une semaine y passait jusqu'à quatorze allers-retours.
+    //
+    // Le budget (cf. `resolveByProvider`) reste consommé dans le même ordre
+    // qu'avant : étapes d'abord, puis premier essai de chaque journée, puis
+    // second. Seul l'ordre entre essais d'une même journée et d'une autre
+    // change, ce qui ne se voit ni au résultat ni à la facture.
+    const applyProvider = async (
+      target: ItineraryStep | ItineraryMoment,
+    ): Promise<void> => {
+      const { placeName, ...fromProvider } = await resolveByProvider(target.name, target.type);
+      Object.assign(target, fromProvider);
+      if (placeName) target.name = placeName;
+    };
+
+    // Étapes simples : chacune veut son propre lieu, aucune ne dépend d'une
+    // autre.
+    await Promise.all(
+      steps
+        .filter((step) => (step.moments?.length ?? 0) === 0 && !step.placeId)
+        .map(applyProvider),
+    );
+
+    // Journées : il suffit d'UNE photo pour illustrer la journée. On tente
+    // donc un premier moment par journée, puis un second seulement pour
+    // celles encore sans image — deux tours parallèles au lieu de deux
+    // appels en file par journée, pour le même nombre d'appels facturés.
+    const days = steps.filter((step) => (step.moments?.length ?? 0) > 0);
+    const needsPhoto = (day: ItineraryStep): boolean =>
+      !day.moments?.some((m) => m.placePhoto);
+
+    // Instantané pris AVANT les tours : `applyProvider` renseigne `placeId`
+    // sur le moment qu'il résout, donc un filtre recalculé au second tour
+    // sauterait le moment suivant au lieu de l'essayer.
+    const candidates = new Map<ItineraryStep, ItineraryMoment[]>(
+      days.map((day) => [day, (day.moments ?? []).filter((m) => !m.placeId)]),
+    );
+
+    for (const round of [0, 1]) {
+      const targets = days
+        .filter(needsPhoto)
+        .map((day) => candidates.get(day)?.[round])
+        .filter((m): m is ItineraryMoment => m !== undefined);
+      if (targets.length === 0) break;
+      await Promise.all(targets.map(applyProvider));
+    }
+
+    // La photo de la journée vient de son premier moment illustré : elle
+    // montre un endroit où l'on va vraiment ce jour-là. Aucun `placeId`
+    // n'est copié — la vignette illustre, elle ne prétend pas que la
+    // journée entière soit ce lieu. Les moments non résolus le seront au
+    // clic, pour ne payer que ce que l'utilisateur consulte.
+    for (const day of days) {
+      if (!day.placePhoto) {
+        day.placePhoto = day.moments?.find((m) => m.placePhoto)?.placePhoto;
       }
     }
 
