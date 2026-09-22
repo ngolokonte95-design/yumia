@@ -495,11 +495,16 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
      * « quad enfant », AliExpress renvoie aussi de vrais engins de 60 V
      * et 1 200 W, et des mini-motos à essence sans aucune certification.
      *
+     * « adulte » a été essayé comme refus, puis retiré : les voitures RC
+     * sont presque toutes annoncées « pour adultes et enfants », et le mot
+     * les emportait toutes. La tension sépare mieux — un porteur d'enfant
+     * est en 6, 12 ou 24 V, jamais en 36.
+     *
      * « figurine » figure dans les mots-clés alors qu'il est dans la
      * camelote globale : c'est le mécanisme prévu pour qu'un rayon qui
      * vend précisément cet objet ne se le voie pas jeter.
      */
-    exclude: ['thermique', 'essence', '2 temps', '4 temps', '48v', '60v', '72v', '1000w', '1500w', '2000w', '3000w', 'casque de velo', 'casque velo', 'casque enfant velo', 'casque de trottinette', 'casque de protection', 'perle', 'bille', 'strass', 'gomme', 'trombone', 'confetti', 'bracelet elastique', 'adulte', 'ninebot', 'segway', 'levier de frein'],
+    exclude: ['thermique', 'essence', '2 temps', '4 temps', '48v', '60v', '72v', '1000w', '1500w', '2000w', '3000w', 'casque de velo', 'casque velo', 'casque enfant velo', 'casque de trottinette', 'casque de protection', 'perle', 'bille', 'strass', 'gomme', 'trombone', 'confetti', 'bracelet elastique', '36v', 'ninebot', 'segway', 'levier de frein'],
     searchTerms: [
       'voiture electrique enfant 12v', 'voiture electrique enfant 24v',
       'quad electrique enfant 12v', 'moto electrique enfant 6v',
