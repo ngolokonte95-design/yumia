@@ -68,7 +68,11 @@ async function main(): Promise<void> {
   const seulRayon = option('rayon', args);
   const debut = Date.now();
 
+  // Les archivés ne sont plus au catalogue : les compter gonflait les totaux
+  // et faisait réapparaître, en « hors filtre », ceux que la purge venait de
+  // sortir.
   const produits = await prisma.product.findMany({
+    where: { status: { not: 'archived' } },
     select: { title: true, category: { select: { slug: true } } },
   });
 
