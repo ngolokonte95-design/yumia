@@ -10,6 +10,7 @@ import {
   frenchMothersDay,
   timingOf,
 } from '../gift-guide';
+import { SHOP_CATEGORIES } from '../shop-categories';
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -182,6 +183,19 @@ describe('référentiel', () => {
       const slugs = list.map((x) => x.slug);
       expect(new Set(slugs).size).toBe(slugs.length);
     }
+  });
+
+  /**
+   * Retirer un rayon laissait des références mortes : `soiree-karaoke` est
+   * resté cité par trois occasions deux jours après sa suppression, sans que
+   * rien ne le signale — ces occasions ne proposaient plus qu'un rayon vide.
+   */
+  it('ne cite que des rayons qui existent', () => {
+    const connus = new Set(SHOP_CATEGORIES.map((c) => c.slug));
+    const morts = [...GIFT_OCCASIONS, ...GIFT_RECIPIENTS]
+      .flatMap((x) => x.categories.map((slug) => [x.slug, slug] as const))
+      .filter(([, slug]) => !connus.has(slug));
+    expect(morts).toEqual([]);
   });
 
   it('a des budgets contigus et croissants', () => {

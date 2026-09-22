@@ -414,19 +414,54 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     keywords: ['sac', 'pochette', 'lunettes de soleil', 'ceinture', 'foulard', 'echarpe', 'bandana', 'chale', 'chapeau', 'casquette', 'bob', 'beret', 'bonnet', 'portefeuille', 'porte carte', 'porte monnaie', 'gants mode', 'collier', 'bracelet', 'boucle d oreille', 'epingle', 'barrette', 'headband', 'pince a cheveux', 'porte cles', 'bandeau', 'noeud papillon', 'cravate', 'bretelles', 'broche', 'chaussettes', 'gilet', 'kimono', 'housse de telephone', 'porte passeport', 'parapluie', 'mode', 'fantaisie', 'tendance', 'fashion', 'ordinateur', 'week end', 'transparent', 'chaine de sac', 'cordon', 'mitaine', 'cache cou', 'tour de cou', 'feutre', 'visiere', 'satin', 'chouchou', 'pince crabe', 'rfid', 'cintre', 'penderie', 'peluche', 'embauchoir', 'tactile', 'pliant', 'laine', 'vetement', 'chaussure', 'bijoux', 'polaire', 'hiver', 'cheveux', 'chaine de lunettes'],
   },
   {
-    slug: 'lecture',
-    nameFr: 'Lecture & écriture',
-    emoji: '📚',
-    universe: 'bookstore',
+    slug: 'nettoyage',
+    nameFr: 'Nettoyage & entretien',
+    emoji: '🧽',
     sortOrder: 250,
-    // Refusés ici : le premier audit y a trouvé un casque de jeu vidéo, entré par « support ».
-    // Second audit : une boîte cadeau « doigt d'honneur » et une colonne de pied de lit.
-    exclude: ['casque de jeu', 'gaming', 'gamer', 'doigt d honneur', 'pied de lit'],
-    searchTerms: ['liseuse housse protection', 'support liseuse lit', 'lampe de lecture rechargeable', 'lampe clip livre led', 'support livre lecture reglable', 'coussin lecture lit ergonomique', 'marque page magnetique set', 'marque page metal design', 'serre livres decoratifs', 'etagere murale livres', 'carnet cuir notes', 'carnet pointille bullet journal', 'stylo plume calligraphie', 'set calligraphie debutant', 'stylo roller encre noire', 'encre calligraphie flacon', 'kit lettering brush pen', 'feutres coloriage adulte', 'tampons scrapbooking papeterie', 'washi tape decoratif', 'loupe lecture eclairee', 'plaid lecture polaire', 'casque audio confort lecture', 'coffret cadeau lecture the', 'boite rangement papeterie', 'trousse crayons cuir',
-      // -- Ajout 22/09 : familles absentes du rayon --
-      'pupitre de lecture bois', 'porte livre table lecture', 'lunettes loupe lecture', 'housse transport livre', 'sac bandouliere livre tissu', 'agenda semainier non date', 'planificateur hebdomadaire bureau', 'intercalaires onglets carnet', 'recharge stylo bille lot', 'cartouches encre stylo plume', 'convertisseur stylo plume', 'plumes calligraphie rechange', 'porte plume bois calligraphie', 'buvard papier calligraphie', 'regle gabarit lettrage', 'pochoir alphabet lettrage', 'papier aquarelle bloc', 'carnet aquarelle relie', 'crayons aquarellables set', 'gomme mie de pain', 'taille crayon metal double', 'sous main bureau cuir', 'repose poignet ecriture', 'presse papier decoratif', 'lampe pince bureau led', 'signet ruban livre', 'couvre livre adhesif', 'tampon encreur personnalise', 'malette rangement stylos', 'range carnet bureau',
+    // Pas d'`universe` : aucun univers de lieux YUMIA ne correspond, à la
+    // différence de Lecture qui pointait vers les librairies.
+    //
+    // Refusés ici : « nettoyage » et « brosse » sont les deux mots les plus
+    // galvaudés d'AliExpress. Sans ces refus, le rayon se remplit de
+    // nettoyants pour le visage, de cure-oreilles, de brosses de toilettage
+    // et de kits pour objectif photo — tous déjà vendus ailleurs.
+    exclude: ['oreille', 'nez', 'dents', 'visage', 'peau', 'maquillage', 'cheveux', 'toilettage', 'objectif', 'capteur', 'aquarium', 'piscine', 'tatouage', 'ongle', 'barbe', 'tondeuse a gazon', 'chaussure'],
+    searchTerms: [
+      'nettoyeur haute pression electrique', 'nettoyeur haute pression sans fil',
+      'lance haute pression rallonge', 'buse rotative haute pression',
+      'brosse rotative nettoyeur pression', 'pistolet lavage jardin tuyau',
+      'nettoyeur gouttiere telescopique', 'brosse terrasse exterieur manche',
+      'balai exterieur cour jardin', 'brosse nettoyage barbecue grille',
+      'nettoyeur vapeur multifonction', 'balai vapeur sol electrique',
+      'nettoyeur vapeur main portable', 'aspirateur balai sans fil',
+      'aspirateur robot laveur', 'aspirateur main rechargeable',
+      'aspirateur eau et poussiere', 'sac aspirateur rechange lot',
+      'filtre hepa aspirateur rechange', 'injecteur extracteur nettoyage tissu',
+      'balai serpillere microfibre rotatif', 'seau essoreur balai rotatif',
+      'balai plat microfibre lingettes', 'raclette sol eau douche',
+      'brosse recurer sol manche', 'nettoyeur sol electrique sans fil',
+      'ramasse poussiere balayette set', 'serpillere rechange microfibre lot',
+      'raclette vitre professionnelle', 'robot lave vitre aspirant',
+      'nettoyeur vitre electrique aspiration', 'chiffon microfibre vitres lot',
+      'brosse telescopique vitres exterieur', 'kit lavage voiture complet',
+      'gant microfibre lavage voiture', 'brosse jantes voiture detailing',
+      'seau lavage voiture grille', 'cire polish voiture applicateur',
+      'brosse detailing interieur voiture', 'brosse vaisselle distributeur savon',
+      'panier couverts lave vaisselle', 'pastilles nettoyage lave vaisselle',
+      'filtre lave vaisselle rechange', 'eponge magique melamine lot',
+      'pierre d argile nettoyante', 'brosse wc support silicone',
+      'ventouse debouchage wc', 'brosse joints carrelage salle de bain',
+      'raclette douche paroi vitree', 'pastilles effervescentes canalisation',
+      'nettoyeur ultrason bijoux lunettes', 'brosse nettoyage clavier ordinateur',
+      'kit nettoyage ecran telephone', 'souffleur air poussiere electronique',
+      'plumeau microfibre telescopique', 'rouleau adhesif anti peluche vetements',
+      'brosse anti poils animaux canape', 'gants menage caoutchouc lot',
+      'tablier menage impermeable', 'chariot menage seau essoreur',
+      'porte balai mural rangement', 'poubelle pedale inox cuisine',
+      'lingettes nettoyantes multi usages lot', 'pulverisateur menage vide',
+      'seau pliable menage silicone',
     ],
-    keywords: ['livre', 'lecture', 'liseuse', 'marque-page', 'marque page', 'lampe', 'carnet', 'stylo', 'plume', 'roller', 'encre', 'calligraphie', 'lettering', 'feutre', 'tampon', 'washi', 'loupe', 'plaid', 'casque', 'coffret', 'papeterie', 'boite', 'trousse', 'serre-livres', 'serre livres', 'etagere', 'support', 'coussin', 'kit', 'set', 'pupitre', 'porte livre', 'lunettes', 'agenda', 'semainier', 'planificateur', 'intercalaire', 'cartouche', 'convertisseur', 'porte plume', 'buvard', 'gabarit', 'pochoir', 'aquarelle', 'aquarellable', 'gomme', 'taille crayon', 'sous main', 'repose poignet', 'presse papier', 'signet', 'couvre livre', 'malette', 'range', 'encreur'],
+    keywords: ['nettoyeur', 'nettoyage', 'nettoyante', 'haute pression', 'buse', 'pistolet lavage', 'gouttiere', 'terrasse', 'balai', 'barbecue', 'vapeur', 'aspirateur', 'sac aspirateur', 'filtre hepa', 'injecteur extracteur', 'serpillere', 'essoreur', 'raclette', 'recurer', 'ramasse poussiere', 'balayette', 'lave vitre', 'chiffon microfibre', 'gant microfibre', 'telescopique', 'lavage voiture', 'detailing', 'jantes', 'polish', 'vaisselle', 'lave vaisselle', 'eponge magique', 'melamine', 'pierre d argile', 'wc', 'debouchage', 'joints carrelage', 'paroi vitree', 'effervescente', 'canalisation', 'ultrason', 'clavier', 'ecran telephone', 'souffleur air', 'plumeau', 'anti peluche', 'anti poils', 'gants menage', 'tablier menage', 'chariot menage', 'porte balai', 'poubelle', 'lingettes nettoyantes', 'pulverisateur menage', 'seau pliable', 'seau lavage', 'seau essoreur', 'panier couverts', 'brosse rotative', 'brosse telescopique'],
   },
   {
     slug: 'bijoux-montres',

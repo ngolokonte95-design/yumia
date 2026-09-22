@@ -202,7 +202,12 @@ describe("interdits issus de l'audit du catalogue", () => {
       ['cake-design', 'Brosse murale de haute qualité pour le plâtrage lisse, rouleau à mastic'],
       ['bijoux-montres', 'Soutien-gorge sans anneau en acier pour femmes, couleur unie'],
       ['cils-sourcils', "Lampe à lentille grossissante dentaire, lampe d'éclairage pour examen de chirurgie buccale"],
-      ['lecture', 'Casque de jeu avec Microphone antibruit détachable, prise filaire 2.4G'],
+      // Nettoyage : « nettoyage » et « brosse » sont les deux mots les plus
+      // galvaudés d'AliExpress, chacun de ces titres appartient à un autre rayon.
+      ['nettoyage', 'Brosse nettoyante faciale en silicone, mini brosse exfoliante pour le visage'],
+      ['nettoyage', "Kit de nettoyage pour objectif d'appareil photo, poire soufflette et lingettes"],
+      ['nettoyage', "Kit de cure-oreilles pour le nettoyage du conduit auditif, pratique et portable"],
+      ['nettoyage', 'Brosse de toilettage pour chien, nettoyage des poils, accessoire animalerie'],
       ['ski-hiver', 'Masque de Protection complet Anti-buée avec filtre, masque Anti-éclaboussures et Anti-gouttelettes'],
       ['pique-nique', "Planche à pendule en bois pour l'autel Wicca, planche décorative métaphysique"],
       // « tondeuse » vaut pour les cheveux comme pour le gazon : les trois
@@ -255,8 +260,9 @@ describe("interdits issus de l'audit du catalogue", () => {
     const attendus: [string, string][] = [
       ['bricolage', 'Gant de travail Anti-coupure, résistant aux coupures, pour le travail du verre'],
       ['bricolage', 'Gants de travail anti-coupure en acier, protection des mains, taille L'],
-      ['lecture', 'Lot de 6 pochoirs réutilisables en lettres et chiffres de style Old English'],
       ['peche', 'Bottes de pluie en caoutchouc imperméables, gaines de pêche à tube court'],
+      ['nettoyage', 'Gant microfibre de lavage voiture, lavage sans rayures'],
+      ['nettoyage', 'Gants microfibre pour lavage voiture, lot de 2, sans rayures'],
     ];
     const manques = attendus.filter(([slug, titre]) => !isRelevant(titre, keywords(slug)));
     expect(manques).toEqual([]);
