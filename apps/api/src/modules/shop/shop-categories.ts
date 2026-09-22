@@ -499,7 +499,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
      * camelote globale : c'est le mécanisme prévu pour qu'un rayon qui
      * vend précisément cet objet ne se le voie pas jeter.
      */
-    exclude: ['thermique', 'essence', '2 temps', '4 temps', '48v', '60v', '72v', '1000w', '1500w', '2000w', '3000w', 'casque de velo', 'casque velo', 'casque enfant velo', 'casque de trottinette', 'casque de protection', 'perle', 'bille', 'strass', 'gomme', 'trombone', 'confetti', 'bracelet elastique'],
+    exclude: ['thermique', 'essence', '2 temps', '4 temps', '48v', '60v', '72v', '1000w', '1500w', '2000w', '3000w', 'casque de velo', 'casque velo', 'casque enfant velo', 'casque de trottinette', 'casque de protection', 'perle', 'bille', 'strass', 'gomme', 'trombone', 'confetti', 'bracelet elastique', 'adulte', 'ninebot', 'segway', 'levier de frein'],
     searchTerms: [
       'voiture electrique enfant 12v', 'voiture electrique enfant 24v',
       'quad electrique enfant 12v', 'moto electrique enfant 6v',
@@ -513,7 +513,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
       'drone camera enfant debutant', 'drone pliable gps camera',
       'drone course fpv debutant', 'helicoptere telecommande interieur',
       'briques de construction compatibles 1000 pieces', 'maquette bois a construire 3d',
-      'puzzle 1000 pieces adulte', 'circuit voiture piste lumineuse',
+      'puzzle enfant 100 pieces', 'circuit voiture piste lumineuse',
       'train electrique circuit enfant', 'jeu de construction magnetique grand format',
       'etabli bricolage enfant outils', 'chevalet tableau enfant double face',
       'figurine anime collection 30cm', 'figurine manga resine grande taille',
@@ -536,7 +536,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
       'cuisine enfant jouet accessoires', 'dinette enfant service complet',
       'caisse enregistreuse jouet enfant', 'deguisement princesse enfant robe',
     ],
-    keywords: ['voiture electrique', 'quad electrique', 'moto electrique', 'buggy', 'tracteur', 'porteur', 'kart', 'batterie 12v', 'chargeur voiture', 'telecommandee', 'telecommande', 'rc', 'drift', 'excavatrice', 'bateau', 'char', 'drone', 'helicoptere', 'brique de construction', 'briques', 'maquette', 'puzzle', 'circuit', 'train electrique', 'magnetique', 'etabli', 'chevalet', 'figurine', 'statuette', 'vitrine', 'anime', 'manga', 'trampoline', 'cage de but', 'panier de basket', 'ping pong', 'baby foot', 'flechettes', 'piscine a balles', 'toboggan', 'balancoire', 'tipi', 'trottinette', 'velo enfant', 'draisienne', 'skateboard', 'rollers', 'overboard', 'console', 'manette', 'tablette enfant', 'tablette dessin', 'casque gaming', 'poupee', 'poupon', 'maison de poupee', 'poussette poupee', 'maquillage enfant', 'cuisine enfant', 'dinette', 'caisse enregistreuse', 'deguisement', 'jouet'],
+    keywords: ['voiture electrique', 'quad electrique', 'moto electrique', 'buggy', 'tracteur', 'porteur', 'kart', 'batterie 12v', 'chargeur voiture', 'telecommandee', 'telecommande', 'rc', 'drift', 'excavatrice', 'drone', 'helicoptere', 'brique de construction', 'briques', 'maquette', 'puzzle', 'circuit', 'train electrique', 'magnetique', 'etabli', 'chevalet', 'figurine', 'statuette', 'vitrine', 'manga', 'trampoline', 'cage de but', 'panier de basket', 'ping pong', 'baby foot', 'flechettes', 'piscine a balles', 'toboggan', 'balancoire', 'tipi', 'trottinette', 'velo enfant', 'draisienne', 'skateboard', 'rollers', 'overboard', 'console', 'manette', 'tablette enfant', 'tablette dessin', 'casque gaming', 'poupee', 'poupon', 'maison de poupee', 'poussette poupee', 'maquillage enfant', 'cuisine enfant', 'dinette', 'caisse enregistreuse', 'deguisement', 'jouet'],
   },
   {
     slug: 'bureau-teletravail',
