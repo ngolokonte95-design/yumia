@@ -427,7 +427,10 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     // et de kits pour objectif photo — tous déjà vendus ailleurs.
     // « barbecue » a ramené trois cuisines d'extérieur complètes, meuble et
     // réfrigérateur compris, alors qu'on ne cherche que la brosse à grille.
-    exclude: ['oreille', 'nez', 'dents', 'visage', 'peau', 'maquillage', 'cheveux', 'toilettage', 'objectif', 'capteur', 'aquarium', 'piscine', 'tatouage', 'ongle', 'barbe', 'tondeuse a gazon', 'chaussure', 'cuisine exterieure', 'refrigerateur', 'armoire', 'huile'],
+    // Le refus porte sur « pulvérisation d'huile » et non sur « huile » :
+    // le mot seul emportait les tabliers de ménage « résistants à l'huile »,
+    // qui sont exactement ce que le rayon vend.
+    exclude: ['oreille', 'nez', 'dents', 'visage', 'peau', 'maquillage', 'cheveux', 'toilettage', 'objectif', 'capteur', 'aquarium', 'piscine', 'tatouage', 'ongle', 'barbe', 'tondeuse a gazon', 'chaussure', 'cuisine exterieure', 'refrigerateur', 'armoire', 'pulverisation d huile'],
     searchTerms: [
       'nettoyeur haute pression electrique', 'nettoyeur haute pression sans fil',
       'lance haute pression rallonge', 'buse rotative haute pression',
