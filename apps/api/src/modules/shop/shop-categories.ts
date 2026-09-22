@@ -425,7 +425,9 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     // galvaudés d'AliExpress. Sans ces refus, le rayon se remplit de
     // nettoyants pour le visage, de cure-oreilles, de brosses de toilettage
     // et de kits pour objectif photo — tous déjà vendus ailleurs.
-    exclude: ['oreille', 'nez', 'dents', 'visage', 'peau', 'maquillage', 'cheveux', 'toilettage', 'objectif', 'capteur', 'aquarium', 'piscine', 'tatouage', 'ongle', 'barbe', 'tondeuse a gazon', 'chaussure'],
+    // « barbecue » a ramené trois cuisines d'extérieur complètes, meuble et
+    // réfrigérateur compris, alors qu'on ne cherche que la brosse à grille.
+    exclude: ['oreille', 'nez', 'dents', 'visage', 'peau', 'maquillage', 'cheveux', 'toilettage', 'objectif', 'capteur', 'aquarium', 'piscine', 'tatouage', 'ongle', 'barbe', 'tondeuse a gazon', 'chaussure', 'cuisine exterieure', 'refrigerateur', 'armoire', 'huile'],
     searchTerms: [
       'nettoyeur haute pression electrique', 'nettoyeur haute pression sans fil',
       'lance haute pression rallonge', 'buse rotative haute pression',

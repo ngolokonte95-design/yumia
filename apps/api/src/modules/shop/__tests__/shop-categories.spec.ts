@@ -208,6 +208,8 @@ describe("interdits issus de l'audit du catalogue", () => {
       ['nettoyage', "Kit de nettoyage pour objectif d'appareil photo, poire soufflette et lingettes"],
       ['nettoyage', "Kit de cure-oreilles pour le nettoyage du conduit auditif, pratique et portable"],
       ['nettoyage', 'Brosse de toilettage pour chien, nettoyage des poils, accessoire animalerie'],
+      ['nettoyage', 'Cuisine extérieure personnalisée pour jardin, avec barbecue intégré et réfrigérateur'],
+      ['nettoyage', 'Station extérieure prête à l’emploi pour villa, barbecue intégré et armoire aluminium'],
       ['ski-hiver', 'Masque de Protection complet Anti-buée avec filtre, masque Anti-éclaboussures et Anti-gouttelettes'],
       ['pique-nique', "Planche à pendule en bois pour l'autel Wicca, planche décorative métaphysique"],
       // « tondeuse » vaut pour les cheveux comme pour le gazon : les trois
