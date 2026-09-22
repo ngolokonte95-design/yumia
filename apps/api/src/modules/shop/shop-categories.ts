@@ -367,7 +367,7 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     emoji: '🚴',
     sortOrder: 230,
     // Second audit : une luge électrique.
-    exclude: ['luge'],
+    exclude: ['luge', 'quad', 'moto cross'],
     searchTerms: ['velo vtt 26 pouces adulte', 'velo vtt 27.5 pouces suspension', 'velo ville adulte 28 pouces', 'velo pliant adulte', 'velo enfant 20 pouces', 'velo ado 24 pouces', 'velo route aluminium', 'velo electrique pliant adulte', 'velo electrique ville batterie', 'vtt electrique adulte', 'trottinette electrique adulte', 'trottinette electrique pliable', 'trottinette enfant 3 roues', 'gyroroue electrique adulte', 'hoverboard tout terrain', 'skateboard electrique', 'draisienne enfant equilibre', 'tricycle enfant evolutif', 'antivol velo securite', 'casque velo adulte', 'sacoche velo etanche', 'eclairage velo led rechargeable', 'pompe velo portable', 'compteur velo sans fil', 'support telephone velo', 'selle velo confort gel', 'kit reparation crevaison velo', 'porte bagage velo',
       // -- Ajout 22/09 : familles absentes du rayon --
       'chambre a air velo 26', 'pneu velo ville 700', 'demonte pneu velo lot', 'multi outil velo pliant', 'cle a rayons velo', 'derive chaine velo outil', 'lubrifiant chaine velo', 'degraissant chaine velo', 'brosse nettoyage transmission velo', 'patins de frein velo', 'plaquettes frein disque velo', 'cable et gaine frein velo', 'pedales velo antiderapantes', 'poignees guidon velo ergonomiques', 'ruban guidon velo route', 'garde boue velo clipsable', 'bequille velo reglable', 'panier avant velo amovible', 'remorque bagage velo', 'sacoche porte bagage double', 'filet porte bagage velo', 'sonnette velo guidon', 'retroviseur velo guidon', 'gilet reflechissant velo', 'brassard led course nuit', 'gants velo demi doigts', 'couvre selle velo impermeable', 'housse velo exterieur protection', 'support mural velo rangement', 'pied d atelier velo reparation',
@@ -485,23 +485,55 @@ export const SHOP_CATEGORIES: ShopCategorySeed[] = [
     nameFr: 'Jouets & cadeaux',
     emoji: '🎁',
     sortOrder: 280,
-    // Ni véhicule motorisé, ni casque. Un « quad électrique enfant » importé
-    // ici faisait 60 V et 1 200 W : AliExpress renvoie de vrais engins sous ce
-    // nom. Un casque de vélo est un équipement de protection individuelle
-    // (règlement (UE) 2016/425, norme EN 1078) — non certifié, il ne protège
-    // rien, et c'est un enfant qui le porte. Les termes de recherche
-    // correspondants ont été retirés ; ces mots les refusent s'ils reviennent
-    // par un autre chemin.
-    // « casque » seul n'y figure pas : un casque audio pour enfant reste un
-    // cadeau légitime.
-    exclude: ['quad', 'moto electrique', 'pocket bike', '48v', '60v', '72v', 'casque de velo', 'casque velo', 'casque enfant velo', 'casque de trottinette', 'casque de protection'],
+    /**
+     * Les porteurs électriques pour enfants (12 V, 24 V) sont ici des
+     * jouets ordinaires, et c'est ce que le rayon cherche. Ce qui reste
+     * refusé, c'est le thermique et la grosse puissance : sous le nom
+     * « quad enfant », AliExpress renvoie aussi de vrais engins de 60 V
+     * et 1 200 W, et des mini-motos à essence sans aucune certification.
+     *
+     * « figurine » figure dans les mots-clés alors qu'il est dans la
+     * camelote globale : c'est le mécanisme prévu pour qu'un rayon qui
+     * vend précisément cet objet ne se le voie pas jeter.
+     */
+    exclude: ['thermique', 'essence', '2 temps', '4 temps', '48v', '60v', '72v', '1000w', '1500w', '2000w', '3000w', 'casque de velo', 'casque velo', 'casque enfant velo', 'casque de trottinette', 'casque de protection', 'perle', 'bille', 'strass', 'gomme', 'trombone', 'confetti', 'bracelet elastique'],
     searchTerms: [
-      // -- Termes d'origine --
-      'briques construction compatibles', 'blocs construction enfant creatif', 'maquette construction bois', 'circuit voitures enfant', 'voiture telecommandee tout terrain', 'voiture telecommandee cascade', 'camion telecommande chantier', 'robot telecommande enfant', 'cartes a collectionner classeur', 'classeur rangement cartes', 'protege cartes pochettes', 'jeu de cartes famille', 'jeu de societe famille', 'jeu societe strategie plateau', 'puzzle 1000 pieces adulte', 'puzzle 3d maquette', 'peluche geante douce', 'peluche animal realiste', 'doudou bebe naissance', 'poupee chiffon tissu', 'jouet montessori bois', 'kit science enfant experience', 'jeu construction magnetique', 'tableau magnetique enfant', 'veilleuse enfant projection', 'coffret cadeau naissance', 'jouet interactif bebe eveil', 'tapis eveil bebe', 'accessoires gaming enfant', 'manette retro gaming', 'velo enfant 12 pouces roulettes', 'velo enfant 16 pouces', 'porteur bebe voiture', 'trotteur porteur enfant', 'voiture electrique enfant telecommande', 'kart a pedales enfant', 'draisienne bois bebe',
-      // -- Ajout 21/09 : jeux de societe/enfants/adultes, cadeaux par destinataire, vehicules telecommandes, accessoires gaming --
-      'jeu de cartes couleurs famille', 'jeu de societe strategie enfant adulte', 'jeu societe rapidite reflexes famille', 'jeu de memoire enfant carte', 'jeu de reflexion logique enfant', 'jeu de des societe famille', 'jeu de societe voyage compact poche', 'jeu educatif enfant apprentissage', 'puzzle enfant bois educatif', 'jeu de construction enfant blocs', 'jeu magnetique construction enfant', 'jeu creatif activite manuelle enfant', 'jeu d imitation cuisine dinette enfant', 'jouet montessori apprentissage bois', 'jeu de plein air enfant exterieur', 'jeu d ambiance soiree adulte', 'jeu de cartes adulte soiree', 'jeu de quiz culture generale famille', 'jeu de societe couple duo', 'jeu de societe entre amis soiree', 'jeu de societe defis gages', 'jeu de societe competitif strategie adulte', 'gadget tech homme cadeau', 'accessoire voiture homme cadeau', 'portefeuille homme cuir cadeau', 'accessoire bureau homme cadeau original', 'objet personnalisable homme gravure cadeau', 'bijou fantaisie femme cadeau', 'petit objet decoratif femme cadeau', 'miroir de poche femme cadeau', 'accessoire beaute femme cadeau', 'objet personnalisable femme gravure cadeau', 'peluche cadeau enfant douce', 'kit creatif enfant cadeau', 'petit cadeau surprise enfant', 'livre activite enfant cadeau', 'cadeau romantique couple original', 'cadre photo couple personnalise', 'coffret cadeau couple duo', 'cadeau reussite diplome felicitations', 'medaille trophee felicitations cadeau', 'cadre diplome personnalise', 'carte de felicitations diplome', 'accessoire humoristique cadeau original', 'bateau telecommande jouet piscine', 'helicoptere telecommande jouet debutant', 'avion telecommande jouet debutant', 'buggy telecommande jouet enfant tout terrain', 'drone jouet enfant camera', 'voiture telecommandee derapage drift jouet', 'manette gaming sans fil pc console', 'casque gaming filaire microphone', 'tapis de souris gaming xxl', 'support de manette gaming charge',
+      'voiture electrique enfant 12v', 'voiture electrique enfant 24v',
+      'quad electrique enfant 12v', 'moto electrique enfant 6v',
+      'buggy electrique enfant telecommande', 'tracteur electrique enfant remorque',
+      'porteur electrique enfant batterie', 'kart a pedales enfant',
+      'batterie 12v voiture enfant rechange', 'chargeur voiture electrique enfant',
+      'voiture telecommandee tout terrain rapide', 'voiture rc 4x4 echelle 1 10',
+      'camion telecommande benne', 'buggy telecommande rc batterie',
+      'voiture drift telecommandee', 'bateau telecommande piscine',
+      'char telecommande fumee', 'excavatrice telecommandee metal',
+      'drone camera enfant debutant', 'drone pliable gps camera',
+      'drone course fpv debutant', 'helicoptere telecommande interieur',
+      'briques de construction compatibles 1000 pieces', 'maquette bois a construire 3d',
+      'puzzle 1000 pieces adulte', 'circuit voiture piste lumineuse',
+      'train electrique circuit enfant', 'jeu de construction magnetique grand format',
+      'etabli bricolage enfant outils', 'chevalet tableau enfant double face',
+      'figurine anime collection 30cm', 'figurine manga resine grande taille',
+      'figurine articulee action 20cm', 'figurine dessin anime lumineuse',
+      'statuette anime socle collection', 'vitrine presentation figurines',
+      'trampoline enfant jardin filet', 'cage de but football enfant',
+      'panier de basket reglable enfant', 'table de ping pong pliante',
+      'baby foot table enfant', 'flechettes electroniques cible',
+      'piscine a balles enfant parc', 'toboggan enfant jardin plastique',
+      'balancoire portique enfant jardin', 'tente de jeu enfant tipi',
+      'trottinette electrique enfant 100w', 'velo enfant 16 pouces stabilisateurs',
+      'draisienne bois enfant', 'skateboard enfant debutant',
+      'rollers reglables enfant', 'overboard tout terrain enfant',
+      'console retro portable enfant', 'console de jeux portable 10000 jeux',
+      'manette sans fil compatible pc', 'tablette enfant educative etui',
+      'tablette dessin lcd enfant', 'casque gaming enfant micro',
+      'poupee mannequin articulee vetements', 'poupee princesse robe lumineuse',
+      'maison de poupee meublee grande', 'poussette poupee jouet enfant',
+      'poupon interactif bebe jouet', 'coffret maquillage enfant lavable',
+      'cuisine enfant jouet accessoires', 'dinette enfant service complet',
+      'caisse enregistreuse jouet enfant', 'deguisement princesse enfant robe',
     ],
-    keywords: ['jouet', 'jeu', 'peluche', 'puzzle', 'poupee', 'montessori', 'construction', 'brique', 'bloc', 'circuit', 'voiture', 'telecommande', 'camion', 'robot', 'carte', 'classeur', 'pochette', 'maquette', 'doudou', 'veilleuse', 'coffret', 'cadeau', 'naissance', 'interactif', 'eveil', 'tapis', 'magnetique', 'tableau', 'science', 'gaming', 'manette', 'figurine', 'enfant', 'bebe', 'velo', 'porteur', 'trotteur', 'quad', 'moto', 'kart', 'draisienne', 'roulette', 'pedale', 'electrique', 'casque', 'pouce', 'jeu de des', 'jeu de memoire', 'jeu de reflexion', 'jeu d ambiance', 'strategie', 'rapidite', 'reflexe', 'quiz', 'defi', 'gage', 'competitif', 'educatif', 'apprentissage', 'imitation', 'plein air', 'gadget', 'portefeuille', 'gravure', 'personnalisable', 'personnalise', 'bijou fantaisie', 'objet decoratif', 'beaute', 'livre', 'activite', 'romantique', 'cadre', 'duo', 'reussite', 'medaille', 'trophee', 'felicitations', 'humoristique', 'bateau', 'helicoptere', 'avion', 'buggy', 'drone', 'drift'],
+    keywords: ['voiture electrique', 'quad electrique', 'moto electrique', 'buggy', 'tracteur', 'porteur', 'kart', 'batterie 12v', 'chargeur voiture', 'telecommandee', 'telecommande', 'rc', 'drift', 'excavatrice', 'bateau', 'char', 'drone', 'helicoptere', 'brique de construction', 'briques', 'maquette', 'puzzle', 'circuit', 'train electrique', 'magnetique', 'etabli', 'chevalet', 'figurine', 'statuette', 'vitrine', 'anime', 'manga', 'trampoline', 'cage de but', 'panier de basket', 'ping pong', 'baby foot', 'flechettes', 'piscine a balles', 'toboggan', 'balancoire', 'tipi', 'trottinette', 'velo enfant', 'draisienne', 'skateboard', 'rollers', 'overboard', 'console', 'manette', 'tablette enfant', 'tablette dessin', 'casque gaming', 'poupee', 'poupon', 'maison de poupee', 'poussette poupee', 'maquillage enfant', 'cuisine enfant', 'dinette', 'caisse enregistreuse', 'deguisement', 'jouet'],
   },
   {
     slug: 'bureau-teletravail',
@@ -707,7 +739,13 @@ export const BANNED_KEYWORDS = [
   // Engins motorisés : un quad électrique 60 V « pour adultes et enfants » est
   // entré dans Vélo & mobilité. « quad » seul n'y figure pas : il désigne
   // aussi les processeurs « quad core » des tablettes.
-  'quad electrique', 'quad tout-terrain', 'mini moto', 'pocket bike', 'moto cross enfant',
+  //
+  // Ce qui est interdit, c'est le thermique et la tension : un porteur
+  // électrique 12 V pour enfant est un jouet ordinaire, et le rayon Jouets le
+  // cherche. 60 V et 72 V ne correspondent en revanche à aucun produit de
+  // cette boutique — ni jouet, ni vélo, où le grand public s'arrête à 48 V.
+  'quad tout-terrain', 'pocket bike', 'moto thermique', 'quad thermique',
+  'mini moto thermique', 'moto cross thermique', '60v', '72v',
   // Armes blanches. Une épée chinoise « lame en acier au manganèse » est
   // entrée dans Bijoux & montres par le mot « acier ». « épée » seul n'est pas
   // interdit : une épée en mousse reste un jouet.

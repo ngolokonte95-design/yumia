@@ -178,9 +178,31 @@ describe("interdits issus de l'audit du catalogue", () => {
     for (const titre of [
       "Huile de Massage lubrifiante d'olive huile lubrifiante érotique parfumée lubrifiant corporel",
       'Quad électrique tout-terrain puissant 60V 1200W à transmission par arbre, pour adultes, enfants',
+      // Le thermique n'a pas de version « jouet » : ni certification, ni
+      // usage légal sur la voie publique.
+      'Mini moto thermique 49cc pour enfant, démarrage à tirette, 2 temps',
+      'Pocket bike essence 50cc, moto de course miniature pour enfant',
     ]) {
       expect(isBanned(titre)).toBe(true);
     }
+  });
+
+  /**
+   * Un porteur électrique 12 V est un jouet ordinaire, vendu en grande
+   * surface. L'interdiction d'origine visait les vrais engins et emportait
+   * ceux-là avec : elle porte désormais sur le thermique et sur la tension.
+   */
+  it('laisse entrer les porteurs électriques pour enfants', () => {
+    const jouets = SHOP_CATEGORIES.find((c) => c.slug === 'jouets-cadeaux')!;
+    const acceptes = [
+      'Voiture électrique enfant 12V avec télécommande parentale, 2 places, MP3',
+      'Quad électrique enfant 12V, 4 roues, batterie rechargeable, 3 à 8 ans',
+      'Moto électrique enfant 6V avec roues stabilisatrices, phares LED',
+    ];
+    const refuses = acceptes.filter(
+      (t) => isBanned(t) || isExcluded(t, jouets.exclude) || !isRelevant(t, jouets.keywords),
+    );
+    expect(refuses).toEqual([]);
   });
 
   it('laisse passer les voisins légitimes de ces interdits', () => {
