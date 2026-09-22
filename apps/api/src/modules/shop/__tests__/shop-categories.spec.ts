@@ -210,6 +210,34 @@ describe("interdits issus de l'audit du catalogue", () => {
     expect(passes).toEqual([]);
   });
 
+  /**
+   * Titres réellement présents en base après l'import de septembre, remontés
+   * par l'audit. Ils sont entrés par un mot-clé nu — « lampe », « couverture »,
+   * « filet », « tapis » — ajouté à un rayon auquel il n'apprend rien : un mot
+   * pareil désigne un objet de tous les rayons, et `keywords` est une liste OU.
+   *
+   * Le correctif a été de retirer ces mots et de les remplacer par l'ancre du
+   * produit visé (« tapis de bain », « boite macarons »). Ce test fige le
+   * résultat : reposer un mot large sur un de ces rayons le fait échouer.
+   */
+  it("ne rattache pas un rayon à un objet qui n'est que du même contenant", () => {
+    const keywords = (slug: string) => SHOP_CATEGORIES.find((c) => c.slug === slug)!.keywords;
+    const intrus: [string, string][] = [
+      ['barbier', 'Lampe de paysage extérieure à poteau haut, pour Villa, jardin, pelouse, éclairage'],
+      ['cils-sourcils', 'Couverture polaire pour canapé Jacquard côtelé, couverture floue décorative'],
+      ['mode-accessoires', 'Épuisette télescopique pliable de 150 cm pour la pêche à la mouche et en mer'],
+      ['animalerie', 'Boîte de rangement de cuisine, conteneur de fruits et légumes, boîte fraîche'],
+      ['peche', 'Tapis de sol en caoutchouc pour Chevrolet CRUZE 2017-2018 berline, tapis 3D en TPE'],
+      ['cafe-the', 'Organisateur de coffre de voiture en cuir, grande capacité, multi-usage'],
+      ['yoga-bien-etre', 'Étagère murale sans perçage, supports de rangement muraux, panier suspendu'],
+      ['fleuriste', 'Tapis de repassage pliable résistant aux hautes températures, imperméable'],
+      ['cake-design', 'Cure-dents en titane portables, porte-cure-dents de poche en métal'],
+      ['bricolage', 'Moulin à céréales compact, faible entretien, haute performance pour usage quotidien'],
+    ];
+    const passes = intrus.filter(([slug, titre]) => isRelevant(titre, keywords(slug)));
+    expect(passes).toEqual([]);
+  });
+
   it('refuse armes blanches, accessoires de tabac et dispositifs médicaux', () => {
     const refuses = [
       'Katana japonais lame en acier forgé à la main, fourreau en bois',
