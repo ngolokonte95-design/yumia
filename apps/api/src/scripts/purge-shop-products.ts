@@ -13,10 +13,19 @@
  *
  * Lecture seule par défaut — il faut `--appliquer` pour écrire.
  *
+ * `--restaurer` fait l'inverse : rend au catalogue les archivés qui passent de
+ * nouveau les filtres. Utile quand un mot-clé a été resserré trop fort — un
+ * `gants de travail` qui ne reconnaissait plus « Gant de travail », le
+ * pluriel n'étant toléré que sur le dernier mot. Il exige `--rayon` : sans
+ * lui, il ressusciterait aussi ce qui a été archivé par décision et non par
+ * filtre, comme les 150 produits retirés de Jouets & cadeaux à la demande.
+ *
  * Usage (dans le conteneur) :
  *   node dist/scripts/purge-shop-products.js
  *   node dist/scripts/purge-shop-products.js --rayon=barbier
  *   node dist/scripts/purge-shop-products.js --appliquer
+ *   node dist/scripts/purge-shop-products.js --restaurer --rayon=lecture
+ *   node dist/scripts/purge-shop-products.js --restaurer --rayon=lecture --appliquer
  */
 import { PrismaClient } from '@prisma/client';
 import {
@@ -48,10 +57,53 @@ function refus(
   return null;
 }
 
+/** Rend au catalogue les archivés d'un rayon qui repassent les filtres. */
+async function restaurer(slug: string, appliquer: boolean): Promise<void> {
+  const seed = SHOP_CATEGORIES.find((c) => c.slug === slug);
+  if (!seed) {
+    console.error(`Rayon inconnu : ${slug}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const archives = await prisma.product.findMany({
+    where: { status: 'archived', category: { slug } },
+    select: { id: true, title: true },
+  });
+  const rendus = archives.filter((p) => refus(p.title, seed) === null);
+
+  console.log(
+    `\n■ ${seed.emoji} ${seed.nameFr} [${slug}] — ${rendus.length} à rendre sur ${archives.length} archivé(s)`,
+  );
+  for (const r of rendus.slice(0, 10)) console.log(`   · ${r.title.slice(0, 90)}`);
+  if (rendus.length > 10) console.log(`   … et ${rendus.length - 10} autre(s)`);
+
+  if (rendus.length === 0) return;
+  if (!appliquer) {
+    console.log('\nRelancer avec --appliquer pour les rendre au catalogue.');
+    return;
+  }
+  const { count } = await prisma.product.updateMany({
+    where: { id: { in: rendus.map((r) => r.id) } },
+    data: { status: 'active' },
+  });
+  console.log(`\n${count} produit(s) rendu(s) au catalogue.`);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const appliquer = args.includes('--appliquer');
   const seulRayon = option('rayon', args);
+
+  if (args.includes('--restaurer')) {
+    if (!seulRayon) {
+      console.error('--restaurer exige --rayon=<slug> : voir le commentaire en tête de fichier.');
+      process.exitCode = 1;
+      return;
+    }
+    await restaurer(seulRayon, appliquer);
+    return;
+  }
 
   const produits = await prisma.product.findMany({
     where: { status: { not: 'archived' } },

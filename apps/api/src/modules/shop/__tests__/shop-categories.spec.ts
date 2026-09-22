@@ -244,6 +244,24 @@ describe("interdits issus de l'audit du catalogue", () => {
     expect(passes).toEqual([]);
   });
 
+  /**
+   * Resserrer un mot-clé en expression de plusieurs mots coûte le pluriel :
+   * `containsTerm` ne tolère le `s` final que sur le DERNIER mot. « gants de
+   * travail » a donc cessé de reconnaître « Gant de travail », et trois
+   * produits légitimes ont été archivés avant qu'on ne s'en aperçoive.
+   */
+  it('reconnaît ses produits au singulier comme au pluriel', () => {
+    const keywords = (slug: string) => SHOP_CATEGORIES.find((c) => c.slug === slug)!.keywords;
+    const attendus: [string, string][] = [
+      ['bricolage', 'Gant de travail Anti-coupure, résistant aux coupures, pour le travail du verre'],
+      ['bricolage', 'Gants de travail anti-coupure en acier, protection des mains, taille L'],
+      ['lecture', 'Lot de 6 pochoirs réutilisables en lettres et chiffres de style Old English'],
+      ['peche', 'Bottes de pluie en caoutchouc imperméables, gaines de pêche à tube court'],
+    ];
+    const manques = attendus.filter(([slug, titre]) => !isRelevant(titre, keywords(slug)));
+    expect(manques).toEqual([]);
+  });
+
   it('refuse armes blanches, accessoires de tabac et dispositifs médicaux', () => {
     const refuses = [
       'Katana japonais lame en acier forgé à la main, fourreau en bois',
