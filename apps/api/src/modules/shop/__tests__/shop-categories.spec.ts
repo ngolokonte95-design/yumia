@@ -205,6 +205,12 @@ describe("interdits issus de l'audit du catalogue", () => {
       ['lecture', 'Casque de jeu avec Microphone antibruit détachable, prise filaire 2.4G'],
       ['ski-hiver', 'Masque de Protection complet Anti-buée avec filtre, masque Anti-éclaboussures et Anti-gouttelettes'],
       ['pique-nique', "Planche à pendule en bois pour l'autel Wicca, planche décorative métaphysique"],
+      // « tondeuse » vaut pour les cheveux comme pour le gazon : les trois
+      // rayons qui ont ce mot-clé recevaient du matériel de jardin.
+      ['barbier', 'Brosse de nettoyage pour tondeuse à gazon, accessoire de jardin'],
+      ['barbier', 'Support de poignée pour débroussailleuse, accessoires pour STIHL FS120 FS120R'],
+      ['coiffure-beaute', 'Lame de rechange pour tondeuse à gazon électrique, entretien de pelouse'],
+      ['animalerie', 'Kit de lames pour tondeuse à gazon thermique, tronçonneuse et taille haie'],
     ];
     const passes = cas.filter(([slug, titre]) => !isExcluded(titre, exclude(slug)));
     expect(passes).toEqual([]);
