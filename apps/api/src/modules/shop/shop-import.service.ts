@@ -246,7 +246,13 @@ export class ShopImportService {
         tags: [categorySlug],
         rating: detail.rating ?? null,
         reviewsCount: detail.reviewsCount ?? 0,
-        salesCount: detail.salesCount ?? 0,
+        // Jamais les ventes AliExpress : ce sont celles d'un autre
+        // vendeur, les afficher comme les nôtres est une pratique
+        // commerciale trompeuse (directive Omnibus (UE) 2019/2161) —
+        // même raison que `compareAtCents` ci-dessus. Le compteur part de
+        // zéro et n'augmente qu'à l'expédition d'une vraie commande
+        // (`orders.service.ts`).
+        salesCount: 0,
         deliveryDays: detail.deliveryDays ?? null,
         categoryId,
         aliexpressProductId,

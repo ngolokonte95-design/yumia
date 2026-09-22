@@ -189,7 +189,10 @@ export class CatalogService {
       case 'price_desc':  return [{ priceCents: 'desc' }];
       case 'rating':      return [{ rating: 'desc' }, { reviewsCount: 'desc' }];
       case 'newest':      return [{ createdAt: 'desc' }];
-      case 'bestsellers': return [{ salesCount: 'desc' }];
+      // `salesCount` ne compte que nos ventes réelles, donc zéro presque
+      // partout au démarrage : sans second critère, l'ordre serait celui
+      // que Postgres veut bien rendre.
+      case 'bestsellers': return [{ salesCount: 'desc' }, { rating: 'desc' }];
       // Par défaut : les produits mis en avant d'abord, puis les mieux vendus —
       // une liste triée par date seule remonterait surtout des imports récents
       // non éprouvés.
@@ -219,7 +222,7 @@ export class CatalogService {
       this.prisma.product.findMany({
         where: { categoryId: product.categoryId, status: { in: ACTIVE }, NOT: { id: product.id } },
         select: isAdmin ? { ...LIST_SELECT, aliexpressPriceCents: true } : LIST_SELECT,
-        orderBy: [{ salesCount: 'desc' }],
+        orderBy: [{ salesCount: 'desc' }, { rating: 'desc' }],
         take: 8,
       }),
       userId
