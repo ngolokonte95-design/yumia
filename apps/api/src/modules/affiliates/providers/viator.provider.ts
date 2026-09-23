@@ -82,6 +82,9 @@ export class ViatorProvider implements AffiliateProvider {
   private destinationsById: Map<string, number> | null = null;
   /** Même référentiel, en liste : sert aux suggestions de villes. */
   private destinationsList: ViatorDestination[] = [];
+  /** Le référentiel en anglais : les adresses de Discover Cars sont en anglais. */
+  private destinationsEn: Map<number, ViatorDestination> | null = null;
+  private destinationsEnFetchedAt = 0;
   private destinationsFetchedAt = 0;
 
   private async loadDestinations(): Promise<Map<string, number>> {
@@ -286,6 +289,43 @@ export class ViatorProvider implements AffiliateProvider {
       if (out.length >= limit) break;
     }
     return out;
+  }
+
+  /**
+   * Noms anglais d'une ville choisie par son nom français (celui des
+   * suggestions) : ville, niveaux intermédiaires (l'État aux États-Unis) et
+   * pays. Sert à fabriquer l'adresse de la page ville de Discover Cars.
+   */
+  async englishPlaceNames(cityFr: string): Promise<{ country: string; city: string; regions: string[] } | null> {
+    if (!this.apiKey) return null;
+    try {
+      const ids = await this.loadDestinations();
+      const id = ids.get(normalizeTitle(cityFr));
+      if (!id) return null;
+      if (!this.destinationsEn || Date.now() - this.destinationsEnFetchedAt > DESTINATIONS_TTL_MS) {
+        const res = await fetch('https://api.viator.com/partner/destinations', {
+          headers: { Accept: 'application/json;version=2.0', 'Accept-Language': 'en-US', 'exp-api-key': this.apiKey },
+        });
+        if (!res.ok) throw new Error(`GET /destinations (en) → ${res.status}`);
+        const data = (await res.json()) as { destinations?: ViatorDestination[] };
+        this.destinationsEn = new Map((data.destinations ?? []).map((d) => [d.destinationId, d]));
+        this.destinationsEnFetchedAt = Date.now();
+      }
+      const city = this.destinationsEn.get(id);
+      if (!city) return null;
+      const regions: string[] = [];
+      let country: string | null = null;
+      let cur = city.parentDestinationId != null ? this.destinationsEn.get(city.parentDestinationId) : undefined;
+      for (let i = 0; cur && i < 6; i++) {
+        if (cur.type === 'COUNTRY') { country = cur.name; break; }
+        regions.push(cur.name);
+        cur = cur.parentDestinationId != null ? this.destinationsEn.get(cur.parentDestinationId) : undefined;
+      }
+      return country ? { country, city: city.name, regions } : null;
+    } catch (e) {
+      this.logger.warn(`englishPlaceNames(${cityFr}) indisponible : ${(e as Error).message}`);
+      return null;
+    }
   }
 
   /** Ajoute notre identifiant partenaire à un lien produit, s'il n'y est pas déjà. */

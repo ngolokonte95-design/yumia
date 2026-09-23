@@ -145,6 +145,12 @@ export default function ExplorerScreen() {
       router.push(`/guides?theme=${category}` as never);
       return;
     }
+    // Location de voiture (Discover Cars) : choix de la ville dans l'app,
+    // puis page de cette ville chez le partenaire.
+    if (category === 'car_rental') {
+      router.push('/car-rental' as never);
+      return;
+    }
     if (!accessToken || genericLinkLoading) return;
     setGenericLinkLoading(category);
     try {

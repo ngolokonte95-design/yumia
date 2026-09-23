@@ -2,6 +2,7 @@ import { AffiliatesService } from '../affiliates.service';
 import { BookingProvider } from '../providers/booking.provider';
 import { GetYourGuideProvider } from '../providers/getyourguide.provider';
 import { ViatorProvider } from '../providers/viator.provider';
+import { DiscoverCarsProvider } from '../providers/discovercars.provider';
 import type { PrismaService } from '../../../infra/prisma/prisma.service';
 import type { PlacesService } from '../../places/places.service';
 
@@ -12,6 +13,7 @@ const makeService = () =>
     new BookingProvider(),
     new GetYourGuideProvider(),
     new ViatorProvider(),
+    new DiscoverCarsProvider(),
   );
 
 const find = (cats: ReturnType<AffiliatesService['genericCategories']>, key: string) =>
@@ -28,9 +30,16 @@ describe('genericCategories', () => {
     delete process.env.BOOKING_AFFILIATE_ID;
     const cats = makeService().genericCategories();
 
-    for (const key of ['hotel', 'car_rental', 'flights']) {
+    for (const key of ['hotel', 'flights']) {
       expect(find(cats, key).configured).toBe(true);
     }
+  });
+
+  it("n'ouvre la location de voiture (Discover Cars) qu'avec l'identifiant d'affilié", () => {
+    delete process.env.DISCOVERCARS_AFFILIATE_ID;
+    expect(find(makeService().genericCategories(), 'car_rental').configured).toBe(false);
+    process.env.DISCOVERCARS_AFFILIATE_ID = 'yumia';
+    expect(find(makeService().genericCategories(), 'car_rental').configured).toBe(true);
   });
 
   it('ne déclare pas ouvert un onglet dont le lien ne peut pas être produit', () => {

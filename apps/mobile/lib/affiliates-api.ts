@@ -85,6 +85,15 @@ export interface GuidedTours {
   links: { provider: string; url: string }[];
 }
 
+/**
+ * Lien Discover Cars pour une ville. `exact: false` : aucune page ville
+ * confirmée, le lien mène à leur accueil (toujours avec notre identifiant).
+ */
+export function fetchCarRentalLink(city: string, locale: string, accessToken: string): Promise<{ url: string; exact: boolean }> {
+  const q = new URLSearchParams({ city, locale });
+  return request<{ url: string; exact: boolean }>(`/affiliates/car-rental?${q.toString()}`, { token: accessToken });
+}
+
 /** Villes proposées pendant la saisie (référentiel Viator). */
 export async function fetchTourCities(q: string, accessToken: string): Promise<{ name: string; label: string }[]> {
   const data = await request<{ cities: { name: string; label: string }[] }>(

@@ -40,6 +40,17 @@ export class AffiliatesController {
     return { url: link };
   }
 
+  /** GET /api/affiliates/car-rental?city=Paris&locale=fr — écran Location de voiture. */
+  @Get('affiliates/car-rental')
+  @UseGuards(JwtAuthGuard)
+  async carRental(@CurrentUser() user: JwtPayload, @Query('city') city?: string, @Query('locale') locale?: string) {
+    const c = (city ?? '').trim();
+    if (!c) throw new BadRequestException('Ville manquante.');
+    const link = await this.affiliates.carRentalLink(c.slice(0, 80), locale, user.sub);
+    if (!link) throw new NotFoundException('Location de voiture indisponible.');
+    return link;
+  }
+
   /** GET /api/affiliates/tours/cities?q=bar — villes proposées pendant la saisie. */
   @Get('affiliates/tours/cities')
   @UseGuards(JwtAuthGuard)

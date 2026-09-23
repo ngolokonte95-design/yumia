@@ -6,11 +6,12 @@ import { AffiliatesService } from './affiliates.service';
 import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { ViatorProvider } from './providers/viator.provider';
+import { DiscoverCarsProvider } from './providers/discovercars.provider';
 
 @Module({
   imports: [AuthModule, PlacesModule],
   controllers: [AffiliatesController],
-  providers: [AffiliatesService, BookingProvider, GetYourGuideProvider, ViatorProvider],
+  providers: [AffiliatesService, BookingProvider, GetYourGuideProvider, ViatorProvider, DiscoverCarsProvider],
   exports: [AffiliatesService],
 })
 export class AffiliatesModule {}

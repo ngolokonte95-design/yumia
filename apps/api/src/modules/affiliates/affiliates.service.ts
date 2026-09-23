@@ -7,6 +7,7 @@ import type { AffiliateProvider, AffiliateProviderKey } from './providers/affili
 import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { ViatorProvider } from './providers/viator.provider';
+import { DiscoverCarsProvider } from './providers/discovercars.provider';
 import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-provider-map';
 
 /**
@@ -37,7 +38,9 @@ const GENERIC_CATEGORIES: Record<string, { provider: AffiliateProviderKey; searc
   // renseigné. `requiresEnvFlag` reste disponible pour un futur partenaire à
   // masquer, mais plus aucun rayon ne l'utilise.
   hotel: { provider: 'booking' },
-  car_rental: { provider: 'booking', searchTerm: 'cars' },
+  // Discover Cars depuis le 23/09/2026 (compte affilié « yumia » validé) :
+  // l'onglet ouvre un écran de choix de ville, voir carRentalLink.
+  car_rental: { provider: 'discovercars' },
   flights: { provider: 'booking', searchTerm: 'flights' },
 };
 export type GenericDealCategory = keyof typeof GENERIC_CATEGORIES;
@@ -77,6 +80,7 @@ export class AffiliatesService {
     booking: BookingProvider,
     getyourguide: GetYourGuideProvider,
     private readonly viator: ViatorProvider,
+    private readonly discovercars: DiscoverCarsProvider,
   ) {
     // Chaque nouveau partenaire (Fever, Treatwell, Trainline...) s'ajoute
     // simplement ici une fois son provider implémenté — le mapping univers →
@@ -85,6 +89,7 @@ export class AffiliatesService {
       [booking.key, booking],
       [getyourguide.key, getyourguide],
       [viator.key, viator],
+      [discovercars.key, discovercars],
     ]);
   }
 
@@ -235,6 +240,20 @@ export class AffiliatesService {
         .catch(() => undefined);
     }
     return { city, tours, links };
+  }
+
+  /**
+   * Écran Location de voiture : page de la ville chez Discover Cars, ou leur
+   * accueil si aucune page ville n'a pu être confirmée.
+   */
+  async carRentalLink(city: string, locale: string | undefined, userId: string | undefined) {
+    const names = await this.viator.englishPlaceNames(city);
+    const link = await this.discovercars.cityLink(names, locale);
+    if (!link) return null;
+    await this.prisma.affiliateClick
+      .create({ data: { id: randomUUID(), userId, provider: 'discovercars' } })
+      .catch(() => undefined);
+    return link;
   }
 
   /** Autocomplétion de ville de l'écran Visites guidées. */

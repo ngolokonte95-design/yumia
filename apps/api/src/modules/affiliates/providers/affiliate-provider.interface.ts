@@ -4,6 +4,7 @@ export type AffiliateProviderKey =
   | 'booking'
   | 'getyourguide'
   | 'viator'
+  | 'discovercars'
   | 'fever'
   | 'shotgun'
   | 'trainline'
