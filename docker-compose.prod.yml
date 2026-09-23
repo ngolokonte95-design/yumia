@@ -91,6 +91,9 @@ services:
       # Onglets génériques Booking (Hôtel/Location de voiture/Billet d'avion) :
       # visibles seulement quand ce drapeau vaut 'true'.
       BOOKING_GENERIC_TABS_ENABLED: ${BOOKING_GENERIC_TABS_ENABLED:-}
+      # Discover Cars (location de voiture) — identifiant d'affilié « yumia »,
+      # public (il figure dans chaque lien). Vide = onglet Location masqué.
+      DISCOVERCARS_AFFILIATE_ID: ${DISCOVERCARS_AFFILIATE_ID:-}
 
       # Boutique — dropshipping AliExpress. APP_KEY/APP_SECRET viennent de la
       # console AliExpress Open Platform ; le jeton OAuth, lui, est stocké en
