@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, NotFo
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
-import { AffiliatesService } from './affiliates.service';
+import { AffiliatesService, isTourTheme, type TourTheme } from './affiliates.service';
 import type { AffiliateProviderKey } from './providers/affiliate-provider.interface';
 
 @Controller()
@@ -47,13 +47,18 @@ export class AffiliatesController {
     return { cities: await this.affiliates.suggestTourCities((q ?? '').slice(0, 60)) };
   }
 
-  /** GET /api/affiliates/tours?city=Paris — écran « Visites guidées ». */
+  /**
+   * GET /api/affiliates/tours?city=Paris[&theme=skip_the_line] — écran des
+   * visites : Visites guidées par défaut, ou l'un des thèmes des onglets
+   * « Réserve chez nos partenaires » (voir TOUR_THEMES).
+   */
   @Get('affiliates/tours')
   @UseGuards(JwtAuthGuard)
-  tours(@CurrentUser() user: JwtPayload, @Query('city') city?: string) {
+  tours(@CurrentUser() user: JwtPayload, @Query('city') city?: string, @Query('theme') theme?: string) {
     const c = (city ?? '').trim();
     if (!c) throw new BadRequestException('Ville manquante.');
-    return this.affiliates.guidedTours(c.slice(0, 80), user.sub);
+    if (theme && !isTourTheme(theme)) throw new BadRequestException('Thème inconnu.');
+    return this.affiliates.guidedTours(c.slice(0, 80), user.sub, theme as TourTheme | undefined);
   }
 
   /** GET /api/affiliates/generic-categories — catégories disponibles pour les onglets Explorer (activités, transfert aéroport...). */

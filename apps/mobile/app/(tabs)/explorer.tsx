@@ -38,6 +38,7 @@ import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 import { universeSearchRadius } from '../../lib/universeRadius';
 import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/affiliates-api';
 import { ratingSuffix } from '../../lib/place-rating';
+import { TOUR_THEME_KEYS } from '../../lib/tour-themes';
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
 // (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
@@ -137,6 +138,13 @@ export default function ExplorerScreen() {
     : GENERIC_DEAL_TABS;
 
   async function openGenericDeal(category: string) {
+    // Thèmes de visites : liste réelle dans l'app, comme Visites guidées.
+    // Hôtel, location et vols (Booking.com) ouvrent toujours le partenaire :
+    // son API de recherche est réservée aux affiliés validés.
+    if (TOUR_THEME_KEYS.has(category)) {
+      router.push(`/guides?theme=${category}` as never);
+      return;
+    }
     if (!accessToken || genericLinkLoading) return;
     setGenericLinkLoading(category);
     try {

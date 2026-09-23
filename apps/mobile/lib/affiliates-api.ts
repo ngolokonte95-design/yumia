@@ -95,6 +95,8 @@ export async function fetchTourCities(q: string, accessToken: string): Promise<{
 }
 
 /** Écran Visites guidées : visites les mieux notées de la ville + liens partenaires. */
-export function fetchGuidedTours(city: string, accessToken: string): Promise<GuidedTours> {
-  return request<GuidedTours>(`/affiliates/tours?city=${encodeURIComponent(city)}`, { token: accessToken });
+export function fetchGuidedTours(city: string, accessToken: string, theme?: string): Promise<GuidedTours> {
+  const q = new URLSearchParams({ city });
+  if (theme) q.set('theme', theme);
+  return request<GuidedTours>(`/affiliates/tours?${q.toString()}`, { token: accessToken });
 }

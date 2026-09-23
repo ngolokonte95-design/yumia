@@ -42,6 +42,27 @@ const GENERIC_CATEGORIES: Record<string, { provider: AffiliateProviderKey; searc
 };
 export type GenericDealCategory = keyof typeof GENERIC_CATEGORIES;
 
+/**
+ * Thèmes de l'écran de visites (Visites guidées et 7 onglets « Réserve chez
+ * nos partenaires »). [terme français, terme anglais] pour la recherche plein
+ * texte de Viator ; `null` = le meilleur de la ville, sans filtre de sujet.
+ */
+export const TOUR_THEMES = {
+  guides: ['visite guidée', 'guided tour'],
+  activities: null,
+  skip_the_line: ['coupe-file', 'skip the line'],
+  food_tours: ['visite gastronomique', 'food tour'],
+  hop_on_hop_off: ['bus touristique', 'hop-on hop-off'],
+  airport_transfer: ['transfert aéroport', 'airport transfer'],
+  adventure: ['aventure', 'outdoor adventure'],
+  shows: ['spectacle', 'show'],
+} as const satisfies Record<string, readonly [string, string] | null>;
+export type TourTheme = keyof typeof TOUR_THEMES;
+
+export function isTourTheme(v: string): v is TourTheme {
+  return Object.prototype.hasOwnProperty.call(TOUR_THEMES, v);
+}
+
 function categoryEnabled(spec: { requiresEnvFlag?: string }): boolean {
   return !spec.requiresEnvFlag || process.env[spec.requiresEnvFlag] === 'true';
 }
@@ -192,10 +213,16 @@ export class AffiliatesService {
    * Remplace les « guides locaux » : des personnes fictives, créées par un
    * script de démonstration, dont la réservation n'était transmise à personne.
    */
-  async guidedTours(city: string, userId: string | undefined) {
+  async guidedTours(city: string, userId: string | undefined, theme: TourTheme = 'guides') {
     const trackingId = randomUUID();
-    const tours = (await this.viator.searchTours(city, trackingId)) ?? [];
-    const searchTerm = `visite guidée ${city}`;
+    const terms = TOUR_THEMES[theme];
+    // Terme français d'abord (titres demandés en français), anglais en repli :
+    // tous les produits ne sont pas traduits chez Viator.
+    let tours = (await this.viator.searchTours(city, trackingId, terms?.[0])) ?? [];
+    if (tours.length === 0 && terms?.[1]) {
+      tours = (await this.viator.searchTours(city, trackingId, terms[1])) ?? [];
+    }
+    const searchTerm = terms ? `${terms[0]} ${city}` : city;
     const links = (['getyourguide', 'viator'] as const).flatMap((key) => {
       const url = this.providers.get(key)?.generateGenericLink(trackingId, searchTerm);
       return url ? [{ provider: key, url }] : [];

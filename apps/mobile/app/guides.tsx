@@ -2,6 +2,9 @@
  * VISITES GUIDÉES — les visites les mieux notées d'une ville, réservables chez
  * nos partenaires (Viator, GetYourGuide). Branché sur GET /affiliates/tours.
  *
+ * Sert aussi aux onglets « Réserve chez nos partenaires » d'Explorer
+ * (`?theme=skip_the_line`, `food_tours`…) : même écran, filtré par sujet.
+ *
  * Remplace les « guides locaux » : des personnes fictives, créées par un script
  * de démonstration, avec note et label « certifié » inventés, et une
  * réservation qui n'était transmise à personne.
@@ -18,8 +21,10 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
+import { THEME_TITLES } from '../lib/tour-themes';
 
 const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
+
 
 function formatDuration(min: number | null): string | null {
   if (!min) return null;
@@ -43,7 +48,9 @@ export default function GuidesScreen() {
   const { accessToken } = useAuth();
   const { t } = useI18n();
   const { city: locCity } = useLocation();
-  const { city: paramCity } = useLocalSearchParams<{ city?: string }>();
+  const { city: paramCity, theme: paramTheme } = useLocalSearchParams<{ city?: string; theme?: string }>();
+  const theme = paramTheme && THEME_TITLES[paramTheme] ? paramTheme : undefined;
+  const title = theme ? `${THEME_TITLES[theme].emoji} ${t(THEME_TITLES[theme].labelKey)}` : t('gd_title');
 
   const [query, setQuery] = useState(paramCity ?? locCity ?? 'Paris');
   const [result, setResult] = useState<GuidedTours | null>(null);
@@ -79,13 +86,13 @@ export default function GuidesScreen() {
     if (!c || !accessToken) return;
     setLoading(true);
     try {
-      setResult(await fetchGuidedTours(c, accessToken));
+      setResult(await fetchGuidedTours(c, accessToken, theme));
     } catch {
       setResult({ city: c, tours: [], links: [] });
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, theme]);
 
   useEffect(() => { void load(query); /* chargement initial */ }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,7 +105,7 @@ export default function GuidesScreen() {
           <Text style={styles.backText}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{t('gd_title')}</Text>
+          <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{t('gd_subtitle')}</Text>
         </View>
       </View>

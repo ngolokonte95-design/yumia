@@ -167,34 +167,54 @@ export class ViatorProvider implements AffiliateProvider {
    * propose alors les liens de recherche des partenaires plutôt qu'une liste
    * vide sans explication.
    */
-  async searchTours(city: string, trackingId: string, limit = 20): Promise<TourListing[] | null> {
+  async searchTours(city: string, trackingId: string, searchTerm?: string, limit = 20): Promise<TourListing[] | null> {
     if (!this.apiKey || !this.partnerId) return null;
     try {
       const destinations = await this.loadDestinations();
       const destinationId = destinations.get(normalizeTitle(city));
       if (!destinationId) return null;
 
-      const res = await fetch('https://api.viator.com/partner/products/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json;version=2.0',
-          'Accept-Language': 'fr-FR',
-          'exp-api-key': this.apiKey,
-        },
-        body: JSON.stringify({
-          filtering: { destination: String(destinationId) },
-          sorting: { sort: 'TRAVELER_RATING', order: 'DESCENDING' },
-          pagination: { start: 1, count: limit },
-          currency: 'EUR',
-        }),
-      });
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json;version=2.0',
+        'Accept-Language': 'fr-FR',
+        'exp-api-key': this.apiKey,
+      };
+      // Sans thème : le meilleur de la ville, trié par note des voyageurs.
+      // Avec un thème (« coupe-file », « transfert aéroport »…) : recherche
+      // plein texte, seule à savoir filtrer sur un sujet sans connaître les
+      // identifiants de catégories internes de Viator.
+      const res = searchTerm
+        ? await fetch('https://api.viator.com/partner/search/freetext', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              searchTerm,
+              currency: 'EUR',
+              productFiltering: { destination: String(destinationId) },
+              searchTypes: [{ searchType: 'PRODUCTS', pagination: { start: 1, count: limit } }],
+            }),
+          })
+        : await fetch('https://api.viator.com/partner/products/search', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              filtering: { destination: String(destinationId) },
+              sorting: { sort: 'TRAVELER_RATING', order: 'DESCENDING' },
+              pagination: { start: 1, count: limit },
+              currency: 'EUR',
+            }),
+          });
       if (!res.ok) {
-        this.logger.warn(`searchTours(${city}) : réponse ${res.status}`);
+        const body = await res.text().catch(() => '');
+        this.logger.warn(`searchTours(${city}, ${searchTerm ?? '-'}) : réponse ${res.status} ${body.slice(0, 200)}`);
         return null;
       }
-      const data = (await res.json()) as { products?: ViatorProduct[] };
-      return (data.products ?? []).flatMap((p) => {
+      // /products/search renvoie `products: [...]`, /search/freetext
+      // `products: { results: [...] }` : on accepte les deux.
+      const data = (await res.json()) as { products?: ViatorProduct[] | { results?: ViatorProduct[] } };
+      const products = Array.isArray(data.products) ? data.products : data.products?.results ?? [];
+      return products.flatMap((p) => {
         const url = p.productUrl ? this.trackedUrl(p.productUrl, trackingId) : null;
         if (!p.title || !url) return [];
         const cover = p.images?.find((i) => i.isCover) ?? p.images?.[0];
