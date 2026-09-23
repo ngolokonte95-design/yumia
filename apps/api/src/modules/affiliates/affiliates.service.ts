@@ -62,6 +62,29 @@ export const TOUR_THEMES = {
 } as const satisfies Record<string, readonly [string, string] | null>;
 export type TourTheme = keyof typeof TOUR_THEMES;
 
+/**
+ * Sous-filtres d'un thème (puces sous la barre de ville). Même principe :
+ * [terme français, terme anglais] pour la recherche plein texte de Viator.
+ * Clés reprises telles quelles par le mobile (lib/tour-themes.ts).
+ */
+export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [string, string]>>> = {
+  shows: {
+    nightlife: ['boîte de nuit', 'nightclub'],
+    cabaret: ['cabaret', 'cabaret'],
+    concert: ['concert', 'concert'],
+    comedy: ['spectacle humour', 'comedy show'],
+    theatre: ['théâtre', 'theater'],
+    musical: ['comédie musicale', 'musical'],
+    dinner_cruise: ['dîner croisière', 'dinner cruise'],
+    pub_crawl: ['tournée des bars', 'pub crawl'],
+  },
+};
+
+export function isThemeFacet(theme: TourTheme, facet: string): boolean {
+  const facets = THEME_FACETS[theme];
+  return !!facets && Object.prototype.hasOwnProperty.call(facets, facet);
+}
+
 export function isTourTheme(v: string): v is TourTheme {
   return Object.prototype.hasOwnProperty.call(TOUR_THEMES, v);
 }
@@ -218,9 +241,9 @@ export class AffiliatesService {
    * Remplace les « guides locaux » : des personnes fictives, créées par un
    * script de démonstration, dont la réservation n'était transmise à personne.
    */
-  async guidedTours(city: string, userId: string | undefined, theme: TourTheme = 'guides') {
+  async guidedTours(city: string, userId: string | undefined, theme: TourTheme = 'guides', facet?: string) {
     const trackingId = randomUUID();
-    const terms = TOUR_THEMES[theme];
+    const terms = (facet && THEME_FACETS[theme]?.[facet]) || TOUR_THEMES[theme];
     // Terme français d'abord (titres demandés en français), anglais en repli :
     // tous les produits ne sont pas traduits chez Viator.
     let tours = (await this.viator.searchTours(city, trackingId, terms?.[0])) ?? [];

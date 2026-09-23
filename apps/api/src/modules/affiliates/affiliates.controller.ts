@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, NotFo
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
-import { AffiliatesService, isTourTheme, type TourTheme } from './affiliates.service';
+import { AffiliatesService, isThemeFacet, isTourTheme, type TourTheme } from './affiliates.service';
 import type { AffiliateProviderKey } from './providers/affiliate-provider.interface';
 
 @Controller()
@@ -65,11 +65,18 @@ export class AffiliatesController {
    */
   @Get('affiliates/tours')
   @UseGuards(JwtAuthGuard)
-  tours(@CurrentUser() user: JwtPayload, @Query('city') city?: string, @Query('theme') theme?: string) {
+  tours(
+    @CurrentUser() user: JwtPayload,
+    @Query('city') city?: string,
+    @Query('theme') theme?: string,
+    @Query('facet') facet?: string,
+  ) {
     const c = (city ?? '').trim();
     if (!c) throw new BadRequestException('Ville manquante.');
     if (theme && !isTourTheme(theme)) throw new BadRequestException('Thème inconnu.');
-    return this.affiliates.guidedTours(c.slice(0, 80), user.sub, theme as TourTheme | undefined);
+    const t = (theme as TourTheme | undefined) ?? 'guides';
+    if (facet && !isThemeFacet(t, facet)) throw new BadRequestException('Filtre inconnu.');
+    return this.affiliates.guidedTours(c.slice(0, 80), user.sub, t, facet);
   }
 
   /** GET /api/affiliates/generic-categories — catégories disponibles pour les onglets Explorer (activités, transfert aéroport...). */

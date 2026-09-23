@@ -21,7 +21,7 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
-import { THEME_TITLES } from '../lib/tour-themes';
+import { THEME_FACETS, THEME_TITLES } from '../lib/tour-themes';
 
 const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
 
@@ -55,6 +55,10 @@ export default function GuidesScreen() {
   const [query, setQuery] = useState(paramCity ?? locCity ?? 'Paris');
   const [result, setResult] = useState<GuidedTours | null>(null);
   const [loading, setLoading] = useState(false);
+  // Style de sortie choisi dans les puces (Spectacles : boîte de nuit,
+  // cabaret…). `undefined` = tous.
+  const facets = theme ? THEME_FACETS[theme] : undefined;
+  const [facet, setFacet] = useState<string | undefined>();
   // Suggestions de villes pendant la saisie. `typing` ne passe à vrai qu'à la
   // frappe : choisir une suggestion remplit le champ sans rouvrir la liste.
   const [typing, setTyping] = useState(false);
@@ -81,18 +85,18 @@ export default function GuidesScreen() {
     void load(city);
   };
 
-  const load = useCallback(async (city: string) => {
+  const load = useCallback(async (city: string, f: string | undefined = facet) => {
     const c = city.trim();
     if (!c || !accessToken) return;
     setLoading(true);
     try {
-      setResult(await fetchGuidedTours(c, accessToken, theme));
+      setResult(await fetchGuidedTours(c, accessToken, theme, f));
     } catch {
       setResult({ city: c, tours: [], links: [] });
     } finally {
       setLoading(false);
     }
-  }, [accessToken, theme]);
+  }, [accessToken, theme, facet]);
 
   useEffect(() => { void load(query); /* chargement initial */ }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -139,6 +143,29 @@ export default function GuidesScreen() {
             </Pressable>
           ))}
         </View>
+      )}
+
+      {facets && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.facetScroll}
+          contentContainerStyle={styles.facetRow}
+        >
+          {[{ key: undefined as string | undefined, label: t('facet_all') },
+            ...facets.map((f) => ({ key: f.key as string | undefined, label: `${f.emoji} ${t(f.labelKey)}` }))].map((f) => {
+            const active = facet === f.key;
+            return (
+              <Pressable
+                key={f.key ?? 'all'}
+                style={[styles.facetChip, active && styles.facetChipActive]}
+                onPress={() => { setFacet(f.key); void load(query, f.key); }}
+              >
+                <Text style={[styles.facetTxt, active && styles.facetTxtActive]}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       )}
 
       {loading ? (
@@ -220,6 +247,15 @@ const styles = StyleSheet.create({
   searchBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   searchBtnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  facetScroll: { flexGrow: 0, marginBottom: spacing.sm },
+  facetRow: { gap: 6, paddingHorizontal: spacing.md },
+  facetChip: {
+    backgroundColor: colors.surface, borderRadius: radius.pill, borderWidth: 1,
+    borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  facetChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  facetTxt: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  facetTxtActive: { color: '#fff' },
   suggestBox: {
     marginHorizontal: spacing.md, marginTop: -spacing.xs, marginBottom: spacing.sm,
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
