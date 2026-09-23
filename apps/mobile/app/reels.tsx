@@ -25,6 +25,9 @@ import { watchPlayerErrors } from '../lib/video-debug';
 import { epochSource, useMediaEpoch } from '../lib/media-epoch';
 import { restorePlaybackAudio } from '../lib/audio-session';
 
+/** Écart entre le bouton son et le bloc auteur/légende, en px. */
+const MUTE_GAP = 12;
+
 const { width: W, height: H } = Dimensions.get('window');
 const API = API_BASE_URL;
 
@@ -500,6 +503,12 @@ function ReelCardBase({
   const mediaUrl = media[imageIndex];
   const isVideo = isVideoUrl(mediaUrl);
   const isCarousel = media.length > 1;
+  // Hauteur du bloc auteur/légende/musique : elle varie d'une publication à
+  // l'autre (légende sur une ou trois lignes, musique ou non) et selon la
+  // barre système du téléphone. Le bouton son se cale au-dessus, à écart
+  // constant — à une hauteur fixe, il finissait collé au nom de l'auteur.
+  const [infoHeight, setInfoHeight] = useState(0);
+  const muteStyle = [styles.muteBtn, infoHeight > 0 ? { bottom: infoHeight + MUTE_GAP } : null];
 
   /**
    * Rend un média en plein écran.
@@ -671,7 +680,10 @@ function ReelCardBase({
       {/* Infos bas */}
       {/* Les infos et les actions remontent du même cran que la barre de
           progression, sinon le nom et « Suivre » passaient dessous. */}
-      <View style={[styles.reelInfo, { paddingBottom: 24 + insets.bottom }]}>
+      <View
+        style={[styles.reelInfo, { paddingBottom: 24 + insets.bottom }]}
+        onLayout={(e) => setInfoHeight(e.nativeEvent.layout.height)}
+      >
         <Pressable style={styles.reelAuthorRow} onPress={() => item.user && onUserPress(item.user.id)}>
           <Text style={styles.reelAuthorName}>{item.user?.displayName ?? 'Yumia'}</Text>
           {/* Bouton Suivre inline */}
@@ -738,11 +750,11 @@ function ReelCardBase({
           contourne pas. Mais s'il y a une musique, c'est elle qu'on entend :
           la rendre incoupable n'aurait servi personne. */}
       {!musicMeta && item.videoMuted ? (
-        <View style={styles.muteBtn}>
+        <View style={muteStyle}>
           <Text style={{ fontSize: 20, color: '#fff' }}>🔇</Text>
         </View>
       ) : (
-        <Pressable style={styles.muteBtn} onPress={() => setMuted((v) => !v)}>
+        <Pressable style={muteStyle} onPress={() => setMuted((v) => !v)}>
           <Text style={{ fontSize: 20, color: '#fff' }}>{muted ? '🔇' : '🔊'}</Text>
         </Pressable>
       )}
