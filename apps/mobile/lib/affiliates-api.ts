@@ -85,6 +85,10 @@ export interface GuidedTours {
   tours: TourListing[];
   /** Recherches « visite guidée <ville> » chez chaque partenaire configuré. */
   links: { provider: string; url: string }[];
+  /** D'autres offres existent : « Voir plus » charge la page suivante. */
+  hasMore: boolean;
+  /** La recherche a basculé sur le terme anglais : à renvoyer pour la suite. */
+  alt: boolean;
 }
 
 /**
@@ -112,8 +116,12 @@ export function fetchGuidedTours(
   theme?: string,
   facet?: string,
   quick: string[] = [],
+  opts: { q?: string; page?: number; alt?: boolean } = {},
 ): Promise<GuidedTours> {
   const q = new URLSearchParams({ city });
+  if (opts.q) q.set('q', opts.q);
+  if (opts.page && opts.page > 1) q.set('page', String(opts.page));
+  if (opts.alt) q.set('alt', '1');
   if (theme) q.set('theme', theme);
   if (facet) q.set('facet', facet);
   if (quick.length) q.set('quick', quick.join(','));

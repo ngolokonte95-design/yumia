@@ -72,6 +72,9 @@ export class AffiliatesController {
     @Query('theme') theme?: string,
     @Query('facet') facet?: string,
     @Query('quick') quick?: string,
+    @Query('q') q?: string,
+    @Query('page') page?: string,
+    @Query('alt') alt?: string,
   ) {
     const c = (city ?? '').trim();
     if (!c) throw new BadRequestException('Ville manquante.');
@@ -80,7 +83,11 @@ export class AffiliatesController {
     if (facet && !isThemeFacet(t, facet)) throw new BadRequestException('Filtre inconnu.');
     const quickList = (quick ?? '').split(',').map((q) => q.trim()).filter(Boolean);
     if (!quickList.every(isQuickFilter)) throw new BadRequestException('Filtre pratique inconnu.');
-    return this.affiliates.guidedTours(c.slice(0, 80), user.sub, t, facet, quickList as QuickFilter[]);
+    const p = Math.min(10, Math.max(1, parseInt(page ?? '1', 10) || 1));
+    return this.affiliates.guidedTours(
+      c.slice(0, 80), user.sub, t, facet, quickList as QuickFilter[],
+      q?.trim().slice(0, 60) || undefined, p, alt === '1',
+    );
   }
 
   /** GET /api/affiliates/generic-categories — catégories disponibles pour les onglets Explorer (activités, transfert aéroport...). */

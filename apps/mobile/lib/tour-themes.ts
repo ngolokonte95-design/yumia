@@ -45,6 +45,7 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
     { key: 'horse', emoji: '🐎', labelKey: 'facet_adventure_horse' },
     { key: 'rafting', emoji: '🚣', labelKey: 'facet_adventure_rafting' },
     { key: 'snow', emoji: '⛷️', labelKey: 'facet_adventure_snow' },
+    { key: 'jet_ski', emoji: '🚤', labelKey: 'facet_adventure_jet_ski' },
   ],
   food_tours: [
     { key: 'wine', emoji: '🍷', labelKey: 'facet_food_tours_wine' },

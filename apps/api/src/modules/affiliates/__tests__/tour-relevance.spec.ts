@@ -53,3 +53,19 @@ describe('montgolfière', () => {
     expect(titleMatches('Vol en montgolfière au lever du soleil', relevanceWords('adventure', 'paragliding')!)).toBe(false);
   });
 });
+
+describe('ski et jet-ski', () => {
+  const { isRelevant, queryWords } = jest.requireActual('../tour-relevance') as typeof import('../tour-relevance');
+
+  it('ne range pas le jet-ski dans Ski & neige', () => {
+    expect(isRelevant('Location de jet ski à Nice', 'adventure', 'snow')).toBe(false);
+    expect(isRelevant('Cours de ski à Chamonix', 'adventure', 'snow')).toBe(true);
+    expect(isRelevant('Location de jet ski à Nice', 'adventure', 'jet_ski')).toBe(true);
+  });
+
+  it('reconnaît une recherche libre dans les titres', () => {
+    const words = queryWords('bowling');
+    expect(titleMatches('Soirée Bowling & billard', words)).toBe(true);
+    expect(titleMatches('Visite du Louvre', words)).toBe(false);
+  });
+});

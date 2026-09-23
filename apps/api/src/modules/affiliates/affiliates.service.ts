@@ -8,7 +8,7 @@ import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { ViatorProvider } from './providers/viator.provider';
 import { DiscoverCarsProvider } from './providers/discovercars.provider';
-import { passesQuickFilters, relevanceWords, titleMatches, type QuickFilter } from './tour-relevance';
+import { isRelevant, passesQuickFilters, queryWords, titleMatches, type QuickFilter } from './tour-relevance';
 import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-provider-map';
 
 /**
@@ -91,6 +91,7 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     horse: ['équitation', 'horseback riding'],
     rafting: ['rafting', 'white water rafting'],
     snow: ['ski', 'ski'],
+    jet_ski: ['jet ski', 'jet ski'],
   },
   food_tours: {
     wine: ['dégustation de vin', 'wine tasting'],
@@ -287,30 +288,50 @@ export class AffiliatesService {
    * Remplace les « guides locaux » : des personnes fictives, créées par un
    * script de démonstration, dont la réservation n'était transmise à personne.
    */
+  /**
+   * @param q     recherche libre (« bowling ») : remplace le filtre de style,
+   *   pour ne pas se limiter à nos catégories.
+   * @param page  pages de PAGE_SIZE offres Viator (« Voir plus »).
+   * @param alt   `true` : poursuivre avec le terme anglais, si la page 1 y a
+   *   basculé faute de résultat en français.
+   */
   async guidedTours(
     city: string,
     userId: string | undefined,
     theme: TourTheme = 'guides',
     facet?: string,
     quick: readonly QuickFilter[] = [],
+    q?: string,
+    page = 1,
+    alt = false,
   ) {
+    const PAGE_SIZE = 50;
     const trackingId = randomUUID();
-    const terms = (facet && THEME_FACETS[theme]?.[facet]) || TOUR_THEMES[theme];
+    const query = q?.trim();
+    const terms: readonly [string, string] | null = query
+      ? [query, query]
+      : (facet && THEME_FACETS[theme]?.[facet]) || TOUR_THEMES[theme];
+    const freeWords = query ? queryWords(query) : null;
     // Viator ordonne par ressemblance mais ne filtre pas : on ne garde que les
-    // offres dont le titre relève vraiment du thème (voir tour-relevance.ts),
-    // d'où une demande plus large que ce qu'on affiche.
-    const words = relevanceWords(theme, facet);
-    const fetchRelevant = async (term?: string) => {
-      const found = (await this.viator.searchTours(city, trackingId, term, words || quick.length ? 50 : 20)) ?? [];
-      return found
-        .filter((t) => !words || titleMatches(t.title, words))
-        .filter((t) => passesQuickFilters(t, quick))
-        .slice(0, 20);
+    // offres qui relèvent vraiment du thème ou de la recherche (voir
+    // tour-relevance.ts), sur des pages larges pour qu'il en reste assez.
+    const keep = (title: string) =>
+      freeWords ? freeWords.length === 0 || titleMatches(title, freeWords) : isRelevant(title, theme, facet);
+    const fetchPage = async (term?: string) => {
+      const raw = (await this.viator.searchTours(city, trackingId, term, PAGE_SIZE, (page - 1) * PAGE_SIZE + 1)) ?? [];
+      const tours = raw.filter((t) => keep(t.title)).filter((t) => passesQuickFilters(t, quick));
+      // Page pleine chez Viator : il en reste probablement d'autres.
+      return { tours, hasMore: raw.length === PAGE_SIZE && page < 10 };
     };
     // Terme français d'abord (titres demandés en français), anglais en repli :
     // tous les produits ne sont pas traduits chez Viator.
-    let tours = await fetchRelevant(terms?.[0]);
-    if (tours.length === 0 && terms?.[1]) tours = await fetchRelevant(terms[1]);
+    let usedAlt = alt && !!terms?.[1];
+    let result = await fetchPage(usedAlt ? terms![1] : terms?.[0]);
+    if (page === 1 && result.tours.length === 0 && terms?.[1] && terms[1] !== terms[0]) {
+      usedAlt = true;
+      result = await fetchPage(terms[1]);
+    }
+    const tours = result.tours;
     const searchTerm = terms ? `${terms[0]} ${city}` : city;
     const links = (['getyourguide', 'viator'] as const).flatMap((key) => {
       const url = this.providers.get(key)?.generateGenericLink(trackingId, searchTerm);
@@ -323,7 +344,7 @@ export class AffiliatesService {
         .create({ data: { id: trackingId, userId, provider: tours.length > 0 ? 'viator' : links[0].provider } })
         .catch(() => undefined);
     }
-    return { city, tours, links };
+    return { city, tours, links, hasMore: result.hasMore, alt: usedAlt };
   }
 
   /**

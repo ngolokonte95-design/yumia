@@ -61,6 +61,10 @@ export default function GuidesScreen() {
   const [facet, setFacet] = useState<string | undefined>();
   // Filtres pratiques (budget, durée, note, annulation) : plusieurs à la fois.
   const [quick, setQuick] = useState<string[]>([]);
+  // Recherche libre (« bowling ») : pour trouver ce qu'aucun filtre ne couvre.
+  const [what, setWhat] = useState('');
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   // Suggestions de villes pendant la saisie. `typing` ne passe à vrai qu'à la
   // frappe : choisir une suggestion remplit le champ sans rouvrir la liste.
   const [typing, setTyping] = useState(false);
@@ -87,18 +91,49 @@ export default function GuidesScreen() {
     void load(city);
   };
 
-  const load = useCallback(async (city: string, f: string | undefined = facet, q: string[] = quick) => {
+  const load = useCallback(async (
+    city: string,
+    f: string | undefined = facet,
+    q: string[] = quick,
+    w: string = what,
+  ) => {
     const c = city.trim();
     if (!c || !accessToken) return;
     setLoading(true);
+    setPage(1);
     try {
-      setResult(await fetchGuidedTours(c, accessToken, theme, f, q));
+      setResult(await fetchGuidedTours(c, accessToken, theme, f, q, { q: w.trim() || undefined }));
     } catch {
-      setResult({ city: c, tours: [], links: [] });
+      setResult({ city: c, tours: [], links: [], hasMore: false, alt: false });
     } finally {
       setLoading(false);
     }
-  }, [accessToken, theme, facet, quick]);
+  }, [accessToken, theme, facet, quick, what]);
+
+  /** « Voir plus » : page suivante, ajoutée à la liste. */
+  const loadMore = async () => {
+    if (!result || !accessToken || loadingMore || !result.hasMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await fetchGuidedTours(result.city, accessToken, theme, facet, quick, {
+        q: what.trim() || undefined, page: page + 1, alt: result.alt,
+      });
+      const seen = new Set(result.tours.map((t) => t.url));
+      setResult({ ...result, tours: [...result.tours, ...next.tours.filter((t) => !seen.has(t.url))], hasMore: next.hasMore });
+      setPage(page + 1);
+    } catch {
+      setResult({ ...result, hasMore: false });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  /** Recherche libre : elle remplace le style choisi, qui repasse sur « Tous ». */
+  const searchWhat = (w: string) => {
+    setWhat(w);
+    setFacet(undefined);
+    void load(query, undefined, quick, w);
+  };
 
   useEffect(() => { void load(query); /* chargement initial */ }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -132,6 +167,25 @@ export default function GuidesScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.whatRow}>
+        <Text style={styles.whatIcon}>🔍</Text>
+        <TextInput
+          style={styles.whatInput}
+          placeholder={t('gd_what_placeholder')}
+          placeholderTextColor={colors.textMuted}
+          value={what}
+          onChangeText={setWhat}
+          returnKeyType="search"
+          onSubmitEditing={() => searchWhat(what)}
+          autoCorrect={false}
+        />
+        {what.length > 0 && (
+          <Pressable onPress={() => searchWhat('')} hitSlop={8}>
+            <Text style={styles.whatClear}>✕</Text>
+          </Pressable>
+        )}
+      </View>
+
       {suggestions.length > 0 && (
         <View style={styles.suggestBox}>
           {suggestions.map((c, i) => (
@@ -161,7 +215,7 @@ export default function GuidesScreen() {
               <Pressable
                 key={f.key ?? 'all'}
                 style={[styles.facetChip, active && styles.facetChipActive]}
-                onPress={() => { setFacet(f.key); void load(query, f.key, quick); }}
+                onPress={() => { setFacet(f.key); setWhat(''); void load(query, f.key, quick, ''); }}
               >
                 <Text style={[styles.facetTxt, active && styles.facetTxtActive]}>{f.label}</Text>
               </Pressable>
@@ -205,6 +259,14 @@ export default function GuidesScreen() {
           {result?.tours.map((tour, i) => (
             <TourCard key={`${tour.url}-${i}`} tour={tour} onPress={() => open(tour.url)} />
           ))}
+
+          {result?.hasMore && (
+            <Pressable style={styles.moreBtn} onPress={() => void loadMore()} disabled={loadingMore}>
+              {loadingMore
+                ? <ActivityIndicator color={colors.brand} />
+                : <Text style={styles.moreTxt}>{t('gd_load_more')}</Text>}
+            </Pressable>
+          )}
 
           {result && result.links.length > 0 && (
             <View style={styles.linksBlock}>
@@ -276,6 +338,20 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   // flexShrink: 0 — sans lui, la liste en dessous (flex: 1) écrase la rangée
   // et coupe les puces à mi-hauteur.
+  whatRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginHorizontal: spacing.md, marginBottom: spacing.sm,
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.pill, paddingHorizontal: spacing.md,
+  },
+  whatIcon: { fontSize: 13 },
+  whatInput: { flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 9 },
+  whatClear: { fontSize: 14, color: colors.textMuted, paddingHorizontal: 4 },
+  moreBtn: {
+    alignItems: 'center', paddingVertical: spacing.md, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.brand,
+  },
+  moreTxt: { ...typography.body, color: colors.brandSoft, fontWeight: '700' },
   facetScroll: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.sm },
   facetRow: { gap: 6, paddingHorizontal: spacing.md, alignItems: 'center' },
   facetChip: {

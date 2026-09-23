@@ -176,7 +176,13 @@ export class ViatorProvider implements AffiliateProvider {
    * propose alors les liens de recherche des partenaires plutôt qu'une liste
    * vide sans explication.
    */
-  async searchTours(city: string, trackingId: string, searchTerm?: string, limit = 20): Promise<TourListing[] | null> {
+  async searchTours(
+    city: string,
+    trackingId: string,
+    searchTerm?: string,
+    limit = 20,
+    start = 1,
+  ): Promise<TourListing[] | null> {
     if (!this.apiKey || !this.partnerId) return null;
     try {
       const destinations = await this.loadDestinations();
@@ -201,7 +207,7 @@ export class ViatorProvider implements AffiliateProvider {
               searchTerm,
               currency: 'EUR',
               productFiltering: { destination: String(destinationId) },
-              searchTypes: [{ searchType: 'PRODUCTS', pagination: { start: 1, count: limit } }],
+              searchTypes: [{ searchType: 'PRODUCTS', pagination: { start, count: limit } }],
             }),
           })
         : await fetch('https://api.viator.com/partner/products/search', {
@@ -210,7 +216,7 @@ export class ViatorProvider implements AffiliateProvider {
             body: JSON.stringify({
               filtering: { destination: String(destinationId) },
               sorting: { sort: 'TRAVELER_RATING', order: 'DESCENDING' },
-              pagination: { start: 1, count: limit },
+              pagination: { start, count: limit },
               currency: 'EUR',
             }),
           });

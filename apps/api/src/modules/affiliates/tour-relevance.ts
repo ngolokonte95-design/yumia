@@ -45,6 +45,7 @@ export const FACET_MATCH: Record<string, Record<string, string[]>> = {
     horse: ['equitation', 'cheval', 'chevaux', 'horse*', 'equestre', 'poney', 'balade a cheval'],
     rafting: ['rafting', 'eaux vives', 'white water', 'whitewater', 'hydrospeed', 'canyoning'],
     snow: ['ski', 'neige', 'snow*', 'raquette*', 'luge', 'traineau', 'husky', 'glacier', 'station de ski'],
+    jet_ski: ['jet ski', 'jet-ski', 'jetski', 'scooter des mers', 'motomarine', 'waverunner', 'sea doo', 'seadoo'],
   },
   food_tours: {
     wine: ['vin', 'wine', 'vignoble', 'vineyard', 'winery', 'cave', 'cellar', 'oenolog*', 'champagne', 'sommelier', 'domaine', 'chateau'],
@@ -81,6 +82,16 @@ export const FACET_MATCH: Record<string, Record<string, string[]>> = {
 };
 
 const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+/**
+ * Mots qui écartent une offre malgré un mot reconnu. « ski » est dans
+ * « jet ski » : sans cette liste, Ski & neige se remplissait de jet-skis.
+ */
+export const FACET_EXCLUDE: Record<string, Record<string, string[]>> = {
+  adventure: {
+    snow: ['jet ski', 'jet-ski', 'jetski', 'ski nautique', 'water ski', 'waterski', 'scooter des mers'],
+  },
+};
 
 /** Mots qu'un titre doit contenir pour ce thème/filtre, ou `null` s'il n'y a rien à contrôler. */
 export function relevanceWords(theme: string, facet?: string): string[] | null {
@@ -132,4 +143,24 @@ export function passesQuickFilters(
       case 'free_cancel': return tour.freeCancellation === true;
     }
   });
+}
+
+/** L'offre relève-t-elle du thème/filtre : un mot reconnu, aucun mot exclu. */
+export function isRelevant(title: string, theme: string, facet?: string): boolean {
+  const words = relevanceWords(theme, facet);
+  if (words && !titleMatches(title, words)) return false;
+  const excluded = facet ? FACET_EXCLUDE[theme]?.[facet] : undefined;
+  return !(excluded && titleMatches(title, excluded));
+}
+
+/**
+ * Mots d'une recherche libre (« bowling », « escape game »), en racines :
+ * « bowling » reconnaît « Bowling » comme « bowlings ». Mots de moins de
+ * 3 lettres ignorés (« de », « la »).
+ */
+export function queryWords(q: string): string[] {
+  return fold(q)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3)
+    .map((w) => `${w}*`);
 }
