@@ -68,6 +68,35 @@ export type TourTheme = keyof typeof TOUR_THEMES;
  * Clés reprises telles quelles par le mobile (lib/tour-themes.ts).
  */
 export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [string, string]>>> = {
+  guides: {
+    walking: ['visite à pied', 'walking tour'],
+    bike: ['visite à vélo', 'bike tour'],
+    boat: ['visite en bateau', 'boat tour'],
+    night: ['visite de nuit', 'night tour'],
+    private: ['visite privée', 'private tour'],
+  },
+  adventure: {
+    hiking: ['randonnée', 'hiking'],
+    kayak: ['kayak', 'kayak'],
+    diving: ['plongée', 'scuba diving'],
+    paragliding: ['parapente', 'paragliding'],
+    quad: ['quad buggy', 'atv tour'],
+    climbing: ['escalade', 'climbing'],
+  },
+  food_tours: {
+    wine: ['dégustation de vin', 'wine tasting'],
+    cooking: ['cours de cuisine', 'cooking class'],
+    street_food: ['street food', 'street food'],
+    market: ['visite du marché', 'market tour'],
+    beer: ['dégustation de bière', 'beer tasting'],
+  },
+  activities: {
+    family: ['en famille', 'family friendly'],
+    cruise: ['croisière', 'cruise'],
+    day_trip: ['excursion d\'une journée', 'day trip'],
+    workshop: ['atelier', 'workshop'],
+    museum: ['musée', 'museum'],
+  },
   shows: {
     nightlife: ['boîte de nuit', 'nightclub'],
     cabaret: ['cabaret', 'cabaret'],

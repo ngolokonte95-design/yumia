@@ -25,6 +25,35 @@ export const TOUR_THEME_KEYS = new Set(Object.keys(THEME_TITLES));
  * identiques à THEME_FACETS côté API (affiliates.service.ts).
  */
 export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey: TranslationKey }[]> = {
+  guides: [
+    { key: 'walking', emoji: '🚶', labelKey: 'facet_guides_walking' },
+    { key: 'bike', emoji: '🚲', labelKey: 'facet_guides_bike' },
+    { key: 'boat', emoji: '⛵', labelKey: 'facet_guides_boat' },
+    { key: 'night', emoji: '🌙', labelKey: 'facet_guides_night' },
+    { key: 'private', emoji: '🔒', labelKey: 'facet_guides_private' },
+  ],
+  adventure: [
+    { key: 'hiking', emoji: '🥾', labelKey: 'facet_adventure_hiking' },
+    { key: 'kayak', emoji: '🛶', labelKey: 'facet_adventure_kayak' },
+    { key: 'diving', emoji: '🤿', labelKey: 'facet_adventure_diving' },
+    { key: 'paragliding', emoji: '🪂', labelKey: 'facet_adventure_paragliding' },
+    { key: 'quad', emoji: '🏍️', labelKey: 'facet_adventure_quad' },
+    { key: 'climbing', emoji: '🧗', labelKey: 'facet_adventure_climbing' },
+  ],
+  food_tours: [
+    { key: 'wine', emoji: '🍷', labelKey: 'facet_food_tours_wine' },
+    { key: 'cooking', emoji: '👨‍🍳', labelKey: 'facet_food_tours_cooking' },
+    { key: 'street_food', emoji: '🌮', labelKey: 'facet_food_tours_street_food' },
+    { key: 'market', emoji: '🧺', labelKey: 'facet_food_tours_market' },
+    { key: 'beer', emoji: '🍺', labelKey: 'facet_food_tours_beer' },
+  ],
+  activities: [
+    { key: 'family', emoji: '👨‍👩‍👧', labelKey: 'facet_activities_family' },
+    { key: 'cruise', emoji: '🛳️', labelKey: 'facet_activities_cruise' },
+    { key: 'day_trip', emoji: '🗺️', labelKey: 'facet_activities_day_trip' },
+    { key: 'workshop', emoji: '🎨', labelKey: 'facet_activities_workshop' },
+    { key: 'museum', emoji: '🏛️', labelKey: 'facet_activities_museum' },
+  ],
   shows: [
     { key: 'nightlife', emoji: '🪩', labelKey: 'facet_nightlife' },
     { key: 'cabaret', emoji: '💃', labelKey: 'facet_cabaret' },

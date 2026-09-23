@@ -57,7 +57,7 @@ export default function GuidesScreen() {
   const [loading, setLoading] = useState(false);
   // Style de sortie choisi dans les puces (Spectacles : boîte de nuit,
   // cabaret…). `undefined` = tous.
-  const facets = theme ? THEME_FACETS[theme] : undefined;
+  const facets = THEME_FACETS[theme ?? 'guides'];
   const [facet, setFacet] = useState<string | undefined>();
   // Suggestions de villes pendant la saisie. `typing` ne passe à vrai qu'à la
   // frappe : choisir une suggestion remplit le champ sans rouvrir la liste.
