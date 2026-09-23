@@ -698,8 +698,8 @@ function ReelCardBase({
         ) : null}
       </View>
 
-      {/* Carrousel : mêmes repères que dans le fil, juste au-dessus de la
-          barre de progression. */}
+      {/* Carrousel : mêmes repères que dans le fil, là où serait la barre de
+          progression d'une vidéo. */}
       {isCarousel ? (
         <View style={[styles.reelDots, { bottom: insets.bottom + 18 }]} pointerEvents="none">
           {media.map((_, i) => (
@@ -708,28 +708,27 @@ function ReelCardBase({
         </View>
       ) : null}
 
-      {/* Barre de progression — pleine largeur, indépendante du padding des
-          infos ; suit la lecture pour une vidéo, pleine pour un reel photo.
-          Elle se déplace au doigt pour avancer ou rembobiner : la zone tactile
-          est bien plus haute que le trait, qui ne ferait que 2 px à viser. */}
-      <View
-        style={[styles.reelProgressTouch, { bottom: insets.bottom + 10 }]}
-        onLayout={(e) => { barWidthRef.current = e.nativeEvent.layout.width; }}
-        {...(isVideo ? panResponder.panHandlers : {})}
-      >
-        <View style={[styles.reelProgressBar, scrubbing ? styles.reelProgressBarActive : null]}>
-          {isVideo ? (
+      {/* Barre de progression — vidéo seulement. Pleine largeur, indépendante
+          du padding des infos. Elle se déplace au doigt pour avancer ou
+          rembobiner : la zone tactile est bien plus haute que le trait, qui ne
+          ferait que 2 px à viser. Une photo ne défile pas : la barre y restait
+          pleine et immobile, un repère qui n'indiquait rien. */}
+      {isVideo ? (
+        <View
+          style={[styles.reelProgressTouch, { bottom: insets.bottom + 10 }]}
+          onLayout={(e) => { barWidthRef.current = e.nativeEvent.layout.width; }}
+          {...panResponder.panHandlers}
+        >
+          <View style={[styles.reelProgressBar, scrubbing ? styles.reelProgressBarActive : null]}>
             <Animated.View
               style={[
                 styles.reelProgressFill,
                 { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
               ]}
             />
-          ) : (
-            <View style={[styles.reelProgressFill, { width: active ? '100%' : '0%' }]} />
-          )}
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {/* Icône son. Deux pistes possibles, jamais ensemble : le son d'origine
           de la vidéo, ou la musique ajoutée qui le remplace. Le bouton commande
