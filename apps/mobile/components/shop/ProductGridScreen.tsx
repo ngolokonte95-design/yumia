@@ -30,8 +30,13 @@ interface Props {
   title: string;
   /** Filtres imposés par la route (rayon, recherche...), non modifiables par l'utilisateur. */
   baseQuery: ProductQuery;
-  /** Affiche le champ de recherche (écran Recherche uniquement). */
+  /** Affiche le champ de recherche en permanence (écran Recherche). */
   showSearchInput?: boolean;
+  /**
+   * Nom du rayon, pour une recherche limitée à ce rayon : une loupe dans
+   * l'en-tête déplie le champ à la demande, sans prendre de place sinon.
+   */
+  searchScopeLabel?: string;
   /**
    * Onglets de sous-rayon (Femme / Homme / Enfant). Absents pour un rayon
    * simple : la barre n'est alors pas rendue du tout.
@@ -45,6 +50,7 @@ export function ProductGridScreen({
   title,
   baseQuery,
   showSearchInput,
+  searchScopeLabel,
   tabs,
   activeTab,
   onTabChange,
@@ -60,7 +66,22 @@ export function ProductGridScreen({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // Deux états : ce qui est tapé, et ce qui part à l'API. Sans ce délai, chaque
+  // lettre déclencherait une requête et la grille clignoterait à chaque frappe.
+  const [searchInput, setSearchInput] = useState(baseQuery.q ?? '');
   const [search, setSearch] = useState(baseQuery.q ?? '');
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(searchInput), 350);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  const searchVisible = showSearchInput || searchOpen;
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchInput('');
+    setSearch('');
+  };
   const [sort, setSort] = useState<ProductQuery['sort']>(baseQuery.sort ?? 'relevance');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [minPrice, setMinPrice] = useState('');
@@ -125,22 +146,49 @@ export function ProductGridScreen({
           {/* Taille du catalogue : indicateur de pilotage, réservé à l'admin. */}
           {!loading && user?.isAdmin && <Text style={styles.count}>{total} produit{total > 1 ? 's' : ''}</Text>}
         </View>
-        <Pressable onPress={() => router.push('/shop/cart' as never)} hitSlop={8}>
-          <Text style={styles.cartIcon}>🛒</Text>
+        {searchScopeLabel && !showSearchInput && (
+          <Pressable
+            onPress={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+            hitSlop={8}
+            style={[styles.headerBtn, searchOpen && styles.headerBtnActive]}
+            accessibilityRole="button"
+            accessibilityLabel={searchOpen ? 'Fermer la recherche' : `Rechercher dans ${searchScopeLabel}`}
+          >
+            <Text style={styles.headerIcon}>🔍</Text>
+          </Pressable>
+        )}
+        <Pressable
+          onPress={() => router.push('/shop/cart' as never)}
+          hitSlop={8}
+          style={styles.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Panier"
+        >
+          <Text style={styles.headerIcon}>🛒</Text>
         </Pressable>
       </View>
 
-      {showSearchInput && (
+      {searchVisible && (
         <View style={styles.searchBox}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un produit"
+            placeholder={searchScopeLabel ? `Rechercher dans ${searchScopeLabel}` : 'Rechercher un produit'}
             placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
+            value={searchInput}
+            onChangeText={setSearchInput}
+            // Valider n'attend pas la fin du délai de frappe.
+            onSubmitEditing={() => setSearch(searchInput)}
             returnKeyType="search"
+            autoFocus={searchOpen}
+            autoCorrect={false}
+            clearButtonMode="never"
           />
+          {searchInput.length > 0 && (
+            <Pressable onPress={() => { setSearchInput(''); setSearch(''); }} hitSlop={8} accessibilityLabel="Effacer">
+              <Text style={styles.clearIcon}>✕</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -184,7 +232,22 @@ export function ProductGridScreen({
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🔍</Text>
           <Text style={styles.emptyTitle}>Aucun produit</Text>
-          <Text style={styles.emptyText}>Essaie d'élargir tes filtres ou de changer de recherche.</Text>
+          {searchScopeLabel && search.trim() ? (
+            <>
+              <Text style={styles.emptyText}>
+                Rien pour « {search.trim()} » dans {searchScopeLabel}.
+              </Text>
+              {/* Le produit existe peut-être, mais rangé dans un autre rayon. */}
+              <Pressable
+                style={styles.widenBtn}
+                onPress={() => router.push(`/shop/search?q=${encodeURIComponent(search.trim())}` as never)}
+              >
+                <Text style={styles.widenTxt}>Chercher dans toute la boutique</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={styles.emptyText}>Essaie d'élargir tes filtres ou de changer de recherche.</Text>
+          )}
         </View>
       ) : (
         <FlatList
@@ -198,6 +261,8 @@ export function ProductGridScreen({
               <ProductCard product={item} variant="grid" onPress={() => router.push(`/shop/product/${item.slug}` as never)} />
             </View>
           )}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           onEndReached={loadMore}
           onEndReachedThreshold={0.4}
           ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : null}
@@ -270,7 +335,11 @@ const styles = StyleSheet.create({
   back: { fontSize: 24, color: colors.brandSoft },
   title: { ...typography.h3, color: colors.textPrimary },
   count: { fontSize: 12, color: colors.textMuted },
-  cartIcon: { fontSize: 22 },
+  headerBtn: {
+    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+  },
+  headerBtnActive: { backgroundColor: colors.surfaceElevated },
+  headerIcon: { fontSize: 20 },
 
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: spacing.md,
@@ -279,6 +348,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 14 },
   searchInput: { flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 10 },
+  clearIcon: { fontSize: 14, color: colors.textMuted, paddingHorizontal: 4 },
 
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.md, paddingVertical: spacing.sm },
   sortRow: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.md },
@@ -313,6 +383,11 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 44 },
   emptyTitle: { ...typography.h3, color: colors.textPrimary },
   emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
+  widenBtn: {
+    marginTop: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: 12,
+    borderRadius: radius.pill, backgroundColor: colors.brand,
+  },
+  widenTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
 
   list: { paddingHorizontal: spacing.md, gap: spacing.sm },
   column: { gap: spacing.sm },

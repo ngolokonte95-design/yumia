@@ -41,6 +41,7 @@ export default function ShopCategoryScreen() {
   return (
     <ProductGridScreen
       title={title}
+      searchScopeLabel={current?.nameFr ?? 'ce rayon'}
       baseQuery={{ category: subSlug ?? slug }}
       tabs={tabs}
       activeTab={subSlug ?? ''}

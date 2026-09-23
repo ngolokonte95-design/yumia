@@ -6,6 +6,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma, ProductStatus } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { effectiveMargin } from './aliexpress.service';
+import { searchWords } from './search-words';
 
 export type ProductSort = 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest' | 'bestsellers';
 
@@ -138,6 +139,7 @@ export class CatalogService {
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(50, Math.max(1, query.pageSize ?? 20));
 
+    const words = searchWords(query.q);
     const where: Prisma.ProductWhereInput = {
       status: { in: ACTIVE },
       // Un rayon parent affiche aussi ce que vendent ses sous-rayons : ouvrir
@@ -157,7 +159,10 @@ export class CatalogService {
               ],
             }
           : {}),
-      ...(query.q ? { title: { contains: query.q, mode: 'insensitive' } } : {}),
+      // Chaque mot doit figurer dans le titre, dans n'importe quel ordre.
+      ...(words.length
+        ? { AND: words.map((w) => ({ title: { contains: w, mode: 'insensitive' as const } })) }
+        : {}),
       ...(query.featuredOnly ? { featured: true } : {}),
       ...(query.minPriceCents != null || query.maxPriceCents != null
         ? { priceCents: { ...(query.minPriceCents != null ? { gte: query.minPriceCents } : {}), ...(query.maxPriceCents != null ? { lte: query.maxPriceCents } : {}) } }
