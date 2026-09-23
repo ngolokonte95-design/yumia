@@ -1,19 +1,41 @@
 /**
- * GUIDES LOCAUX — guides certifiés d'une ville, avec réservation.
- * Branché sur GET /guides?city= et POST /guides/book (commission 20%).
+ * VISITES GUIDÉES — les visites les mieux notées d'une ville, réservables chez
+ * nos partenaires (Viator, GetYourGuide). Branché sur GET /affiliates/tours.
+ *
+ * Remplace les « guides locaux » : des personnes fictives, créées par un script
+ * de démonstration, avec note et label « certifié » inventés, et une
+ * réservation qui n'était transmise à personne.
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, TextInput, ScrollView,
-  ActivityIndicator, Modal, Alert, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
-import { fetchGuides, bookGuide, type Guide } from '../lib/business-api';
+import { fetchGuidedTours, type GuidedTours, type TourListing } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
+
+const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
+
+function formatDuration(min: number | null): string | null {
+  if (!min) return null;
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h} h ${m}` : `${h} h`;
+}
+
+function formatPrice(value: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
+  } catch {
+    return `${Math.round(value)} ${currency}`;
+  }
+}
 
 export default function GuidesScreen() {
   const insets = useSafeAreaInsets();
@@ -24,28 +46,28 @@ export default function GuidesScreen() {
   const { city: paramCity } = useLocalSearchParams<{ city?: string }>();
 
   const [query, setQuery] = useState(paramCity ?? locCity ?? 'Paris');
-  const [guides, setGuides] = useState<Guide[]>([]);
+  const [result, setResult] = useState<GuidedTours | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<Guide | null>(null);
 
   const load = useCallback(async (city: string) => {
     const c = city.trim();
-    if (!c) return;
+    if (!c || !accessToken) return;
     setLoading(true);
     try {
-      setGuides(await fetchGuides(c));
+      setResult(await fetchGuidedTours(c, accessToken));
     } catch {
-      setGuides([]);
+      setResult({ city: c, tours: [], links: [] });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accessToken]);
 
-  useEffect(() => { void load(query); /* chargement initial */ }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(query); /* chargement initial */ }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const open = (url: string) => { void Linking.openURL(url); };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
@@ -56,7 +78,6 @@ export default function GuidesScreen() {
         </View>
       </View>
 
-      {/* Search */}
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
@@ -77,126 +98,63 @@ export default function GuidesScreen() {
         <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.md }}>
-          {guides.length === 0 ? (
-            <Text style={styles.empty}>{t('gd_empty').replace('{city}', query)}</Text>
-          ) : (
-            guides.map((g) => (
-              <Pressable key={g.id} style={styles.card} onPress={() => setSelected(g)}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{g.name.charAt(0)}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.guideName}>{g.name}</Text>
-                    {g.certified ? <Text style={styles.certBadge}>{t('gd_certified')}</Text> : null}
-                  </View>
-                  <Text style={styles.guideMeta}>⭐ {g.rating.toFixed(1)} · {g.city} · {g.pricePerPerson}€/{t('gd_per_person')}</Text>
-                  {g.bio ? <Text style={styles.guideBio} numberOfLines={2}>{g.bio}</Text> : null}
-                </View>
-              </Pressable>
-            ))
+          {result && result.tours.length === 0 && (
+            <Text style={styles.empty}>{t('gd_empty').replace('{city}', result.city)}</Text>
+          )}
+
+          {result?.tours.map((tour, i) => (
+            <TourCard key={`${tour.url}-${i}`} tour={tour} onPress={() => open(tour.url)} />
+          ))}
+
+          {result && result.links.length > 0 && (
+            <View style={styles.linksBlock}>
+              {result.links.map((l) => (
+                <Pressable key={l.provider} style={styles.partnerBtn} onPress={() => open(l.url)}>
+                  <Text style={styles.partnerBtnText}>
+                    {t('gd_more').replace('{partner}', PARTNER_NAMES[l.provider] ?? l.provider)} ↗
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Mention d'affiliation : l'utilisateur doit savoir que la
+              réservation se fait chez un tiers, et que nous sommes rémunérés. */}
+          {result && (result.tours.length > 0 || result.links.length > 0) && (
+            <Text style={styles.disclosure}>{t('gd_partner_note')}</Text>
           )}
         </ScrollView>
       )}
-
-      <BookingModal
-        guide={selected}
-        canBook={!!accessToken}
-        onClose={() => setSelected(null)}
-        onConfirm={async (dateIso, people) => {
-          if (!accessToken || !selected) return;
-          try {
-            await bookGuide(accessToken, selected.id, dateIso, people);
-            setSelected(null);
-            Alert.alert(t('gd_booking_sent_title'), t('gd_booking_sent_body').replace('{name}', selected.name));
-          } catch (e) {
-            Alert.alert(t('gd_error'), e instanceof Error ? e.message : t('gd_booking_error'));
-          }
-        }}
-      />
     </View>
   );
 }
 
-function BookingModal({
-  guide, canBook, onClose, onConfirm,
-}: {
-  guide: Guide | null;
-  canBook: boolean;
-  onClose: () => void;
-  onConfirm: (dateIso: string, people: number) => Promise<void>;
-}) {
+function TourCard({ tour, onPress }: { tour: TourListing; onPress: () => void }) {
   const { t } = useI18n();
-  const [dayOffset, setDayOffset] = useState(1);
-  const [people, setPeople] = useState(2);
-  const [submitting, setSubmitting] = useState(false);
-
-  if (!guide) return null;
-
-  const days = Array.from({ length: 7 }, (_, i) => i + 1);
-  const total = guide.pricePerPerson * people;
-
-  function labelFor(offset: number): string {
-    const d = new Date(Date.now() + offset * 86_400_000);
-    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-  }
+  const duration = formatDuration(tour.durationMinutes);
+  const meta = [
+    tour.rating != null ? `⭐ ${tour.rating.toFixed(1)} (${t('gd_reviews').replace('{count}', String(tour.reviewCount))})` : null,
+    duration ? `⏱ ${duration}` : null,
+  ].filter(Boolean).join(' · ');
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.sheetTitle}>{t('gd_book_with').replace('{name}', guide.name)}</Text>
-          <Text style={styles.sheetSub}>{t('gd_per_person_price').replace('{price}', String(guide.pricePerPerson))}</Text>
-
-          <Text style={styles.fieldLabel}>{t('gd_date')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-            {days.map((o) => (
-              <Pressable key={o} style={[styles.dayChip, dayOffset === o && styles.dayChipActive]} onPress={() => setDayOffset(o)}>
-                <Text style={[styles.dayChipText, dayOffset === o && styles.dayChipTextActive]}>{labelFor(o)}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.fieldLabel}>{t('gd_people')}</Text>
-          <View style={styles.counterRow}>
-            <Pressable style={styles.counterBtn} onPress={() => setPeople((p) => Math.max(1, p - 1))}>
-              <Text style={styles.counterBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.counterValue}>{people}</Text>
-            <Pressable style={styles.counterBtn} onPress={() => setPeople((p) => Math.min(12, p + 1))}>
-              <Text style={styles.counterBtnText}>+</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>{t('gd_total')}</Text>
-            <Text style={styles.totalValue}>{total}€</Text>
-          </View>
-
-          {canBook ? (
-            <Pressable
-              style={[styles.confirmBtn, submitting && styles.disabled]}
-              disabled={submitting}
-              onPress={async () => {
-                setSubmitting(true);
-                const dateIso = new Date(Date.now() + dayOffset * 86_400_000).toISOString();
-                await onConfirm(dateIso, people);
-                setSubmitting(false);
-              }}
-            >
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>{t('gd_request_booking')}</Text>}
-            </Pressable>
-          ) : (
-            <Text style={styles.loginHint}>{t('gd_login_hint')}</Text>
-          )}
+    <Pressable style={styles.card} onPress={onPress}>
+      {tour.imageUrl ? (
+        <Image source={{ uri: tour.imageUrl }} style={styles.cardImage} contentFit="cover" cachePolicy="memory-disk" />
+      ) : (
+        <View style={[styles.cardImage, styles.cardImagePlaceholder]}><Text style={{ fontSize: 32 }}>🧭</Text></View>
+      )}
+      <View style={styles.cardBody}>
+        <Text style={styles.cardTitle} numberOfLines={2}>{tour.title}</Text>
+        {meta ? <Text style={styles.cardMeta}>{meta}</Text> : null}
+        <View style={styles.cardFooter}>
+          {tour.fromPrice != null ? (
+            <Text style={styles.cardPrice}>{t('gd_from').replace('{price}', formatPrice(tour.fromPrice, tour.currency))}</Text>
+          ) : <View />}
+          <Text style={styles.cardPartner}>{PARTNER_NAMES[tour.provider]} ↗</Text>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+    </Pressable>
   );
 }
 
@@ -215,39 +173,26 @@ const styles = StyleSheet.create({
   searchBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   searchBtnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.xxl },
-  card: {
-    flexDirection: 'row', gap: spacing.md, backgroundColor: colors.surface,
-    borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md,
-  },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { ...typography.title, color: '#fff' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  guideName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  certBadge: { ...typography.label, color: colors.success, backgroundColor: `${colors.success}1A`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: radius.pill, fontSize: 11 },
-  guideMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  guideBio: { ...typography.caption, color: colors.textMuted, marginTop: 4, lineHeight: 18 },
+  empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg },
 
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet: { backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.sm },
-  sheetTitle: { ...typography.title, color: colors.textPrimary },
-  sheetSub: { ...typography.caption, color: colors.textMuted },
-  fieldLabel: { ...typography.label, color: colors.textSecondary, marginTop: spacing.md },
-  chipsRow: { gap: spacing.sm, paddingVertical: spacing.xs },
-  dayChip: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
-  dayChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  dayChipText: { ...typography.caption, color: colors.textPrimary },
-  dayChipTextActive: { color: '#fff', fontWeight: '700' },
-  counterRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.xs },
-  counterBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  counterBtnText: { ...typography.title, color: colors.textPrimary },
-  counterValue: { ...typography.heading, color: colors.textPrimary, minWidth: 32, textAlign: 'center' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  totalLabel: { ...typography.body, color: colors.textSecondary },
-  totalValue: { ...typography.title, color: colors.brandSoft },
-  confirmBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.md },
-  confirmText: { ...typography.body, color: '#fff', fontWeight: '700' },
-  disabled: { opacity: 0.6 },
-  loginHint: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.md },
+  card: {
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.lg, overflow: 'hidden',
+  },
+  cardImage: { width: '100%', aspectRatio: 16 / 9, backgroundColor: colors.surfaceElevated },
+  cardImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  cardBody: { padding: spacing.md, gap: 4 },
+  cardTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
+  cardMeta: { ...typography.caption, color: colors.textSecondary },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  cardPrice: { ...typography.body, color: colors.brandSoft, fontWeight: '800' },
+  cardPartner: { ...typography.caption, color: colors.textMuted },
+
+  linksBlock: { gap: spacing.sm, marginTop: spacing.sm },
+  partnerBtn: {
+    backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.pill, paddingVertical: spacing.md, alignItems: 'center',
+  },
+  partnerBtnText: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
+  disclosure: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, lineHeight: 18 },
 });

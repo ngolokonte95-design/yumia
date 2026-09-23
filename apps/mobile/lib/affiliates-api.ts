@@ -63,3 +63,29 @@ export async function fetchNearbyDeals(params: { lat: number; lng: number; radiu
   if (params.radius != null) q.set('radius', String(params.radius));
   return request<DealPlace[]>(`/affiliates/deals?${q.toString()}`, { token: accessToken });
 }
+
+/** Une visite réelle vendue par un partenaire (`GET /affiliates/tours`). */
+export interface TourListing {
+  provider: 'viator';
+  title: string;
+  imageUrl: string | null;
+  /** Note des voyageurs chez le partenaire — réelle, `null` sans avis. */
+  rating: number | null;
+  reviewCount: number;
+  fromPrice: number | null;
+  currency: string;
+  durationMinutes: number | null;
+  url: string;
+}
+
+export interface GuidedTours {
+  city: string;
+  tours: TourListing[];
+  /** Recherches « visite guidée <ville> » chez chaque partenaire configuré. */
+  links: { provider: string; url: string }[];
+}
+
+/** Écran Visites guidées : visites les mieux notées de la ville + liens partenaires. */
+export function fetchGuidedTours(city: string, accessToken: string): Promise<GuidedTours> {
+  return request<GuidedTours>(`/affiliates/tours?city=${encodeURIComponent(city)}`, { token: accessToken });
+}

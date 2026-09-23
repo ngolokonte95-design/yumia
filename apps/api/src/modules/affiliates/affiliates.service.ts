@@ -55,7 +55,7 @@ export class AffiliatesService {
     private readonly places: PlacesService,
     booking: BookingProvider,
     getyourguide: GetYourGuideProvider,
-    viator: ViatorProvider,
+    private readonly viator: ViatorProvider,
   ) {
     // Chaque nouveau partenaire (Fever, Treatwell, Trainline...) s'ajoute
     // simplement ici une fois son provider implémenté — le mapping univers →
@@ -184,6 +184,32 @@ export class AffiliatesService {
    * "airport_transfer"...) — voir GENERIC_CATEGORIES. Même mécanique de
    * tracking que createBookingLink, mais sans lieu (placeId/universe null).
    */
+  /**
+   * Écran « Visites guidées » : les visites les mieux notées de la ville chez
+   * Viator, et toujours les liens de recherche des partenaires configurés —
+   * seuls affichés quand Viator ne répond pas (clé absente, ville inconnue).
+   *
+   * Remplace les « guides locaux » : des personnes fictives, créées par un
+   * script de démonstration, dont la réservation n'était transmise à personne.
+   */
+  async guidedTours(city: string, userId: string | undefined) {
+    const trackingId = randomUUID();
+    const tours = (await this.viator.searchTours(city, trackingId)) ?? [];
+    const searchTerm = `visite guidée ${city}`;
+    const links = (['getyourguide', 'viator'] as const).flatMap((key) => {
+      const url = this.providers.get(key)?.generateGenericLink(trackingId, searchTerm);
+      return url ? [{ provider: key, url }] : [];
+    });
+    if (tours.length > 0 || links.length > 0) {
+      // Un clic par consultation : on ne sait pas ici laquelle sera ouverte,
+      // mais le partenaire rapporte la conversion avec cet identifiant.
+      await this.prisma.affiliateClick
+        .create({ data: { id: trackingId, userId, provider: tours.length > 0 ? 'viator' : links[0].provider } })
+        .catch(() => undefined);
+    }
+    return { city, tours, links };
+  }
+
   async createGenericLink(category: string, userId: string | undefined): Promise<string | null> {
     const spec = GENERIC_CATEGORIES[category];
     if (!spec || !categoryEnabled(spec)) return null;

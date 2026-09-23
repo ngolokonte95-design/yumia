@@ -1,21 +1,8 @@
 /**
- * Client des endpoints "business" : guides locaux, établissements boostés,
+ * Client des endpoints "business" : établissements boostés,
  * billetterie. Réservation/achat protégés par JWT ; les listes sont publiques.
  */
 import { request } from './api';
-
-/** Guide certifié renvoyé par `GET /guides?city=`. */
-export interface Guide {
-  id: string;
-  name: string;
-  city: string;
-  countryCode: string;
-  certified: boolean;
-  pricePerPerson: number;
-  rating: number;
-  bio: string | null;
-  createdAt: string;
-}
 
 /** Établissement boosté (avec événement de billetterie) — `GET /venues/boosted`. */
 export interface Venue {
@@ -30,16 +17,6 @@ export interface Venue {
   photoUrl: string | null;
 }
 
-export interface GuideBooking {
-  id: string;
-  guideId: string;
-  date: string;
-  people: number;
-  totalPrice: number;
-  commission: number;
-  status: string;
-}
-
 export interface Ticket {
   id: string;
   venueId: string;
@@ -49,26 +26,6 @@ export interface Ticket {
   totalPrice: number;
   commission: number;
   status: string;
-}
-
-/** Guides certifiés d'une ville (mieux notés en premier). */
-export function fetchGuides(city: string, limit = 20): Promise<Guide[]> {
-  const q = new URLSearchParams({ city, limit: String(limit) });
-  return request<Guide[]>(`/guides?${q.toString()}`);
-}
-
-/** Réserve un guide pour une date et un nombre de personnes (commission 20%). */
-export function bookGuide(
-  token: string,
-  guideId: string,
-  dateIso: string,
-  people: number,
-): Promise<GuideBooking> {
-  return request<GuideBooking>('/guides/book', {
-    method: 'POST',
-    body: { guideId, date: dateIso, people },
-    token,
-  });
 }
 
 /** Établissements actuellement mis en avant (avec leur événement). */

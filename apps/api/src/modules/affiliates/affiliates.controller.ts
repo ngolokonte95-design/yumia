@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, ParseFloatPipe, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, ParseFloatPipe, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
@@ -38,6 +38,15 @@ export class AffiliatesController {
     const link = await this.affiliates.createBookingLink(provider as AffiliateProviderKey, id, user.sub);
     if (!link) throw new NotFoundException('Aucun lien disponible pour ce partenaire/lieu.');
     return { url: link };
+  }
+
+  /** GET /api/affiliates/tours?city=Paris — écran « Visites guidées ». */
+  @Get('affiliates/tours')
+  @UseGuards(JwtAuthGuard)
+  tours(@CurrentUser() user: JwtPayload, @Query('city') city?: string) {
+    const c = (city ?? '').trim();
+    if (!c) throw new BadRequestException('Ville manquante.');
+    return this.affiliates.guidedTours(c.slice(0, 80), user.sub);
   }
 
   /** GET /api/affiliates/generic-categories — catégories disponibles pour les onglets Explorer (activités, transfert aéroport...). */

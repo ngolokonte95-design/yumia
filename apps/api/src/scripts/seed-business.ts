@@ -1,7 +1,11 @@
 /**
- * Seed YUMIA Business — guides locaux certifiés + établissements boostés avec
- * un événement de billetterie. Permet aux écrans Guides et Billets d'afficher
- * du contenu réel en dev / démo.
+ * Seed YUMIA Business — établissements boostés avec un événement de
+ * billetterie, pour l'écran Billets en dev / démo.
+ *
+ * Il créait aussi des « guides locaux » : des personnes fictives, avec note et
+ * label « certifié » inventés, réservables sans que la demande n'arrive à
+ * personne. Retirés le 23/09/2026 — l'écran Guides liste désormais de vraies
+ * visites (Viator, GetYourGuide). Le script continue de vider ces tables.
  *
  * Usage :  npx ts-node -r tsconfig-paths/register src/scripts/seed-business.ts
  */
@@ -9,16 +13,6 @@
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-
-type GuideSeed = {
-  name: string;
-  city: string;
-  countryCode: string;
-  certified: boolean;
-  pricePerPerson: number;
-  rating: number;
-  bio: string;
-};
 
 type VenueSeed = {
   name: string;
@@ -31,16 +25,6 @@ type VenueSeed = {
   photoUrl?: string;
 };
 
-const GUIDES: GuideSeed[] = [
-  { name: 'Camille Rousseau', city: 'Paris', countryCode: 'FR', certified: true, pricePerPerson: 35, rating: 4.9, bio: 'Guide-conférencière diplômée. Paris secret, passages couverts et street-art du 11e.' },
-  { name: 'Hugo Mercier', city: 'Paris', countryCode: 'FR', certified: true, pricePerPerson: 28, rating: 4.7, bio: 'Balades gastronomiques : marchés, fromagers et caves de Montmartre.' },
-  { name: 'Léa Fontaine', city: 'Paris', countryCode: 'FR', certified: false, pricePerPerson: 20, rating: 4.5, bio: 'Photographe locale. Je t\'emmène shooter les plus beaux spots au lever du soleil.' },
-  { name: 'Marco Bianchi', city: 'Lyon', countryCode: 'FR', certified: true, pricePerPerson: 30, rating: 4.8, bio: 'Traboules de la Croix-Rousse et bouchons lyonnais avec un vrai gone.' },
-  { name: 'Sophie Garnier', city: 'Marseille', countryCode: 'FR', certified: true, pricePerPerson: 32, rating: 4.8, bio: 'Randonnées dans les Calanques au départ du Vieux-Port. Niveau débutant à confirmé.' },
-  { name: 'James Carter', city: 'London', countryCode: 'GB', certified: true, pricePerPerson: 40, rating: 4.9, bio: 'Hidden London: Victorian pubs, Soho stories and rooftop views.' },
-  { name: 'Núria Pons', city: 'Barcelona', countryCode: 'ES', certified: true, pricePerPerson: 27, rating: 4.7, bio: 'Modernisme, tapas y barrios escondidos. Gaudí como nunca lo viste.' },
-];
-
 const VENUES: VenueSeed[] = [
   { name: 'Rex Club', city: 'Paris', countryCode: 'FR', boostLevel: 3, eventName: 'Techno All Night — Live', daysFromNow: 3, ticketPrice: 22 },
   { name: 'Le Petit Bain', city: 'Paris', countryCode: 'FR', boostLevel: 2, eventName: 'Concert Indie & Rooftop', daysFromNow: 5, ticketPrice: 18 },
@@ -51,7 +35,7 @@ const VENUES: VenueSeed[] = [
 ];
 
 async function main() {
-  console.log('🌱 Seed business (guides + venues)…');
+  console.log('🌱 Seed business (venues)…');
 
   // Idempotent : on repart propre (tables annexes, sans impact sur les Places).
   await prisma.guideBooking.deleteMany({});
@@ -59,8 +43,6 @@ async function main() {
   await prisma.guide.deleteMany({});
   await prisma.venue.deleteMany({});
 
-  await prisma.guide.createMany({ data: GUIDES });
-  console.log(`  ✓ ${GUIDES.length} guides`);
 
   const now = Date.now();
   for (const v of VENUES) {

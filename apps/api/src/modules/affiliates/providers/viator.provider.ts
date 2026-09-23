@@ -3,6 +3,32 @@ import type { Place } from '@prisma/client';
 import type { AffiliateProvider } from './affiliate-provider.interface';
 import { normalizeTitle, titleMatchesPlace } from './title-match.util';
 
+/** Une visite réelle, telle que Viator la vend — affichée par l'écran Visites guidées. */
+export interface TourListing {
+  provider: 'viator';
+  title: string;
+  imageUrl: string | null;
+  /** Note des voyageurs sur Viator — réelle, et affichée comme telle. */
+  rating: number | null;
+  reviewCount: number;
+  fromPrice: number | null;
+  currency: string;
+  durationMinutes: number | null;
+  url: string;
+}
+
+interface ViatorProduct {
+  title?: string;
+  productUrl?: string;
+  images?: { isCover?: boolean; variants?: { url?: string; width?: number }[] }[];
+  reviews?: { totalReviews?: number; combinedAverageRating?: number };
+  pricing?: { summary?: { fromPrice?: number }; currency?: string };
+  duration?: {
+    fixedDurationInMinutes?: number;
+    variableDurationFromMinutes?: number;
+  };
+}
+
 const DESTINATIONS_TTL_MS = 24 * 60 * 60 * 1000; // le référentiel de villes Viator change rarement
 
 /**
@@ -120,6 +146,83 @@ export class ViatorProvider implements AffiliateProvider {
     } catch (e) {
       this.logger.warn(`verifyListing indisponible (${(e as Error).message}) — lieu laissé visible.`);
       return true;
+    }
+  }
+
+  /**
+   * Visites et activités les mieux notées d'une ville (Viator Partner API,
+   * `POST /products/search`). `null` quand la recherche est impossible — clé
+   * absente, ville inconnue de Viator, API en erreur — pour que l'écran
+   * propose alors les liens de recherche des partenaires plutôt qu'une liste
+   * vide sans explication.
+   */
+  async searchTours(city: string, trackingId: string, limit = 20): Promise<TourListing[] | null> {
+    if (!this.apiKey || !this.partnerId) return null;
+    try {
+      const destinations = await this.loadDestinations();
+      const destinationId = destinations.get(normalizeTitle(city));
+      if (!destinationId) return null;
+
+      const res = await fetch('https://api.viator.com/partner/products/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json;version=2.0',
+          'Accept-Language': 'fr-FR',
+          'exp-api-key': this.apiKey,
+        },
+        body: JSON.stringify({
+          filtering: { destination: String(destinationId) },
+          sorting: { sort: 'TRAVELER_RATING', order: 'DESCENDING' },
+          pagination: { start: 1, count: limit },
+          currency: 'EUR',
+        }),
+      });
+      if (!res.ok) {
+        this.logger.warn(`searchTours(${city}) : réponse ${res.status}`);
+        return null;
+      }
+      const data = (await res.json()) as { products?: ViatorProduct[] };
+      return (data.products ?? []).flatMap((p) => {
+        const url = p.productUrl ? this.trackedUrl(p.productUrl, trackingId) : null;
+        if (!p.title || !url) return [];
+        const cover = p.images?.find((i) => i.isCover) ?? p.images?.[0];
+        // La variante la plus proche de 720 px de large : nette sur un
+        // téléphone sans télécharger l'original.
+        const variant = [...(cover?.variants ?? [])]
+          .filter((v) => v.url)
+          .sort((a, b) => Math.abs((a.width ?? 0) - 720) - Math.abs((b.width ?? 0) - 720))[0];
+        const reviewCount = p.reviews?.totalReviews ?? 0;
+        return [{
+          provider: 'viator' as const,
+          title: p.title,
+          imageUrl: variant?.url ?? null,
+          rating: reviewCount > 0 ? p.reviews?.combinedAverageRating ?? null : null,
+          reviewCount,
+          fromPrice: p.pricing?.summary?.fromPrice ?? null,
+          currency: p.pricing?.currency ?? 'EUR',
+          durationMinutes:
+            p.duration?.fixedDurationInMinutes ?? p.duration?.variableDurationFromMinutes ?? null,
+          url,
+        }];
+      });
+    } catch (e) {
+      this.logger.warn(`searchTours(${city}) indisponible : ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /** Ajoute notre identifiant partenaire à un lien produit, s'il n'y est pas déjà. */
+  private trackedUrl(productUrl: string, trackingId: string): string | null {
+    try {
+      const u = new URL(productUrl);
+      if (!u.searchParams.has('pid')) u.searchParams.set('pid', this.partnerId!);
+      if (!u.searchParams.has('mcid')) u.searchParams.set('mcid', '42383');
+      u.searchParams.set('medium', 'api');
+      u.searchParams.set('campaign', trackingId);
+      return u.toString();
+    } catch {
+      return null;
     }
   }
 
