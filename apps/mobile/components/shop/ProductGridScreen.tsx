@@ -51,7 +51,7 @@ export function ProductGridScreen({
 }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
 
   const [items, setItems] = useState<ProductListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -122,7 +122,8 @@ export function ProductGridScreen({
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          {!loading && <Text style={styles.count}>{total} produit{total > 1 ? 's' : ''}</Text>}
+          {/* Taille du catalogue : indicateur de pilotage, réservé à l'admin. */}
+          {!loading && user?.isAdmin && <Text style={styles.count}>{total} produit{total > 1 ? 's' : ''}</Text>}
         </View>
         <Pressable onPress={() => router.push('/shop/cart' as never)} hitSlop={8}>
           <Text style={styles.cartIcon}>🛒</Text>
