@@ -91,6 +91,7 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     street_food: ['street food', 'street food'],
     market: ['visite du marché', 'market tour'],
     chocolate: ['chocolat', 'chocolate'],
+    cheese: ['dégustation de fromage', 'cheese tasting'],
   },
   activities: {
     family: ['en famille', 'family friendly'],

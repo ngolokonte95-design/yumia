@@ -46,6 +46,7 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
     { key: 'street_food', emoji: '🌮', labelKey: 'facet_food_tours_street_food' },
     { key: 'market', emoji: '🧺', labelKey: 'facet_food_tours_market' },
     { key: 'chocolate', emoji: '🍫', labelKey: 'facet_food_tours_chocolate' },
+    { key: 'cheese', emoji: '🧀', labelKey: 'facet_food_tours_cheese' },
   ],
   activities: [
     { key: 'family', emoji: '👨‍👩‍👧', labelKey: 'facet_activities_family' },
