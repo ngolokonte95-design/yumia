@@ -335,13 +335,43 @@ describe('PlacesService', () => {
   // ── resolvePhotoUrl ────────────────────────────────────────────────────────────
 
   describe('resolvePhotoUrl', () => {
-    it('retourne l\'URL depuis le cache sans appeler le provider', async () => {
-      redis.getJson.mockResolvedValue('https://lh3.googleusercontent.com/cached');
+    const CACHED = 'https://lh3.googleusercontent.com/cached';
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      fetchSpy = jest.spyOn(global, 'fetch');
+    });
+    afterEach(() => fetchSpy.mockRestore());
+
+    it("retourne l'URL récemment vérifiée sans rien appeler", async () => {
+      redis.getJson.mockResolvedValue({ url: CACHED, checkedAt: Date.now() });
 
       const result = await service.resolvePhotoUrl('places/x/photos/y', 800);
 
-      expect(result).toBe('https://lh3.googleusercontent.com/cached');
+      expect(result).toBe(CACHED);
       expect(provider.resolvePhotoUrl).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("garde une URL ancienne tant qu'elle répond, sans repayer Google", async () => {
+      redis.getJson.mockResolvedValue({ url: CACHED, checkedAt: 0 });
+      fetchSpy.mockResolvedValue(new Response(null, { status: 206 }));
+
+      const result = await service.resolvePhotoUrl('places/x/photos/y', 800);
+
+      expect(result).toBe(CACHED);
+      expect(provider.resolvePhotoUrl).not.toHaveBeenCalled();
+    });
+
+    it("ne repaie une résolution que si Google a invalidé l'URL", async () => {
+      redis.getJson.mockResolvedValue(CACHED); // ancien format : chaîne seule
+      fetchSpy.mockResolvedValue(new Response(null, { status: 403 }));
+      provider.resolvePhotoUrl.mockResolvedValue('https://lh3.googleusercontent.com/fresh');
+
+      const result = await service.resolvePhotoUrl('places/x/photos/y', 800);
+
+      expect(result).toBe('https://lh3.googleusercontent.com/fresh');
+      expect(provider.resolvePhotoUrl).toHaveBeenCalledTimes(1);
     });
 
     it('résout via le provider puis met en cache si absent', async () => {
@@ -354,9 +384,18 @@ describe('PlacesService', () => {
       expect(provider.resolvePhotoUrl).toHaveBeenCalledWith('places/x/photos/y', 800);
       expect(redis.setJson).toHaveBeenCalledWith(
         'gphoto:places/x/photos/y:800',
-        'https://lh3.googleusercontent.com/fresh',
+        { url: 'https://lh3.googleusercontent.com/fresh', checkedAt: expect.any(Number) },
         expect.any(Number),
       );
+    });
+
+    it('ne paie qu\'une résolution pour des demandes simultanées de la même photo', async () => {
+      redis.getJson.mockResolvedValue(null);
+      provider.resolvePhotoUrl.mockResolvedValue('https://lh3.googleusercontent.com/fresh');
+
+      await Promise.all([1, 2, 3, 4].map(() => service.resolvePhotoUrl('places/x/photos/y', 800)));
+
+      expect(provider.resolvePhotoUrl).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -43,18 +43,21 @@ const HYDRATE_EMPTY_RETRY_TTL_SECONDS = 6 * 60 * 60; // 6 h
 // ce délai : sans lui, chaque affichage de sa fiche relancerait une recherche
 // facturée pour le même résultat vide.
 const PHOTO_REFRESH_RETRY_TTL_SECONDS = 24 * 60 * 60; // 24 h
-// URL photo (googleusercontent) résolue, mise en cache pour éviter un appel
-// Google à chaque chargement d'image. ATTENTION : ces URLs signées par Google
-// (New Places API, skipHttpRedirect) expirent bien avant les 6h qu'on utilisait
-// ici — au-delà, on continuait à rediriger vers un lien déjà expiré côté
-// Google (403 googleusercontent), d'où de nombreuses photos qui ne chargeaient
-// plus après un moment. On reste maintenant largement sous leur fenêtre de
-// validité réelle.
-const PHOTO_URL_CACHE_TTL_SECONDS = 15 * 60;
+// URL photo (googleusercontent) résolue. Chaque résolution est FACTURÉE par
+// Google ; charger l'image derrière l'URL, elle, ne l'est pas.
+//
+// Ces URLs expirent au bout d'un délai que Google ne documente pas (constaté :
+// moins de 6 h). Un cache fixe de 15 min les jetait donc bien avant leur fin,
+// et refacturait chaque photo à chaque nouveau téléphone qui l'affichait.
+// Désormais on garde l'URL tant qu'elle répond : au-delà de
+// PHOTO_URL_RECHECK_SECONDS, on la sonde (requête gratuite d'un octet) et on
+// ne repaie une résolution que si Google l'a vraiment invalidée.
+const PHOTO_URL_KEEP_SECONDS = 30 * 24 * 60 * 60;
+const PHOTO_URL_RECHECK_SECONDS = 15 * 60;
+const PHOTO_PROBE_TIMEOUT_MS = 3_000;
+// Lieu sans aucune photo chez Google : inutile de redemander avant longtemps.
+const PHOTO_MISSING_RETRY_TTL_SECONDS = 30 * 24 * 60 * 60;
 const PHOTO_DEFAULT_WIDTH = 800;
-// Nombre max de lieux sans photo enrichis par Text Search lors d'une hydratation
-// de tuile — borne le surcoût API (1 appel/lieu) tout en comblant les manques.
-const PHOTO_ENRICH_BUDGET = 10;
 // Nombre de lieux persistés EN PARALLÈLE lors d'une hydratation. Avant, ils
 // étaient traités un par un (for...await) : avec le filtre "Tous les univers"
 // (jusqu'à ~340 lieux importés d'un coup), ça pouvait bloquer un tap sur la
@@ -71,27 +74,49 @@ export type PlaceWithDistance = Place & { distanceMeters: number };
  * Google plafonne `searchNearby` à 20 résultats/appel : en couvrant plusieurs
  * catégories, on remonte beaucoup plus de lieux variés par zone.
  */
+// Huit catégories, pas dix-sept : chacune est une recherche Google facturée à
+// chaque nouvelle zone ouverte en « Tous ». Les autres (cinéma, hôtel, club…)
+// se chargent quand l'utilisateur choisit leur univers.
 const MAP_DENSITY_UNIVERSES: Universe[] = [
   'restaurant',
   'cafe',
   'bar',
   'bakery',
-  'dessert',
-  'ice_cream',
   'tourist_activity',
-  'cultural_outing',
   'museum',
   'park',
-  'photo_spot',
-  'nightclub',
   'shopping',
-  'bookstore',
-  'cinema',
-  'monument',
-  'hotel',
 ];
 
 const EARTH_RADIUS_M = 6_371_000;
+
+/**
+ * Tailles de zone d'hydratation, en km. Le rayon demandé suit le zoom de la
+ * carte (2, 3, 5, 8 km…) : l'arrondir au kilomètre faisait de chaque niveau de
+ * zoom une zone distincte, et le même quartier était payé quatre fois. On
+ * ramène tout rayon à la taille fixe immédiatement supérieure, et la grille des
+ * centres s'élargit avec elle pour qu'un léger déplacement ne compte pas comme
+ * une nouvelle zone.
+ */
+const HYDRATION_ZONES: { radiusKm: number; gridDeg: number }[] = [
+  { radiusKm: 1, gridDeg: 0.01 },
+  { radiusKm: 3, gridDeg: 0.02 },
+  { radiusKm: 10, gridDeg: 0.05 },
+  { radiusKm: 20, gridDeg: 0.1 },
+  { radiusKm: 50, gridDeg: 0.2 },
+];
+
+export function hydrationTile(
+  lat: number,
+  lng: number,
+  radiusM: number,
+): { lat: number; lng: number; radiusKm: number } {
+  const zone =
+    HYDRATION_ZONES.find((z) => radiusM <= z.radiusKm * 1000) ??
+    HYDRATION_ZONES[HYDRATION_ZONES.length - 1];
+  const snap = (v: number) => Math.round(v / zone.gridDeg) * zone.gridDeg;
+  return { lat: snap(lat), lng: snap(lng), radiusKm: zone.radiusKm };
+}
 
 /**
  * Accès aux lieux (POI) et recherche géolocalisée.
@@ -186,13 +211,36 @@ export class PlacesService {
     const cached = await this.redis.getJson<Place>(placeKey).catch(() => null);
     if (cached) return cached;
 
-    const place = await this.prisma.place.findUnique({ where: { id } });
-    if (!place) {
+    const found = await this.prisma.place.findUnique({ where: { id } });
+    if (!found) {
       throw new NotFoundException('Lieu introuvable.');
     }
+    const place = found.photoUrls.length > 0 ? found : await this.enrichMissingPhotos(found);
 
     void this.redis.setJson(placeKey, place, PLACE_DETAIL_CACHE_TTL_SECONDS).catch(() => undefined);
     return place;
+  }
+
+  /**
+   * Cherche les photos d'un lieu qui n'en a aucune — à l'ouverture de sa
+   * fiche seulement, là où la photo se voit vraiment. Une recherche facturée
+   * par lieu ouvert, au lieu de dix par zone chargée. L'échec est retenu
+   * 30 jours : Google n'aura pas davantage de photo demain.
+   */
+  private async enrichMissingPhotos(place: Place): Promise<Place> {
+    if (!this.provider.isEnabled || !this.provider.findPhotoRefs) return place;
+    const guardKey = `gphoto:missing:${place.id}`;
+    const tried = await this.redis.getJson<boolean>(guardKey).catch(() => null);
+    if (tried) return place;
+    await this.redis.setJson(guardKey, true, PHOTO_MISSING_RETRY_TTL_SECONDS).catch(() => undefined);
+
+    const refs = await this.provider
+      .findPhotoRefs(`${place.name} ${place.city}`.trim(), place.lat, place.lng)
+      .catch(() => [] as string[]);
+    if (refs.length === 0) return place;
+    return this.prisma.place
+      .update({ where: { id: place.id }, data: { photoUrls: this.buildPhotoUrls(refs) } })
+      .catch(() => place);
   }
 
   /** Liste paginée, filtrable par ville et univers. */
@@ -329,6 +377,7 @@ export class PlacesService {
     radius: number;
     universe?: Universe;
   }): Promise<boolean> {
+    const tile = hydrationTile(params.lat, params.lng, params.radius);
     const tileKey = [
       'places:hydrated',
       // Version de schéma d'hydratation : incrémenter invalide les tuiles
@@ -336,10 +385,13 @@ export class PlacesService {
       // v6 : filtre rating abaissé 3.0 → 2.5 pour densifier les univers peu fournis
       'v6',
       params.universe ?? 'all',
-      params.lat.toFixed(2),
-      params.lng.toFixed(2),
-      Math.max(1, Math.round(params.radius / 1000)),
+      tile.lat.toFixed(2),
+      tile.lng.toFixed(2),
+      tile.radiusKm,
     ].join(':');
+    // La recherche Google porte sur la zone normalisée, pas sur le cercle exact
+    // demandé : c'est elle que la clé ci-dessus déclare « déjà chargée ».
+    const zone = { lat: tile.lat, lng: tile.lng, radius: tile.radiusKm * 1000 };
 
     const already = await this.redis.getJson<boolean>(tileKey).catch(() => null);
     if (already) return false;
@@ -351,13 +403,7 @@ export class PlacesService {
     try {
       let found: ProviderPlace[];
       if (params.universe) {
-        found = await this.provider.searchNearby({
-          lat: params.lat,
-          lng: params.lng,
-          radius: params.radius,
-          universe: params.universe,
-          limit: 20,
-        });
+        found = await this.provider.searchNearby({ ...zone, universe: params.universe, limit: 20 });
       } else {
         // Carte "Tous" : Google plafonne searchNearby à 20 résultats par appel.
         // Pour densifier, on interroge plusieurs catégories clés en parallèle et
@@ -365,7 +411,7 @@ export class PlacesService {
         const batches = await Promise.all(
           MAP_DENSITY_UNIVERSES.map((u) =>
             this.provider
-              .searchNearby({ lat: params.lat, lng: params.lng, radius: params.radius, universe: u, limit: 20 })
+              .searchNearby({ ...zone, universe: u, limit: 20 })
               .catch(() => [] as ProviderPlace[]),
           ),
         );
@@ -400,26 +446,16 @@ export class PlacesService {
   /** Upsert (dédup par providerPlaceId) des lieux importés + réindexation ES. Retourne les lieux sauvegardés. */
   private async persistProviderPlaces(places: ProviderPlace[]): Promise<Place[]> {
     const saved: Place[] = [];
-    // Budget partagé, décrémenté avant l'await (donc pas de dépassement même
-    // avec plusieurs workers concurrents — Node ne préempte jamais entre deux
-    // instructions synchrones).
-    let enrichBudget = PHOTO_ENRICH_BUDGET;
 
     const persistOne = async (p: ProviderPlace): Promise<void> => {
       // Ignore épiceries, banques, stations… (sauf univers de service) et lieux mal notés.
       if (isBlockedPlace(p.tags, p.universe)) return;
       if (p.rating > 0 && p.rating < 2.5) return;
       try {
-        // Lieu sans photo (ex. night-club renvoyé nu par searchNearby) : on tente
-        // un enrichissement Text Search par nom+position, dans un budget borné
-        // pour maîtriser le coût API.
-        if ((!p.photoRefs || p.photoRefs.length === 0) && enrichBudget > 0 && this.provider.findPhotoRefs) {
-          enrichBudget -= 1;
-          const refs = await this.provider
-            .findPhotoRefs(`${p.name} ${p.city}`.trim(), p.lat, p.lng)
-            .catch(() => [] as string[]);
-          if (refs.length > 0) p.photoRefs = refs;
-        }
+        // Un lieu importé sans photo n'est PAS enrichi ici : c'était jusqu'à
+        // 10 recherches facturées par zone, pour des lieux que personne
+        // n'ouvrirait peut-être jamais. Voir `enrichMissingPhotos`, appelé à
+        // l'ouverture de la fiche.
         const photoUrls = this.buildPhotoUrls(p.photoRefs);
         const metadata =
           p.openingHours && p.openingHours.length > 0
@@ -753,12 +789,43 @@ export class PlacesService {
   async resolvePhotoUrl(ref: string, maxWidthPx = PHOTO_DEFAULT_WIDTH): Promise<string | null> {
     if (!this.provider.resolvePhotoUrl) return null;
     const cacheKey = `gphoto:${ref}:${maxWidthPx}`;
-    const cached = await this.redis.getJson<string>(cacheKey).catch(() => null);
-    if (cached) return cached;
+    // Une carte affiche des dizaines de photos d'un coup, souvent les mêmes
+    // chez plusieurs utilisateurs : sans ce partage, dix demandes simultanées
+    // d'une photo expirée paieraient dix résolutions au lieu d'une.
+    const pending = this.photoInFlight.get(cacheKey);
+    if (pending) return pending;
+    const task = this.resolvePhotoUrlOnce(ref, maxWidthPx, cacheKey).finally(() =>
+      this.photoInFlight.delete(cacheKey),
+    );
+    this.photoInFlight.set(cacheKey, task);
+    return task;
+  }
 
-    const url = await this.provider.resolvePhotoUrl(ref, maxWidthPx).catch(() => null);
+  private readonly photoInFlight = new Map<string, Promise<string | null>>();
+
+  private async resolvePhotoUrlOnce(ref: string, maxWidthPx: number, cacheKey: string): Promise<string | null> {
+    // Anciennes entrées : une simple chaîne, sans date de vérification.
+    const cached = await this.redis
+      .getJson<{ url: string; checkedAt: number } | string>(cacheKey)
+      .catch(() => null);
+    const entry = typeof cached === 'string' ? { url: cached, checkedAt: 0 } : cached;
+    if (entry) {
+      if (Date.now() - entry.checkedAt < PHOTO_URL_RECHECK_SECONDS * 1000) return entry.url;
+      const alive = await probePhotoUrl(entry.url);
+      // Réseau indisponible : on garde l'URL plutôt que de repayer à l'aveugle.
+      if (alive !== false) {
+        await this.redis
+          .setJson(cacheKey, { url: entry.url, checkedAt: Date.now() }, PHOTO_URL_KEEP_SECONDS)
+          .catch(() => undefined);
+        return entry.url;
+      }
+    }
+
+    const url = await this.provider.resolvePhotoUrl!(ref, maxWidthPx).catch(() => null);
     if (url) {
-      await this.redis.setJson(cacheKey, url, PHOTO_URL_CACHE_TTL_SECONDS).catch(() => undefined);
+      await this.redis
+        .setJson(cacheKey, { url, checkedAt: Date.now() }, PHOTO_URL_KEEP_SECONDS)
+        .catch(() => undefined);
       return url;
     }
 
@@ -808,7 +875,7 @@ export class PlacesService {
     const url = await this.provider.resolvePhotoUrl(refs[0], maxWidthPx).catch(() => null);
     if (url) {
       await this.redis
-        .setJson(`gphoto:${refs[0]}:${maxWidthPx}`, url, PHOTO_URL_CACHE_TTL_SECONDS)
+        .setJson(`gphoto:${refs[0]}:${maxWidthPx}`, { url, checkedAt: Date.now() }, PHOTO_URL_KEEP_SECONDS)
         .catch(() => undefined);
     }
     return url;
@@ -882,4 +949,25 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Vérifie qu'une URL d'image Google répond encore, en ne demandant qu'un
+ * octet. Ne coûte rien : seule la résolution d'une référence est facturée,
+ * pas le téléchargement de l'image.
+ *
+ * @returns `true` vivante, `false` expirée (4xx), `null` indéterminé (réseau).
+ */
+async function probePhotoUrl(url: string): Promise<boolean | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { Range: 'bytes=0-0' },
+      signal: AbortSignal.timeout(PHOTO_PROBE_TIMEOUT_MS),
+    });
+    void res.body?.cancel().catch(() => undefined);
+    if (res.ok) return true;
+    return res.status >= 400 && res.status < 500 ? false : null;
+  } catch {
+    return null;
+  }
 }
