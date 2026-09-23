@@ -90,7 +90,7 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     cooking: ['cours de cuisine', 'cooking class'],
     street_food: ['street food', 'street food'],
     market: ['visite du marché', 'market tour'],
-    beer: ['dégustation de bière', 'beer tasting'],
+    chocolate: ['chocolat', 'chocolate'],
   },
   activities: {
     family: ['en famille', 'family friendly'],
