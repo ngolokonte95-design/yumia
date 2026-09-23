@@ -40,6 +40,13 @@ export class AffiliatesController {
     return { url: link };
   }
 
+  /** GET /api/affiliates/tours/cities?q=bar — villes proposées pendant la saisie. */
+  @Get('affiliates/tours/cities')
+  @UseGuards(JwtAuthGuard)
+  async tourCities(@Query('q') q?: string) {
+    return { cities: await this.affiliates.suggestTourCities((q ?? '').slice(0, 60)) };
+  }
+
   /** GET /api/affiliates/tours?city=Paris — écran « Visites guidées ». */
   @Get('affiliates/tours')
   @UseGuards(JwtAuthGuard)

@@ -210,6 +210,11 @@ export class AffiliatesService {
     return { city, tours, links };
   }
 
+  /** Autocomplétion de ville de l'écran Visites guidées. */
+  suggestTourCities(q: string) {
+    return this.viator.suggestCities(q);
+  }
+
   async createGenericLink(category: string, userId: string | undefined): Promise<string | null> {
     const spec = GENERIC_CATEGORIES[category];
     if (!spec || !categoryEnabled(spec)) return null;

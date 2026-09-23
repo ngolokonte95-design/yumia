@@ -17,6 +17,14 @@ export interface TourListing {
   url: string;
 }
 
+interface ViatorDestination {
+  destinationId: number;
+  name: string;
+  /** CITY, COUNTRY, REGION… — absent sur certaines entrées. */
+  type?: string;
+  parentDestinationId?: number;
+}
+
 interface ViatorProduct {
   title?: string;
   productUrl?: string;
@@ -72,6 +80,8 @@ export class ViatorProvider implements AffiliateProvider {
   // qui répond "Invalid destination: not a number" sinon). Rechargé une fois
   // par jour maximum, jamais à chaque vérification.
   private destinationsById: Map<string, number> | null = null;
+  /** Même référentiel, en liste : sert aux suggestions de villes. */
+  private destinationsList: ViatorDestination[] = [];
   private destinationsFetchedAt = 0;
 
   private async loadDestinations(): Promise<Map<string, number>> {
@@ -82,7 +92,8 @@ export class ViatorProvider implements AffiliateProvider {
       headers: { Accept: 'application/json;version=2.0', 'Accept-Language': 'fr-FR', 'exp-api-key': this.apiKey! },
     });
     if (!res.ok) throw new Error(`GET /destinations → ${res.status}`);
-    const data = (await res.json()) as { destinations?: { destinationId: number; name: string }[] };
+    const data = (await res.json()) as { destinations?: ViatorDestination[] };
+    this.destinationsList = data.destinations ?? [];
     const map = new Map<string, number>();
     for (const d of data.destinations ?? []) {
       const key = normalizeTitle(d.name);
@@ -210,6 +221,51 @@ export class ViatorProvider implements AffiliateProvider {
       this.logger.warn(`searchTours(${city}) indisponible : ${(e as Error).message}`);
       return null;
     }
+  }
+
+  /**
+   * Villes dont le nom commence par (puis contient) `q`, pour l'autocomplétion
+   * de l'écran Visites guidées. Tirées du référentiel Viator déjà en cache :
+   * aucun appel facturé, et chaque ville proposée a forcément des visites.
+   * Le libellé porte le pays, pour distinguer Valence (Espagne) de Valence
+   * (France).
+   */
+  async suggestCities(q: string, limit = 8): Promise<{ name: string; label: string }[]> {
+    const needle = normalizeTitle(q);
+    if (!this.apiKey || needle.length < 2) return [];
+    try {
+      await this.loadDestinations();
+    } catch (e) {
+      this.logger.warn(`suggestCities indisponible : ${(e as Error).message}`);
+      return [];
+    }
+    const byId = new Map(this.destinationsList.map((d) => [d.destinationId, d]));
+    const countryOf = (d: ViatorDestination): string | null => {
+      let cur: ViatorDestination | undefined = d;
+      for (let i = 0; cur && i < 6; i++) {
+        if (cur.type === 'COUNTRY') return cur.name;
+        cur = cur.parentDestinationId != null ? byId.get(cur.parentDestinationId) : undefined;
+      }
+      return null;
+    };
+    const cities = this.destinationsList.filter((d) => !d.type || d.type === 'CITY');
+    const scored = cities.flatMap((d) => {
+      const n = normalizeTitle(d.name);
+      const rank = n.startsWith(needle) ? 0 : n.includes(` ${needle}`) ? 1 : -1;
+      return rank < 0 ? [] : [{ d, rank, len: n.length }];
+    });
+    scored.sort((a, b) => a.rank - b.rank || a.len - b.len || a.d.name.localeCompare(b.d.name));
+    const seen = new Set<string>();
+    const out: { name: string; label: string }[] = [];
+    for (const { d } of scored) {
+      const country = countryOf(d);
+      const label = country ? `${d.name}, ${country}` : d.name;
+      if (seen.has(label)) continue;
+      seen.add(label);
+      out.push({ name: d.name, label });
+      if (out.length >= limit) break;
+    }
+    return out;
   }
 
   /** Ajoute notre identifiant partenaire à un lien produit, s'il n'y est pas déjà. */

@@ -85,6 +85,15 @@ export interface GuidedTours {
   links: { provider: string; url: string }[];
 }
 
+/** Villes proposées pendant la saisie (référentiel Viator). */
+export async function fetchTourCities(q: string, accessToken: string): Promise<{ name: string; label: string }[]> {
+  const data = await request<{ cities: { name: string; label: string }[] }>(
+    `/affiliates/tours/cities?q=${encodeURIComponent(q)}`,
+    { token: accessToken },
+  );
+  return data.cities;
+}
+
 /** Écran Visites guidées : visites les mieux notées de la ville + liens partenaires. */
 export function fetchGuidedTours(city: string, accessToken: string): Promise<GuidedTours> {
   return request<GuidedTours>(`/affiliates/tours?city=${encodeURIComponent(city)}`, { token: accessToken });

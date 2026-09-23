@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
-import { fetchGuidedTours, type GuidedTours, type TourListing } from '../lib/affiliates-api';
+import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
 
 const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
@@ -48,6 +48,31 @@ export default function GuidesScreen() {
   const [query, setQuery] = useState(paramCity ?? locCity ?? 'Paris');
   const [result, setResult] = useState<GuidedTours | null>(null);
   const [loading, setLoading] = useState(false);
+  // Suggestions de villes pendant la saisie. `typing` ne passe à vrai qu'à la
+  // frappe : choisir une suggestion remplit le champ sans rouvrir la liste.
+  const [typing, setTyping] = useState(false);
+  const [suggestions, setSuggestions] = useState<{ name: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!typing || !accessToken || q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const id = setTimeout(() => {
+      fetchTourCities(q, accessToken)
+        .then((c) => { if (!cancelled) setSuggestions(c); })
+        .catch(() => { if (!cancelled) setSuggestions([]); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [query, typing, accessToken]);
+
+  const search = (city: string) => {
+    setTyping(false);
+    setSuggestions([]);
+    void load(city);
+  };
 
   const load = useCallback(async (city: string) => {
     const c = city.trim();
@@ -84,15 +109,30 @@ export default function GuidesScreen() {
           placeholder={t('gd_city_placeholder')}
           placeholderTextColor={colors.textMuted}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(v) => { setQuery(v); setTyping(true); }}
           returnKeyType="search"
-          onSubmitEditing={() => load(query)}
+          onSubmitEditing={() => search(query)}
           autoCorrect={false}
         />
-        <Pressable style={styles.searchBtn} onPress={() => load(query)}>
+        <Pressable style={styles.searchBtn} onPress={() => search(query)}>
           <Text style={styles.searchBtnText}>{t('gd_search')}</Text>
         </Pressable>
       </View>
+
+      {suggestions.length > 0 && (
+        <View style={styles.suggestBox}>
+          {suggestions.map((c, i) => (
+            <Pressable
+              key={c.label}
+              style={[styles.suggestRow, i > 0 && styles.suggestDivider]}
+              onPress={() => { setQuery(c.name); search(c.name); }}
+            >
+              <Text style={styles.suggestIcon}>📍</Text>
+              <Text style={styles.suggestText} numberOfLines={1}>{c.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
@@ -173,6 +213,15 @@ const styles = StyleSheet.create({
   searchBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   searchBtnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  suggestBox: {
+    marginHorizontal: spacing.md, marginTop: -spacing.xs, marginBottom: spacing.sm,
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.lg, overflow: 'hidden',
+  },
+  suggestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 12 },
+  suggestDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  suggestIcon: { fontSize: 14 },
+  suggestText: { ...typography.body, color: colors.textPrimary, flex: 1 },
   empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg },
 
   card: {
