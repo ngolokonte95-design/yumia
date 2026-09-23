@@ -78,7 +78,9 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
   adventure: {
     hiking: ['randonnée', 'hiking'],
     kayak: ['kayak', 'kayak'],
-    diving: ['plongée', 'scuba diving'],
+    // « plongée » seul remontait tout texte contenant le mot (« plongée dans
+    // l'histoire ») : le terme plus large cible les activités nautiques.
+    water_sports: ['sports nautiques', 'water sports'],
     paragliding: ['parapente', 'paragliding'],
     quad: ['quad buggy', 'atv tour'],
     climbing: ['escalade', 'climbing'],

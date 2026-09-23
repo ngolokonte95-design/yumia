@@ -35,7 +35,7 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
   adventure: [
     { key: 'hiking', emoji: '🥾', labelKey: 'facet_adventure_hiking' },
     { key: 'kayak', emoji: '🛶', labelKey: 'facet_adventure_kayak' },
-    { key: 'diving', emoji: '🤿', labelKey: 'facet_adventure_diving' },
+    { key: 'water_sports', emoji: '🌊', labelKey: 'facet_adventure_water_sports' },
     { key: 'paragliding', emoji: '🪂', labelKey: 'facet_adventure_paragliding' },
     { key: 'quad', emoji: '🏍️', labelKey: 'facet_adventure_quad' },
     { key: 'climbing', emoji: '🧗', labelKey: 'facet_adventure_climbing' },
