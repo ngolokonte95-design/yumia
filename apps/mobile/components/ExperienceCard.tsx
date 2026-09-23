@@ -13,6 +13,7 @@ import { useI18n } from '../lib/useI18n';
 import type { ExperienceResult, ExperienceStep } from '../lib/api';
 import type { VisitFeedback, VisitResult } from '../lib/passport-api';
 import { XpToast } from './XpToast';
+import { ratingLabel } from '../lib/place-rating';
 
 interface Props {
   result: ExperienceResult;
@@ -124,8 +125,7 @@ function StepCard({
       </View>
       <Text style={styles.placeName}>{step.place.name}</Text>
       <Text style={styles.placeRating}>
-        ⭐ {step.place.rating.toFixed(1)} · {'€'.repeat(step.place.priceTier)}
-        {step.place.city ? ` · ${step.place.city}` : ''}
+        {[ratingLabel(step.place.rating), step.place.city].filter(Boolean).join(' · ')}
       </Text>
       <Text style={styles.reason}>{step.reason}</Text>
 

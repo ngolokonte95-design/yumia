@@ -35,13 +35,6 @@ import { PaywallModal } from '../components/PaywallModal';
 import type { Top3Response } from '../lib/api';
 import type { TranslationKey } from '../lib/translations';
 
-const PRICE_FILTERS: { labelKey: TranslationKey; value: 1 | 2 | 3 | undefined }[] = [
-  { labelKey: 'srch_price_all', value: undefined },
-  { labelKey: 'srch_price_1', value: 1 },
-  { labelKey: 'srch_price_2', value: 2 },
-  { labelKey: 'srch_price_3', value: 3 },
-];
-
 const SUGGESTIONS_PROMPT_KEYS: TranslationKey[] = [
   'srch_prompt_brunch',
   'srch_prompt_culture',
@@ -163,24 +156,6 @@ export default function SearchScreen() {
                 <Text style={styles.filterChipText}>
                   {meta.emoji} {universeLabel(t, u)}
                 </Text>
-              </Pressable>
-            );
-          })}
-          {/* Separator */}
-          <View style={styles.filterSep} />
-          {/* Price chips */}
-          {PRICE_FILTERS.map(({ labelKey, value }) => {
-            const active = maxPriceTier === value;
-            return (
-              <Pressable
-                key={labelKey}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => {
-                  setMaxPriceTier(value);
-                  if (query.trim()) void handleSearch(query, universeFilter, value);
-                }}
-              >
-                <Text style={styles.filterChipText}>{t(labelKey)}</Text>
               </Pressable>
             );
           })}

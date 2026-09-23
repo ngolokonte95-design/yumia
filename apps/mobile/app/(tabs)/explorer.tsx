@@ -37,6 +37,7 @@ import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
 import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
 import { universeSearchRadius } from '../../lib/universeRadius';
 import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/affiliates-api';
+import { ratingSuffix } from '../../lib/place-rating';
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
 // (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
@@ -479,7 +480,7 @@ function PlaceCard({ place, onPress }: { place: NearbyPlace; onPress: () => void
       )}
       <View style={styles.uniInfo}>
         <Text style={styles.uniName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.uniMeta} numberOfLines={1}>{distText} · ⭐ {place.rating.toFixed(1)}</Text>
+        <Text style={styles.uniMeta} numberOfLines={1}>{distText}{ratingSuffix(place.rating)}</Text>
       </View>
     </Pressable>
   );
@@ -505,7 +506,7 @@ function TrendingCard({ place, onPress }: { place: TrendingPlace; onPress: () =>
       </View>
       <View style={styles.trendingInfo}>
         <Text style={styles.trendingName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.trendingMeta}>{distKm} · ⭐ {place.rating.toFixed(1)}</Text>
+        <Text style={styles.trendingMeta}>{distKm}{ratingSuffix(place.rating)}</Text>
       </View>
     </Pressable>
   );

@@ -22,6 +22,7 @@ import { useI18n } from '../lib/useI18n';
 import { useSavedPlaces } from '../lib/useSavedPlaces';
 import { placeStore } from '../lib/place-store';
 import type { SavedPlace } from '../lib/useSavedPlaces';
+import { ratingSuffix } from '../lib/place-rating';
 
 const ALL = '__all__';
 const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
@@ -163,7 +164,7 @@ export default function SavedScreen() {
                   <Text style={styles.cardName} numberOfLines={1}>{item.place.name}</Text>
                   <Text style={styles.cardMeta}>
                     {universeLabel(t, item.place.universe)}
-                    {' · '}⭐ {item.place.rating.toFixed(1)}
+                    {ratingSuffix(item.place.rating)}
                     {item.place.city ? ` · ${item.place.city}` : ''}
                     {' · '}{date}
                   </Text>

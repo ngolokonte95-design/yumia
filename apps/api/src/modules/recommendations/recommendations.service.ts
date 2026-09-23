@@ -214,12 +214,10 @@ export class RecommendationsService {
       return cached;
     }
 
-    let { reason, suggestions } = await this.rank(ctx, input.radius, 3, 'mood', input.universeFilter);
-    if (input.maxPriceTier != null) {
-      suggestions = suggestions.filter(
-        (s) => s.place.priceTier <= (input.maxPriceTier as number),
-      );
-    }
+    // `maxPriceTier` est encore envoyé par les anciennes versions de l'app,
+    // mais ignoré : le niveau de prix n'est plus demandé à Google, filtrer
+    // dessus écarterait tous les lieux importés depuis.
+    const { reason, suggestions } = await this.rank(ctx, input.radius, 3, 'mood', input.universeFilter);
     this.logger.debug(`Top 3 généré : ${suggestions.length} lieux`);
 
     const result: Top3Result = {

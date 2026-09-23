@@ -27,6 +27,7 @@ import { placeEmoji, universeLabel } from '../lib/universeMeta';
 import { useI18n } from '../lib/useI18n';
 import { apiBase } from '../lib/api';
 import type { NearbyPlace } from '../lib/places-api';
+import { ratingSuffix } from '../lib/place-rating';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_W * 0.35;
@@ -144,7 +145,7 @@ function SwipeCard({ place, onLike, onDislike, onTap, isTop }: SwipeCardProps) {
         <View style={styles.cardInfo}>
           <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
           <Text style={styles.cardMeta}>
-            {meta?.emoji ?? '📍'} {universeLabel(t, place.universe)} · ⭐ {place.rating.toFixed(1)} · {'€'.repeat(place.priceTier)}
+            {meta?.emoji ?? '📍'} {universeLabel(t, place.universe)}{ratingSuffix(place.rating)}
           </Text>
           {place.city ? <Text style={styles.cardCity}>{place.city}</Text> : null}
         </View>

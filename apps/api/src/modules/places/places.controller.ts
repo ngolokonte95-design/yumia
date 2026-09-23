@@ -206,6 +206,15 @@ export class PlacesController {
     res.redirect(url);
   }
 
+  /**
+   * GET /api/places/:id/details — ce que la fiche complète à son ouverture :
+   * photos, horaires (chargés chez Google à la demande) et note YUMIA.
+   */
+  @Get(':id/details')
+  details(@Param('id', ParseUUIDPipe) id: string) {
+    return this.places.details(id);
+  }
+
   /** GET /api/places/:id/stats — avis communautaires agrégés. */
   @Get(':id/stats')
   placeStats(

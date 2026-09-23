@@ -22,6 +22,7 @@ import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
 import type { NearbyPlace } from '../lib/places-api';
 import { universeSearchRadius } from '../lib/universeRadius';
+import { ratingPrefix } from '../lib/place-rating';
 
 export default function UniverseScreen() {
   const insets = useSafeAreaInsets();
@@ -208,7 +209,7 @@ export default function UniverseScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.cardMeta}>
-                      ⭐ {item.rating.toFixed(1)} · {'€'.repeat(item.priceTier)} · {formatDistance(item.distanceMeters)}
+                      {ratingPrefix(item.rating)}{formatDistance(item.distanceMeters)}
                     </Text>
                     {item.city ? <Text style={styles.cardCity}>{item.city}</Text> : null}
                     {todayHours ? (

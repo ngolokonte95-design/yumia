@@ -34,6 +34,7 @@ import { useCitySearch } from '../../lib/useCitySearch';
 import type { CitySuggestion } from '../../lib/services/weather';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { universeIcon } from '../../components/icons/universeIcons';
+import { ratingSuffix } from '../../lib/place-rating';
 
 const MAP_DELTA = 0.025;
 // Android uniquement : react-native-maps doit convertir chaque marqueur
@@ -709,7 +710,7 @@ export default function MapScreen() {
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}
               title={place.name}
-              description={`${universeLabel(t, place.universe) || place.universe} · ⭐ ${place.rating.toFixed(1)}`}
+              description={`${universeLabel(t, place.universe) || place.universe}${ratingSuffix(place.rating)}`}
               tracksViewChanges={trackingIds.has(place.id)}
               onPress={() => openDetail(place)}
               // Android uniquement : notre bulle est ronde (pas une épingle
@@ -869,7 +870,7 @@ function PlaceRow({
       <View style={{ flex: 1 }}>
         <Text style={styles.rowName} numberOfLines={1}>{place.name}</Text>
         <Text style={styles.rowMeta}>
-          {universeLabel(t, place.universe)} · ⭐ {place.rating.toFixed(1)}
+          {universeLabel(t, place.universe)}{ratingSuffix(place.rating)}
           {!hideDist && place.distanceMeters > 0 ? ` · ${formatDistance(place.distanceMeters)}` : ''}
         </Text>
         {closingTime ? (

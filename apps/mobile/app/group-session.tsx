@@ -30,6 +30,7 @@ import {
   type GroupSuggestion,
 } from '../lib/groups-api';
 import { useI18n } from '../lib/useI18n';
+import { ratingSuffix } from '../lib/place-rating';
 
 const POLL_INTERVAL = 3000;
 
@@ -278,7 +279,7 @@ export default function GroupSessionScreen() {
             )}
             <View style={styles.winnerInfo}>
               <Text style={styles.winnerName}>{winner.name}</Text>
-              <Text style={styles.winnerMeta}>{winner.city} · {'★'.repeat(Math.round(winner.rating))} · {'€'.repeat(winner.priceTier)}</Text>
+              <Text style={styles.winnerMeta}>{winner.city}{ratingSuffix(winner.rating)}</Text>
               <View style={styles.winnerVotes}>
                 <Text style={styles.winnerVoteStat}>👍 {winner.likes}</Text>
                 <Text style={[styles.winnerVoteStat, { color: colors.danger }]}>👎 {winner.dislikes}</Text>
@@ -319,7 +320,7 @@ function SuggestionVoteCard({
       <View style={styles.voteCardBody}>
         <Text style={styles.voteCardName}>{s.name}</Text>
         <Text style={styles.voteCardMeta}>
-          {s.city} · {'★'.repeat(Math.round(s.rating))} · {'€'.repeat(s.priceTier)}
+          {s.city}{ratingSuffix(s.rating)}
         </Text>
         <View style={styles.voteRow}>
           <Pressable

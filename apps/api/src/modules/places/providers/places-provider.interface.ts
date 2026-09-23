@@ -71,4 +71,10 @@ export interface PlacesProvider {
    * que `searchNearby` renvoie parfois sans média). `[]` si rien trouvé.
    */
   findPhotoRefs?(textQuery: string, lat: number, lng: number): Promise<string[]>;
+
+  /**
+   * Horaires d'un lieu par son identifiant fournisseur, chargés à l'ouverture
+   * de sa fiche. `[]` si inconnus, `null` en cas d'erreur.
+   */
+  fetchOpeningHours?(providerPlaceId: string): Promise<string[] | null>;
 }

@@ -31,6 +31,7 @@ import { PlacePhoto } from '../../components/PlacePhoto';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { VisitResult } from '../../lib/passport-api';
+import { ratingSuffix } from '../../lib/place-rating';
 
 /**
  * FOR YOU — cœur addictif. Flux vertical plein écran (snap-to-card), façon TikTok.
@@ -281,7 +282,7 @@ const FeedCard = memo(function FeedCard({
       <View style={styles.info}>
         <Text style={styles.infoName}>{place.name}</Text>
         <Text style={styles.infoMeta}>
-          {universeLabel(t, place.universe)} · ⭐ {place.rating.toFixed(1)} · {'€'.repeat(place.priceTier)} · ❤️ {compatibility}%
+          {universeLabel(t, place.universe)}{ratingSuffix(place.rating)} · ❤️ {compatibility}%
         </Text>
         <Text style={styles.infoReason}>🤖 {reason}</Text>
       </View>

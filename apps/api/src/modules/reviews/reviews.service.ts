@@ -46,11 +46,24 @@ export class ReviewsService {
     const place = await this.prisma.place.findUnique({ where: { id: placeId }, select: { id: true } });
     if (!place) throw new NotFoundException(`Place ${placeId} introuvable`);
 
-    return this.prisma.placeReview.upsert({
+    const review = await this.prisma.placeReview.upsert({
       where: { placeId_userId: { placeId, userId } },
       update: { rating: dto.rating, body: dto.body ?? null, photoUrl: dto.photoUrl ?? null },
       create: { placeId, userId, rating: dto.rating, body: dto.body, photoUrl: dto.photoUrl },
     });
+    await this.syncPlaceRating(placeId);
+    return review;
+  }
+
+  /**
+   * `Place.rating` est la moyenne des avis YUMIA — plus la note Google, qu'on
+   * ne demande plus. Recalculée à chaque avis posé, modifié ou retiré : c'est
+   * elle que lisent les listes, le classement des recommandations et la carte.
+   */
+  private async syncPlaceRating(placeId: string): Promise<void> {
+    const agg = await this.prisma.placeReview.aggregate({ where: { placeId }, _avg: { rating: true } });
+    const rating = Math.round((agg._avg.rating ?? 0) * 10) / 10;
+    await this.prisma.place.update({ where: { id: placeId }, data: { rating } });
   }
 
   async delete(placeId: string, userId: string) {
@@ -59,7 +72,9 @@ export class ReviewsService {
     });
     if (!existing) throw new NotFoundException('Avis introuvable');
     if (existing.userId !== userId) throw new ForbiddenException();
-    return this.prisma.placeReview.delete({ where: { placeId_userId: { placeId, userId } } });
+    const deleted = await this.prisma.placeReview.delete({ where: { placeId_userId: { placeId, userId } } });
+    await this.syncPlaceRating(placeId);
+    return deleted;
   }
 
   async getMyReview(placeId: string, userId: string) {

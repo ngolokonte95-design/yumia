@@ -55,6 +55,10 @@ const PHOTO_REFRESH_RETRY_TTL_SECONDS = 24 * 60 * 60; // 24 h
 const PHOTO_URL_KEEP_SECONDS = 30 * 24 * 60 * 60;
 const PHOTO_URL_RECHECK_SECONDS = 15 * 60;
 const PHOTO_PROBE_TIMEOUT_MS = 3_000;
+// Horaires d'un lieu, redemandés à Google au plus une fois par mois et par lieu.
+const OPENING_HOURS_TTL_SECONDS = 30 * 24 * 60 * 60;
+// Échec d'un appel d'horaires : pas de nouvel essai pour ce lieu avant 6 h.
+const HOURS_RETRY_TTL_SECONDS = 6 * 60 * 60;
 // Lieu sans aucune photo chez Google : inutile de redemander avant longtemps.
 const PHOTO_MISSING_RETRY_TTL_SECONDS = 30 * 24 * 60 * 60;
 const PHOTO_DEFAULT_WIDTH = 800;
@@ -219,6 +223,58 @@ export class PlacesService {
 
     void this.redis.setJson(placeKey, place, PLACE_DETAIL_CACHE_TTL_SECONDS).catch(() => undefined);
     return place;
+  }
+
+  /**
+   * Ce que la fiche d'un lieu charge à son ouverture : photos (cherchées si le
+   * lieu n'en a pas), horaires (demandés à Google si absents ou vieux de plus
+   * de 30 jours) et note des utilisateurs. La fiche s'affiche d'abord avec ce
+   * que la liste connaissait déjà, puis se complète.
+   */
+  async details(id: string): Promise<{ photoUrls: string[]; openingHours: string[]; rating: number; reviewCount: number }> {
+    const found = await this.prisma.place.findUnique({ where: { id } });
+    if (!found) throw new NotFoundException('Lieu introuvable.');
+
+    const [place, reviewCount] = await Promise.all([
+      found.photoUrls.length > 0 ? found : this.enrichMissingPhotos(found),
+      this.prisma.placeReview.count({ where: { placeId: id } }),
+    ]);
+    const openingHours = await this.openingHoursOf(place);
+    return { photoUrls: place.photoUrls, openingHours, rating: place.rating, reviewCount };
+  }
+
+  private async openingHoursOf(place: Place): Promise<string[]> {
+    const raw = place.metadata;
+    const meta = ((typeof raw === 'string' ? JSON.parse(raw) : raw) ?? {}) as {
+      openingHours?: string[];
+      hoursFetchedAt?: number;
+    };
+    const known = meta.openingHours ?? [];
+    // Horaires importés avant ce changement, sans date : on les garde tels quels
+    // plutôt que de repayer un appel pour chacun des lieux déjà en base.
+    const fresh = meta.hoursFetchedAt
+      ? Date.now() - meta.hoursFetchedAt < OPENING_HOURS_TTL_SECONDS * 1000
+      : known.length > 0;
+    if (fresh || !place.providerPlaceId || !this.provider.isEnabled || !this.provider.fetchOpeningHours) {
+      return known;
+    }
+
+    // Verrou : deux ouvertures simultanées de la même fiche ne paient qu'un appel.
+    const lockKey = `places:hours:${place.id}`;
+    const locked = await this.redis.getJson<boolean>(lockKey).catch(() => null);
+    if (locked) return known;
+    await this.redis.setJson(lockKey, true, HOURS_RETRY_TTL_SECONDS).catch(() => undefined);
+
+    const hours = await this.provider.fetchOpeningHours(place.providerPlaceId).catch(() => null);
+    if (hours === null) return known;
+    await this.prisma.place
+      .update({
+        where: { id: place.id },
+        data: { metadata: { ...meta, source: 'google', openingHours: hours, hoursFetchedAt: Date.now() } },
+      })
+      .catch(() => undefined);
+    void this.redis.del(`place:${place.id}`).catch(() => undefined);
+    return hours;
   }
 
   /**
@@ -448,19 +504,15 @@ export class PlacesService {
     const saved: Place[] = [];
 
     const persistOne = async (p: ProviderPlace): Promise<void> => {
-      // Ignore épiceries, banques, stations… (sauf univers de service) et lieux mal notés.
+      // Ignore épiceries, banques, stations… (sauf univers de service). Le
+      // filtre sur la note Google a disparu avec elle : on ne la demande plus.
       if (isBlockedPlace(p.tags, p.universe)) return;
-      if (p.rating > 0 && p.rating < 2.5) return;
       try {
         // Un lieu importé sans photo n'est PAS enrichi ici : c'était jusqu'à
         // 10 recherches facturées par zone, pour des lieux que personne
         // n'ouvrirait peut-être jamais. Voir `enrichMissingPhotos`, appelé à
         // l'ouverture de la fiche.
         const photoUrls = this.buildPhotoUrls(p.photoRefs);
-        const metadata =
-          p.openingHours && p.openingHours.length > 0
-            ? { source: 'google', openingHours: p.openingHours }
-            : { source: 'google' };
 
         const place = await this.prisma.place.upsert({
           where: { providerPlaceId: p.providerPlaceId },
@@ -471,11 +523,12 @@ export class PlacesService {
             lng: p.lng,
             city: p.city,
             countryCode: p.countryCode,
-            rating: p.rating,
-            priceTier: p.priceTier,
+            // Note : celle des utilisateurs de YUMIA, aucune tant que personne
+            // n'a noté (voir ReviewsService). Prix : plus affiché.
+            rating: 0,
             tags: p.tags,
             photoUrls,
-            metadata,
+            metadata: { source: 'google' },
             provider: 'google',
             providerPlaceId: p.providerPlaceId,
             ...(p.address ? { address: p.address } : {}),
@@ -484,11 +537,11 @@ export class PlacesService {
             // On met à jour l'univers : si une correspondance de type a été
             // affinée (ex. onglerie reclassée de 'spa' vers 'nail_salon'), la
             // ré-hydratation corrige le lieu déjà stocké.
+            // Ni note ni métadonnées : la note vient des avis YUMIA et les
+            // horaires sont chargés à l'ouverture de la fiche — une
+            // ré-hydratation de la zone les effacerait.
             universe: p.universe as Place['universe'],
             tags: p.tags,
-            rating: p.rating,
-            priceTier: p.priceTier,
-            metadata,
             ...(photoUrls.length > 0 ? { photoUrls } : {}),
             ...(p.address ? { address: p.address } : {}),
           },

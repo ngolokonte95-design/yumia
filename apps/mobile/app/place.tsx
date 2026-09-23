@@ -36,13 +36,14 @@ import { askAboutPlace } from '../lib/chat-api';
 import { XpToast } from '../components/XpToast';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { usePlaceStats } from '../lib/usePlaceStats';
-import { fetchPlaceById, fetchNearby, uploadPlacePhoto } from '../lib/places-api';
+import { fetchPlaceById, fetchPlaceDetails, fetchNearby, uploadPlacePhoto, type PlaceDetails } from '../lib/places-api';
 import { fetchAffiliateProviders, fetchBookingLink } from '../lib/affiliates-api';
 import { affiliateProviderLabel } from '../lib/affiliate-labels';
 import type { NearbyPlace } from '../lib/places-api';
 import type { VisitResult } from '../lib/passport-api';
 import type { Suggestion, Universe } from '@yumia/shared';
 import * as StoreReview from 'expo-store-review';
+import { ratingLabel, ratingSuffix } from '../lib/place-rating';
 
 interface ChatMessage {
   role: 'user' | 'ai';
@@ -129,6 +130,21 @@ export default function PlaceScreen() {
     return () => { placeStore.clear(); };
   }, []);
 
+  // La fiche s'ouvre avec ce que la liste connaissait, puis se complète :
+  // horaires (demandés à Google seulement ici, à l'ouverture), photos si le
+  // lieu n'en avait pas, et note à jour des utilisateurs de YUMIA.
+  const [live, setLive] = useState<PlaceDetails | null>(null);
+  useEffect(() => {
+    const placeId = suggestion?.place.id;
+    setLive(null);
+    if (!placeId) return;
+    let cancelled = false;
+    fetchPlaceDetails(placeId)
+      .then((d) => { if (!cancelled) setLive(d); })
+      .catch(() => {/* la fiche reste utilisable avec les données de la liste */});
+    return () => { cancelled = true; };
+  }, [suggestion?.place.id]);
+
   if (deepLinkLoading) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -148,7 +164,15 @@ export default function PlaceScreen() {
     );
   }
 
-  const { place, compatibility, distanceMeters, reason } = suggestion;
+  const { place: listed, compatibility, distanceMeters, reason } = suggestion;
+  const place = live
+    ? {
+        ...listed,
+        photoUrls: live.photoUrls.length > 0 ? live.photoUrls : listed.photoUrls,
+        openingHours: live.openingHours.length > 0 ? live.openingHours : listed.openingHours,
+        rating: live.rating,
+      }
+    : listed;
   const meta = safeMeta(place.universe);
   const isSaved = savedIds.has(place.id);
 
@@ -338,7 +362,6 @@ export default function PlaceScreen() {
           <Text style={styles.name}>{place.name}</Text>
           <Text style={styles.meta}>
             {universeLabel(t, place.universe)}
-            {' · '}{'€'.repeat(place.priceTier)}
             {distanceMeters != null ? ` · ${formatDistance(distanceMeters)}` : ''}
             {place.openNow !== undefined ? (
               <>
@@ -350,7 +373,7 @@ export default function PlaceScreen() {
             ) : null}
           </Text>
           <View style={styles.ratingRow}>
-            <Text style={styles.rating}>⭐ {place.rating.toFixed(1)}</Text>
+            {place.rating > 0 ? <Text style={styles.rating}>{ratingLabel(place.rating)}</Text> : null}
             {place.city ? <Text style={styles.city}>{place.city}</Text> : null}
           </View>
 
@@ -615,7 +638,7 @@ export default function PlaceScreen() {
                 },
                 compatibility: 0,
                 distanceMeters: np.distanceMeters,
-                reason: `${safeMeta(np.universe).emoji} ${universeLabel(t, np.universe)} · ⭐ ${np.rating.toFixed(1)}`,
+                reason: `${safeMeta(np.universe).emoji} ${universeLabel(t, np.universe)}${ratingSuffix(np.rating)}`,
                 engine: 'mood',
               });
               router.push('/place');
@@ -788,7 +811,7 @@ function SimilarPlaces({
               </View>
             )}
             <Text style={similarStyles.name} numberOfLines={1}>{p.name}</Text>
-            <Text style={similarStyles.meta}>⭐ {p.rating.toFixed(1)}</Text>
+            {p.rating > 0 ? <Text style={similarStyles.meta}>{ratingLabel(p.rating)}</Text> : null}
           </Pressable>
         ))}
       </ScrollView>

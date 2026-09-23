@@ -29,6 +29,7 @@ import { placeStore } from '../lib/place-store';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { Suggestion } from '@yumia/shared';
+import { ratingSuffix } from '../lib/place-rating';
 
 export default function SurpriseScreen() {
   const insets = useSafeAreaInsets();
@@ -179,7 +180,7 @@ export default function SurpriseScreen() {
             <Text style={styles.cardEmoji}>{meta.emoji}</Text>
             <Text style={styles.cardName}>{result.place.name}</Text>
             <Text style={styles.cardMeta}>
-              {universeLabel(t, result.place.universe)} · ⭐ {result.place.rating.toFixed(1)} · {'€'.repeat(result.place.priceTier)}
+              {universeLabel(t, result.place.universe)}{ratingSuffix(result.place.rating)}
               {result.place.city ? ` · ${result.place.city}` : ''}
             </Text>
             <Text style={styles.cardReason}>🤖 {result.reason}</Text>

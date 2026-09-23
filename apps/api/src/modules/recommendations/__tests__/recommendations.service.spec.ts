@@ -96,7 +96,7 @@ describe('RecommendationsService', () => {
       expect(result.suggestions[0].distanceMeters).toBeLessThan(result.suggestions[1]?.distanceMeters ?? Infinity);
     });
 
-    it('filtre les lieux dépassant maxPriceTier', async () => {
+    it("ignore maxPriceTier : le niveau de prix n'est plus demandé à Google", async () => {
       aiMock.runStructured.mockResolvedValue({
         reason: '',
         universesSuggested: ['restaurant'],
@@ -108,8 +108,8 @@ describe('RecommendationsService', () => {
 
       const result = await service.top3({ lat: 48.856, lng: 2.352, radius: 3000, maxPriceTier: 2 });
 
-      expect(result.suggestions.every((s) => s.place.priceTier <= 2)).toBe(true);
-      expect(result.suggestions.find((s) => s.place.id === 'expensive')).toBeUndefined();
+      // Filtrer écarterait tous les lieux importés depuis, qui n'ont plus de prix.
+      expect(result.suggestions.find((s) => s.place.id === 'expensive')).toBeDefined();
     });
 
     it('fonctionne quand l\'IA renvoie 0 univers suggérés (dégradation propre)', async () => {

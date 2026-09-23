@@ -14,6 +14,7 @@ import { PlacePhoto } from '../components/PlacePhoto';
 import { universeSearchRadius } from '../lib/universeRadius';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
+import { ratingPrefix } from '../lib/place-rating';
 
 const AMBIANCES: { key: string; labelKey: TranslationKey; emoji: string }[] = [
   { key: 'all', labelKey: 'nc_ambiance_all', emoji: '🎧' },
@@ -123,7 +124,7 @@ export default function NightclubScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
                   <Text style={styles.cardMeta}>
-                    ⭐ {place.rating.toFixed(1)} · {place.city}
+                    {ratingPrefix(place.rating)}{place.city}
                     {place.distanceMeters > 0 ? ` · ${place.distanceMeters < 1000 ? `${Math.round(place.distanceMeters)} m` : `${(place.distanceMeters / 1000).toFixed(1)} km`}` : ''}
                   </Text>
                   {place.tags.length > 0 ? (

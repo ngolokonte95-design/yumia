@@ -17,19 +17,22 @@ const REQUEST_TIMEOUT_MS = 8_000;
 const MAX_RADIUS_M = 50_000;
 const MAX_RESULTS = 20;
 
-// Champs demandés (FieldMask) — pilote le coût (SKU). On reste sur le strict
-// nécessaire : identité, position, note, prix, types et adresse structurée.
+// Champs demandés (FieldMask) — c'est LUI qui fixe le prix de chaque appel.
+// Google range les champs en paliers et facture l'appel au palier du plus cher
+// demandé. La note, le niveau de prix et les horaires sont au palier
+// « Enterprise » : un seul d'entre eux suffisait à faire payer toutes nos
+// recherches au prix fort, avec cinq fois moins d'appels gratuits par mois.
+// On s'en tient donc au palier « Pro ». Les horaires sont demandés à part, à
+// l'ouverture d'une fiche (`fetchOpeningHours`) ; la note affichée est celle
+// des utilisateurs de YUMIA ; le niveau de prix n'est plus affiché.
 const FIELD_MASK = [
   'places.id',
   'places.displayName',
   'places.location',
-  'places.rating',
-  'places.priceLevel',
   'places.types',
   'places.formattedAddress',
   'places.addressComponents',
   'places.photos',
-  'places.regularOpeningHours',
 ].join(',');
 
 const MAX_PHOTOS = 3;
@@ -326,6 +329,29 @@ export class GooglePlacesProvider implements PlacesProvider {
       .slice(0, MAX_PHOTOS)
       .map((p) => p.name)
       .filter((n): n is string => typeof n === 'string' && n.length > 0);
+  }
+
+  /**
+   * Horaires d'un lieu (Place Details, palier Enterprise) — un appel par lieu,
+   * seulement quand quelqu'un ouvre sa fiche ; le résultat est gardé 30 jours.
+   *
+   * @returns les lignes « lundi: 09:00–18:00 », `[]` si Google n'en connaît
+   *   pas, `null` en cas d'erreur (on garde alors ce qu'on avait).
+   */
+  async fetchOpeningHours(providerPlaceId: string): Promise<string[] | null> {
+    const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(providerPlaceId)}`, {
+      headers: {
+        'X-Goog-Api-Key': this.apiKey,
+        'X-Goog-FieldMask': 'regularOpeningHours',
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }).catch(() => null);
+    if (!res || !res.ok) {
+      this.logger.warn(`Horaires indisponibles (${res?.status ?? 'réseau'}) pour ${providerPlaceId}`);
+      return null;
+    }
+    const data = (await res.json().catch(() => null)) as GooglePlace | null;
+    return data?.regularOpeningHours?.weekdayDescriptions ?? [];
   }
 
   /**

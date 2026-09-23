@@ -157,6 +157,19 @@ export function fetchPlaceById(id: string): Promise<NearbyPlace & { openNow?: bo
   return request<NearbyPlace & { openNow?: boolean }>(`/places/${id}`);
 }
 
+/** Ce que la fiche d'un lieu charge à son ouverture (`GET /places/:id/details`). */
+export interface PlaceDetails {
+  photoUrls: string[];
+  openingHours: string[];
+  /** Moyenne des avis YUMIA, 0 si personne n'a noté. */
+  rating: number;
+  reviewCount: number;
+}
+
+export function fetchPlaceDetails(id: string): Promise<PlaceDetails> {
+  return request<PlaceDetails>(`/places/${id}/details`);
+}
+
 /** Upload d'une photo de visite pour un lieu (multipart/form-data). */
 export async function uploadPlacePhoto(
   accessToken: string,

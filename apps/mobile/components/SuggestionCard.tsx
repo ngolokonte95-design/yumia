@@ -9,6 +9,7 @@ import type { VisitFeedback, VisitResult } from '../lib/passport-api';
 import { XpToast } from './XpToast';
 import { PlacePhoto } from './PlacePhoto';
 import type { TranslationKey } from '../lib/translations';
+import { ratingLabel } from '../lib/place-rating';
 
 interface Props {
   suggestion: Suggestion;
@@ -107,11 +108,11 @@ export function SuggestionCard({ suggestion, onPress, onVisit, onSave, isSaved =
           <Text style={styles.name} numberOfLines={1}>
             {place.name}
           </Text>
-          <Text style={styles.rating}>⭐ {place.rating.toFixed(1)}</Text>
+          {place.rating > 0 ? <Text style={styles.rating}>{ratingLabel(place.rating)}</Text> : null}
         </View>
 
         <Text style={styles.metaLine}>
-          {universeLabel(t, place.universe)} · {'€'.repeat(place.priceTier)}
+          {universeLabel(t, place.universe)}
           {distanceMeters != null ? ` · ${formatDistance(distanceMeters)}` : ''}
           {place.openNow ? ` · ${t('sc_open_now')}` : ''}
         </Text>
