@@ -102,7 +102,7 @@ export default function ChatListScreen() {
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('ci_title')}</Text>
-        <Pressable onPress={() => router.push('/(tabs)/social')}>
+        <Pressable onPress={() => router.push('/chat/new' as never)} hitSlop={8}>
           <Text style={styles.newBtn}>+</Text>
         </Pressable>
       </View>
