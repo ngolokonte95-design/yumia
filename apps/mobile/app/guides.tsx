@@ -247,8 +247,10 @@ const styles = StyleSheet.create({
   searchBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   searchBtnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  facetScroll: { flexGrow: 0, marginBottom: spacing.sm },
-  facetRow: { gap: 6, paddingHorizontal: spacing.md },
+  // flexShrink: 0 — sans lui, la liste en dessous (flex: 1) écrase la rangée
+  // et coupe les puces à mi-hauteur.
+  facetScroll: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.sm },
+  facetRow: { gap: 6, paddingHorizontal: spacing.md, alignItems: 'center' },
   facetChip: {
     backgroundColor: colors.surface, borderRadius: radius.pill, borderWidth: 1,
     borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7,
