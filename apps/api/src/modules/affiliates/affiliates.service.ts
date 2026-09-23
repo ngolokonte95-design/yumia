@@ -8,6 +8,7 @@ import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { ViatorProvider } from './providers/viator.provider';
 import { DiscoverCarsProvider } from './providers/discovercars.provider';
+import { relevanceWords, titleMatches } from './tour-relevance';
 import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-provider-map';
 
 /**
@@ -276,12 +277,18 @@ export class AffiliatesService {
   async guidedTours(city: string, userId: string | undefined, theme: TourTheme = 'guides', facet?: string) {
     const trackingId = randomUUID();
     const terms = (facet && THEME_FACETS[theme]?.[facet]) || TOUR_THEMES[theme];
+    // Viator ordonne par ressemblance mais ne filtre pas : on ne garde que les
+    // offres dont le titre relève vraiment du thème (voir tour-relevance.ts),
+    // d'où une demande plus large que ce qu'on affiche.
+    const words = relevanceWords(theme, facet);
+    const fetchRelevant = async (term?: string) => {
+      const found = (await this.viator.searchTours(city, trackingId, term, words ? 50 : 20)) ?? [];
+      return (words ? found.filter((t) => titleMatches(t.title, words)) : found).slice(0, 20);
+    };
     // Terme français d'abord (titres demandés en français), anglais en repli :
     // tous les produits ne sont pas traduits chez Viator.
-    let tours = (await this.viator.searchTours(city, trackingId, terms?.[0])) ?? [];
-    if (tours.length === 0 && terms?.[1]) {
-      tours = (await this.viator.searchTours(city, trackingId, terms[1])) ?? [];
-    }
+    let tours = await fetchRelevant(terms?.[0]);
+    if (tours.length === 0 && terms?.[1]) tours = await fetchRelevant(terms[1]);
     const searchTerm = terms ? `${terms[0]} ${city}` : city;
     const links = (['getyourguide', 'viator'] as const).flatMap((key) => {
       const url = this.providers.get(key)?.generateGenericLink(trackingId, searchTerm);
