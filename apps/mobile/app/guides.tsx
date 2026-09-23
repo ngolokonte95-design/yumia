@@ -21,7 +21,7 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
-import { THEME_FACETS, THEME_TITLES } from '../lib/tour-themes';
+import { QUICK_FILTERS, THEME_FACETS, THEME_TITLES } from '../lib/tour-themes';
 
 const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
 
@@ -59,6 +59,8 @@ export default function GuidesScreen() {
   // cabaret…). `undefined` = tous.
   const facets = THEME_FACETS[theme ?? 'guides'];
   const [facet, setFacet] = useState<string | undefined>();
+  // Filtres pratiques (budget, durée, note, annulation) : plusieurs à la fois.
+  const [quick, setQuick] = useState<string[]>([]);
   // Suggestions de villes pendant la saisie. `typing` ne passe à vrai qu'à la
   // frappe : choisir une suggestion remplit le champ sans rouvrir la liste.
   const [typing, setTyping] = useState(false);
@@ -85,18 +87,18 @@ export default function GuidesScreen() {
     void load(city);
   };
 
-  const load = useCallback(async (city: string, f: string | undefined = facet) => {
+  const load = useCallback(async (city: string, f: string | undefined = facet, q: string[] = quick) => {
     const c = city.trim();
     if (!c || !accessToken) return;
     setLoading(true);
     try {
-      setResult(await fetchGuidedTours(c, accessToken, theme, f));
+      setResult(await fetchGuidedTours(c, accessToken, theme, f, q));
     } catch {
       setResult({ city: c, tours: [], links: [] });
     } finally {
       setLoading(false);
     }
-  }, [accessToken, theme, facet]);
+  }, [accessToken, theme, facet, quick]);
 
   useEffect(() => { void load(query); /* chargement initial */ }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -159,7 +161,7 @@ export default function GuidesScreen() {
               <Pressable
                 key={f.key ?? 'all'}
                 style={[styles.facetChip, active && styles.facetChipActive]}
-                onPress={() => { setFacet(f.key); void load(query, f.key); }}
+                onPress={() => { setFacet(f.key); void load(query, f.key, quick); }}
               >
                 <Text style={[styles.facetTxt, active && styles.facetTxtActive]}>{f.label}</Text>
               </Pressable>
@@ -167,6 +169,30 @@ export default function GuidesScreen() {
           })}
         </ScrollView>
       )}
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.facetScroll}
+        contentContainerStyle={styles.facetRow}
+      >
+        {QUICK_FILTERS.map((f) => {
+          const active = quick.includes(f.key);
+          return (
+            <Pressable
+              key={f.key}
+              style={[styles.quickChip, active && styles.quickChipActive]}
+              onPress={() => {
+                const next = active ? quick.filter((k) => k !== f.key) : [...quick, f.key];
+                setQuick(next);
+                void load(query, facet, next);
+              }}
+            >
+              <Text style={[styles.quickTxt, active && styles.quickTxtActive]}>{f.emoji} {t(f.labelKey)}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
@@ -209,6 +235,7 @@ function TourCard({ tour, onPress }: { tour: TourListing; onPress: () => void })
   const meta = [
     tour.rating != null ? `⭐ ${tour.rating.toFixed(1)} (${t('gd_reviews').replace('{count}', String(tour.reviewCount))})` : null,
     duration ? `⏱ ${duration}` : null,
+    tour.freeCancellation ? `✅ ${t('quick_free_cancel')}` : null,
   ].filter(Boolean).join(' · ');
 
   return (
@@ -258,6 +285,15 @@ const styles = StyleSheet.create({
   facetChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   facetTxt: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
   facetTxtActive: { color: '#fff' },
+  // Filtres pratiques : contour plutôt que fond plein, pour les distinguer
+  // d'un coup d'œil des styles (un seul choix) — ceux-ci se cumulent.
+  quickChip: {
+    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 11, paddingVertical: 5,
+  },
+  quickChipActive: { borderColor: colors.brand, backgroundColor: `${colors.brand}22` },
+  quickTxt: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  quickTxtActive: { color: colors.brandSoft },
   suggestBox: {
     marginHorizontal: spacing.md, marginTop: -spacing.xs, marginBottom: spacing.sm,
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,

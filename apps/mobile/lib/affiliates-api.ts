@@ -75,6 +75,8 @@ export interface TourListing {
   fromPrice: number | null;
   currency: string;
   durationMinutes: number | null;
+  /** `null` : le partenaire ne l'a pas précisé. */
+  freeCancellation: boolean | null;
   url: string;
 }
 
@@ -104,9 +106,16 @@ export async function fetchTourCities(q: string, accessToken: string): Promise<{
 }
 
 /** Écran Visites guidées : visites les mieux notées de la ville + liens partenaires. */
-export function fetchGuidedTours(city: string, accessToken: string, theme?: string, facet?: string): Promise<GuidedTours> {
+export function fetchGuidedTours(
+  city: string,
+  accessToken: string,
+  theme?: string,
+  facet?: string,
+  quick: string[] = [],
+): Promise<GuidedTours> {
   const q = new URLSearchParams({ city });
   if (theme) q.set('theme', theme);
   if (facet) q.set('facet', facet);
+  if (quick.length) q.set('quick', quick.join(','));
   return request<GuidedTours>(`/affiliates/tours?${q.toString()}`, { token: accessToken });
 }

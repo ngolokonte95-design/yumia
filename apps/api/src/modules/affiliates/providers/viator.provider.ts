@@ -14,6 +14,11 @@ export interface TourListing {
   fromPrice: number | null;
   currency: string;
   durationMinutes: number | null;
+  /**
+   * Annulation gratuite, d'après les drapeaux Viator du produit (`flags`).
+   * `null` si Viator n'a pas renvoyé de drapeaux : on ne sait pas.
+   */
+  freeCancellation: boolean | null;
   url: string;
 }
 
@@ -27,6 +32,7 @@ interface ViatorDestination {
 
 interface ViatorProduct {
   title?: string;
+  flags?: string[];
   productUrl?: string;
   images?: { isCover?: boolean; variants?: { url?: string; width?: number }[] }[];
   reviews?: { totalReviews?: number; combinedAverageRating?: number };
@@ -237,6 +243,7 @@ export class ViatorProvider implements AffiliateProvider {
           currency: p.pricing?.currency ?? 'EUR',
           durationMinutes:
             p.duration?.fixedDurationInMinutes ?? p.duration?.variableDurationFromMinutes ?? null,
+          freeCancellation: Array.isArray(p.flags) ? p.flags.includes('FREE_CANCELLATION') : null,
           url,
         }];
       });

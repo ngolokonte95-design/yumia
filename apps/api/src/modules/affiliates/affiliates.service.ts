@@ -8,7 +8,7 @@ import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
 import { ViatorProvider } from './providers/viator.provider';
 import { DiscoverCarsProvider } from './providers/discovercars.provider';
-import { relevanceWords, titleMatches } from './tour-relevance';
+import { passesQuickFilters, relevanceWords, titleMatches, type QuickFilter } from './tour-relevance';
 import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-provider-map';
 
 /**
@@ -75,6 +75,9 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     boat: ['visite en bateau', 'boat tour'],
     night: ['visite de nuit', 'night tour'],
     private: ['visite privée', 'private tour'],
+    mystery: ['visite insolite', 'mystery tour'],
+    street_art: ['street art', 'street art'],
+    photo: ['visite photo', 'photo tour'],
   },
   adventure: {
     hiking: ['randonnée', 'hiking'],
@@ -85,6 +88,9 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     paragliding: ['parapente', 'paragliding'],
     quad: ['quad buggy', 'atv tour'],
     climbing: ['escalade', 'climbing'],
+    horse: ['équitation', 'horseback riding'],
+    rafting: ['rafting', 'white water rafting'],
+    snow: ['ski', 'ski'],
   },
   food_tours: {
     wine: ['dégustation de vin', 'wine tasting'],
@@ -93,6 +99,8 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     market: ['visite du marché', 'market tour'],
     chocolate: ['chocolat', 'chocolate'],
     cheese: ['dégustation de fromage', 'cheese tasting'],
+    home_meal: ['repas chez l\'habitant', 'dinner with locals'],
+    coffee: ['café', 'coffee tour'],
   },
   activities: {
     family: ['en famille', 'family friendly'],
@@ -100,6 +108,9 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     day_trip: ['excursion d\'une journée', 'day trip'],
     workshop: ['atelier', 'workshop'],
     museum: ['musée', 'museum'],
+    spa: ['spa', 'spa'],
+    zoo: ['zoo aquarium', 'zoo aquarium'],
+    theme_park: ['parc d\'attractions', 'theme park'],
   },
   shows: {
     nightlife: ['boîte de nuit', 'nightclub'],
@@ -110,6 +121,8 @@ export const THEME_FACETS: Partial<Record<TourTheme, Record<string, readonly [st
     musical: ['comédie musicale', 'musical'],
     dinner_cruise: ['dîner croisière', 'dinner cruise'],
     pub_crawl: ['tournée des bars', 'pub crawl'],
+    dance: ['spectacle de danse', 'dance show'],
+    opera: ['opéra', 'opera'],
   },
 };
 
@@ -274,7 +287,13 @@ export class AffiliatesService {
    * Remplace les « guides locaux » : des personnes fictives, créées par un
    * script de démonstration, dont la réservation n'était transmise à personne.
    */
-  async guidedTours(city: string, userId: string | undefined, theme: TourTheme = 'guides', facet?: string) {
+  async guidedTours(
+    city: string,
+    userId: string | undefined,
+    theme: TourTheme = 'guides',
+    facet?: string,
+    quick: readonly QuickFilter[] = [],
+  ) {
     const trackingId = randomUUID();
     const terms = (facet && THEME_FACETS[theme]?.[facet]) || TOUR_THEMES[theme];
     // Viator ordonne par ressemblance mais ne filtre pas : on ne garde que les
@@ -282,8 +301,11 @@ export class AffiliatesService {
     // d'où une demande plus large que ce qu'on affiche.
     const words = relevanceWords(theme, facet);
     const fetchRelevant = async (term?: string) => {
-      const found = (await this.viator.searchTours(city, trackingId, term, words ? 50 : 20)) ?? [];
-      return (words ? found.filter((t) => titleMatches(t.title, words)) : found).slice(0, 20);
+      const found = (await this.viator.searchTours(city, trackingId, term, words || quick.length ? 50 : 20)) ?? [];
+      return found
+        .filter((t) => !words || titleMatches(t.title, words))
+        .filter((t) => passesQuickFilters(t, quick))
+        .slice(0, 20);
     };
     // Terme français d'abord (titres demandés en français), anglais en repli :
     // tous les produits ne sont pas traduits chez Viator.

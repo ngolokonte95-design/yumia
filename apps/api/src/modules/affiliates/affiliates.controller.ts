@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { AffiliatesService, isThemeFacet, isTourTheme, type TourTheme } from './affiliates.service';
+import { isQuickFilter, type QuickFilter } from './tour-relevance';
 import type { AffiliateProviderKey } from './providers/affiliate-provider.interface';
 
 @Controller()
@@ -70,13 +71,16 @@ export class AffiliatesController {
     @Query('city') city?: string,
     @Query('theme') theme?: string,
     @Query('facet') facet?: string,
+    @Query('quick') quick?: string,
   ) {
     const c = (city ?? '').trim();
     if (!c) throw new BadRequestException('Ville manquante.');
     if (theme && !isTourTheme(theme)) throw new BadRequestException('Thème inconnu.');
     const t = (theme as TourTheme | undefined) ?? 'guides';
     if (facet && !isThemeFacet(t, facet)) throw new BadRequestException('Filtre inconnu.');
-    return this.affiliates.guidedTours(c.slice(0, 80), user.sub, t, facet);
+    const quickList = (quick ?? '').split(',').map((q) => q.trim()).filter(Boolean);
+    if (!quickList.every(isQuickFilter)) throw new BadRequestException('Filtre pratique inconnu.');
+    return this.affiliates.guidedTours(c.slice(0, 80), user.sub, t, facet, quickList as QuickFilter[]);
   }
 
   /** GET /api/affiliates/generic-categories — catégories disponibles pour les onglets Explorer (activités, transfert aéroport...). */

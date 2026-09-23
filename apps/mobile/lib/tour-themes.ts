@@ -31,6 +31,9 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
     { key: 'boat', emoji: '⛵', labelKey: 'facet_guides_boat' },
     { key: 'night', emoji: '🌙', labelKey: 'facet_guides_night' },
     { key: 'private', emoji: '🔒', labelKey: 'facet_guides_private' },
+    { key: 'mystery', emoji: '👻', labelKey: 'facet_guides_mystery' },
+    { key: 'street_art', emoji: '🎨', labelKey: 'facet_guides_street_art' },
+    { key: 'photo', emoji: '📸', labelKey: 'facet_guides_photo' },
   ],
   adventure: [
     { key: 'hiking', emoji: '🥾', labelKey: 'facet_adventure_hiking' },
@@ -39,6 +42,9 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
     { key: 'paragliding', emoji: '🪂', labelKey: 'facet_adventure_paragliding' },
     { key: 'quad', emoji: '🏍️', labelKey: 'facet_adventure_quad' },
     { key: 'climbing', emoji: '🧗', labelKey: 'facet_adventure_climbing' },
+    { key: 'horse', emoji: '🐎', labelKey: 'facet_adventure_horse' },
+    { key: 'rafting', emoji: '🚣', labelKey: 'facet_adventure_rafting' },
+    { key: 'snow', emoji: '⛷️', labelKey: 'facet_adventure_snow' },
   ],
   food_tours: [
     { key: 'wine', emoji: '🍷', labelKey: 'facet_food_tours_wine' },
@@ -47,6 +53,8 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
     { key: 'market', emoji: '🧺', labelKey: 'facet_food_tours_market' },
     { key: 'chocolate', emoji: '🍫', labelKey: 'facet_food_tours_chocolate' },
     { key: 'cheese', emoji: '🧀', labelKey: 'facet_food_tours_cheese' },
+    { key: 'home_meal', emoji: '🏡', labelKey: 'facet_food_tours_home_meal' },
+    { key: 'coffee', emoji: '☕', labelKey: 'facet_food_tours_coffee' },
   ],
   activities: [
     { key: 'family', emoji: '👨‍👩‍👧', labelKey: 'facet_activities_family' },
@@ -54,6 +62,9 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
     { key: 'day_trip', emoji: '🗺️', labelKey: 'facet_activities_day_trip' },
     { key: 'workshop', emoji: '🎨', labelKey: 'facet_activities_workshop' },
     { key: 'museum', emoji: '🏛️', labelKey: 'facet_activities_museum' },
+    { key: 'spa', emoji: '💆', labelKey: 'facet_activities_spa' },
+    { key: 'zoo', emoji: '🦁', labelKey: 'facet_activities_zoo' },
+    { key: 'theme_park', emoji: '🎢', labelKey: 'facet_activities_theme_park' },
   ],
   shows: [
     { key: 'nightlife', emoji: '🪩', labelKey: 'facet_nightlife' },
@@ -64,5 +75,18 @@ export const THEME_FACETS: Record<string, { key: string; emoji: string; labelKey
     { key: 'musical', emoji: '🎤', labelKey: 'facet_musical' },
     { key: 'dinner_cruise', emoji: '🛥️', labelKey: 'facet_dinner_cruise' },
     { key: 'pub_crawl', emoji: '🍻', labelKey: 'facet_pub_crawl' },
+    { key: 'dance', emoji: '💃', labelKey: 'facet_shows_dance' },
+    { key: 'opera', emoji: '🎻', labelKey: 'facet_shows_opera' },
   ],
 };
+
+/**
+ * Filtres pratiques, présents dans tous les onglets et cumulables entre eux
+ * et avec un style. Clés identiques à QUICK_FILTERS côté API.
+ */
+export const QUICK_FILTERS: { key: string; emoji: string; labelKey: TranslationKey }[] = [
+  { key: 'budget', emoji: '💰', labelKey: 'quick_budget' },
+  { key: 'short', emoji: '⏱', labelKey: 'quick_short' },
+  { key: 'top', emoji: '⭐', labelKey: 'quick_top' },
+  { key: 'free_cancel', emoji: '✅', labelKey: 'quick_free_cancel' },
+];

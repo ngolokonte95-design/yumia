@@ -29,3 +29,27 @@ describe('cohérence des résultats de visites', () => {
     for (const theme of Object.keys(THEME_MATCH)) expect(theme in TOUR_THEMES).toBe(true);
   });
 });
+
+describe('filtres pratiques', () => {
+  const { passesQuickFilters } = jest.requireActual('../tour-relevance') as typeof import('../tour-relevance');
+  const tour = { fromPrice: 25, durationMinutes: 90, rating: 4.7, reviewCount: 350, freeCancellation: true };
+
+  it('se cumulent', () => {
+    expect(passesQuickFilters(tour, ['budget', 'short', 'top', 'free_cancel'])).toBe(true);
+    expect(passesQuickFilters({ ...tour, fromPrice: 45 }, ['budget', 'short'])).toBe(false);
+  });
+
+  it('écarte une note élevée sur trop peu d’avis', () => {
+    expect(passesQuickFilters({ ...tour, rating: 5, reviewCount: 12 }, ['top'])).toBe(false);
+  });
+
+  it("n'affirme pas l'annulation gratuite quand Viator ne l'indique pas", () => {
+    expect(passesQuickFilters({ ...tour, freeCancellation: null }, ['free_cancel'])).toBe(false);
+  });
+});
+
+describe('montgolfière', () => {
+  it("n'apparaît dans aucun filtre (retirée à la demande)", () => {
+    expect(titleMatches('Vol en montgolfière au lever du soleil', relevanceWords('adventure', 'paragliding')!)).toBe(false);
+  });
+});
