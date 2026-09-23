@@ -334,6 +334,12 @@ export default function UserProfileScreen() {
                 <Text style={{ fontSize: 20 }}>📷</Text>
               </View>
             )}
+            {item.mediaUrls.length > 1 && !isVideoUrl(item.mediaUrls[0]) && (
+              // Plusieurs photos : repère « carrousel », comme sur Instagram.
+              <View style={styles.multiBadge}>
+                <Text style={styles.multiBadgeTxt}>⧉</Text>
+              </View>
+            )}
             {item.isReel && (
               <View style={styles.gridReelBadge}>
                 <Text style={{ color: '#fff', fontSize: 12 }}>▶</Text>
@@ -477,6 +483,12 @@ const styles = StyleSheet.create({
 
   // Grid
   gridItem: { width: GRID_ITEM, height: GRID_ITEM, position: 'relative' },
+  multiBadge: {
+    position: 'absolute', top: 6, right: 6,
+    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
+    paddingHorizontal: 5, paddingVertical: 1,
+  },
+  multiBadgeTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
   gridImg: { width: '100%', height: '100%' },
   gridPlaceholder: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   gridReelBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },

@@ -418,6 +418,12 @@ export default function SocialProfileScreen() {
                 <Text style={{ fontSize: 22 }}>📷</Text>
               </View>
             )}
+            {item.mediaUrls.length > 1 && !isVideoUrl(item.mediaUrls[0]) && (
+              // Plusieurs photos : repère « carrousel », comme sur Instagram.
+              <View style={styles.multiBadge}>
+                <Text style={styles.multiBadgeTxt}>⧉</Text>
+              </View>
+            )}
             {item.pinned && (
               <View style={styles.pinnedBadge}>
                 <Text style={{ fontSize: 11 }}>📌</Text>
@@ -680,6 +686,12 @@ const styles = StyleSheet.create({
   gridItem: { width: GRID_ITEM, height: GRID_ITEM, margin: 0.5, position: 'relative' },
   gridImg: { width: '100%', height: '100%' },
   gridPlaceholder: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  multiBadge: {
+    position: 'absolute', top: 6, right: 6,
+    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
+    paddingHorizontal: 5, paddingVertical: 1,
+  },
+  multiBadgeTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
   videoIcon: {
     position: 'absolute', top: 6, right: 6,
     backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,

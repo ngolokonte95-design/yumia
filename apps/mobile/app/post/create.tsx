@@ -17,6 +17,9 @@ import type { PostOverlay } from '../../lib/feed-api';
 import { useI18n } from '../../lib/useI18n';
 import { appendFile } from '../../lib/upload';
 
+/** Photos par publication — la limite d'Instagram, annoncée dans l'écran. */
+const MAX_PHOTOS = 10;
+
 const API = API_BASE_URL;
 
 type MediaMode = 'photo' | 'video';
@@ -48,14 +51,31 @@ export default function CreatePostScreen() {
 
   const openCamera = () => { router.push('/camera?mode=post' as never); };
 
+  // Le « + » AJOUTE à la sélection : il la remplaçait, si bien qu'on perdait
+  // les photos déjà choisies (ou celle prise à l'appareil) en voulant en
+  // ajouter une — le carrousel paraissait impossible à composer.
   const pickImages = async () => {
+    const remaining = MAX_PHOTOS - images.length;
+    if (remaining <= 0) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
+      // Garde l'ordre de sélection : c'est l'ordre du carrousel.
+      orderedSelection: true,
       quality: 0.85,
-      selectionLimit: 10,
+      selectionLimit: remaining,
     });
-    if (!result.canceled) setImages(result.assets.map((a) => a.uri));
+    if (result.canceled) return;
+    setImages((prev) => {
+      const added = result.assets.map((a) => a.uri).filter((uri) => !prev.includes(uri));
+      return [...prev, ...added].slice(0, MAX_PHOTOS);
+    });
+  };
+
+  /** Fait de la photo `i` la couverture — celle affichée en premier et sur le profil. */
+  const makeCover = (i: number) => {
+    if (i === 0) return;
+    setImages((prev) => [prev[i], ...prev.filter((_, j) => j !== i)]);
   };
 
   const pickVideo = async () => {
@@ -208,19 +228,34 @@ export default function CreatePostScreen() {
         {/* Photo picker */}
         {mode === 'photo' && (
           images.length > 0 ? (
+            <>
             <View style={styles.grid}>
               {images.map((uri, i) => (
-                <View key={i} style={styles.gridItem}>
+                <Pressable key={uri} style={styles.gridItem} onPress={() => makeCover(i)}>
                   <Image source={{ uri }} style={styles.gridImg} />
+                  {images.length > 1 && (
+                    <View style={[styles.orderBadge, i === 0 && styles.coverBadge]}>
+                      <Text style={styles.orderTxt}>{i === 0 ? 'Couverture' : i + 1}</Text>
+                    </View>
+                  )}
                   <Pressable style={styles.removeBtn} onPress={() => setImages((prev) => prev.filter((_, j) => j !== i))}>
                     <Text style={styles.removeTxt}>✕</Text>
                   </Pressable>
-                </View>
+                </Pressable>
               ))}
-              <Pressable style={styles.addMore} onPress={() => void pickImages()}>
-                <Text style={{ fontSize: 28, color: colors.textMuted }}>+</Text>
-              </Pressable>
+              {images.length < MAX_PHOTOS && (
+                <Pressable style={styles.addMore} onPress={() => void pickImages()}>
+                  <Text style={{ fontSize: 28, color: colors.textMuted }}>+</Text>
+                  <Text style={styles.addMoreHint}>{images.length}/{MAX_PHOTOS}</Text>
+                </Pressable>
+              )}
             </View>
+            {images.length > 1 && (
+              <Text style={styles.carouselHint}>
+                Touche une photo pour en faire la couverture.
+              </Text>
+            )}
+            </>
           ) : (
             <View style={styles.mediaChoiceRow}>
               <Pressable style={styles.mediaChoiceBtn} onPress={openCamera}>
@@ -435,6 +470,15 @@ const styles = StyleSheet.create({
     width: 24, height: 24, alignItems: 'center', justifyContent: 'center',
   },
   removeTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  orderBadge: {
+    position: 'absolute', left: 4, bottom: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  coverBadge: { backgroundColor: colors.brand },
+  orderTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  addMoreHint: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  carouselHint: { fontSize: 12, color: colors.textMuted, marginTop: -spacing.xs, marginBottom: spacing.md },
   addMore: {
     width: '31%', aspectRatio: 1, backgroundColor: colors.surface,
     borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
