@@ -301,7 +301,6 @@ export default function PlaceScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.bottom}
     >
-      <FeatureTip feature="place" />
       <XpToast result={xpResult} onDone={() => setXpResult(null)} />
       {place.photoUrls && place.photoUrls.length > 0 && photoViewerIndex !== null ? (
         <PhotoViewer
@@ -715,6 +714,7 @@ export default function PlaceScreen() {
           </View>
         </View>
       </ScrollView>
+      <FeatureTip feature="place" />
     </KeyboardAvoidingView>
   );
 }

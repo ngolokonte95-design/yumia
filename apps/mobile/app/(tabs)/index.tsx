@@ -111,12 +111,12 @@ export default function HomeScreen() {
   const { coords, city } = useLocation();
 
   return (
+    <>
     <ScrollView
       style={styles.screen}
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
-      <FeatureTip feature="home" />
       {/* Météo — tout en haut, avant même le logo : c'est l'info la plus
           rapide à checker en ouvrant l'app. */}
       <View style={[styles.section, { marginBottom: spacing.sm }]}>
@@ -208,6 +208,8 @@ export default function HomeScreen() {
         </View>
       ))}
     </ScrollView>
+      <FeatureTip feature="home" />
+    </>
   );
 }
 

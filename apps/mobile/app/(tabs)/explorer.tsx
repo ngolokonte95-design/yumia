@@ -232,7 +232,6 @@ export default function ExplorerScreen() {
 
   return (
     <>
-      <FeatureTip feature="explorer" />
     <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
     <ScrollView
       style={styles.screen}
@@ -444,6 +443,7 @@ export default function ExplorerScreen() {
         )}
       </View>
     </ScrollView>
+      <FeatureTip feature="explorer" />
     </>
   );
 }

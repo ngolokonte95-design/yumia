@@ -100,7 +100,6 @@ export default function ChatListScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <FeatureTip feature="chat" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('ci_title')}</Text>
@@ -248,6 +247,7 @@ export default function ChatListScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <FeatureTip feature="chat" />
     </View>
   );
 }

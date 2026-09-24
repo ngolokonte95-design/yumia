@@ -58,6 +58,7 @@ export default function PassportScreen() {
   ];
 
   return (
+    <>
     <ScrollView
       style={styles.screen}
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
@@ -66,7 +67,6 @@ export default function PassportScreen() {
         <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
       }
     >
-      <FeatureTip feature="passport" />
       {/* Logo Yumia — bien visible */}
       <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
         <YumiaLogo height={110} />
@@ -219,6 +219,8 @@ export default function PassportScreen() {
         </View>
       </View>
     </ScrollView>
+      <FeatureTip feature="passport" />
+    </>
   );
 }
 

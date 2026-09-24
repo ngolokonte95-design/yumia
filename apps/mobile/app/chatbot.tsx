@@ -78,7 +78,6 @@ export default function ChatbotScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <FeatureTip feature="chatbot" />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header */}
       <View style={styles.header}>
@@ -144,6 +143,7 @@ export default function ChatbotScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      <FeatureTip feature="chatbot" />
     </View>
   );
 }

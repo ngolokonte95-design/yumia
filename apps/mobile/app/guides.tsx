@@ -143,7 +143,6 @@ export default function GuidesScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <FeatureTip feature="tours" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
@@ -290,6 +289,7 @@ export default function GuidesScreen() {
           )}
         </ScrollView>
       )}
+      <FeatureTip feature="tours" />
     </View>
   );
 }

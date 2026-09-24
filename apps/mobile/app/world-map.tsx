@@ -112,7 +112,6 @@ export default function WorldMapScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <FeatureTip feature="world_map" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('wm_title')}</Text>
@@ -172,6 +171,7 @@ export default function WorldMapScreen() {
           <Text style={styles.broadcastBtnText}>{broadcasting ? t('wm_deactivate') : t('wm_show_me')}</Text>
         </Pressable>
       </View>
+      <FeatureTip feature="world_map" />
     </View>
   );
 }

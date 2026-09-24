@@ -955,7 +955,6 @@ export default function ReelsScreen() {
         if (h > 0 && Math.abs(h - screenH) > 0.5) setScreenH(h);
       }}
     >
-      <FeatureTip feature="reels" />
       {/* Header flottant */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
@@ -1052,6 +1051,7 @@ export default function ReelsScreen() {
           p.id === id ? { ...p, commentsCount: Math.max(0, p.commentsCount + delta) } : p
         )))}
       />
+      <FeatureTip feature="reels" />
     </View>
   );
 }

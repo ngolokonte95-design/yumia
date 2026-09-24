@@ -888,7 +888,6 @@ export default function SocialTab() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <FeatureTip feature="social" />
       {/* Header : Reels + logo Yumia bien visible + Créer + Messages */}
       <View style={styles.topBar}>
         <View style={styles.leftBtns}>
@@ -1164,6 +1163,7 @@ export default function SocialTab() {
         onClose={() => setCommentsFor(null)}
         onCountChange={bumpComments}
       />
+      <FeatureTip feature="social" />
     </View>
   );
 }

@@ -41,6 +41,7 @@ export const FEATURE_TIPS: Record<FeatureTipId, { emoji: string; title: Translat
 };
 
 let seen: Set<string> | null = null;
+let active: FeatureTipId | null = null;
 let loading: Promise<Set<string>> | null = null;
 
 async function load(): Promise<Set<string>> {
@@ -77,6 +78,7 @@ export async function markTipSeen(id: FeatureTipId): Promise<void> {
 export async function resetTips(): Promise<void> {
   seen = new Set();
   loading = null;
+  active = null;
   try {
     await AsyncStorage?.removeItem(KEY);
   } catch {
@@ -88,7 +90,6 @@ export async function resetTips(): Promise<void> {
  * Une seule astuce à l'écran à la fois : deux écrans montés ensemble (onglets
  * voisins, écran empilé) n'en afficheront jamais deux superposées.
  */
-let active: FeatureTipId | null = null;
 export function claimTipSlot(id: FeatureTipId): boolean {
   if (active && active !== id) return false;
   active = id;

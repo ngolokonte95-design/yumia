@@ -2,12 +2,16 @@
  * Astuce flottante de première utilisation : une carte qui explique l'écran
  * la première fois qu'on y arrive, puis ne revient plus (voir feature-tips).
  *
- * Posée n'importe où dans l'écran : elle s'affiche dans une Modal, donc sans
- * dépendre de la mise en page. N'apparaît que si l'écran est au premier plan,
- * une demi-seconde après l'arrivée — le temps de voir où l'on est.
+ * À poser en DERNIER enfant de la vue racine de l'écran : elle se dessine
+ * par-dessus, en position absolue. Pas de Modal : iOS refuse en silence d'en
+ * présenter une pendant une transition d'écran, et l'astuce restait alors
+ * « affichée » sans jamais apparaître — en bloquant toutes les suivantes.
+ *
+ * N'apparaît que si l'écran est au premier plan, une demi-seconde après
+ * l'arrivée ; quitter l'écran la retire sans la marquer comme vue.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
@@ -24,7 +28,7 @@ export function FeatureTip({ feature }: { feature: FeatureTipId }) {
   const { status } = useAuth();
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
-  const slide = useRef(new Animated.Value(0)).current;
+  const anim = useRef(new Animated.Value(0)).current;
   const tip = FEATURE_TIPS[feature];
 
   useFocusEffect(
@@ -40,60 +44,61 @@ export function FeatureTip({ feature }: { feature: FeatureTipId }) {
       return () => {
         cancelled = true;
         clearTimeout(timer);
+        // Écran quitté : l'astuce s'efface sans être comptée comme vue, et
+        // libère sa place pour celle de l'écran suivant.
+        setVisible(false);
+        releaseTipSlot(feature);
       };
     }, [feature, status]),
   );
 
+  useEffect(() => () => releaseTipSlot(feature), [feature]);
+
   useEffect(() => {
-    if (!visible) return;
-    Animated.spring(slide, { toValue: 1, useNativeDriver: true, friction: 8, tension: 60 }).start();
-  }, [visible, slide]);
+    if (!visible) { anim.setValue(0); return; }
+    Animated.spring(anim, { toValue: 1, useNativeDriver: true, friction: 8, tension: 60 }).start();
+  }, [visible, anim]);
 
   const dismiss = () => {
     void markTipSeen(feature);
     setVisible(false);
     releaseTipSlot(feature);
-    slide.setValue(0);
   };
 
   if (!visible) return null;
 
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={dismiss}>
-      <Pressable style={styles.backdrop} onPress={dismiss}>
-        <Animated.View
-          style={[
-            styles.card,
-            { marginBottom: insets.bottom + 90 },
-            {
-              opacity: slide,
-              transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
-            },
-          ]}
-        >
-          {/* Toucher la carte ne la ferme pas : seul le bouton, ou le fond. */}
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <View style={styles.header}>
-              <Text style={styles.emoji}>{tip.emoji}</Text>
-              <Text style={styles.title}>{t(tip.title)}</Text>
-            </View>
-            <Text style={styles.body}>{t(tip.body)}</Text>
-            <Pressable style={styles.btn} onPress={dismiss} accessibilityRole="button">
-              <Text style={styles.btnTxt}>{t('tip_got_it')}</Text>
-            </Pressable>
-          </Pressable>
-        </Animated.View>
-      </Pressable>
-    </Modal>
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: anim }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={dismiss} accessibilityLabel={t('tip_got_it')} />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.card,
+          { bottom: Math.max(insets.bottom, spacing.md) + spacing.md },
+          { opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] },
+        ]}
+      >
+        <View style={styles.header}>
+          <Text style={styles.emoji}>{tip.emoji}</Text>
+          <Text style={styles.title}>{t(tip.title)}</Text>
+        </View>
+        <Text style={styles.body}>{t(tip.body)}</Text>
+        <Pressable style={styles.btn} onPress={dismiss} accessibilityRole="button">
+          <Text style={styles.btnTxt}>{t('tip_got_it')}</Text>
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)', paddingHorizontal: spacing.md },
+  backdrop: { backgroundColor: 'rgba(0,0,0,0.35)' },
   card: {
+    position: 'absolute', left: spacing.md, right: spacing.md,
     backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg,
     borderWidth: 1, borderColor: colors.brand,
-    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 12,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
   emoji: { fontSize: 26 },

@@ -203,7 +203,6 @@ export default function CreatePostScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <FeatureTip feature="post_create" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.cancel}>{t('postcreate_cancel')}</Text></Pressable>
         <Text style={styles.title}>{t('postcreate_title')}</Text>
@@ -430,6 +429,7 @@ export default function CreatePostScreen() {
           }}
         />
       )}
+      <FeatureTip feature="post_create" />
     </View>
   );
 }

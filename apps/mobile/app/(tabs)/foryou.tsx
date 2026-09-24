@@ -76,7 +76,6 @@ export default function ForYouScreen() {
 
   return (
     <View style={styles.screen}>
-      <FeatureTip feature="foryou" />
       <PaywallModal visible={limitError !== null} onClose={clearLimitError} />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
@@ -151,6 +150,7 @@ export default function ForYouScreen() {
           );
         })}
       </View>
+      <FeatureTip feature="foryou" />
     </View>
   );
 }

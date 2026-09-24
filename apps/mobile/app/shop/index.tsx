@@ -75,7 +75,6 @@ export default function ShopHomeScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <FeatureTip feature="shop" />
       {/* En-tête : retour, recherche, panier */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
@@ -149,6 +148,7 @@ export default function ShopHomeScreen() {
           )}
         </ScrollView>
       )}
+      <FeatureTip feature="shop" />
     </View>
   );
 }

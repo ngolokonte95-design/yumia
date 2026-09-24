@@ -294,7 +294,6 @@ export default function ItineraryScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <FeatureTip feature="itinerary" />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header coloré par mode */}
       <View style={[styles.header, { backgroundColor: meta.color }]}>
@@ -610,6 +609,7 @@ export default function ItineraryScreen() {
         }}
       />
 
+      <FeatureTip feature="itinerary" />
     </View>
   );
 }

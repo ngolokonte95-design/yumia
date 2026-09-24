@@ -553,7 +553,6 @@ export default function MapScreen() {
 
   return (
     <View style={styles.screen}>
-      <FeatureTip feature="map" />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
       {/* Ferme le panneau ouvert (univers ou rayon) en tapant à côté */}
@@ -805,6 +804,7 @@ export default function MapScreen() {
           />
         </Animated.View>
       </Animated.View>
+      <FeatureTip feature="map" />
     </View>
   );
 }
