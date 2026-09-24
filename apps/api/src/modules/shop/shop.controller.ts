@@ -275,7 +275,7 @@ export class ShopController {
   @Get('aliexpress/callback')
   async aliexpressCallback(@Query('code') code?: string, @Query('state') state?: string) {
     if (!code) return { ok: false, message: 'Code absent' };
-    if (!this.aliexpress.consumeOAuthState(state)) return { ok: false, message: 'Lien expiré : relance la connexion depuis l'admin.' };
+    if (!this.aliexpress.consumeOAuthState(state)) return { ok: false, message: "Lien expiré : relance la connexion depuis l'admin." };
     const ok = await this.aliexpress.exchangeCodeForToken(code);
     return { ok, message: ok ? 'YUMIA est connecté à AliExpress.' : 'Échec de la connexion.' };
   }
