@@ -32,6 +32,7 @@ import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { VisitResult } from '../../lib/passport-api';
 import { ratingSuffix } from '../../lib/place-rating';
+import { FeatureTip } from '../../components/FeatureTip';
 
 /**
  * FOR YOU — cœur addictif. Flux vertical plein écran (snap-to-card), façon TikTok.
@@ -75,6 +76,7 @@ export default function ForYouScreen() {
 
   return (
     <View style={styles.screen}>
+      <FeatureTip feature="foryou" />
       <PaywallModal visible={limitError !== null} onClose={clearLimitError} />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 

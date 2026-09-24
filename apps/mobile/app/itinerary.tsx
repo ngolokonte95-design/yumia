@@ -24,6 +24,7 @@ import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { DayDetailModal, type DayMoment } from '../components/DayDetailModal';
 import { itineraryMoodLabel, itineraryMoodSub } from '../lib/labelHelpers';
 import type { CitySuggestion } from '../lib/services/weather';
+import { FeatureTip } from '../components/FeatureTip';
 
 const API = API_BASE_URL;
 
@@ -293,6 +294,7 @@ export default function ItineraryScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <FeatureTip feature="itinerary" />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header coloré par mode */}
       <View style={[styles.header, { backgroundColor: meta.color }]}>

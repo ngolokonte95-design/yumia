@@ -11,6 +11,7 @@ import { startSharingLocation, stopSharingLocation } from '../lib/share-location
 import type { Plan } from '../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
+import { FeatureTip } from '../components/FeatureTip';
 
 const API = API_BASE_URL;
 
@@ -111,6 +112,7 @@ export default function WorldMapScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <FeatureTip feature="world_map" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('wm_title')}</Text>

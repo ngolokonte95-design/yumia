@@ -13,6 +13,7 @@ import { usePlanLimits } from '../../lib/usePlanLimits';
 import { useI18n } from '../../lib/useI18n';
 import { badgeName, levelName } from '../../lib/labelHelpers';
 import type { UniverseCount } from '../../lib/passport-api';
+import { FeatureTip } from '../../components/FeatureTip';
 
 /**
  * PASSEPORT YUMIA — mémoire gamifiée : stats, badges, carte du monde.
@@ -65,6 +66,7 @@ export default function PassportScreen() {
         <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
       }
     >
+      <FeatureTip feature="passport" />
       {/* Logo Yumia — bien visible */}
       <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
         <YumiaLogo height={110} />

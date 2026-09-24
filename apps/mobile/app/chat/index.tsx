@@ -12,6 +12,7 @@ import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
+import { FeatureTip } from '../../components/FeatureTip';
 
 const API = API_BASE_URL;
 
@@ -99,6 +100,7 @@ export default function ChatListScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <FeatureTip feature="chat" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('ci_title')}</Text>

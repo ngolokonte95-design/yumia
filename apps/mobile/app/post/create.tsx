@@ -16,6 +16,7 @@ import { VideoEditor } from '../../components/postEditor/VideoEditor';
 import type { PostOverlay } from '../../lib/feed-api';
 import { useI18n } from '../../lib/useI18n';
 import { appendFile } from '../../lib/upload';
+import { FeatureTip } from '../../components/FeatureTip';
 
 /** Photos par publication — la limite d'Instagram, annoncée dans l'écran. */
 const MAX_PHOTOS = 10;
@@ -202,6 +203,7 @@ export default function CreatePostScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <FeatureTip feature="post_create" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.cancel}>{t('postcreate_cancel')}</Text></Pressable>
         <Text style={styles.title}>{t('postcreate_title')}</Text>

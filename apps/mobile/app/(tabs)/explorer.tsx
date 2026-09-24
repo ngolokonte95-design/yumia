@@ -39,6 +39,7 @@ import { universeSearchRadius } from '../../lib/universeRadius';
 import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/affiliates-api';
 import { ratingSuffix } from '../../lib/place-rating';
 import { TOUR_THEME_KEYS } from '../../lib/tour-themes';
+import { FeatureTip } from '../../components/FeatureTip';
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
 // (FEATURE_SHORTCUTS) — pas de doublon entre onglets.
@@ -231,6 +232,7 @@ export default function ExplorerScreen() {
 
   return (
     <>
+      <FeatureTip feature="explorer" />
     <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
     <ScrollView
       style={styles.screen}

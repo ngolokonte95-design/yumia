@@ -14,6 +14,7 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, type ProductListItem, type ShopCategory } from '../../lib/shop-api';
 import { ProductCard } from '../../components/shop/ProductCard';
+import { FeatureTip } from '../../components/FeatureTip';
 
 export default function ShopHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -74,6 +75,7 @@ export default function ShopHomeScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <FeatureTip feature="shop" />
       {/* En-tête : retour, recherche, panier */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8}>

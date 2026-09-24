@@ -23,6 +23,7 @@ import { PRIVACY_URL, TERMS_URL } from '../lib/legal';
 import { useI18n } from '../lib/useI18n';
 import { nextPaidPlan } from '../lib/constants/plan-limits';
 import type { Plan } from '@yumia/shared';
+import { resetTips } from '../lib/feature-tips';
 
 /** Noms commerciaux des paliers — identiques dans toutes les langues. */
 const PLAN_NAME: Record<Plan, string> = {
@@ -182,6 +183,11 @@ export default function SettingsScreen() {
 
         {/* Données & confidentialité */}
         <SectionTitle label={t('settings_section_privacy')} />
+        <SettingRow
+          icon="💡"
+          label={t('tip_reset')}
+          onPress={() => { void resetTips().then(() => Alert.alert(t('tip_reset'), t('tip_reset_done'))); }}
+        />
         <SettingRow
           icon="📥"
           label={t('settings_export_data')}

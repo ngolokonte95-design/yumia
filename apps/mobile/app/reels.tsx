@@ -25,6 +25,7 @@ import { watchPlayerErrors } from '../lib/video-debug';
 import { epochSource, useMediaEpoch } from '../lib/media-epoch';
 import { restorePlaybackAudio } from '../lib/audio-session';
 import { TranslatableText } from '../components/TranslatableText';
+import { FeatureTip } from '../components/FeatureTip';
 
 /** Écart entre le bouton son et le bloc auteur/légende, en px. */
 const MUTE_GAP = 12;
@@ -954,6 +955,7 @@ export default function ReelsScreen() {
         if (h > 0 && Math.abs(h - screenH) > 0.5) setScreenH(h);
       }}
     >
+      <FeatureTip feature="reels" />
       {/* Header flottant */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>

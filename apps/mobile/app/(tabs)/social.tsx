@@ -25,6 +25,7 @@ import { parseMusicTrack, isPlayableAudioUrl, type MusicMeta } from '../../lib/m
 import { isVideoUrl } from '../../lib/is-video-url';
 import { restorePlaybackAudio } from '../../lib/audio-session';
 import { TranslatableText } from '../../components/TranslatableText';
+import { FeatureTip } from '../../components/FeatureTip';
 
 const API = API_BASE_URL;
 
@@ -887,6 +888,7 @@ export default function SocialTab() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <FeatureTip feature="social" />
       {/* Header : Reels + logo Yumia bien visible + Créer + Messages */}
       <View style={styles.topBar}>
         <View style={styles.leftBtns}>

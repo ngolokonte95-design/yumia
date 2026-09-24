@@ -12,6 +12,7 @@ import { useI18n } from '../lib/useI18n';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { useLocation } from '../lib/useLocation';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
+import { FeatureTip } from '../components/FeatureTip';
 
 const API = API_BASE_URL;
 
@@ -77,6 +78,7 @@ export default function ChatbotScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <FeatureTip feature="chatbot" />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
       {/* Header */}
       <View style={styles.header}>

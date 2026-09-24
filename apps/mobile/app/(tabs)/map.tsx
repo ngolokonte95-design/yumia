@@ -35,6 +35,7 @@ import type { CitySuggestion } from '../../lib/services/weather';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { universeIcon } from '../../components/icons/universeIcons';
 import { ratingSuffix } from '../../lib/place-rating';
+import { FeatureTip } from '../../components/FeatureTip';
 
 const MAP_DELTA = 0.025;
 // Android uniquement : react-native-maps doit convertir chaque marqueur
@@ -552,6 +553,7 @@ export default function MapScreen() {
 
   return (
     <View style={styles.screen}>
+      <FeatureTip feature="map" />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
       {/* Ferme le panneau ouvert (univers ou rayon) en tapant à côté */}

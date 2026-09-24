@@ -23,6 +23,7 @@ import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing }
 import { useI18n } from '../lib/useI18n';
 import { QUICK_FILTERS, THEME_FACETS, THEME_TITLES } from '../lib/tour-themes';
 import type { TranslationKey } from '../lib/translations';
+import { FeatureTip } from '../components/FeatureTip';
 
 const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
 
@@ -142,6 +143,7 @@ export default function GuidesScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <FeatureTip feature="tours" />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>

@@ -14,6 +14,7 @@ import { request } from '../../lib/api';
 import { useI18n } from '../../lib/useI18n';
 import { WeatherCard } from '../../components/weather/WeatherCard';
 import { universeIcon } from '../../components/icons/universeIcons';
+import { FeatureTip } from '../../components/FeatureTip';
 
 function UniverseIcon({ u }: { u: string }) {
   // Le registre partagé décide : un univers dessiné rend son icône, les
@@ -115,6 +116,7 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
+      <FeatureTip feature="home" />
       {/* Météo — tout en haut, avant même le logo : c'est l'info la plus
           rapide à checker en ouvrant l'app. */}
       <View style={[styles.section, { marginBottom: spacing.sm }]}>

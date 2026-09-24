@@ -44,6 +44,7 @@ import type { VisitResult } from '../lib/passport-api';
 import type { Suggestion, Universe } from '@yumia/shared';
 import * as StoreReview from 'expo-store-review';
 import { ratingLabel, ratingSuffix } from '../lib/place-rating';
+import { FeatureTip } from '../components/FeatureTip';
 
 interface ChatMessage {
   role: 'user' | 'ai';
@@ -300,6 +301,7 @@ export default function PlaceScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.bottom}
     >
+      <FeatureTip feature="place" />
       <XpToast result={xpResult} onDone={() => setXpResult(null)} />
       {place.photoUrls && place.photoUrls.length > 0 && photoViewerIndex !== null ? (
         <PhotoViewer
