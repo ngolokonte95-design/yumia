@@ -685,6 +685,16 @@ export default function SocialTab() {
 
   useEffect(() => () => { void stopMusic(); }, [stopMusic]);
 
+  // Changer d'onglet (Activité, Rencontres, Personnes…) démonte la liste des
+  // publications, donc leurs vidéos — mais pas le lecteur de musique, qui vit
+  // au niveau de l'écran : la musique continuait sous un autre onglet. On la
+  // coupe à chaque changement ; revenir sur un fil la relance via la
+  // visibilité de la publication affichée.
+  useEffect(() => {
+    void stopMusic();
+    setVisiblePostId(null);
+  }, [tab, stopMusic]);
+
   const handleDeletePost = useCallback(async (postId: string) => {
     if (!accessToken) return;
     try {
