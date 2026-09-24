@@ -25,6 +25,7 @@ import { DayDetailModal, type DayMoment } from '../components/DayDetailModal';
 import { itineraryMoodLabel, itineraryMoodSub } from '../lib/labelHelpers';
 import type { CitySuggestion } from '../lib/services/weather';
 import { FeatureTip } from '../components/FeatureTip';
+import { ensureAiConsent } from '../lib/ai-consent';
 
 const API = API_BASE_URL;
 
@@ -167,6 +168,13 @@ export default function ItineraryScreen() {
 
   const generate = async () => {
     if (loading) return;
+
+    // L'itinéraire est rédigé par Claude (Anthropic) : accord explicite
+    // demandé avant le premier envoi (Apple 5.1.2(i)), et avant le quota.
+    if (!(await ensureAiConsent())) {
+      setResult({ itinerary: '', steps: [], error: tr('ai_consent_feature_off') });
+      return;
+    }
 
     // Quota compté PAR MODE : trois itinéraires en Date n'entament pas les
     // trois de Voyage. C'est la portée passée en troisième argument.

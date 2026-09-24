@@ -320,6 +320,36 @@ describe('RecommendationsService', () => {
     });
   });
 
+  describe("refus de l'IA tierce (X-AI-Consent: denied)", () => {
+    const places = () => [
+      mockPlace({ id: 'bar', universe: 'bar', rating: 4.6, distanceMeters: 150 }),
+      mockPlace({ id: 'resto', universe: 'restaurant', rating: 4.7, distanceMeters: 250 }),
+      mockPlace({ id: 'roof', universe: 'rooftop', rating: 4.5, distanceMeters: 400 }),
+    ];
+
+    it("top3 classe sans appeler l'IA et ne partage pas ce résultat en cache", async () => {
+      placesMock.nearby.mockResolvedValue(places());
+      const result = await service.top3({ lat: 48.856, lng: 2.352, radius: 3000, aiAllowed: false });
+      expect(aiMock.runStructured).not.toHaveBeenCalled();
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      expect(redisMock.setJson).not.toHaveBeenCalled();
+    });
+
+    it("feed n'appelle pas l'IA", async () => {
+      placesMock.nearby.mockResolvedValue(places());
+      await service.feed({ lat: 48.856, lng: 2.352, radius: 3000, limit: 10, aiAllowed: false });
+      expect(aiMock.runStructured).not.toHaveBeenCalled();
+    });
+
+    it("buildExperience prend les étapes de repli sans appeler l'IA", async () => {
+      placesMock.nearby.mockResolvedValue(places());
+      const result = await service.buildExperience({ lat: 48.856, lng: 2.352, radius: 3000, mode: 'date', aiAllowed: false });
+      expect(aiMock.runStructured).not.toHaveBeenCalled();
+      expect(result.steps.length).toBeGreaterThan(0);
+      expect(redisMock.setJson).not.toHaveBeenCalled();
+    });
+  });
+
   describe('buildExperience — repli sur les étapes par défaut', () => {
     it('utilise EXPERIENCE_FALLBACKS["date"] quand l\'IA renvoie steps=[]', async () => {
       aiMock.runStructured.mockResolvedValue({ titleFr: '', steps: [] });

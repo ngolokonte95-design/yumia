@@ -31,7 +31,7 @@ export class SavedService {
       const limit = PLAN_LIMITS.free.savedPlacesMax;
       if (count >= limit) {
         throw new ForbiddenException(
-          `Limite de ${limit} lieux atteinte. Passe à YUMIA Plus pour sauvegarder sans limite.`,
+          `Limite de ${limit} lieux atteinte. Passe à YUMIA Gold pour en sauvegarder davantage.`,
         );
       }
     }

@@ -33,6 +33,7 @@ import { Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { haptics } from '../lib/useHaptics';
 import { askAboutPlace } from '../lib/chat-api';
+import { ensureAiConsent } from '../lib/ai-consent';
 import { XpToast } from '../components/XpToast';
 import { PhotoViewer } from '../components/PhotoViewer';
 import { usePlaceStats } from '../lib/usePlaceStats';
@@ -176,6 +177,11 @@ export default function PlaceScreen() {
     : listed;
   const meta = safeMeta(place.universe);
   const isSaved = savedIds.has(place.id);
+  // Attributions Google Maps Platform (CGU) : l'auteur de la photo affichée
+  // en grand, et « Google Maps » pour les données et photos issues de Places.
+  const heroAuthor = live && live.photoUrls.length > 0 ? live.photoAttributions?.[0] ?? null : null;
+  const showGoogleAttribution = live?.googleAttribution
+    ?? (place.photoUrls ?? []).some((u) => u.includes('/places/photo'));
 
   async function handleBooking(provider: string) {
     if (!accessToken || bookingLoadingProvider) return;
@@ -269,6 +275,11 @@ export default function PlaceScreen() {
   async function handleSendChat() {
     const trimmed = chatInput.trim();
     if (!trimmed || chatLoading) return;
+    // Réponse rédigée par Claude (Anthropic) : accord explicite d'abord.
+    if (!(await ensureAiConsent())) {
+      setMessages((prev) => [...prev, { role: 'ai', text: t('ai_consent_feature_off') }]);
+      return;
+    }
     setChatInput('');
     setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
     setChatLoading(true);
@@ -336,6 +347,19 @@ export default function PlaceScreen() {
           {(!place.photoUrls || place.photoUrls.length === 0) ? (
             <Text style={styles.heroEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
           ) : null}
+          {heroAuthor ? (
+            <Pressable
+              style={styles.photoCredit}
+              hitSlop={6}
+              disabled={!heroAuthor.uri}
+              onPress={() => { if (heroAuthor.uri) void Linking.openURL(heroAuthor.uri); }}
+              accessibilityRole={heroAuthor.uri ? 'link' : 'text'}
+            >
+              <Text style={styles.photoCreditText} numberOfLines={1}>
+                {t('place_photo_by').replace('{name}', heroAuthor.displayName)}
+              </Text>
+            </Pressable>
+          ) : null}
           {compatibility > 0 ? (
             <View style={[styles.compatBadge, { borderColor: compatColor }]}>
               <Text style={[styles.compatText, { color: compatColor }]}>❤️ {compatibility}%</Text>
@@ -377,6 +401,9 @@ export default function PlaceScreen() {
             {place.rating > 0 ? <Text style={styles.rating}>{ratingLabel(place.rating)}</Text> : null}
             {place.city ? <Text style={styles.city}>{place.city}</Text> : null}
           </View>
+          {showGoogleAttribution ? (
+            <Text style={styles.googleAttribution}>{t('place_data_google')}</Text>
+          ) : null}
 
           {/* Boutons de réservation partenaire — remontés tout en haut de la
               fiche (juste sous la note) pour être visibles sans défiler, un
@@ -934,6 +961,18 @@ const styles = StyleSheet.create({
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rating: { ...typography.heading, color: colors.textPrimary },
   city: { ...typography.caption, color: colors.textMuted },
+  googleAttribution: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  photoCredit: {
+    position: 'absolute',
+    left: spacing.md,
+    bottom: spacing.md,
+    maxWidth: '60%',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  photoCreditText: { fontSize: 10, color: 'rgba(255,255,255,0.9)' },
   reason: {
     ...typography.body,
     color: colors.textSecondary,

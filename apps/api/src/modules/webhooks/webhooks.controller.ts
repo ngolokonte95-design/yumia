@@ -9,6 +9,7 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash, timingSafeEqual } from 'crypto';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { WebhooksService } from './webhooks.service';
@@ -29,9 +30,12 @@ export class WebhooksController {
    * L'authentification se fait par le header `X-RevenueCat-Webhook-Token`
    * comparé à la variable d'environnement REVENUECAT_WEBHOOK_SECRET.
    *
-   * Événements traités :
-   *   INITIAL_PURCHASE, RENEWAL, PRODUCT_CHANGE  → plan = 'plus'
-   *   EXPIRATION, CANCELLATION, REFUND           → plan = 'free'
+   * Événements traités (détail dans WebhooksService) :
+   *   INITIAL_PURCHASE, RENEWAL, UNCANCELLATION…  → plan du palier acheté
+   *   PRODUCT_CHANGE                               → montée immédiate, descente au renouvellement
+   *   EXPIRATION, CANCELLATION pour remboursement  → plan = 'free'
+   *   CANCELLATION simple                          → rien (accès jusqu'à l'EXPIRATION)
+   *   TRANSFER                                     → le plan suit les achats transférés
    *
    * Documentation : https://www.revenuecat.com/docs/integrations/webhooks/event-flows
    */
@@ -57,7 +61,7 @@ export class WebhooksController {
     } else {
       // RevenueCat envoie le token dans l'en-tête Authorization: Bearer <secret>
       const token = authHeader?.replace('Bearer ', '').trim();
-      if (!token || token !== secret) {
+      if (!token || !safeEqual(token, secret)) {
         this.logger.warn('Webhook RevenueCat — token invalide');
         throw new UnauthorizedException('Webhook token invalide.');
       }
@@ -70,4 +74,16 @@ export class WebhooksController {
     await this.webhooks.handleRevenueCat(body as Record<string, unknown>);
     return { received: true };
   }
+}
+
+/**
+ * Comparaison à temps constant : `===` s'arrête au premier caractère
+ * différent, ce qui laisse deviner le secret par mesure du temps de réponse.
+ * Les deux valeurs sont d'abord hachées pour obtenir des tampons de même
+ * longueur (exigé par timingSafeEqual) sans révéler la longueur du secret.
+ */
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
 }

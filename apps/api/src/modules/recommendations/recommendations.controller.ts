@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Throttle } from '@nestjs/throttler';
@@ -9,6 +9,14 @@ import { SearchDto } from './dto/search.dto';
 import { Top3Dto } from './dto/top3.dto';
 import { Quota } from '../../common/quota/quota.interceptor';
 import { RecommendationsService, type ExperienceResult, type Top3Result } from './recommendations.service';
+
+/**
+ * L'app envoie `X-AI-Consent: denied` quand l'utilisateur a refusé l'envoi de
+ * données à Anthropic (réglage « Fonctions IA ») : on classe alors les lieux
+ * sans l'étape IA (dégradation déjà prévue pour une panne du fournisseur).
+ * En-tête absent (anciennes versions) ou `granted` → comportement inchangé.
+ */
+const aiAllowed = (header?: string): boolean => header?.toLowerCase() !== 'denied';
 
 /** Recommandations contextuelles : le Top 3 « anti-paralysie du choix ». */
 @ApiTags('recommendations')
@@ -28,7 +36,7 @@ export class RecommendationsController {
   // Dé Surprise, plus les Top 3 que l'Explorer charge seul à l'ouverture.
   @Quota({ name: 'top3', feature: 'surprisePerDay', margin: 30 })
   @HttpCode(HttpStatus.OK)
-  top3(@Body() dto: Top3Dto): Promise<Top3Result> {
+  top3(@Body() dto: Top3Dto, @Headers('x-ai-consent') aiConsent?: string): Promise<Top3Result> {
     return this.recommendations.top3({
       lat: dto.lat,
       lng: dto.lng,
@@ -43,6 +51,7 @@ export class RecommendationsController {
       universeFilter: dto.universeFilter,
       restrictions: dto.restrictions,
       weather: dto.weather,
+      aiAllowed: aiAllowed(aiConsent),
     });
   }
 
@@ -56,7 +65,7 @@ export class RecommendationsController {
   // Chargé par l'Explorer en mode Date / Voyage, sans compteur dans l'app.
   @Quota({ name: 'experience', feature: 'itineraryPerModePerDay', margin: 20 })
   @HttpCode(HttpStatus.OK)
-  experience(@Body() dto: ExperienceDto): Promise<ExperienceResult> {
+  experience(@Body() dto: ExperienceDto, @Headers('x-ai-consent') aiConsent?: string): Promise<ExperienceResult> {
     return this.recommendations.buildExperience({
       lat: dto.lat,
       lng: dto.lng,
@@ -65,6 +74,7 @@ export class RecommendationsController {
       locale: dto.locale,
       favoriteUniverses: dto.favoriteUniverses,
       restrictions: dto.restrictions,
+      aiAllowed: aiAllowed(aiConsent),
     });
   }
 
@@ -79,7 +89,7 @@ export class RecommendationsController {
   // « Dis-moi ton envie », plus la recherche de lieux des sorties de groupe.
   @Quota({ name: 'search', feature: 'desirePerDay', margin: 10 })
   @HttpCode(HttpStatus.OK)
-  search(@Body() dto: SearchDto): Promise<Top3Result> {
+  search(@Body() dto: SearchDto, @Headers('x-ai-consent') aiConsent?: string): Promise<Top3Result> {
     return this.recommendations.top3({
       lat: dto.lat,
       lng: dto.lng,
@@ -92,6 +102,7 @@ export class RecommendationsController {
         : dto.favoriteUniverses,
       restrictions: dto.restrictions,
       maxPriceTier: dto.maxPriceTier,
+      aiAllowed: aiAllowed(aiConsent),
     });
   }
 
@@ -127,7 +138,7 @@ export class RecommendationsController {
   // rafraîchissements passent par la marge.
   @Quota({ name: 'feed', feature: 'suggestionsPerDay', margin: 30 })
   @HttpCode(HttpStatus.OK)
-  feed(@Body() dto: FeedDto): Promise<Top3Result> {
+  feed(@Body() dto: FeedDto, @Headers('x-ai-consent') aiConsent?: string): Promise<Top3Result> {
     return this.recommendations.feed({
       lat: dto.lat,
       lng: dto.lng,
@@ -138,6 +149,7 @@ export class RecommendationsController {
       favoriteUniverses: dto.favoriteUniverses,
       restrictions: dto.restrictions,
       weather: dto.weather,
+      aiAllowed: aiAllowed(aiConsent),
     });
   }
 }

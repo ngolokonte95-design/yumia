@@ -164,6 +164,10 @@ export interface PlaceDetails {
   /** Moyenne des avis YUMIA, 0 si personne n'a noté. */
   rating: number;
   reviewCount: number;
+  /** Données/photos issues de Google Maps → attribution « Google Maps » (CGU). Absent sur une ancienne API. */
+  googleAttribution?: boolean;
+  /** Auteur de chaque photo de `photoUrls` (même ordre), `null` si inconnu. */
+  photoAttributions?: ({ displayName: string; uri?: string } | null)[];
 }
 
 export function fetchPlaceDetails(id: string): Promise<PlaceDetails> {

@@ -47,6 +47,16 @@ describe('WebhooksController — auth RevenueCat', () => {
       expect(service.handleRevenueCat).not.toHaveBeenCalled();
     });
 
+    it('rejette un token de longueur différente sans lever d\'autre erreur', async () => {
+      await expect(
+        controller.revenueCat('Bearer super-secret-mais-plus-long', validBody),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      await expect(controller.revenueCat('Bearer s', validBody)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(service.handleRevenueCat).not.toHaveBeenCalled();
+    });
+
     it('rejette l\'absence de header Authorization', async () => {
       await expect(controller.revenueCat(undefined, validBody)).rejects.toBeInstanceOf(
         UnauthorizedException,

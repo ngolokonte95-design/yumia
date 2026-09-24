@@ -12,8 +12,10 @@ import { Directory, File, Paths } from 'expo-file-system';
 
 export async function saveRemoteMediaToGallery(url: string): Promise<'saved' | 'denied' | 'error'> {
   try {
-    const MediaLibrary = await import('expo-media-library');
-    const perm = await MediaLibrary.requestPermissionsAsync();
+    // API « legacy » : depuis le SDK 57, saveToLibraryAsync importé de la
+    // racine du paquet lève systématiquement (méthode dépréciée).
+    const MediaLibrary = await import('expo-media-library/legacy');
+    const perm = await MediaLibrary.requestPermissionsAsync(true); // écriture seule : aucune lecture de la galerie
     if (!perm.granted) return 'denied';
     const dest = new Directory(Paths.cache, `media-${Date.now()}`);
     dest.create();

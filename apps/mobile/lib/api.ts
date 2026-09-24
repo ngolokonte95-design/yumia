@@ -6,6 +6,7 @@ import type { Mode, Mood, Suggestion } from '@yumia/shared';
 import { API_BASE_URL } from './config';
 import type { Universe } from './auth-api';
 import { tRuntime as apiT } from './i18n-runtime';
+import { aiConsentHeaders } from './ai-consent';
 
 /** URL de base de l'API (ex. pour les `fetch` directs des écrans qui n'utilisent pas `request`). */
 export const apiBase = API_BASE_URL;
@@ -79,7 +80,9 @@ const BASE_BACKOFF_MS = 800;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 async function doFetch(path: string, opts: RequestOptions): Promise<Response> {
-  const headers: Record<string, string> = {};
+  // Choix « Fonctions IA (Anthropic) » : sur refus, l'API classe les
+  // recommandations sans passer par l'IA (voir lib/ai-consent).
+  const headers: Record<string, string> = { ...aiConsentHeaders() };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
 

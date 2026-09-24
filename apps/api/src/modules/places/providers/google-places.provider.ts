@@ -7,8 +7,10 @@ import {
   TEXT_FIRST_UNIVERSES,
 } from './place-types';
 import type {
+  PhotoAttribution,
   PlacesProvider,
   ProviderNearbyParams,
+  ProviderPhotos,
   ProviderPlace,
 } from './places-provider.interface';
 
@@ -60,7 +62,9 @@ interface GooglePlace {
   types?: string[];
   formattedAddress?: string;
   addressComponents?: GoogleAddressComponent[];
-  photos?: { name?: string }[];
+  // `authorAttributions` arrive avec le champ `photos` (même palier, aucun
+  // coût en plus) : Google exige de l'afficher avec la photo.
+  photos?: { name?: string; authorAttributions?: { displayName?: string; uri?: string }[] }[];
   regularOpeningHours?: { weekdayDescriptions?: string[] };
 }
 
@@ -194,10 +198,7 @@ export class GooglePlacesProvider implements PlacesProvider {
     const types = g.types ?? [];
     const { city, countryCode } = extractLocality(g.addressComponents ?? [], g.formattedAddress);
 
-    const photoRefs = (g.photos ?? [])
-      .slice(0, MAX_PHOTOS)
-      .map((p) => p.name)
-      .filter((n): n is string => typeof n === 'string' && n.length > 0);
+    const { refs: photoRefs, attributions: photoAttributions } = extractPhotos(g.photos);
     const openingHours = g.regularOpeningHours?.weekdayDescriptions;
 
     return {
@@ -215,6 +216,7 @@ export class GooglePlacesProvider implements PlacesProvider {
       priceTier: g.priceLevel ? PRICE_LEVEL_MAP[g.priceLevel] ?? 2 : 2,
       tags: types.slice(0, 6),
       ...(photoRefs.length > 0 ? { photoRefs } : {}),
+      ...(Object.keys(photoAttributions).length > 0 ? { photoAttributions } : {}),
       ...(openingHours && openingHours.length > 0 ? { openingHours } : {}),
     };
   }
@@ -303,6 +305,11 @@ export class GooglePlacesProvider implements PlacesProvider {
    * Renvoie au plus {@link MAX_PHOTOS} références (vide si rien trouvé).
    */
   async findPhotoRefs(textQuery: string, lat: number, lng: number): Promise<string[]> {
+    return (await this.findPhotos(textQuery, lat, lng)).refs;
+  }
+
+  /** {@link findPhotoRefs} avec l'auteur de chaque photo (même appel, même coût). */
+  async findPhotos(textQuery: string, lat: number, lng: number): Promise<ProviderPhotos> {
     const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
       headers: {
@@ -321,14 +328,10 @@ export class GooglePlacesProvider implements PlacesProvider {
     });
     if (!res.ok) {
       this.logger.warn(`findPhotoRefs ${res.status} pour "${textQuery}"`);
-      return [];
+      return { refs: [], attributions: {} };
     }
     const data = (await res.json()) as { places?: GooglePlace[] };
-    const photos = data.places?.[0]?.photos ?? [];
-    return photos
-      .slice(0, MAX_PHOTOS)
-      .map((p) => p.name)
-      .filter((n): n is string => typeof n === 'string' && n.length > 0);
+    return extractPhotos(data.places?.[0]?.photos);
   }
 
   /**
@@ -373,6 +376,24 @@ export class GooglePlacesProvider implements PlacesProvider {
     const data = (await res.json()) as { photoUri?: string };
     return data.photoUri ?? null;
   }
+}
+
+/** Références des premières photos + leur auteur (premier `authorAttributions`). */
+function extractPhotos(photos: GooglePlace['photos']): ProviderPhotos {
+  const refs: string[] = [];
+  const attributions: Record<string, PhotoAttribution> = {};
+  for (const p of (photos ?? []).slice(0, MAX_PHOTOS)) {
+    if (typeof p.name !== 'string' || p.name.length === 0) continue;
+    refs.push(p.name);
+    const author = p.authorAttributions?.find((a) => a.displayName?.trim());
+    if (author?.displayName) {
+      attributions[p.name] = {
+        displayName: author.displayName.trim(),
+        ...(author.uri ? { uri: author.uri } : {}),
+      };
+    }
+  }
+  return { refs, attributions };
 }
 
 /** Extrait ville + code pays des composants d'adresse Google (avec repli). */

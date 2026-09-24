@@ -10,6 +10,7 @@ import { colors } from '../theme/tokens';
 import { AuthProvider, useAuth } from '../lib/auth-context';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ReportReasonSheet } from '../components/ReportReasonSheet';
+import { AiConsentSheet } from '../components/AiConsentSheet';
 import { usePushNotifications } from '../lib/usePushNotifications';
 import { startNotificationListener, startNotificationResponseListener } from '../lib/pushListeners';
 import { refreshUnreadCount } from '../lib/useNotifications';
@@ -227,6 +228,8 @@ export default function RootLayout() {
             <OfflineBanner />
             {/* Motifs de signalement sur Android (Alert.alert n'y montre que 3 boutons). */}
             <ReportReasonSheet />
+            {/* Consentement à l'envoi de données à Anthropic (règle Apple 5.1.2(i)). */}
+            <AiConsentSheet />
           </AuthProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

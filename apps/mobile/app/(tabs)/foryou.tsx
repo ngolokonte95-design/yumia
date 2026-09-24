@@ -26,7 +26,6 @@ import { placeStore } from '../../lib/place-store';
 import { recordVisit, type VisitFeedback } from '../../lib/passport-api';
 import { haptics } from '../../lib/useHaptics';
 import { XpToast } from '../../components/XpToast';
-import { PaywallModal } from '../../components/PaywallModal';
 import { PlacePhoto } from '../../components/PlacePhoto';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { usePlanLimits } from '../../lib/usePlanLimits';
@@ -47,7 +46,7 @@ export default function ForYouScreen() {
   const { user, accessToken } = useAuth();
   const router = useRouter();
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
-  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage, savedLimitMessage } = usePlanLimits();
   const [mood, setMood] = useState<(typeof MOODS)[number] | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
 
@@ -76,7 +75,7 @@ export default function ForYouScreen() {
 
   return (
     <View style={styles.screen}>
-      <PaywallModal visible={limitError !== null} onClose={clearLimitError} />
+      <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
       {busy && suggestions.length === 0 ? (

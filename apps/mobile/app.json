@@ -19,21 +19,17 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "YUMIA utilise ta position pour te proposer les meilleurs lieux autour de toi et, seulement si tu les actives, pour la carte des membres et les Rencontres.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "YUMIA utilise ta caméra pour prendre des photos et des vidéos (publications, stories, reels) et pour les appels vidéo.",
+        "NSMicrophoneUsageDescription": "YUMIA utilise ton microphone pour les messages vocaux, le son de tes vidéos, les voix off et les appels vocaux et vidéo.",
+        "NSPhotoLibraryUsageDescription": "YUMIA accède aux photos et vidéos que tu choisis pour les partager : photo de profil, publications, stories, messages et photos de lieux.",
+        "NSPhotoLibraryAddUsageDescription": "YUMIA enregistre dans ta galerie les photos et vidéos que tu choisis de télécharger."
       },
       "bitcode": false,
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],
         "NSPrivacyCollectedDataTypes": [
-          {
-            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
-            "NSPrivacyCollectedDataTypeLinked": true,
-            "NSPrivacyCollectedDataTypeTracking": false,
-            "NSPrivacyCollectedDataTypePurposes": [
-              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
-            ]
-          },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
             "NSPrivacyCollectedDataTypeLinked": true,
@@ -43,7 +39,23 @@
             ]
           },
           {
-            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhoneNumber",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhysicalAddress",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
@@ -52,7 +64,31 @@
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePreciseLocation",
-            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCoarseLocation",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeSensitiveInfo",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailsOrTextMessages",
+            "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
@@ -60,6 +96,14 @@
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeAudioData",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
@@ -75,24 +119,59 @@
             ]
           },
           {
-            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
-            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePurchaseHistory",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeAnalytics"
             ]
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCrashData",
-            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
-              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeAnalytics"
             ]
           },
           {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePerformanceData",
-            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality",
+              "NSPrivacyCollectedDataTypePurposeAnalytics"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherDataTypes",
+            "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
@@ -121,7 +200,12 @@
       "blockedPermissions": [
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE_LOCATION",
-        "com.google.android.gms.permission.AD_ID"
+        "com.google.android.gms.permission.AD_ID",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION"
       ],
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -147,6 +231,19 @@
             "BROWSABLE",
             "DEFAULT"
           ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "com.yumia.app",
+              "path": "/oauthredirect"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "versionCode": 8
@@ -164,8 +261,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "YUMIA aimerait accéder à ta galerie pour que tu puisses partager tes photos de visite.",
-          "cameraPermission": "YUMIA aimerait utiliser ta caméra pour prendre une photo de ce lieu."
+          "photosPermission": "YUMIA accède aux photos et vidéos que tu choisis pour les partager : photo de profil, publications, stories, messages et photos de lieux.",
+          "cameraPermission": "YUMIA utilise ta caméra pour prendre des photos et des vidéos (publications, stories, reels) et pour les appels vidéo.",
+          "microphonePermission": "YUMIA utilise ton microphone pour les messages vocaux, le son de tes vidéos, les voix off et les appels vocaux et vidéo."
         }
       ],
       [
@@ -173,27 +271,33 @@
         {
           "locationWhenInUsePermission": "YUMIA utilise ta position pour te proposer les meilleurs lieux autour de toi et, seulement si tu les actives, pour la carte des membres et les Rencontres.",
           "locationAlwaysAndWhenInUsePermission": false,
-          "locationAlwaysPermission": false
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": "YUMIA n'utilise pas les capteurs de mouvement : cette autorisation ne te sera jamais demandée."
         }
       ],
       "expo-video",
       [
         "expo-camera",
         {
-          "cameraPermission": "YUMIA utilise ta caméra pour prendre des photos et vidéos.",
-          "microphonePermission": "YUMIA utilise ton microphone pour enregistrer des vidéos avec du son."
+          "cameraPermission": "YUMIA utilise ta caméra pour prendre des photos et des vidéos (publications, stories, reels) et pour les appels vidéo.",
+          "microphonePermission": "YUMIA utilise ton microphone pour les messages vocaux, le son de tes vidéos, les voix off et les appels vocaux et vidéo."
         }
       ],
       [
         "@config-plugins/react-native-webrtc",
         {
-          "cameraPermission": "YUMIA utilise ta caméra pour les appels vidéo.",
-          "microphonePermission": "YUMIA utilise ton microphone pour les appels vocaux et vidéo."
+          "cameraPermission": "YUMIA utilise ta caméra pour prendre des photos et des vidéos (publications, stories, reels) et pour les appels vidéo.",
+          "microphonePermission": "YUMIA utilise ton microphone pour les messages vocaux, le son de tes vidéos, les voix off et les appels vocaux et vidéo."
         }
       ],
       "@sentry/react-native",
       "expo-image",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "YUMIA n'utilise pas Face ID : cette autorisation ne te sera jamais demandée."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -204,7 +308,23 @@
       ],
       "expo-status-bar",
       "expo-web-browser",
-      "expo-audio"
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "YUMIA utilise ton microphone pour les messages vocaux, le son de tes vidéos, les voix off et les appels vocaux et vidéo.",
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "YUMIA accède aux photos et vidéos que tu choisis pour les partager : photo de profil, publications, stories, messages et photos de lieux.",
+          "savePhotosPermission": "YUMIA enregistre dans ta galerie les photos et vidéos que tu choisis de télécharger.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -172,6 +172,8 @@ export class RecommendationsService {
     restrictions?: string[];
     weather?: AiContext['weather'];
     maxPriceTier?: number;
+    /** `false` : l'utilisateur a refusé l'envoi à l'IA tierce — classement sans IA. */
+    aiAllowed?: boolean;
   }): Promise<Top3Result> {
     const locale = input.locale ?? DEFAULT_LOCALE;
     const ctx: AiContext = {
@@ -217,7 +219,8 @@ export class RecommendationsService {
     // `maxPriceTier` est encore envoyé par les anciennes versions de l'app,
     // mais ignoré : le niveau de prix n'est plus demandé à Google, filtrer
     // dessus écarterait tous les lieux importés depuis.
-    const { reason, suggestions } = await this.rank(ctx, input.radius, 3, 'mood', input.universeFilter);
+    const aiAllowed = input.aiAllowed !== false;
+    const { reason, suggestions } = await this.rank(ctx, input.radius, 3, 'mood', input.universeFilter, undefined, aiAllowed);
     this.logger.debug(`Top 3 généré : ${suggestions.length} lieux`);
 
     const result: Top3Result = {
@@ -227,8 +230,10 @@ export class RecommendationsService {
       suggestions,
     };
 
-    // Mise en cache non-bloquante (on ne attend pas + on ignore les erreurs Redis)
-    void this.redis.setJson(cacheKey, result, TOP3_CACHE_TTL_SECONDS).catch(() => undefined);
+    // Mise en cache non-bloquante (on ne attend pas + on ignore les erreurs Redis).
+    // Un classement fait sans IA (refus de l'utilisateur) n'est pas partagé :
+    // il appauvrirait le cache des autres.
+    if (aiAllowed) void this.redis.setJson(cacheKey, result, TOP3_CACHE_TTL_SECONDS).catch(() => undefined);
 
     return result;
   }
@@ -247,6 +252,8 @@ export class RecommendationsService {
     favoriteUniverses?: Universe[];
     restrictions?: string[];
     weather?: AiContext['weather'];
+    /** `false` : l'utilisateur a refusé l'envoi à l'IA tierce — classement sans IA. */
+    aiAllowed?: boolean;
   }): Promise<Top3Result> {
     const locale = input.locale ?? DEFAULT_LOCALE;
     const ctx: AiContext = {
@@ -271,6 +278,7 @@ export class RecommendationsService {
       : undefined;
     const { reason, suggestions } = await this.rank(
       ctx, input.radius, input.limit, 'discovery', undefined, moodUniverses?.size ? moodUniverses : undefined,
+      input.aiAllowed !== false,
     );
     this.logger.debug(`Feed généré : ${suggestions.length} lieux (mood: ${input.mood ?? '∅'})`);
 
@@ -295,6 +303,8 @@ export class RecommendationsService {
     locale?: string;
     favoriteUniverses?: Universe[];
     restrictions?: string[];
+    /** `false` : l'utilisateur a refusé l'envoi à l'IA tierce — classement sans IA. */
+    aiAllowed?: boolean;
   }): Promise<ExperienceResult> {
     const locale = input.locale ?? DEFAULT_LOCALE;
 
@@ -325,7 +335,11 @@ export class RecommendationsService {
       },
     };
 
-    const plan = await this.ai.runStructured<ExperiencePlan>('experience_builder', ctx);
+    const aiAllowed = input.aiAllowed !== false;
+    // Refus de l'IA tierce : plan vide → étapes de repli par mode, ci-dessous.
+    const plan: ExperiencePlan = aiAllowed
+      ? await this.ai.runStructured<ExperiencePlan>('experience_builder', ctx)
+      : { titleFr: '', steps: [] };
 
     const rawSteps =
       plan.steps.length > 0
@@ -368,7 +382,7 @@ export class RecommendationsService {
       steps,
     };
 
-    void this.redis.setJson(expCacheKey, expResult, EXPERIENCE_CACHE_TTL_SECONDS).catch(() => undefined);
+    if (aiAllowed) void this.redis.setJson(expCacheKey, expResult, EXPERIENCE_CACHE_TTL_SECONDS).catch(() => undefined);
     return expResult;
   }
 
@@ -436,6 +450,8 @@ export class RecommendationsService {
     universeFilter?: Universe,
     /** Filtre strict à plusieurs univers : l'humeur choisie dans For You. */
     universeSet?: Set<string>,
+    /** `false` : refus de l'IA tierce — même chemin que la dégradation sur panne. */
+    aiAllowed = true,
   ): Promise<{ reason: string; suggestions: Suggestion[] }> {
     const selectedEngine = this.selectEngine(ctx);
     this.logger.debug(`Moteur sélectionné : ${selectedEngine}`);
@@ -444,7 +460,9 @@ export class RecommendationsService {
     // continue sans universes suggérés — le scoring repose alors sur note + distance.
     let mood: MoodOutput;
     try {
-      mood = await this.ai.runStructured<MoodOutput>(selectedEngine, ctx);
+      mood = aiAllowed
+        ? await this.ai.runStructured<MoodOutput>(selectedEngine, ctx)
+        : { reason: '', universesSuggested: [] };
     } catch (err) {
       this.logger.warn(`IA indisponible, dégradation gracieuse : ${err instanceof Error ? err.message : String(err)}`);
       mood = { reason: '', universesSuggested: [] };

@@ -24,15 +24,18 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import type { PurchasesOfferings } from 'react-native-purchases';
+import type { PurchasesOfferings, PurchasesPackage } from 'react-native-purchases';
 import { PLAN_PRICE_EUR, PLANS, SOLD_PLANS, type Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { buyPackage, fetchOfferings, packageForTier, restorePurchases } from '../lib/purchases';
 import { PlanBadgeIcon } from '../components/Avatar';
+import { PRIVACY_URL, TERMS_URL } from '../lib/legal';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
 import {
@@ -185,23 +188,45 @@ export default function PlusScreen() {
     }
   }
 
+  /**
+   * Offres introuvables (boutique injoignable, réseau, RevenueCat non
+   * configuré) : un message neutre et un nouvel essai. Jamais « bientôt
+   * disponible » — l'abonnement existe, c'est son chargement qui a échoué.
+   */
+  function showOffersUnavailable(tier: PaidTier) {
+    Alert.alert(t('plus_offers_unavailable_title'), t('plus_offers_unavailable_body'), [
+      { text: t('settings_cancel'), style: 'cancel' },
+      { text: t('plus_offers_retry'), onPress: () => void retryOfferings(tier) },
+    ]);
+  }
+
+  async function retryOfferings(tier: PaidTier) {
+    setLoading(true);
+    const fresh = await fetchOfferings();
+    setOfferings(fresh);
+    setLoading(false);
+    const pkg = packageForTier(fresh, tier);
+    if (pkg) await purchase(tier, pkg);
+    else showOffersUnavailable(tier);
+  }
+
   async function handleSubscribe() {
     if (!selectedTier) return;
     const pkg = packageForTier(offerings, selectedTier);
     if (!pkg) {
-      Alert.alert(
-        t('plus_coming_soon_title'),
-        t('plus_coming_soon_body').replace('{tier}', PLAN_NAME[selectedTier]),
-        [{ text: t('plus_great') }],
-      );
+      showOffersUnavailable(selectedTier);
       return;
     }
+    await purchase(selectedTier, pkg);
+  }
+
+  async function purchase(tier: PaidTier, pkg: PurchasesPackage) {
     setLoading(true);
     try {
       await buyPackage(pkg);
       await reloadUser();
       Alert.alert(
-        t('plus_welcome_title').replace('{tier}', PLAN_NAME[selectedTier]),
+        t('plus_welcome_title').replace('{tier}', PLAN_NAME[tier]),
         t('plus_welcome_body'),
         [{ text: t('plus_lets_go'), onPress: () => router.back() }],
       );
@@ -312,7 +337,25 @@ export default function PlusScreen() {
             )}
           </Pressable>
 
-          <Text style={styles.legal}>{t('plus_legal')}</Text>
+          {/* Information obligatoire avant achat (App Store 3.1.2) :
+              renouvellement automatique, débit, résiliation, puis les liens
+              vers les conditions d'utilisation (EULA) et la confidentialité. */}
+          {selectedTier ? (
+            <Text style={styles.legal}>
+              {t(Platform.OS === 'android' ? 'plus_autorenew_android' : 'plus_autorenew_ios')
+                .replace('{tier}', PLAN_NAME[selectedTier])
+                .replace('{price}', priceOf(selectedTier))}
+            </Text>
+          ) : null}
+          <View style={styles.legalLinks}>
+            <Pressable onPress={() => void Linking.openURL(TERMS_URL)} hitSlop={8}>
+              <Text style={[styles.legalLink, { color: accent }]}>{t('plus_terms_eula')}</Text>
+            </Pressable>
+            <Text style={styles.legalSep}>·</Text>
+            <Pressable onPress={() => void Linking.openURL(PRIVACY_URL)} hitSlop={8}>
+              <Text style={[styles.legalLink, { color: accent }]}>{t('settings_privacy_policy')}</Text>
+            </Pressable>
+          </View>
 
           {/* La grille complète reste là pour qui veut tout voir — repliée par
               défaut, car elle demande un effort que l'écart ci-dessus évite. */}
@@ -434,6 +477,13 @@ const styles = StyleSheet.create({
     ...typography.caption, color: colors.textMuted, textAlign: 'center',
     marginHorizontal: spacing.lg, marginTop: spacing.sm,
   },
+
+  legalLinks: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center',
+    gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.sm,
+  },
+  legalLink: { ...typography.caption, textDecorationLine: 'underline' },
+  legalSep: { ...typography.caption, color: colors.textMuted },
 
   compareToggle: { alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.xs },
   compareToggleText: { ...typography.label, fontSize: 13 },

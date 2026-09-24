@@ -31,7 +31,6 @@ import { recordVisit } from '../lib/passport-api';
 import { placeStore } from '../lib/place-store';
 import { useSearchHistory } from '../lib/useSearchHistory';
 import { SuggestionCard } from '../components/SuggestionCard';
-import { PaywallModal } from '../components/PaywallModal';
 import type { Top3Response } from '../lib/api';
 import type { TranslationKey } from '../lib/translations';
 
@@ -61,7 +60,7 @@ export default function SearchScreen() {
   const inputRef = useRef<TextInput>(null);
   const { history, push: pushHistory, clear: clearHistory } = useSearchHistory();
   const [upsell, setUpsell] = useState<string | null>(null);
-  const { checkLimit, recordUsage, quotaMessage } = usePlanLimits();
+  const { checkLimit, recordUsage, quotaMessage, savedLimitMessage } = usePlanLimits();
 
   const handleSearch = useCallback(async (q: string, uFilter = universeFilter, pFilter = maxPriceTier) => {
     const trimmed = q.trim();
@@ -167,7 +166,7 @@ export default function SearchScreen() {
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
-        <PaywallModal visible={limitError !== null} onClose={clearLimitError} />
+        <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
 
         {/* État vide — historique + chips de suggestions rapides */}
         {!loading && !result && !error ? (

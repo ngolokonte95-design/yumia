@@ -13,8 +13,9 @@ import Purchases, {
   type PurchasesPackage,
   type CustomerInfo,
 } from 'react-native-purchases';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { APPLE_MANAGE_SUBSCRIPTIONS_URL, GOOGLE_MANAGE_SUBSCRIPTIONS_URL } from './legal';
 
 const IOS_KEY =
   (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY as string | undefined) ??
@@ -122,4 +123,24 @@ export function packageForTier(
         p.product.identifier.toLowerCase().includes(tier),
     ) ?? null
   );
+}
+
+/**
+ * Ouvre la gestion des abonnements de la boutique (résiliation, changement).
+ *
+ * Sur iOS, la feuille native d'Apple quand RevenueCat est configuré ; sinon,
+ * ou en cas d'échec, la page de gestion de l'App Store / de Google Play.
+ * L'abonnement se résilie TOUJOURS dans la boutique, jamais dans l'app.
+ */
+export async function openManageSubscriptions(): Promise<void> {
+  if (Platform.OS === 'ios' && initialized) {
+    try {
+      await Purchases.showManageSubscriptions();
+      return;
+    } catch {
+      // Repli sur l'URL ci-dessous.
+    }
+  }
+  const url = Platform.OS === 'android' ? GOOGLE_MANAGE_SUBSCRIPTIONS_URL : APPLE_MANAGE_SUBSCRIPTIONS_URL;
+  await Linking.openURL(url);
 }

@@ -34,7 +34,7 @@ import {
   type LimitedFeature,
   type PremiumOnlyFeature,
 } from './constants/plan-limits';
-import { PLAN_PRICE_EUR } from '@yumia/shared';
+import { PLAN_LIMITS, PLAN_PRICE_EUR } from '@yumia/shared';
 
 export interface LimitCheck {
   allowed: boolean;
@@ -199,8 +199,19 @@ export function usePlanLimits() {
     [t, upgradePrice],
   );
 
+  /**
+   * Message de la limite de lieux sauvegardés, refusée par l'API (403) au
+   * forfait Gratuit. Le chiffre vient de la même table que le serveur
+   * (PLAN_LIMITS), les paliers payants n'ayant pas de plafond.
+   */
+  const savedLimitMessage = useCallback((): string => {
+    const head = t('limit_saved_places').replace('{n}', String(PLAN_LIMITS.free.savedPlacesMax));
+    if (!upgradeTo) return head;
+    return `${head} ${t('limit_saved_places_upsell').replace('{price}', upgradePrice)}`;
+  }, [t, upgradeTo, upgradePrice]);
+
   return {
     planTier, upgradeTo, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining,
-    displayCap, isFeatureLocked, lockedMessage, quotaMessage,
+    displayCap, isFeatureLocked, lockedMessage, quotaMessage, savedLimitMessage,
   };
 }

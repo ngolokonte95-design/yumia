@@ -4,9 +4,12 @@
  * et builds natifs (clientId iOS/Android).
  *
  * Pré-requis : renseigner les clientIds dans app.json > extra ou EAS secrets.
- * Sans clientId configuré, `available` est false et le bouton est masqué.
+ * Sans clientId pour la plateforme courante (iOS → googleClientIdIos,
+ * Android → googleClientIdAndroid, web → googleClientIdWeb), `available` est
+ * false et le bouton est masqué.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { googleAuthRequest } from './auth-api';
@@ -29,12 +32,25 @@ export function useGoogleAuth(onSuccess: (result: Awaited<ReturnType<typeof goog
   /** Date passée à `signIn()`, s'il y en avait déjà une à l'écran. */
   const birthDateRef = useRef<string | undefined>(undefined);
 
-  const configured = Boolean(GOOGLE_CLIENT_IDS.web || GOOGLE_CLIENT_IDS.ios || GOOGLE_CLIENT_IDS.android);
+  /**
+   * Le bouton n'apparaît que si le client OAuth DE LA PLATEFORME courante
+   * existe : sur iOS/Android, Google refuse le client « web » dans une app
+   * native (redirection com.yumia.app:/oauthredirect), donc l'afficher avec
+   * le seul id web menait à un échec certain au toucher.
+   */
+  const configured = Boolean(
+    Platform.OS === 'ios' ? GOOGLE_CLIENT_IDS.ios
+      : Platform.OS === 'android' ? GOOGLE_CLIENT_IDS.android
+        : GOOGLE_CLIENT_IDS.web,
+  );
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE_CLIENT_IDS.web || undefined,
-    iosClientId: GOOGLE_CLIENT_IDS.ios || "not-configured",
-    androidClientId: GOOGLE_CLIENT_IDS.android || undefined,
+    // Valeurs de remplissage quand l'id manque : le fournisseur Google lève
+    // une erreur au rendu sans id pour la plateforme, et le bouton est de
+    // toute façon masqué (`configured` faux).
+    iosClientId: GOOGLE_CLIENT_IDS.ios || 'not-configured',
+    androidClientId: GOOGLE_CLIENT_IDS.android || 'not-configured',
   });
 
   const exchange = useCallback(

@@ -20,7 +20,6 @@ import { YumiaLogo } from '../../components/YumiaLogo';
 import { useAuth } from '../../lib/auth-context';
 import { SuggestionCard } from '../../components/SuggestionCard';
 import { ExperienceCard } from '../../components/ExperienceCard';
-import { PaywallModal } from '../../components/PaywallModal';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { useTop3 } from '../../lib/useTop3';
 import { useExperience } from '../../lib/useExperience';
@@ -105,7 +104,7 @@ export default function ExplorerScreen() {
   const [selectedMode] = useState<Mode | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
-  const { checkLimit, recordUsage } = usePlanLimits();
+  const { checkLimit, recordUsage, savedLimitMessage } = usePlanLimits();
 
   const [genericLinkLoading, setGenericLinkLoading] = useState<string | null>(null);
 
@@ -391,7 +390,7 @@ export default function ExplorerScreen() {
           <Text style={styles.fallbackHint}>{t('location_fallback')}</Text>
         ) : null}
 
-        <PaywallModal visible={limitError !== null} onClose={clearLimitError} />
+        <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
 
         {resolving ? (
           <View style={{ gap: spacing.md }}>

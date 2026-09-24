@@ -13,6 +13,7 @@ import { usePlanLimits } from '../lib/usePlanLimits';
 import { useLocation } from '../lib/useLocation';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { FeatureTip } from '../components/FeatureTip';
+import { ensureAiConsent, openAiConsentSettings } from '../lib/ai-consent';
 
 const API = API_BASE_URL;
 
@@ -42,6 +43,13 @@ export default function ChatbotScreen() {
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
+
+    // Consentement Anthropic (Apple 5.1.2(i)) AVANT le quota : un refus ne
+    // doit pas coûter un message du jour.
+    if (!(await ensureAiConsent())) {
+      setMessages((prev) => [...prev, { role: 'assistant', content: t('ai_consent_feature_off') }]);
+      return;
+    }
 
     // Quota compté À L'ENVOI : chaque message envoyé appelle une réponse, donc
     // compter les deux reviendrait à diviser le quota par deux sans le dire.
@@ -91,6 +99,16 @@ export default function ChatbotScreen() {
             <Text style={styles.headerSub}>{t('chatbot_header_sub')}</Text>
           </View>
         </View>
+        {/* Réglage « Fonctions IA (Anthropic) » : retirer ou redonner l'accord. */}
+        <Pressable
+          onPress={openAiConsentSettings}
+          style={styles.aiBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('ai_consent_toggle_label')}
+        >
+          <Text style={styles.aiBtnText}>🔒 {t('ai_consent_badge')}</Text>
+        </Pressable>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
@@ -153,7 +171,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   backBtn: { marginRight: 8 },
   backBtnText: { fontSize: 22, color: colors.brand },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  aiBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border },
+  aiBtnText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   headerEmoji: { fontSize: 28 },
   headerTitle: { ...typography.h3, color: colors.text },
   headerSub: { fontSize: 12, color: colors.textMuted },

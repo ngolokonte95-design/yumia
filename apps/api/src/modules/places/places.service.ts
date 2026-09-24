@@ -8,7 +8,9 @@ import { RedisService } from '../../infra/redis/redis.service';
 import type { CreatePlaceDto } from './dto/create-place.dto';
 import {
   PLACES_PROVIDER,
+  type PhotoAttribution,
   type PlacesProvider,
+  type ProviderPhotos,
   type ProviderPlace,
 } from './providers/places-provider.interface';
 import { isBlockedPlace, UNIVERSE_TEXT_QUERIES } from './providers/place-types';
@@ -231,7 +233,7 @@ export class PlacesService {
    * de 30 jours) et note des utilisateurs. La fiche s'affiche d'abord avec ce
    * que la liste connaissait déjà, puis se complète.
    */
-  async details(id: string): Promise<{ photoUrls: string[]; openingHours: string[]; rating: number; reviewCount: number }> {
+  async details(id: string): Promise<PlaceDetailsResult> {
     const found = await this.prisma.place.findUnique({ where: { id } });
     if (!found) throw new NotFoundException('Lieu introuvable.');
 
@@ -240,7 +242,18 @@ export class PlacesService {
       this.prisma.placeReview.count({ where: { placeId: id } }),
     ]);
     const openingHours = await this.openingHoursOf(place);
-    return { photoUrls: place.photoUrls, openingHours, rating: place.rating, reviewCount };
+    // Attributions exigées par les CGU Google Maps Platform : « Google » pour
+    // les données et photos issues de Places, et l'auteur de chaque photo.
+    const known = placeMeta(place).photoAttributions ?? {};
+    const refs = place.photoUrls.map(photoRefOf);
+    return {
+      photoUrls: place.photoUrls,
+      openingHours,
+      rating: place.rating,
+      reviewCount,
+      googleAttribution: place.provider === 'google' || refs.some((r) => r !== null),
+      photoAttributions: refs.map((r) => (r ? known[r] ?? null : null)),
+    };
   }
 
   private async openingHoursOf(place: Place): Promise<string[]> {
@@ -290,13 +303,26 @@ export class PlacesService {
     if (tried) return place;
     await this.redis.setJson(guardKey, true, PHOTO_MISSING_RETRY_TTL_SECONDS).catch(() => undefined);
 
-    const refs = await this.provider
-      .findPhotoRefs(`${place.name} ${place.city}`.trim(), place.lat, place.lng)
-      .catch(() => [] as string[]);
+    const { refs, attributions } = await this.findPhotosFor(place);
     if (refs.length === 0) return place;
     return this.prisma.place
-      .update({ where: { id: place.id }, data: { photoUrls: this.buildPhotoUrls(refs) } })
+      .update({
+        where: { id: place.id },
+        data: { photoUrls: this.buildPhotoUrls(refs), metadata: withPhotoAttributions(place, attributions) },
+      })
       .catch(() => place);
+  }
+
+  /** Photos d'un lieu (références + auteurs), par nom + position. */
+  private async findPhotosFor(place: Place): Promise<ProviderPhotos> {
+    const query = `${place.name} ${place.city}`.trim();
+    const empty: ProviderPhotos = { refs: [], attributions: {} };
+    if (this.provider.findPhotos) {
+      return this.provider.findPhotos(query, place.lat, place.lng).catch(() => empty);
+    }
+    if (!this.provider.findPhotoRefs) return empty;
+    const refs = await this.provider.findPhotoRefs(query, place.lat, place.lng).catch(() => [] as string[]);
+    return { refs, attributions: {} };
   }
 
   /** Liste paginée, filtrable par ville et univers. */
@@ -528,7 +554,10 @@ export class PlacesService {
             rating: 0,
             tags: p.tags,
             photoUrls,
-            metadata: { source: 'google' },
+            metadata: {
+              source: 'google',
+              ...(p.photoAttributions ? { photoAttributions: p.photoAttributions } : {}),
+            } as unknown as Prisma.InputJsonValue,
             provider: 'google',
             providerPlaceId: p.providerPlaceId,
             ...(p.address ? { address: p.address } : {}),
@@ -546,8 +575,18 @@ export class PlacesService {
             ...(p.address ? { address: p.address } : {}),
           },
         });
-        this.es.indexPlace(place).catch(() => {});
-        saved.push(place);
+        // Lieu déjà en base (la mise à jour ne touche pas aux métadonnées, qui
+        // portent aussi les horaires) : on y ajoute les auteurs des photos
+        // qu'il ne connaissait pas encore.
+        const known = placeMeta(place).photoAttributions ?? {};
+        const missing = Object.keys(p.photoAttributions ?? {}).some((ref) => !known[ref]);
+        const final = missing
+          ? await this.prisma.place
+            .update({ where: { id: place.id }, data: { metadata: withPhotoAttributions(place, p.photoAttributions ?? {}) } })
+            .catch(() => place)
+          : place;
+        this.es.indexPlace(final).catch(() => {});
+        saved.push(final);
       } catch {
         // best-effort par lieu — un échec ne bloque pas les autres
       }
@@ -915,13 +954,14 @@ export class PlacesService {
       .catch(() => null);
     if (!place) return null;
 
-    const refs = await this.provider
-      .findPhotoRefs(`${place.name} ${place.city}`.trim(), place.lat, place.lng)
-      .catch(() => [] as string[]);
+    const { refs, attributions } = await this.findPhotosFor(place);
     if (refs.length === 0) return null;
 
     await this.prisma.place
-      .update({ where: { id: place.id }, data: { photoUrls: this.buildPhotoUrls(refs) } })
+      .update({
+        where: { id: place.id },
+        data: { photoUrls: this.buildPhotoUrls(refs), metadata: withPhotoAttributions(place, attributions) },
+      })
       .catch(() => undefined);
     this.logger.log(`Photos renouvelées pour « ${place.name} » (${place.city}).`);
 
@@ -1020,6 +1060,54 @@ async function probePhotoUrl(url: string): Promise<boolean | null> {
     void res.body?.cancel().catch(() => undefined);
     if (res.ok) return true;
     return res.status >= 400 && res.status < 500 ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Réponse de `GET /places/:id/details`. */
+export interface PlaceDetailsResult {
+  photoUrls: string[];
+  openingHours: string[];
+  rating: number;
+  reviewCount: number;
+  /** Données ou photos issues de Google Maps : afficher « Google » (CGU). */
+  googleAttribution: boolean;
+  /** Auteur de chaque photo de `photoUrls` (même ordre), `null` si inconnu. */
+  photoAttributions: (PhotoAttribution | null)[];
+}
+
+interface PlaceMeta {
+  photoAttributions?: Record<string, PhotoAttribution>;
+  [key: string]: unknown;
+}
+
+function placeMeta(place: Pick<Place, 'metadata'>): PlaceMeta {
+  const raw = place.metadata;
+  try {
+    const meta = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return meta && typeof meta === 'object' && !Array.isArray(meta) ? (meta as PlaceMeta) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Métadonnées du lieu complétées des auteurs de photos (sans perdre le reste). */
+function withPhotoAttributions(
+  place: Pick<Place, 'metadata'>,
+  attributions: Record<string, PhotoAttribution>,
+): Prisma.InputJsonValue {
+  const meta = placeMeta(place);
+  if (Object.keys(attributions).length === 0) return meta as unknown as Prisma.InputJsonValue;
+  return { ...meta, photoAttributions: { ...(meta.photoAttributions ?? {}), ...attributions } } as unknown as Prisma.InputJsonValue;
+}
+
+/** Référence Google d'une URL de notre proxy photo (`…/places/photo?ref=…`), sinon `null`. */
+function photoRefOf(url: string): string | null {
+  const m = /[?&]ref=([^&]+)/.exec(url);
+  if (!m || !url.includes('/places/photo')) return null;
+  try {
+    return decodeURIComponent(m[1]);
   } catch {
     return null;
   }

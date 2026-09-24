@@ -12,14 +12,19 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Platform,
+  Share,
 } from 'react-native';
+import Constants from 'expo-constants';
+import { File, Paths } from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { resetPasswordRequest, deleteAccountRequest, exportDataRequest, updateProfileRequest } from '../lib/auth-api';
 import { API_BASE_URL } from '../lib/config';
-import { PRIVACY_URL, TERMS_URL } from '../lib/legal';
+import { CGV_URL, PRIVACY_URL, SUPPORT_URL, TERMS_URL } from '../lib/legal';
+import { openManageSubscriptions } from '../lib/purchases';
 import { useI18n } from '../lib/useI18n';
 import { nextPaidPlan } from '../lib/constants/plan-limits';
 import type { Plan } from '@yumia/shared';
@@ -29,6 +34,29 @@ import { resetTips } from '../lib/feature-tips';
 const PLAN_NAME: Record<Plan, string> = {
   free: 'YUMIA Free', plus: 'YUMIA Plus', gold: 'YUMIA Gold', diamond: 'YUMIA Diamond',
 };
+
+/** Version réelle du binaire (app.json → expoConfig), plus de numéro écrit en dur. */
+const APP_VERSION = Constants.expoConfig?.version ?? '';
+
+/**
+ * Écrit l'export dans un fichier JSON puis ouvre la feuille de partage : la
+ * personne choisit où l'envoyer (Fichiers, mail, AirDrop…). Rien n'est
+ * envoyé par YUMIA.
+ *
+ * Le Share de React Native ne partage un FICHIER que sur iOS (`url`) ; sur
+ * Android il n'accepte que du texte, d'où le JSON passé en `message`.
+ */
+async function shareExport(data: Record<string, unknown>, title: string): Promise<void> {
+  const json = JSON.stringify(data, null, 2);
+  if (Platform.OS === 'ios') {
+    const file = new File(Paths.cache, `yumia-export-${new Date().toISOString().slice(0, 10)}.json`);
+    file.create({ overwrite: true });
+    file.write(json);
+    await Share.share({ url: file.uri, title });
+    return;
+  }
+  await Share.share({ message: json, title });
+}
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -86,11 +114,8 @@ export default function SettingsScreen() {
     if (!accessToken) return;
     setExporting(true);
     try {
-      await exportDataRequest(accessToken);
-      Alert.alert(
-        t('settings_export_success_title'),
-        t('settings_export_success_body'),
-      );
+      const data = await exportDataRequest(accessToken);
+      await shareExport(data, t('settings_export_data'));
     } catch {
       Alert.alert(t('settings_error'), t('settings_export_error'));
     } finally {
@@ -180,6 +205,13 @@ export default function SettingsScreen() {
             <Text style={styles.plusChevron}>›</Text>
           ) : null}
         </Pressable>
+        {/* La résiliation se fait dans la boutique, jamais dans l'app : ce
+            lien y mène directement. */}
+        <SettingRow
+          icon="💳"
+          label={t('settings_manage_subscription')}
+          onPress={() => void openManageSubscriptions().catch(() => undefined)}
+        />
 
         {/* Données & confidentialité */}
         <SectionTitle label={t('settings_section_privacy')} />
@@ -205,6 +237,16 @@ export default function SettingsScreen() {
           onPress={() => void Linking.openURL(TERMS_URL)}
         />
         <SettingRow
+          icon="🧾"
+          label={t('settings_cgv')}
+          onPress={() => void Linking.openURL(CGV_URL)}
+        />
+        <SettingRow
+          icon="💬"
+          label={t('settings_support')}
+          onPress={() => void Linking.openURL(SUPPORT_URL)}
+        />
+        <SettingRow
           icon="🗑️"
           label={t('settings_delete_account')}
           danger
@@ -225,7 +267,9 @@ export default function SettingsScreen() {
         />
 
         {/* Version */}
-        <Text style={styles.version}>YUMIA v0.1.0 • {user?.email}</Text>
+        <Text style={styles.version}>
+          {APP_VERSION ? `YUMIA v${APP_VERSION}` : 'YUMIA'}{user?.email ? ` • ${user.email}` : ''}
+        </Text>
       </ScrollView>
     </View>
   );
@@ -375,6 +419,7 @@ const styles = StyleSheet.create({
   },
   toggleSub: { ...typography.caption, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
   plusCard: {
+    marginBottom: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

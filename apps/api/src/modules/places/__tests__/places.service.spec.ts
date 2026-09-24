@@ -136,6 +136,47 @@ describe('PlacesService', () => {
     });
   });
 
+  // ── details : attributions Google ───────────────────────────────────────────
+
+  describe('details — attributions Google Maps', () => {
+    it("renvoie l'auteur de chaque photo Google (même ordre) et le drapeau « Google »", async () => {
+      const ref = 'places/abc/photos/p1';
+      const place = makePlace({
+        provider: 'google',
+        providerPlaceId: 'abc',
+        photoUrls: [
+          `https://api.yumia.eu/api/places/photo?ref=${encodeURIComponent(ref)}&w=800`,
+          'https://cdn.yumia.app/visite.jpg',
+        ],
+        metadata: {
+          openingHours: ['lundi: 9h'],
+          hoursFetchedAt: Date.now(),
+          photoAttributions: { [ref]: { displayName: 'Marie D.', uri: 'https://maps.google.com/maps/contrib/1' } },
+        },
+      });
+      prisma.place.findUnique.mockResolvedValue(place);
+      (prisma as any).placeReview = { count: jest.fn().mockResolvedValue(0) };
+
+      const result = await service.details('place-1');
+
+      expect(result.googleAttribution).toBe(true);
+      expect(result.photoAttributions).toEqual([
+        { displayName: 'Marie D.', uri: 'https://maps.google.com/maps/contrib/1' },
+        null,
+      ]);
+    });
+
+    it("pas d'attribution Google pour un lieu local sans photo Google", async () => {
+      prisma.place.findUnique.mockResolvedValue(makePlace({ provider: 'seed' }));
+      (prisma as any).placeReview = { count: jest.fn().mockResolvedValue(0) };
+
+      const result = await service.details('place-1');
+
+      expect(result.googleAttribution).toBe(false);
+      expect(result.photoAttributions).toEqual([null]);
+    });
+  });
+
   // ── placeStats ───────────────────────────────────────────────────────────────
 
   describe('placeStats', () => {

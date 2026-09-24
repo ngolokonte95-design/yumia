@@ -36,8 +36,22 @@ export interface ProviderPlace {
   tags: string[];
   /** Références opaques des photos côté fournisseur (résolues via proxy). */
   photoRefs?: string[];
+  /** Auteur de chaque photo, par référence (à afficher sous la photo — CGU Google). */
+  photoAttributions?: Record<string, PhotoAttribution>;
   /** Horaires lisibles par jour (ex. "lundi : 09:00 – 18:00"). */
   openingHours?: string[];
+}
+
+/** Auteur d'une photo fournisseur (Google : `photos[].authorAttributions[0]`). */
+export interface PhotoAttribution {
+  displayName: string;
+  uri?: string;
+}
+
+/** Photos trouvées pour un lieu : références + auteurs. */
+export interface ProviderPhotos {
+  refs: string[];
+  attributions: Record<string, PhotoAttribution>;
 }
 
 export interface PlacesProvider {
@@ -71,6 +85,8 @@ export interface PlacesProvider {
    * que `searchNearby` renvoie parfois sans média). `[]` si rien trouvé.
    */
   findPhotoRefs?(textQuery: string, lat: number, lng: number): Promise<string[]>;
+  /** Comme {@link findPhotoRefs}, avec l'auteur de chaque photo. */
+  findPhotos?(textQuery: string, lat: number, lng: number): Promise<ProviderPhotos>;
 
   /**
    * Horaires d'un lieu par son identifiant fournisseur, chargés à l'ouverture

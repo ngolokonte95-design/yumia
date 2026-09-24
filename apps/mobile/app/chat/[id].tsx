@@ -21,6 +21,7 @@ import { useI18n } from '../../lib/useI18n';
 import { EmojiPicker } from '../../components/chat/EmojiPicker';
 import { PhotoViewer } from '../../components/PhotoViewer';
 import { translateMessage } from '../../lib/chat-translate-api';
+import { ensureAiConsent } from '../../lib/ai-consent';
 import { SUPPORTED_LOCALES } from '../../lib/locales';
 import { haptics } from '../../lib/useHaptics';
 import { appendFile } from '../../lib/upload';
@@ -436,6 +437,8 @@ export default function ChatRoomScreen() {
       setTranslations((prev) => { const next = new Map(prev); next.delete(msg.id); return next; });
       return;
     }
+    // Traduction par Claude (Anthropic) : accord explicite d'abord.
+    if (!(await ensureAiConsent())) return;
     setTranslatingId(msg.id);
     try {
       const { translated } = await translateMessage(accessToken, getDisplayContent(msg), locale);
@@ -450,6 +453,7 @@ export default function ChatRoomScreen() {
   // ─── Traduction de ce que J'ÉCRIS, avant envoi ─────────────────────────────
   const translateInputTo = async (code: string) => {
     if (!input.trim() || !accessToken) return;
+    if (!(await ensureAiConsent())) return;
     setTranslatingInput(true);
     try {
       const { translated } = await translateMessage(accessToken, input, code);

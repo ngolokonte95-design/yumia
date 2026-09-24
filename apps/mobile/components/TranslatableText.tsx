@@ -9,6 +9,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, t
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
 import { translateMessage } from '../lib/chat-translate-api';
+import { ensureAiConsent } from '../lib/ai-consent';
 import { shouldOfferTranslation } from '../lib/detect-language';
 import { colors } from '../theme/tokens';
 
@@ -39,6 +40,9 @@ export function TranslatableText({ text, style, numberOfLines, render, tone = 'd
     if (showing) { setShowing(false); return; }
     if (translated) { setShowing(true); return; }
     if (!accessToken || loading) return;
+    // La traduction est faite par Claude (Anthropic) : accord demandé au
+    // premier « Voir la traduction ». Refus → rien n'est envoyé.
+    if (!(await ensureAiConsent())) return;
     setLoading(true);
     try {
       const res = await translateMessage(accessToken, text, locale);
