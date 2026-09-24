@@ -2,6 +2,7 @@ import { Module, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
 import { StorageModule } from '../../infra/storage/storage.module';
+import { MediaModule } from '../../infra/media/media.module';
 import { PlacesController } from './places.controller';
 import { PlacesService } from './places.service';
 import { PLACES_PROVIDER, type PlacesProvider } from './providers/places-provider.interface';
@@ -15,7 +16,7 @@ import { NullPlacesProvider } from './providers/null-places.provider';
  * un provider inactif (comportement 100 % local, inchangé).
  */
 @Module({
-  imports: [AuthModule, StorageModule],
+  imports: [AuthModule, StorageModule, MediaModule],
   controllers: [PlacesController],
   providers: [
     PlacesService,

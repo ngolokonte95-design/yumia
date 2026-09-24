@@ -11,7 +11,7 @@ function makeService(ephemeralTtlSec: number | null) {
       update: jest.fn(async (args: { data: { ephemeralTtlSec: number | null } }) => ({
         ephemeralTtlSec: args.data.ephemeralTtlSec,
       })),
-      findUnique: jest.fn(async () => ({ ephemeralTtlSec })),
+      findUnique: jest.fn(async () => ({ ephemeralTtlSec, isGroup: false, participants: [{ userId: 'u1' }, { userId: 'u2' }] })),
     },
     message: {
       create: jest.fn(async (args: { data: Record<string, unknown> }) => ({
@@ -25,7 +25,8 @@ function makeService(ephemeralTtlSec: number | null) {
     messageReaction: { findMany: jest.fn(async () => []) },
   };
   const notifications = { sendToUsers: jest.fn(), send: jest.fn() };
-  return { service: new ChatService(prisma as never, notifications as never), prisma };
+  const privacy = { blockedIds: jest.fn(async () => []) };
+  return { service: new ChatService(prisma as never, notifications as never, privacy as never), prisma };
 }
 
 describe('Messages éphémères', () => {
@@ -59,5 +60,21 @@ describe('Messages éphémères', () => {
     const { service, prisma } = makeService(null);
     await service.purgeExpiredMessages();
     expect(prisma.message.deleteMany).toHaveBeenCalledWith({ where: { expiresAt: { lte: expect.any(Date) } } });
+  });
+});
+
+describe('Messages — blocage', () => {
+  it("refuse l'envoi dans une conversation à deux quand l'un a bloqué l'autre", async () => {
+    const prisma = {
+      conversationParticipant: { findUnique: jest.fn(async () => ({ conversationId: 'c1', userId: 'u1' })) },
+      conversation: {
+        findUnique: jest.fn(async () => ({ ephemeralTtlSec: null, isGroup: false, participants: [{ userId: 'u1' }, { userId: 'u2' }] })),
+      },
+      message: { create: jest.fn() },
+    };
+    const privacy = { blockedIds: jest.fn(async () => ['u2']) };
+    const service = new ChatService(prisma as never, { sendToUsers: jest.fn() } as never, privacy as never);
+    await expect(service.sendMessage('c1', 'u1', { content: 'salut' } as never)).rejects.toThrow('Action impossible');
+    expect(prisma.message.create).not.toHaveBeenCalled();
   });
 });

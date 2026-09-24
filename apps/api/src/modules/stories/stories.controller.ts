@@ -23,8 +23,8 @@ export class StoriesController {
   // ── Stories à la une (highlights) ─────────────────────────────────────────
 
   @Get('highlights/:userId')
-  getHighlights(@Param('userId') userId: string) {
-    return this.stories.getUserHighlights(userId);
+  getHighlights(@CurrentUser() user: JwtPayload, @Param('userId') userId: string) {
+    return this.stories.getUserHighlights(userId, user.sub);
   }
 
   @Post('highlights')

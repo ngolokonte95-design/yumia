@@ -5,9 +5,10 @@ import { PrismaModule } from '../../infra/prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { StorageModule } from '../../infra/storage/storage.module';
 import { VideoTranscodeService } from '../../infra/media/video-transcode.service';
+import { MediaModule } from '../../infra/media/media.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, StorageModule],
+  imports: [PrismaModule, AuthModule, StorageModule, MediaModule],
   controllers: [PostsController],
   providers: [PostsService, VideoTranscodeService],
   exports: [PostsService],

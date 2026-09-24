@@ -17,7 +17,9 @@ describe('DiscoverService — audience des Rencontres', () => {
       },
       block: { findMany: jest.fn(async () => []) },
     };
-    return new DiscoverService(prisma as never, {} as never, {} as never);
+    // Rencontres 18+ : le lecteur est majeur ici (assertAdult ne lève pas).
+    const privacy = { assertAdult: jest.fn(async () => undefined), blockedIds: jest.fn(async () => []) };
+    return new DiscoverService(prisma as never, {} as never, {} as never, privacy as never);
   }
 
   it('montre la rencontre quand l’autre accepte tout le monde', async () => {

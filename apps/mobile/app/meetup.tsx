@@ -12,6 +12,7 @@ import { useI18n } from '../lib/useI18n';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { FeatureTip } from '../components/FeatureTip';
+import { promptReport } from '../lib/report-content';
 
 const API = API_BASE_URL;
 
@@ -33,7 +34,7 @@ function formatDate(iso: string) {
 }
 
 export default function MeetupScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
@@ -145,6 +146,24 @@ export default function MeetupScreen() {
                   <Text style={styles.cardCity}>📍 {item.city}</Text>
                   {item.description ? <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text> : null}
                 </View>
+                {/* Signaler une sortie créée par quelqu'un d'autre (règle 1.2 App Store). */}
+                {item.host && item.host.id !== user?.id ? (
+                  <Pressable
+                    hitSlop={10}
+                    style={styles.moreBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('report_meetup_title')}
+                    onPress={() => promptReport({
+                      accessToken,
+                      targetType: 'meetup',
+                      targetId: item.id,
+                      t,
+                      titleKey: 'report_meetup_title',
+                    })}
+                  >
+                    <Text style={styles.moreBtnText}>⋯</Text>
+                  </Pressable>
+                ) : null}
               </View>
               <View style={styles.cardBottom}>
                 <View style={styles.hostRow}>
@@ -216,13 +235,15 @@ const styles = StyleSheet.create({
   cityInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border },
   clearBtn: { padding: 10 },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, marginBottom: spacing.sm, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  cardTop: { padding: spacing.md },
-  cardInfo: { gap: 4 },
+  cardTop: { padding: spacing.md, flexDirection: 'row', alignItems: 'flex-start' },
+  cardInfo: { gap: 4, flex: 1 },
   cardTitle: { ...typography.h3, color: colors.text },
   cardDate: { fontSize: 13, color: colors.textMuted },
   cardCity: { fontSize: 13, color: colors.textMuted },
   cardDesc: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
   cardBottom: { borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.md, gap: 10 },
+  moreBtn: { paddingHorizontal: spacing.xs, marginLeft: spacing.sm },
+  moreBtnText: { color: colors.textMuted, fontSize: 22, fontWeight: '700' },
   hostRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   hostText: { fontSize: 13, color: colors.textMuted },
   attendees: { fontSize: 13, color: colors.textMuted },

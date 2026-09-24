@@ -3,6 +3,18 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PrivacyService } from '../../infra/privacy/privacy.service';
+
+/** Rayon maximal des recherches « autour de moi » — `radius` vient du client. */
+const MAX_RADIUS_KM = 50;
+/** Rayon demandé, borné à ]0, 50] km (5 km si absent ou invalide). */
+export function clampRadius(km: number): number {
+  return Number.isFinite(km) && km > 0 ? Math.min(km, MAX_RADIUS_KM) : 5;
+}
+/** Position partagée avec d'autres membres : arrondie à ~1 km. */
+function blur(v: number): number {
+  return Math.round(v * 100) / 100;
+}
 
 const INTENT_KEY = (uid: string) => `social:intent:${uid}`;
 const EVENT_KEY  = (id: string)  => `social:event:${id}`;
@@ -47,7 +59,30 @@ export class SocialService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly notifications: NotificationsService,
+    private readonly privacy: PrivacyService,
   ) {}
+
+  /**
+   * Qui, parmi `ownerIds`, montre sa position à `viewerId` : jamais un
+   * blocage ; « amis » (mapAudience) = abonnements mutuels seulement.
+   */
+  private async locationVisibleOwners(viewerId: string, ownerIds: string[]): Promise<Set<string>> {
+    const ids = [...new Set(ownerIds)].filter((id) => id !== viewerId);
+    if (ids.length === 0) return new Set();
+    const [blocked, owners, iFollow, followMe] = await Promise.all([
+      this.privacy.blockedIds(viewerId),
+      this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, mapAudience: true } }),
+      this.prisma.follow.findMany({ where: { followerId: viewerId, followingId: { in: ids } }, select: { followingId: true } }),
+      this.prisma.follow.findMany({ where: { followingId: viewerId, followerId: { in: ids } }, select: { followerId: true } }),
+    ]);
+    const blockedSet = new Set(blocked);
+    const mutual = new Set(iFollow.map((f) => f.followingId).filter((id) => followMe.some((f) => f.followerId === id)));
+    return new Set(
+      owners
+        .filter((o) => !blockedSet.has(o.id) && (o.mapAudience === 'everyone' || mutual.has(o.id)))
+        .map((o) => o.id),
+    );
+  }
 
   // ── Follow / Unfollow ────────────────────────────────────────────────────
 
@@ -115,6 +150,7 @@ export class SocialService {
     if (typeof dto.isPrivate === 'boolean') data.isPrivate = dto.isPrivate;
     if (typeof dto.shareVisits === 'boolean') data.shareVisits = dto.shareVisits;
     if (typeof dto.shareEncounters === 'boolean') data.shareEncounters = dto.shareEncounters;
+    if (dto.shareEncounters === true) await this.privacy.assertAdult(userId);
     if (dto.mapAudience !== undefined) {
       if (!['everyone', 'friends'].includes(dto.mapAudience)) throw new BadRequestException('mapAudience invalide.');
       data.mapAudience = dto.mapAudience;
@@ -247,10 +283,23 @@ export class SocialService {
   }
 
   async report(reporterId: string, dto: { targetType: string; targetId: string; reason: string; details?: string }) {
-    const validTypes = new Set(['post', 'comment', 'story', 'user', 'message']);
+    const validTypes = new Set(['post', 'comment', 'story', 'user', 'message', 'meetup', 'review']);
     if (!validTypes.has(dto.targetType)) throw new ConflictException('Type de cible invalide');
+    if (typeof dto.targetId !== 'string' || !dto.targetId || dto.targetId.length > 64) {
+      throw new BadRequestException('Cible invalide');
+    }
+    // Un même contenu signalé plusieurs fois par la même personne en 24 h ne
+    // crée qu'un signalement : la file de modération reste lisible.
+    const dup = await this.prisma.report.findFirst({
+      where: { reporterId, targetType: dto.targetType, targetId: dto.targetId, createdAt: { gte: new Date(Date.now() - 24 * 3600 * 1000) } },
+      select: { id: true },
+    });
+    if (dup) return { reported: true };
     await this.prisma.report.create({
-      data: { reporterId, targetType: dto.targetType, targetId: dto.targetId, reason: dto.reason, details: dto.details },
+      data: {
+        reporterId, targetType: dto.targetType, targetId: dto.targetId,
+        reason: String(dto.reason ?? '').slice(0, 200), details: dto.details?.slice(0, 2000),
+      },
     });
     return { reported: true };
   }
@@ -370,26 +419,44 @@ export class SocialService {
 
   // ── User discovery ───────────────────────────────────────────────────────
 
+  /**
+   * Recherche par nom affiché uniquement. Chercher aussi dans l'e-mail
+   * révélait quel profil appartient à une adresse donnée ; une requête vide
+   * avec une grande `limit` renvoyait toute la base.
+   */
   async searchUsers(query: string, limit = 20, viewerId?: string) {
-    // Exclut les comptes bloqués (dans les deux sens).
-    let excluded: string[] = [];
-    if (viewerId) {
-      const [blocked, blockedBy] = await Promise.all([
-        this.prisma.block.findMany({ where: { blockerId: viewerId }, select: { blockedId: true } }),
-        this.prisma.block.findMany({ where: { blockedId: viewerId }, select: { blockerId: true } }),
-      ]);
-      excluded = [...blocked.map((b) => b.blockedId), ...blockedBy.map((b) => b.blockerId)];
-    }
+    const q = query.trim();
+    if (q.length < 2) return [];
+    const excluded = viewerId ? await this.privacy.blockedIds(viewerId) : [];
     return this.prisma.user.findMany({
       where: {
-        OR: [
-          { displayName: { contains: query, mode: 'insensitive' } },
-          { email: { contains: query, mode: 'insensitive' } },
-        ],
+        displayName: { contains: q.slice(0, 50), mode: 'insensitive' },
         ...(excluded.length ? { id: { notIn: excluded } } : {}),
       },
       select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, totalXp: true, level: true },
-      take: limit,
+      take: Math.min(Math.max(1, Math.floor(limit) || 20), 30),
+    });
+  }
+
+  /**
+   * Suggestions de comptes à suivre : comptes publics, ni bloqués ni déjà
+   * suivis, les plus actifs d'abord. Remplace la « recherche vide » qui
+   * renvoyait n'importe quel échantillon de la base (comptes privés compris).
+   */
+  async suggestUsers(viewerId: string, limit = 20) {
+    const [blocked, follows] = await Promise.all([
+      this.privacy.blockedIds(viewerId),
+      this.prisma.follow.findMany({ where: { followerId: viewerId }, select: { followingId: true } }),
+    ]);
+    return this.prisma.user.findMany({
+      where: {
+        id: { notIn: [viewerId, ...blocked, ...follows.map((f) => f.followingId)] },
+        isPrivate: false,
+        OR: [{ suspendedUntil: null }, { suspendedUntil: { lt: new Date() } }],
+      },
+      select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, totalXp: true, level: true },
+      orderBy: { totalXp: 'desc' },
+      take: Math.min(Math.max(1, Math.floor(limit) || 20), 30),
     });
   }
 
@@ -399,6 +466,10 @@ export class SocialService {
       select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, totalXp: true, level: true, createdAt: true, isPrivate: true },
     });
     if (!user) throw new NotFoundException('Utilisateur introuvable');
+    // Bloqué dans un sens ou dans l'autre : le profil n'existe pas pour lui.
+    if (viewerId && (await this.privacy.isBlockedBetween(viewerId, userId))) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
     const [followersCount, followingCount, visitCount, isFollowed, requested] = await Promise.all([
       this.prisma.follow.count({ where: { followingId: userId } }),
       this.prisma.follow.count({ where: { followerId: userId } }),
@@ -413,7 +484,9 @@ export class SocialService {
     return { ...user, followersCount, followingCount, visitCount, isFollowedByMe: isFollowed, hasRequestedByMe: requested };
   }
 
-  async getFollowers(userId: string, limit = 50) {
+  /** Listes d'abonnés/abonnements : protégées comme le reste du contenu (blocage, compte privé). */
+  async getFollowers(userId: string, viewerId: string, limit = 50) {
+    await this.privacy.assertCanViewContent(viewerId, userId);
     const follows = await this.prisma.follow.findMany({
       where: { followingId: userId },
       orderBy: { createdAt: 'desc' },
@@ -426,7 +499,8 @@ export class SocialService {
     });
   }
 
-  async getFollowing(userId: string, limit = 50) {
+  async getFollowing(userId: string, viewerId: string, limit = 50) {
+    await this.privacy.assertCanViewContent(viewerId, userId);
     const follows = await this.prisma.follow.findMany({
       where: { followerId: userId },
       orderBy: { createdAt: 'desc' },
@@ -488,14 +562,20 @@ export class SocialService {
       durationHours: number;
     },
   ): Promise<SocialIntent> {
-    const ttlSecs = Math.min(dto.durationHours, 24) * 3600;
+    // Signal volontaire, mais position floutée (~1 km) et durée bornée :
+    // entre 1 et 24 h (une valeur négative ou absente cassait le TTL).
+    const hours = Number.isFinite(dto.durationHours) ? Math.min(Math.max(dto.durationHours, 1), 24) : 2;
+    const ttlSecs = Math.round(hours * 3600);
+    if (!Number.isFinite(dto.lat) || !Number.isFinite(dto.lng) || Math.abs(dto.lat) > 90 || Math.abs(dto.lng) > 180) {
+      throw new BadRequestException('Position invalide.');
+    }
     const payload: SocialIntent = {
       userId,
       displayName: dto.displayName,
       photoUrl:    dto.photoUrl,
       level:       dto.level,
-      lat:         dto.lat,
-      lng:         dto.lng,
+      lat:         blur(dto.lat),
+      lng:         blur(dto.lng),
       intent:      dto.intent,
       universe:    dto.universe,
       note:        dto.note?.slice(0, 100),
@@ -517,6 +597,7 @@ export class SocialService {
   }
 
   async getNearbyIntents(lat: number, lng: number, radiusKm: number, viewerId: string): Promise<SocialIntent[]> {
+    radiusKm = clampRadius(radiusKm);
     const keys = await this.redis.raw.keys('social:intent:*');
     const results: SocialIntent[] = [];
     for (const key of keys) {
@@ -528,9 +609,13 @@ export class SocialService {
         if (this.haversineKm(lat, lng, intent.lat, intent.lng) <= radiusKm) results.push(intent);
       } catch {}
     }
-    return results.sort(
-      (a, b) => this.haversineKm(lat, lng, a.lat, a.lng) - this.haversineKm(lat, lng, b.lat, b.lng),
-    );
+    // Même audience que la position sur la carte (réglage `mapAudience`).
+    const visible = await this.locationVisibleOwners(viewerId, results.map((i) => i.userId));
+    return results
+      .filter((i) => visible.has(i.userId))
+      .map((i) => ({ ...i, lat: blur(i.lat), lng: blur(i.lng) }))
+      .sort((a, b) => this.haversineKm(lat, lng, a.lat, a.lng) - this.haversineKm(lat, lng, b.lat, b.lng))
+      .slice(0, 100);
   }
 
   // ── Social Events (Redis-only, éphémères) ────────────────────────────────
@@ -574,6 +659,7 @@ export class SocialService {
   }
 
   async getNearbyEvents(lat: number, lng: number, radiusKm: number): Promise<Array<SocialEvent & { distanceKm: number }>> {
+    radiusKm = clampRadius(radiusKm);
     const now = Date.now();
     const ids = (await this.redis.raw.zrangebyscore(EVENT_IDX, now - 3_600_000, '+inf')) as string[];
     const results: Array<SocialEvent & { distanceKm: number }> = [];
@@ -618,6 +704,8 @@ export class SocialService {
     radiusKm: number,
     viewerId: string,
   ): Promise<Array<{ userId: string; lat: number; lng: number; distanceKm: number; intent: SocialIntent | null }>> {
+    radiusKm = clampRadius(radiusKm);
+    const blocked = new Set(await this.privacy.blockedIds(viewerId));
     const keys = await this.redis.raw.keys(`${LOC_PREFIX}*`);
     const results: Array<{ userId: string; lat: number; lng: number; distanceKm: number; intent: SocialIntent | null }> = [];
     for (const key of keys) {
@@ -626,16 +714,21 @@ export class SocialService {
       try {
         const loc = JSON.parse(raw) as { lat: number; lng: number; visibility: string };
         const uid = key.slice(LOC_PREFIX.length);
-        if (uid === viewerId) continue;
+        if (uid === viewerId || blocked.has(uid)) continue;
         if (loc.visibility !== 'everyone' && loc.visibility !== 'map') continue;
         const dist = this.haversineKm(lat, lng, loc.lat, loc.lng);
         if (dist > radiusKm) continue;
         const intentRaw = await this.redis.raw.get(INTENT_KEY(uid));
         const intent: SocialIntent | null = intentRaw ? (JSON.parse(intentRaw) as SocialIntent) : null;
-        results.push({ userId: uid, lat: loc.lat, lng: loc.lng, distanceKm: Math.round(dist * 10) / 10, intent });
+        results.push({
+          userId: uid, lat: blur(loc.lat), lng: blur(loc.lng),
+          // Au kilomètre près, jamais sous 1 km : pas de triangulation.
+          distanceKm: Math.max(1, Math.round(dist)),
+          intent: intent ? { ...intent, lat: blur(intent.lat), lng: blur(intent.lng) } : null,
+        });
       } catch {}
     }
-    return results.sort((a, b) => a.distanceKm - b.distanceKm);
+    return results.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 100);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

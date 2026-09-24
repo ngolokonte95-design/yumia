@@ -28,6 +28,8 @@ import { TranslatableText } from '../../components/TranslatableText';
 import { FeatureTip } from '../../components/FeatureTip';
 import { EncountersSettings } from '../../components/EncountersSettings';
 import { VisitsVisibilityBanner } from '../../components/VisitsVisibilityBanner';
+import { AdultsOnlyNotice } from '../../components/AdultsOnlyNotice';
+import { isAdultYear } from '../../lib/dating-age';
 
 const API = API_BASE_URL;
 
@@ -718,7 +720,7 @@ export default function SocialTab() {
       fetch(`${API}/social/feed`, { headers: h }),
       fetch(`${API}/discover/encounters`, { headers: h }),
       me?.id ? fetch(`${API}/social/users/${me.id}/following`, { headers: h }) : Promise.resolve(null as unknown as Response),
-      me?.id ? fetch(`${API}/social/users/search?q=&limit=20`, { headers: h }) : Promise.resolve(null as unknown as Response),
+      me?.id ? fetch(`${API}/social/suggestions?limit=20`, { headers: h }) : Promise.resolve(null as unknown as Response),
     ]);
     if (storiesRes.status === 'fulfilled') setStories(storiesRes.value);
     if (globalRes.status === 'fulfilled') setGlobalPosts(globalRes.value);
@@ -1080,7 +1082,11 @@ export default function SocialTab() {
             />
           )}
 
-          {tab === 'encounters' && (
+          {tab === 'encounters' && !isAdultYear(me?.birthYear) && (
+            <AdultsOnlyNotice birthYearMissing={me?.birthYear == null} />
+          )}
+
+          {tab === 'encounters' && isAdultYear(me?.birthYear) && (
             <FlatList
               data={encounters}
               keyExtractor={(e) => e.id}

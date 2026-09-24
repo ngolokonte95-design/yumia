@@ -5,6 +5,7 @@ import type { JwtPayload } from '../auth/types';
 import { SocialService } from './social.service';
 import type { IntentType } from './social.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -98,6 +99,7 @@ export class SocialController {
   }
 
   @Post('social/report')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   report(
     @CurrentUser() user: JwtPayload,
     @Body() dto: { targetType: string; targetId: string; reason: string; details?: string },
@@ -166,19 +168,24 @@ export class SocialController {
     return this.social.getSocialFeed(user.sub, limit ? parseInt(limit, 10) : 30);
   }
 
+  @Get('social/suggestions')
+  suggestions(@CurrentUser() user: JwtPayload, @Query('limit') limit?: string) {
+    return this.social.suggestUsers(user.sub, limit ? parseInt(limit, 10) : 20);
+  }
+
   @Get('social/users/search')
   searchUsers(@CurrentUser() user: JwtPayload, @Query('q') q: string, @Query('limit') limit?: string) {
     return this.social.searchUsers(q ?? '', limit ? parseInt(limit, 10) : 20, user.sub);
   }
 
   @Get('social/users/:userId/followers')
-  getFollowers(@Param('userId') userId: string) {
-    return this.social.getFollowers(userId);
+  getFollowers(@CurrentUser() user: JwtPayload, @Param('userId') userId: string) {
+    return this.social.getFollowers(userId, user.sub);
   }
 
   @Get('social/users/:userId/following')
-  getFollowing(@Param('userId') userId: string) {
-    return this.social.getFollowing(userId);
+  getFollowing(@CurrentUser() user: JwtPayload, @Param('userId') userId: string) {
+    return this.social.getFollowing(userId, user.sub);
   }
 
   @Get('social/users/:userId')

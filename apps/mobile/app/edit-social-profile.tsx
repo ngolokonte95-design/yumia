@@ -93,7 +93,7 @@ export default function EditSocialProfileScreen() {
         displayName: displayName.trim() || undefined,
         bio: bio.trim() || undefined,
         gender: gender || undefined,
-        birthYear: birthYear && !isNaN(+birthYear) ? +birthYear : undefined,
+        birthYear: !user?.birthYear && birthYear && !isNaN(+birthYear) ? +birthYear : undefined,
         interestedIn,
       });
       // isPrivate enregistré séparément (champ non encore dans le type PublicUser)
@@ -189,8 +189,11 @@ export default function EditSocialProfileScreen() {
       {/* Âge */}
       <View style={styles.section}>
         <Text style={styles.label}>{t('esp_birth_year')} {age ? t('esp_years_old').replace('{age}', String(age)) : ''}</Text>
+        {/* Une fois connue, l'année ne change plus (elle ouvre Tind et les
+            Rencontres, réservés aux majeurs) : le serveur la refuse aussi. */}
         <TextInput
-          style={styles.input}
+          style={[styles.input, !!user?.birthYear && { opacity: 0.6 }]}
+          editable={!user?.birthYear}
           value={birthYear}
           onChangeText={(v) => setBirthYear(v.replace(/\D/g, '').slice(0, 4))}
           keyboardType="numeric"

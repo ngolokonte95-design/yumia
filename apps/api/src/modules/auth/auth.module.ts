@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { StorageModule } from '../../infra/storage/storage.module';
+import { MediaModule } from '../../infra/media/media.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -16,7 +17,7 @@ import { AuthCleanupCron } from './auth-cleanup.cron';
  * `JwtAuthGuard` est exporté pour protéger les routes des futurs modules métier.
  */
 @Module({
-  imports: [JwtModule.register({}), StorageModule],
+  imports: [JwtModule.register({}), StorageModule, MediaModule],
   controllers: [AuthController],
   providers: [AuthService, JwtAuthGuard, AuthCleanupCron],
   // JwtModule est ré-exporté pour que `JwtAuthGuard` (utilisé via @UseGuards

@@ -26,6 +26,15 @@ export interface ReportWithTarget {
   reporter: { id: string; displayName: string } | null;
 }
 
+/** Types de message dont le fichier joint a été envoyé par l'expéditeur lui-même. */
+const OWN_MEDIA_MESSAGE_TYPES = new Set<string>(['image', 'video', 'audio']);
+
+/** Extrait lisible d'un message, pour la file d'attente. */
+function messagePreview(type: string, content: string): string {
+  if (type === 'text') return content;
+  return content ? `[${type}] ${content}` : `[${type}]`;
+}
+
 /** Suspension « définitive » : une date si lointaine qu'elle ne reviendra pas. */
 export const PERMANENT_YEARS = 100;
 
@@ -210,6 +219,39 @@ export class ModerationService {
           reporter,
         };
       }
+      case 'message': {
+        const message = await this.prisma.message
+          .findUnique({ where: { id: report.targetId }, select: { content: true, type: true, senderId: true } })
+          .catch(() => null);
+        return {
+          ...base,
+          preview: message ? messagePreview(message.type, message.content) : null,
+          author: await this.userFull(message?.senderId),
+          reporter,
+        };
+      }
+      case 'meetup': {
+        const meetup = await this.prisma.meetupEvent
+          .findUnique({ where: { id: report.targetId }, select: { title: true, description: true, hostId: true } })
+          .catch(() => null);
+        return {
+          ...base,
+          preview: meetup ? [meetup.title, meetup.description].filter(Boolean).join(' — ') : null,
+          author: await this.userFull(meetup?.hostId),
+          reporter,
+        };
+      }
+      case 'review': {
+        const review = await this.prisma.placeReview
+          .findUnique({ where: { id: report.targetId }, select: { rating: true, body: true, userId: true } })
+          .catch(() => null);
+        return {
+          ...base,
+          preview: review ? `${'★'.repeat(review.rating)} ${review.body ?? ''}`.trim() : null,
+          author: await this.userFull(review?.userId),
+          reporter,
+        };
+      }
       case 'user': {
         const user = await this.userFull(report.targetId);
         return { ...base, preview: user?.displayName ?? null, author: user, reporter };
@@ -262,6 +304,40 @@ export class ModerationService {
         case 'story': {
           const story = await this.prisma.story.delete({ where: { id }, select: { userId: true, mediaUrl: true } });
           void this.storage.remove(story.mediaUrl, story.userId);
+          return true;
+        }
+        case 'message': {
+          const message = await this.prisma.message.delete({
+            where: { id },
+            select: { senderId: true, type: true, mediaUrl: true },
+          });
+          // Seuls les médias ENVOYÉS avec le message lui appartiennent : une
+          // réponse à une story pointe sur le fichier de la story d'autrui.
+          if (OWN_MEDIA_MESSAGE_TYPES.has(message.type)) {
+            void this.storage.remove(message.mediaUrl, message.senderId);
+          }
+          return true;
+        }
+        case 'meetup':
+          // Les inscriptions (MeetupRsvp) partent en cascade.
+          await this.prisma.meetupEvent.delete({ where: { id } });
+          return true;
+        case 'review': {
+          const review = await this.prisma.placeReview.delete({
+            where: { id },
+            select: { placeId: true, userId: true, photoUrl: true },
+          });
+          void this.storage.remove(review.photoUrl, review.userId);
+          // La note du lieu est la moyenne des avis : un avis retiré ne doit
+          // plus la tirer vers le haut ou le bas.
+          const agg = await this.prisma.placeReview.aggregate({
+            where: { placeId: review.placeId },
+            _avg: { rating: true },
+          });
+          await this.prisma.place.update({
+            where: { id: review.placeId },
+            data: { rating: Math.round((agg._avg.rating ?? 0) * 10) / 10 },
+          }).catch(() => undefined); // l'avis est retiré même si le lieu a disparu
           return true;
         }
         default:

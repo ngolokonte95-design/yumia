@@ -6,6 +6,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { Cron } from '@nestjs/schedule';
 import { assertClean } from '../../common/moderation/moderation';
 import { StorageService } from '../../infra/storage/storage.service';
+import { PrivacyService } from '../../infra/privacy/privacy.service';
 
 /** Sticker posé sur une story (position en % du cadre). */
 export interface StorySticker {
@@ -34,6 +35,7 @@ export class StoriesService {
     private readonly chat: ChatService,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
+    private readonly privacy: PrivacyService,
   ) {}
 
   async create(userId: string, dto: {
@@ -64,18 +66,16 @@ export class StoriesService {
     });
   }
 
-  /** IDs dont les stories sont invisibles pour ce viewer (blocages 2 sens + stories masquées). */
+  /**
+   * IDs dont les stories sont invisibles pour ce viewer : blocages dans les
+   * deux sens, comptes privés qu'il ne suit pas, stories masquées.
+   */
   private async getExcludedUserIds(userId: string): Promise<Set<string>> {
-    const [blocked, blockedBy, muted] = await Promise.all([
-      this.prisma.block.findMany({ where: { blockerId: userId }, select: { blockedId: true } }),
-      this.prisma.block.findMany({ where: { blockedId: userId }, select: { blockerId: true } }),
+    const [hidden, muted] = await Promise.all([
+      this.privacy.hiddenAuthorIds(userId),
       this.prisma.mute.findMany({ where: { userId, muteStories: true }, select: { mutedId: true } }),
     ]);
-    return new Set([
-      ...blocked.map((b) => b.blockedId),
-      ...blockedBy.map((b) => b.blockerId),
-      ...muted.map((m) => m.mutedId),
-    ]);
+    return new Set([...hidden, ...muted.map((m) => m.mutedId)]);
   }
 
   /** Auteurs dont je suis « ami proche » (je peux voir leurs stories close friends). */
@@ -250,7 +250,8 @@ export class StoriesService {
     });
   }
 
-  async getUserHighlights(userId: string) {
+  async getUserHighlights(userId: string, viewerId: string) {
+    if (!(await this.privacy.canViewContent(viewerId, userId))) return [];
     return this.prisma.storyHighlight.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -380,6 +381,7 @@ export class StoriesService {
     });
     if (!story || story.expiresAt < new Date()) throw new NotFoundException('Story introuvable ou expirée');
     if (story.userId === userId) throw new BadRequestException('Impossible de répondre à sa propre story.');
+    await this.privacy.assertCanViewContent(userId, story.userId);
     const conv = await this.chat.getOrCreateConversation(userId, story.userId);
     const message = await this.chat.sendMessage(conv.id, userId, {
       content: text,

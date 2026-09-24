@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsService, type PostOverlay } from './posts.service';
 import { StorageService, ownedFilename } from '../../infra/storage/storage.service';
 import { VideoTranscodeService, type PreparedVideo } from '../../infra/media/video-transcode.service';
+import { ImageSanitizeService } from '../../infra/media/image-sanitize.service';
 
 const VIDEO_MIMETYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
 
@@ -61,6 +62,7 @@ export class PostsController {
     private readonly postsService: PostsService,
     private readonly storage: StorageService,
     private readonly videoTranscode: VideoTranscodeService,
+    private readonly imageSanitize: ImageSanitizeService,
   ) {}
 
   /** POST /posts/audio-proxy — télécharge un preview audio depuis un CDN tiers (Deezer, iTunes)
@@ -122,6 +124,14 @@ export class PostsController {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
     const owner: string = req.user.sub;
 
+    if (file.mimetype.startsWith('image/')) {
+      // Métadonnées (position GPS du domicile…) retirées avant tout stockage.
+      // L'extension suit le format RÉEL produit (un HEIC ressort en JPEG).
+      const image = await this.imageSanitize.sanitize(file.buffer);
+      const url = await this.storage.save(image.buffer, `photo${image.ext}`, 'posts', ownedFilename(owner, image.ext));
+      return { url };
+    }
+
     if (!VIDEO_MIMETYPES.has(file.mimetype)) {
       const url = await this.storage.save(file.buffer, file.originalname, 'posts', ownedFilename(owner, safeExt(file.originalname)));
       return { url };
@@ -136,6 +146,16 @@ export class PostsController {
       // Best-effort : une vidéo non préparée reste meilleure qu'une publication
       // qui échoue (ffmpeg absent en dev local, timeout, fichier atypique…).
       this.logger.warn(`Préparation vidéo échouée, envoi du fichier original : ${(err as Error).message}`);
+    }
+
+    // L'original porte la position de la prise de vue (conteneur QuickTime) :
+    // en production on refuse de le publier plutôt que de révéler un domicile.
+    // En dev, ffmpeg peut simplement ne pas être installé.
+    if (!prepared?.sanitized) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new BadRequestException('Vidéo illisible');
+      }
+      this.logger.warn('Vidéo publiée SANS retrait des métadonnées (ffmpeg indisponible ? — refusé en production)');
     }
 
     // Nom fixe : le ré-encodage en tâche de fond écrasera ce même fichier, donc

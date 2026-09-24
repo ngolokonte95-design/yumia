@@ -4,6 +4,12 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { assertClean } from '../../common/moderation/moderation';
 import { StorageService } from '../../infra/storage/storage.service';
+import { PrivacyService } from '../../infra/privacy/privacy.service';
+
+/** `limit` vient du client : borné à [1, 50]. */
+function clampLimit(limit: number, fallback = 30): number {
+  return Math.min(Math.max(1, Math.floor(limit) || fallback), 50);
+}
 
 /** Extrait les hashtags (#mot) d'une légende, en minuscules, sans doublon. */
 function extractHashtags(caption?: string | null): string[] {
@@ -38,7 +44,20 @@ export class PostsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
+    private readonly privacy: PrivacyService,
   ) {}
+
+  /**
+   * 404 si `viewerId` ne peut pas voir ce post : auteur qui l'a bloqué (ou
+   * qu'il a bloqué), compte privé qu'il ne suit pas. Sert à toutes les
+   * interactions (lecture, j'aime, commentaire, enregistrement, republication).
+   */
+  private async assertCanSeePost(viewerId: string, postId: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Post introuvable');
+    await this.privacy.assertCanViewContent(viewerId, post.userId);
+    return post;
+  }
 
   async createPost(
     userId: string,
@@ -192,10 +211,14 @@ export class PostsService {
 
   /** Posts contenant un hashtag donné. */
   async getHashtagPosts(viewerId: string, tag: string, limit = 30) {
+    const hidden = await this.privacy.hiddenAuthorIds(viewerId);
     const posts = await this.prisma.post.findMany({
-      where: { hashtags: { has: tag.toLowerCase() }, archived: false, isDraft: false },
+      where: {
+        hashtags: { has: tag.toLowerCase() }, archived: false, isDraft: false,
+        ...(hidden.length ? { userId: { notIn: hidden } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: clampLimit(limit),
     });
     return this.hydratePosts(posts, viewerId);
   }
@@ -244,7 +267,7 @@ export class PostsService {
     const posts = await this.prisma.post.findMany({
       where: { userId: { in: ids }, archived: false, isDraft: false },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: clampLimit(limit),
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
@@ -269,15 +292,18 @@ export class PostsService {
    * même ceux qu'on ne suit pas (façon « Pour vous » d'Instagram).
    */
   async getGlobalFeed(userId: string, limit = 30, cursor?: string) {
-    const excluded = await this.getExcludedUserIds(userId);
+    // Comptes privés non suivis exclus : leurs publications ne sont pas
+    // destinées à tout le monde.
+    const [excluded, hidden] = await Promise.all([this.getExcludedUserIds(userId), this.privacy.hiddenAuthorIds(userId)]);
+    const notIn = [...new Set([...excluded, ...hidden])];
     const posts = await this.prisma.post.findMany({
       where: {
         archived: false,
         isDraft: false,
-        ...(excluded.length ? { userId: { notIn: excluded } } : {}),
+        ...(notIn.length ? { userId: { notIn } } : {}),
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: clampLimit(limit),
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
@@ -293,8 +319,7 @@ export class PostsService {
       await this.prisma.postSave.delete({ where: { postId_userId: { postId, userId } } });
       return { saved: false };
     }
-    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
-    if (!post) throw new NotFoundException('Post introuvable');
+    await this.assertCanSeePost(userId, postId);
     await this.prisma.postSave.create({ data: { postId, userId } });
     return { saved: true };
   }
@@ -376,8 +401,7 @@ export class PostsService {
     if (existing) {
       await this.prisma.repost.delete({ where: { postId_userId: { postId, userId } } });
     } else {
-      const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true } });
-      if (!post) throw new NotFoundException('Post introuvable');
+      await this.assertCanSeePost(userId, postId);
       await this.prisma.repost.create({ data: { postId, userId, caption } });
     }
     const repostsCount = await this.prisma.repost.count({ where: { postId } });
@@ -385,10 +409,13 @@ export class PostsService {
   }
 
   async getUserPosts(targetUserId: string, viewerId: string, limit = 30, cursor?: string) {
+    // Compte privé non suivi ou blocage : grille vide (le profil affiche
+    // déjà « compte privé »), pas d'erreur.
+    if (!(await this.privacy.canViewContent(viewerId, targetUserId))) return [];
     const posts = await this.prisma.post.findMany({
       where: { userId: targetUserId, archived: false, isDraft: false },
       orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
-      take: limit,
+      take: clampLimit(limit),
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
     return this.hydratePosts(posts, viewerId);
@@ -396,17 +423,21 @@ export class PostsService {
 
   /** Posts où l'utilisateur est identifié (onglet « Identifié » du profil). */
   async getTaggedPosts(targetUserId: string, viewerId: string, limit = 30) {
+    if (!(await this.privacy.canViewContent(viewerId, targetUserId))) return [];
+    const hidden = await this.privacy.hiddenAuthorIds(viewerId);
     const posts = await this.prisma.post.findMany({
-      where: { taggedUserIds: { has: targetUserId }, archived: false, isDraft: false },
+      where: {
+        taggedUserIds: { has: targetUserId }, archived: false, isDraft: false,
+        ...(hidden.length ? { userId: { notIn: hidden } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: clampLimit(limit),
     });
     return this.hydratePosts(posts, viewerId);
   }
 
   async getPost(postId: string, viewerId: string) {
-    const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException('Post introuvable');
+    const post = await this.assertCanSeePost(viewerId, postId);
 
     const [hydrated] = await this.hydratePosts([post], viewerId);
     const comments = await this.getComments(postId, viewerId);
@@ -427,6 +458,7 @@ export class PostsService {
       });
       return { liked: false, likesCount: updated.likesCount };
     } else {
+      await this.assertCanSeePost(userId, postId);
       await this.prisma.postLike.create({ data: { postId, userId } });
       const updated = await this.prisma.post.update({
         where: { id: postId },
@@ -448,8 +480,7 @@ export class PostsService {
 
   async addComment(userId: string, postId: string, content: string, parentId?: string) {
     assertClean(content);
-    const post = await this.prisma.post.findUnique({ where: { id: postId }, select: { id: true, userId: true, commentsDisabled: true } });
-    if (!post) throw new NotFoundException('Post introuvable');
+    const post = await this.assertCanSeePost(userId, postId);
     if (post.commentsDisabled) throw new ForbiddenException('Les commentaires sont désactivés sur ce post.');
     if (parentId) {
       const parent = await this.prisma.postComment.findUnique({ where: { id: parentId }, select: { postId: true } });

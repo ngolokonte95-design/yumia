@@ -20,11 +20,75 @@ const REENCODE_TIMEOUT_MS = 240_000;
 // remuxée reste parfaitement lisible.
 const MAX_QUEUE_DEPTH = 2;
 
+/**
+ * Options de sortie qui empêchent toute métadonnée de la source d'être recopiée :
+ * un iPhone écrit la position de la prise de vue dans le conteneur
+ * (`com.apple.quicktime.location.ISO6709`, `location`), et d'autres
+ * téléphones dans les flux eux-mêmes.
+ *
+ * - `-map_metadata -1` : pas de métadonnées globales (c'est là que vit la position) ;
+ * - `-map_metadata:s:v` / `:s:a -1` : ni celles des flux vidéo / audio
+ *   (l'orientation, elle, est une donnée annexe du flux — matrice d'affichage —
+ *   et survit, la vidéo ne se retrouve donc pas couchée) ;
+ * - `-map_chapters -1` : pas de chapitres (leurs titres sont des métadonnées) ;
+ * - `-dn` : pas de flux de données (pistes de métadonnées temporisées `mebx`
+ *   des iPhone, qui peuvent aussi porter des coordonnées).
+ *
+ * Ce sont des options de SORTIE : elles doivent suivre `-i <entrée>` et
+ * précéder le fichier de sortie.
+ */
+export const STRIP_METADATA_ARGS: readonly string[] = [
+  '-map_metadata', '-1',
+  '-map_metadata:s:v', '-1',
+  '-map_metadata:s:a', '-1',
+  '-map_chapters', '-1',
+  '-dn',
+];
+
+/** Remux sans ré-encodage, index en tête (`+faststart`), métadonnées retirées. */
+export function remuxArgs(input: string, output: string): string[] {
+  return ['-y', '-i', input, '-c', 'copy', ...STRIP_METADATA_ARGS, '-movflags', '+faststart', output];
+}
+
+/** Miniature de couverture (JPEG, une frame), sans métadonnées. */
+export function thumbnailArgs(input: string, output: string): string[] {
+  return ['-y', '-i', input, '-ss', '00:00:00.1', '-vframes', '1', '-q:v', '4', ...STRIP_METADATA_ARGS, output];
+}
+
+/** Ré-encodage H.264 1280px max, métadonnées retirées. */
+export function reencodeArgs(input: string, output: string): string[] {
+  return [
+    '-y',
+    '-i', input,
+    // Ne réduit que si plus large que 1280px — ne remonte jamais en
+    // qualité une vidéo déjà petite. -2 garde une hauteur paire (requis
+    // par libx264).
+    '-vf', "scale='min(1280,iw)':-2",
+    '-c:v', 'libx264',
+    '-preset', 'ultrafast',
+    '-crf', '26',
+    // Un seul thread : borne le pic RAM/CPU par job, plutôt que de laisser
+    // x264 paralléliser sur tous les cœurs d'un serveur déjà à l'étroit.
+    '-threads', '1',
+    '-c:a', 'aac',
+    '-b:a', '128k',
+    ...STRIP_METADATA_ARGS,
+    '-movflags', '+faststart',
+    output,
+  ];
+}
+
 export interface PreparedVideo {
   /** MP4 remuxé avec faststart, prêt à servir (ou l'original si le remux échoue). */
   video: Buffer;
   /** Frame extraite en JPEG — null si l'extraction échoue (best-effort). */
   thumbnail: Buffer | null;
+  /**
+   * true si `video` est bien la version remuxée, donc débarrassée de ses
+   * métadonnées (position GPS comprise). false = c'est l'original, tel
+   * qu'envoyé : il ne doit pas être publié en production.
+   */
+  sanitized: boolean;
   /** true si un ré-encodage complet (downscale / changement de codec) reste utile. */
   needsReencode: boolean;
 }
@@ -63,31 +127,31 @@ export class VideoTranscodeService {
       await writeFile(input, buffer);
 
       let video = buffer;
+      let sanitized = false;
       try {
         // `-c copy` : aucun ré-encodage, on ne fait que déplacer les flux dans
         // un conteneur MP4 avec l'index en tête. Indispensable pour la lecture
         // progressive côté mobile — sans ça le lecteur doit d'abord télécharger
         // le fichier entier (saccades marquées sur Android).
-        await execFileAsync('ffmpeg', [
-          '-y', '-i', input, '-c', 'copy', '-movflags', '+faststart', remuxed,
-        ], { timeout: REMUX_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
+        await execFileAsync('ffmpeg', remuxArgs(input, remuxed),
+          { timeout: REMUX_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
         video = await readFile(remuxed);
+        sanitized = true;
         this.logger.log(`Remux vidéo (faststart) : ${buffer.length} → ${video.length} octets`);
       } catch (err) {
-        this.logger.warn(`Remux échoué, fichier original conservé : ${(err as Error).message}`);
+        this.logger.warn(`Remux échoué, métadonnées NON retirées : ${(err as Error).message}`);
       }
 
       let thumbnail: Buffer | null = null;
       try {
-        await execFileAsync('ffmpeg', [
-          '-y', '-i', input, '-ss', '00:00:00.1', '-vframes', '1', '-q:v', '4', thumbOutput,
-        ], { timeout: THUMBNAIL_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 5 });
+        await execFileAsync('ffmpeg', thumbnailArgs(input, thumbOutput),
+          { timeout: THUMBNAIL_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 5 });
         thumbnail = await readFile(thumbOutput);
       } catch (err) {
         this.logger.warn(`Extraction de la couverture échouée : ${(err as Error).message}`);
       }
 
-      return { video, thumbnail, needsReencode: await this.probeNeedsReencode(input) };
+      return { video, thumbnail, sanitized, needsReencode: await this.probeNeedsReencode(input) };
     } finally {
       await rm(dir, { recursive: true, force: true }).catch(() => undefined);
     }
@@ -126,24 +190,7 @@ export class VideoTranscodeService {
 
     try {
       await writeFile(input, buffer);
-      await execFileAsync('ffmpeg', [
-        '-y',
-        '-i', input,
-        // Ne réduit que si plus large que 1280px — ne remonte jamais en
-        // qualité une vidéo déjà petite. -2 garde une hauteur paire (requis
-        // par libx264).
-        '-vf', "scale='min(1280,iw)':-2",
-        '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-crf', '26',
-        // Un seul thread : borne le pic RAM/CPU par job, plutôt que de laisser
-        // x264 paralléliser sur tous les cœurs d'un serveur déjà à l'étroit.
-        '-threads', '1',
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-movflags', '+faststart',
-        output,
-      ], { timeout: REENCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
+      await execFileAsync('ffmpeg', reencodeArgs(input, output), { timeout: REENCODE_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 10 });
 
       const video = await readFile(output);
       this.logger.log(`Ré-encodage : ${buffer.length} → ${video.length} octets`);

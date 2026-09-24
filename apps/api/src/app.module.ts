@@ -9,6 +9,7 @@ import { LoggerModule } from 'nestjs-pino';
 import configuration from './config/configuration';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
+import { PrivacyModule } from './infra/privacy/privacy.module';
 import { ElasticsearchModule } from './infra/elasticsearch/elasticsearch.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -75,6 +76,7 @@ import { ShopModule } from './modules/shop/shop.module';
     // Infrastructure (globale)
     PrismaModule,
     RedisModule,
+    PrivacyModule,
     QuotaModule,
     ElasticsearchModule,
     // Cœur IA (global)

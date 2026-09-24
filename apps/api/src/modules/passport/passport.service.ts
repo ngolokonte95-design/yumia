@@ -477,8 +477,10 @@ export class PassportService {
 
     const userIds = Array.from(xpByUser.keys());
     const [users, streaks] = await Promise.all([
+      // Classement d'une ville = « est allé à tel endroit cette semaine » : une
+      // information de position, montrée seulement pour qui partage ses visites.
       this.prisma.user.findMany({
-        where: { id: { in: userIds } },
+        where: { id: { in: userIds }, ...(city ? { shareVisits: true } : {}) },
         select: { id: true, displayName: true, totalXp: true, level: true },
       }),
       this.prisma.streak.findMany({

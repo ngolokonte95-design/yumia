@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../../infra/redis/redis.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { adultBirthYearFilter, isAdult } from '../../infra/privacy/privacy.service';
 
 const KEY = (userId: string) => `user:loc:${userId}`;
 /**
@@ -97,9 +98,14 @@ export class LocationService {
     }
     if (near.length === 0) return;
 
+    // Rencontres réservées aux majeurs : aucune ligne n'est créée si l'un des
+    // deux ne l'est pas de façon certaine.
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { birthYear: true } });
+    if (!isAdult(me?.birthYear)) return;
+
     const ids = near;
     const [optedIn, blocks] = await Promise.all([
-      this.prisma.user.findMany({ where: { id: { in: ids }, shareEncounters: true }, select: { id: true } }),
+      this.prisma.user.findMany({ where: { id: { in: ids }, shareEncounters: true, ...adultBirthYearFilter() }, select: { id: true } }),
       this.prisma.block.findMany({
         where: { OR: [{ blockerId: userId, blockedId: { in: ids } }, { blockedId: userId, blockerId: { in: ids } }] },
       }),

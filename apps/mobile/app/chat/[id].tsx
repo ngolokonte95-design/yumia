@@ -27,6 +27,7 @@ import { appendFile } from '../../lib/upload';
 import { saveRemoteMediaToGallery } from '../../lib/save-to-gallery';
 import type { TranslationKey } from '../../lib/translations';
 import { allowOutgoingCall } from '../../lib/outgoing-call';
+import { promptReport } from '../../lib/report-content';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -1072,6 +1073,27 @@ export default function ChatRoomScreen() {
                 }}
               >
                 <Text style={styles.actionRowTxt}>{t('chat_action_save')}</Text>
+              </Pressable>
+            ) : null}
+            {actionMsg && actionMsg.senderId !== myId && actionMsg.type !== 'call' ? (
+              <Pressable
+                style={styles.actionRow}
+                onPress={() => {
+                  const msg = actionMsg;
+                  setActionMsg(null);
+                  // Laisse le menu se refermer : iOS refuse de présenter la
+                  // feuille des motifs pendant qu'une modale se ferme.
+                  setTimeout(() => promptReport({
+                    accessToken,
+                    targetType: 'message',
+                    targetId: msg.id,
+                    t,
+                    titleKey: 'report_message_title',
+                    details: msg.type === 'encrypted' ? decrypted.get(msg.id) : undefined,
+                  }), 350);
+                }}
+              >
+                <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('report_content_action')}</Text>
               </Pressable>
             ) : null}
             {actionMsg?.senderId === myId ? (

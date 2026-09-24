@@ -57,6 +57,8 @@ const TARGET_LABEL: Record<string, string> = {
   story: 'Story',
   user: 'Compte',
   message: 'Message',
+  meetup: 'Sortie',
+  review: 'Avis',
 };
 
 export default function AdminModerationScreen() {

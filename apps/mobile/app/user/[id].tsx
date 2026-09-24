@@ -12,6 +12,7 @@ import { feedApi, type FeedPost, type StoryHighlight, type Plan } from '../../li
 import { VideoThumb } from '../../components/VideoThumb';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
+import { promptReport } from '../../lib/report-content';
 import { PostViewer } from '../../components/PostViewer';
 import { TranslatableText } from '../../components/TranslatableText';
 
@@ -96,27 +97,15 @@ export default function UserProfileScreen() {
 
   const report = () => {
     setShowMenu(false);
-    if (!accessToken || !id) return;
-    const reasons = [
-      t('up_report_spam'), t('up_report_inappropriate'), t('up_report_harassment'),
-      t('up_report_false_info'), t('up_report_other'),
-    ];
-    Alert.alert(t('up_report_title'), t('up_report_why'),
-      [
-        ...reasons.map((reason) => ({
-          text: reason,
-          onPress: async () => {
-            await fetch(`${API}/social/report`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-              body: JSON.stringify({ targetType: 'user', targetId: id, reason }),
-            });
-            Alert.alert(t('up_report_thanks_title'), t('up_report_thanks_body'));
-          },
-        })),
-        { text: t('up_cancel'), style: 'cancel' as const },
-      ],
-    );
+    if (!id) return;
+    promptReport({
+      accessToken,
+      targetType: 'user',
+      targetId: String(id),
+      t,
+      titleKey: 'up_report_title',
+      whyKey: 'up_report_why',
+    });
   };
 
   const copyProfileLink = () => {

@@ -19,7 +19,7 @@ import { MailerService } from '../mailer/mailer.service';
 import type { AppConfig } from '../../config/configuration';
 import type { AuthResult, AuthTokens, JwtPayload, PublicUser } from './types';
 import { assertClean } from '../../common/moderation/moderation';
-import { assertSignupAge } from './age';
+import { MIN_SIGNUP_AGE, assertSignupAge } from './age';
 
 const BCRYPT_ROUNDS = 12;
 /** Nombre maximum de sessions actives simultanées par utilisateur. */
@@ -322,6 +322,20 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('Utilisateur introuvable.');
+    }
+
+    // L'année de naissance ouvre (ou non) Tind et les Rencontres, réservés aux
+    // majeurs : une fois connue, elle ne se modifie plus depuis l'app — sinon
+    // un mineur n'aurait qu'à la changer. Un ancien compte sans année peut la
+    // renseigner une fois.
+    if (patch.birthYear !== undefined && patch.birthYear !== user.birthYear) {
+      if (user.birthYear !== null) {
+        throw new BadRequestException({ code: 'BIRTH_YEAR_LOCKED', message: "L'année de naissance ne peut plus être modifiée." });
+      }
+      const age = new Date().getUTCFullYear() - patch.birthYear;
+      if (!Number.isInteger(patch.birthYear) || age < MIN_SIGNUP_AGE || age > 120) {
+        throw new BadRequestException('Année de naissance invalide.');
+      }
     }
 
     const mergedPreferences = {

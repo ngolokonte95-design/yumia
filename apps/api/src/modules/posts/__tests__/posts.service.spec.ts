@@ -3,6 +3,7 @@ import { PostsService } from '../posts.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { StorageService } from '../../../infra/storage/storage.service';
+import { PrivacyService } from '../../../infra/privacy/privacy.service';
 
 /**
  * Couverture ciblée sur l'éditeur vidéo façon CapCut (overlays, son coupé,
@@ -26,6 +27,7 @@ describe('PostsService — overlays / videoMuted / voiceTrackUrl', () => {
         { provide: NotificationsService, useValue: {} },
         // Le stockage n'est sollicité qu'à la suppression : un double suffit.
         { provide: StorageService, useValue: { remove: jest.fn(), removeMany: jest.fn() } },
+        { provide: PrivacyService, useValue: { canViewContent: jest.fn(async () => true), hiddenAuthorIds: jest.fn(async () => []) } },
       ],
     }).compile();
     service = moduleRef.get(PostsService);

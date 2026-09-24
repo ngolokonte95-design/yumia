@@ -20,6 +20,7 @@ import type { Response } from 'express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { StorageService, ownedFilename } from '../../infra/storage/storage.service';
+import { ImageSanitizeService } from '../../infra/media/image-sanitize.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AppleAuthDto } from './dto/apple-auth.dto';
@@ -43,6 +44,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
+    private readonly imageSanitize: ImageSanitizeService,
   ) {}
 
   /** POST /api/auth/google — connexion / inscription via Google ID token. 10/60s. */
@@ -168,8 +170,9 @@ export class AuthController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<{ photoUrl: string }> {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
-    const ext = file.mimetype === 'image/png' ? '.png' : file.mimetype === 'image/webp' ? '.webp' : '.jpg';
-    const photoUrl = await this.storage.save(file.buffer, file.originalname, 'avatars', ownedFilename(user.sub, ext));
+    // Métadonnées (position GPS…) retirées ; l'extension suit le format réel produit.
+    const image = await this.imageSanitize.sanitize(file.buffer);
+    const photoUrl = await this.storage.save(image.buffer, `avatar${image.ext}`, 'avatars', ownedFilename(user.sub, image.ext));
     await this.auth.updateProfile(user.sub, { photoUrl });
     return { photoUrl };
   }

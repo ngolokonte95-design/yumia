@@ -4,6 +4,7 @@ import { Prisma, type MessageType } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { assertClean } from '../../common/moderation/moderation';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PrivacyService } from '../../infra/privacy/privacy.service';
 
 /** Aperçu du contenu affiché dans la notification push, selon le type de message. */
 const PREVIEW_BY_TYPE: Partial<Record<MessageType, string>> = {
@@ -39,7 +40,14 @@ export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly privacy: PrivacyService,
   ) {}
+
+  /** 403 si `userId` a bloqué un des `others` ou a été bloqué par l'un d'eux. */
+  private async assertNoBlockWith(userId: string, others: string[]) {
+    const blocked = new Set(await this.privacy.blockedIds(userId));
+    if (others.some((id) => blocked.has(id))) throw new ForbiddenException('Action impossible avec ce membre.');
+  }
 
   async getOrCreateConversation(userAId: string, userBId: string) {
     // Blocage dans un sens ou l'autre → pas de conversation.
@@ -78,6 +86,7 @@ export class ChatService {
     const others = [...new Set(userIds.filter((id) => id !== creatorId))];
     if (others.length < 2) throw new BadRequestException('Un groupe nécessite au moins 3 participants.');
     if (!title?.trim()) throw new BadRequestException('Nom du groupe requis.');
+    await this.assertNoBlockWith(creatorId, others);
     const conv = await this.prisma.conversation.create({
       data: {
         isGroup: true,
@@ -99,6 +108,8 @@ export class ChatService {
     });
     if (!conv?.isGroup) throw new NotFoundException('Groupe introuvable');
     if (conv.creatorId !== userId) throw new ForbiddenException('Seul le créateur peut ajouter des membres.');
+    // On n'ajoute pas dans un groupe quelqu'un qui nous a bloqués (ou qu'on a bloqué).
+    await this.assertNoBlockWith(userId, newUserIds);
     await this.prisma.conversationParticipant.createMany({
       data: newUserIds.map((uid) => ({ conversationId, userId: uid })),
       skipDuplicates: true,
@@ -190,6 +201,7 @@ export class ChatService {
 
   async getMessages(conversationId: string, userId: string, before?: string, limit = 50) {
     await this.assertParticipant(conversationId, userId);
+    limit = Math.min(Math.max(1, Math.floor(limit) || 50), 100);
 
     const messages = await this.prisma.message.findMany({
       where: {
@@ -279,8 +291,13 @@ export class ChatService {
 
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { ephemeralTtlSec: true },
+      select: { ephemeralTtlSec: true, isGroup: true, participants: { select: { userId: true } } },
     });
+    // Conversation à deux : un blocage survenu après sa création coupe
+    // l'envoi (avant, seule la CRÉATION de la conversation le vérifiait).
+    if (conv && !conv.isGroup) {
+      await this.assertNoBlockWith(senderId, conv.participants.map((p) => p.userId).filter((id) => id !== senderId));
+    }
     const expiresAt = conv?.ephemeralTtlSec
       ? new Date(Date.now() + conv.ephemeralTtlSec * 1000)
       : null;

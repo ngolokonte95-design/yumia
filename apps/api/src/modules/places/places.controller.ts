@@ -25,6 +25,7 @@ import type { Place } from '@prisma/client';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { StorageService } from '../../infra/storage/storage.service';
+import { ImageSanitizeService } from '../../infra/media/image-sanitize.service';
 import { CreatePlaceDto } from './dto/create-place.dto';
 import { ListPlacesDto } from './dto/list-places.dto';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
@@ -42,6 +43,7 @@ export class PlacesController {
   constructor(
     private readonly places: PlacesService,
     private readonly storage: StorageService,
+    private readonly imageSanitize: ImageSanitizeService,
   ) {}
 
   /** GET /api/places — liste paginée filtrable (ville, univers). 60/60s. */
@@ -255,7 +257,9 @@ export class PlacesController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<{ photoUrl: string }> {
     if (!file) throw new BadRequestException('Photo manquante.');
-    const photoUrl = await this.storage.save(file.buffer, file.originalname, 'places');
+    // Métadonnées (position GPS…) retirées ; l'extension suit le format réel produit.
+    const image = await this.imageSanitize.sanitize(file.buffer);
+    const photoUrl = await this.storage.save(image.buffer, `photo${image.ext}`, 'places');
     await this.places.addPhoto(id, photoUrl);
     return { photoUrl };
   }

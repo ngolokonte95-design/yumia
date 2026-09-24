@@ -30,7 +30,7 @@ describe('LocationService — rencontres', () => {
     };
     const prisma = {
       user: {
-        findUnique: jest.fn(async () => ({ shareEncounters: opts.meOptedIn ?? true })),
+        findUnique: jest.fn(async () => ({ shareEncounters: opts.meOptedIn ?? true, birthYear: 1990 })),
         findMany: jest.fn(async () => ((opts.otherOptedIn ?? true) ? [{ id: 'other' }] : [])),
       },
       block: { findMany: jest.fn(async () => (opts.blocked ? [{ blockerId: 'other', blockedId: 'me' }] : [])) },

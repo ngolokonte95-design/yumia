@@ -16,6 +16,8 @@ import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { TranslationKey } from '../lib/translations';
 import { FeatureTip } from '../components/FeatureTip';
+import { AdultsOnlyNotice } from '../components/AdultsOnlyNotice';
+import { isAdultYear } from '../lib/dating-age';
 
 const API = API_BASE_URL;
 
@@ -43,9 +45,10 @@ const FILTERS: { value: 'everyone' | 'female' | 'male'; labelKey: TranslationKey
 type FilterValue = 'everyone' | 'female' | 'male';
 
 export default function DiscoverPeopleScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const adult = isAdultYear(user?.birthYear);
   const { t } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,6 +142,20 @@ export default function DiscoverPeopleScreen() {
 
   const current = profiles[idx];
   const next = profiles[idx + 1];
+
+  // Tind est réservé aux majeurs (le serveur refuse aussi, cf. DiscoverService).
+  if (!adult) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
+          <Text style={styles.title}>{t('dp_title')}</Text>
+          <View style={{ width: 32 }} />
+        </View>
+        <AdultsOnlyNotice birthYearMissing={user?.birthYear == null} />
+      </View>
+    );
+  }
 
   if (loading) {
     return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} size="large" /></View>;
