@@ -29,6 +29,7 @@ import { useI18n } from '../lib/useI18n';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { TranslationKey } from '../lib/translations';
+import { FeatureTip } from '../components/FeatureTip';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const BROADCAST_INTERVAL = 30_000;
@@ -753,6 +754,7 @@ export default function NearbyUsersScreen() {
           </View>
         </Modal>
       )}
+      <FeatureTip feature="social_map" />
     </View>
   );
 }

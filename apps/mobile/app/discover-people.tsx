@@ -15,6 +15,7 @@ import { useI18n } from '../lib/useI18n';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { TranslationKey } from '../lib/translations';
+import { FeatureTip } from '../components/FeatureTip';
 
 const API = API_BASE_URL;
 
@@ -115,7 +116,14 @@ export default function DiscoverPeopleScreen() {
       const current = profiles[idx];
       if (Math.abs(gesture.dx) > SWIPE_THRESHOLD) {
         Animated.timing(pan, { toValue: { x: gesture.dx > 0 ? 500 : -500, y: gesture.dy }, duration: 200, useNativeDriver: false }).start(() => {
-          if (current) void markSeen(current.id);
+          if (current) {
+            // À droite, le badge dit « J'aime » : c'est le même geste que ❤️,
+            // qui abonne à la personne. Il se contentait de passer le profil.
+            if (gesture.dx > 0) {
+              void fetch(`${API}/social/follow/${current.id}`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
+            }
+            void markSeen(current.id);
+          }
           pan.setValue({ x: 0, y: 0 });
           setIdx((i) => i + 1);
         });
@@ -227,6 +235,7 @@ export default function DiscoverPeopleScreen() {
           </Pressable>
         </View>
       )}
+      <FeatureTip feature="tind" />
     </View>
   );
 }

@@ -11,6 +11,7 @@ import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
+import { FeatureTip } from '../components/FeatureTip';
 
 const API = API_BASE_URL;
 
@@ -198,6 +199,7 @@ export default function MeetupScreen() {
           </ScrollView>
         </View>
       </Modal>
+      <FeatureTip feature="meetups" />
     </View>
   );
 }

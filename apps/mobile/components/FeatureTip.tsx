@@ -23,7 +23,11 @@ import {
 
 const SHOW_DELAY_MS = 500;
 
-export function FeatureTip({ feature }: { feature: FeatureTipId }) {
+/**
+ * @param enabled pour un onglet à l'intérieur d'un écran (Social → Activité,
+ *   Rencontres) : l'astuce ne s'affiche que quand cet onglet est choisi.
+ */
+export function FeatureTip({ feature, enabled = true }: { feature: FeatureTipId; enabled?: boolean }) {
   const { t } = useI18n();
   const { status } = useAuth();
   const insets = useSafeAreaInsets();
@@ -33,7 +37,7 @@ export function FeatureTip({ feature }: { feature: FeatureTipId }) {
 
   useFocusEffect(
     useCallback(() => {
-      if (status !== 'authenticated') return;
+      if (status !== 'authenticated' || !enabled) return;
       let cancelled = false;
       const timer = setTimeout(() => {
         void hasSeenTip(feature).then((seen) => {
@@ -49,7 +53,7 @@ export function FeatureTip({ feature }: { feature: FeatureTipId }) {
         setVisible(false);
         releaseTipSlot(feature);
       };
-    }, [feature, status]),
+    }, [feature, status, enabled]),
   );
 
   useEffect(() => () => releaseTipSlot(feature), [feature]);

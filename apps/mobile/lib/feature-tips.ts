@@ -20,7 +20,8 @@ const KEY = '@yumia/tips-seen';
 
 export type FeatureTipId =
   | 'home' | 'map' | 'explorer' | 'social' | 'foryou' | 'passport' | 'reels' | 'chatbot'
-  | 'itinerary' | 'chat' | 'shop' | 'tours' | 'place' | 'world_map' | 'post_create';
+  | 'itinerary' | 'chat' | 'shop' | 'tours' | 'place' | 'world_map' | 'post_create'
+  | 'tind' | 'social_map' | 'meetups' | 'activity' | 'encounters';
 
 export const FEATURE_TIPS: Record<FeatureTipId, { emoji: string; title: TranslationKey; body: TranslationKey }> = {
   home: { emoji: '🏠', title: 'tip_home_title', body: 'tip_home_body' },
@@ -38,6 +39,11 @@ export const FEATURE_TIPS: Record<FeatureTipId, { emoji: string; title: Translat
   place: { emoji: '📍', title: 'tip_place_title', body: 'tip_place_body' },
   world_map: { emoji: '🌍', title: 'tip_world_map_title', body: 'tip_world_map_body' },
   post_create: { emoji: '📸', title: 'tip_post_create_title', body: 'tip_post_create_body' },
+  tind: { emoji: '💘', title: 'tip_tind_title', body: 'tip_tind_body' },
+  social_map: { emoji: '📡', title: 'tip_social_map_title', body: 'tip_social_map_body' },
+  meetups: { emoji: '🎉', title: 'tip_meetups_title', body: 'tip_meetups_body' },
+  activity: { emoji: '🏃', title: 'tip_activity_title', body: 'tip_activity_body' },
+  encounters: { emoji: '⚡', title: 'tip_encounters_title', body: 'tip_encounters_body' },
 };
 
 let seen: Set<string> | null = null;

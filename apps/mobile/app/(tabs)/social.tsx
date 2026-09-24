@@ -1164,6 +1164,8 @@ export default function SocialTab() {
         onCountChange={bumpComments}
       />
       <FeatureTip feature="social" />
+      <FeatureTip feature="activity" enabled={tab === 'activity'} />
+      <FeatureTip feature="encounters" enabled={tab === 'encounters'} />
     </View>
   );
 }
