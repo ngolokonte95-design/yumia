@@ -10,7 +10,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { envOr } from '../../common/env';
 import { matchAliexpressCity } from './address-rules';
@@ -126,8 +126,26 @@ export class AliExpressService {
 
   // ── OAuth ─────────────────────────────────────────────────────────────────
 
+  /**
+   * `state` OAuth émis par l'admin, valable 10 min et à usage unique. Le
+   * callback est public : sans ce contrôle, n'importe qui pouvait y renvoyer
+   * le `code` obtenu avec SON compte AliExpress et remplacer le jeton de la
+   * boutique — les commandes (et adresses clients) partaient alors chez lui.
+   */
+  private readonly oauthStates = new Map<string, number>();
+
+  /** Vrai une seule fois pour un `state` émis par `getAuthorizeUrl`. */
+  consumeOAuthState(state: string | undefined): boolean {
+    if (!state) return false;
+    const expires = this.oauthStates.get(state);
+    this.oauthStates.delete(state);
+    return !!expires && expires > Date.now();
+  }
+
   /** URL de consentement à ouvrir une fois par l'admin pour lier le compte DS. */
-  getAuthorizeUrl(state = 'yumia'): string {
+  getAuthorizeUrl(): string {
+    const state = randomBytes(24).toString('base64url');
+    this.oauthStates.set(state, Date.now() + 10 * 60 * 1000);
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.appKey ?? '',

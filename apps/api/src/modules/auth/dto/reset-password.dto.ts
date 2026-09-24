@@ -1,9 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class ResetPasswordDto {
+  @ApiProperty({ description: 'Adresse du compte — le code seul ne suffit pas' })
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+
   @ApiProperty({ description: 'OTP reçu par email' })
   @IsString()
+  @Matches(/^\d{6}$/, { message: 'Code invalide ou expiré.' })
   token!: string;
 
   @ApiProperty({ example: 'NouveauMotDePasse99!', minLength: 8, maxLength: 72 })

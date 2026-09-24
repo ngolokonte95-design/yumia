@@ -15,6 +15,31 @@ import { DeleteObjectCommand, S3Client, type S3ClientConfig } from '@aws-sdk/cli
 import { Upload } from '@aws-sdk/lib-storage';
 import type { AppConfig } from '../../config/configuration';
 
+/** Extensions qu'on accepte de servir ; tout le reste est enregistré en `.bin`. */
+const SAFE_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.webp', '.heic', '.gif',
+  '.mp4', '.mov', '.webm',
+  '.m4a', '.mp3', '.aac', '.wav',
+]);
+
+/**
+ * Nom de fichier d'un média envoyé par `ownerId` : l'identifiant en préfixe
+ * permet ensuite de n'effacer que ses propres fichiers (cf. `remove`).
+ */
+export function ownedFilename(ownerId: string, ext: string): string {
+  return `${ownerId}_${randomUUID()}${ext}`;
+}
+
+/**
+ * `dossier/fichier` strict (aucun `..`, aucun sous-dossier) dont le fichier
+ * appartient à `ownerId`. Les fichiers envoyés avant l'ajout du préfixe ne
+ * sont jamais effacés : mieux vaut un orphelin qu'un fichier d'autrui supprimé.
+ */
+export function isOwnedKey(key: string, ownerId: string): boolean {
+  if (!ownerId || !/^[a-z0-9_-]+\/[A-Za-z0-9_.-]+$/.test(key)) return false;
+  return key.split('/')[1].startsWith(`${ownerId}_`);
+}
+
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
@@ -60,7 +85,9 @@ export class StorageService {
    * remuxée servie immédiatement — cf. VideoTranscodeService).
    */
   async save(buffer: Buffer, originalName: string, subPath: string, fixedFilename?: string): Promise<string> {
-    const ext = extname(originalName).toLowerCase() || '.bin';
+    // Extension imposée par une liste fermée : un nom d'origine « x.html » ou
+    // « x.js » ferait servir une page ou un script depuis notre domaine.
+    const ext = SAFE_EXTENSIONS.has(extname(originalName).toLowerCase()) ? extname(originalName).toLowerCase() : '.bin';
     const filename = fixedFilename ?? `${randomUUID()}${ext}`;
 
     // Router sur le client réellement initialisé : provider=s3 sans credentials
@@ -83,9 +110,13 @@ export class StorageService {
    * S3 indisponible ne doivent pas faire échouer la suppression du contenu
    * lui-même, qui est la partie qui compte pour l'utilisateur.
    */
-  async remove(url: string | null | undefined): Promise<boolean> {
+  async remove(url: string | null | undefined, ownerId: string): Promise<boolean> {
     const key = this.keyFromUrl(url);
-    if (!key) return false;
+    // Une URL de média vient du client (création d'un post, d'une story…) :
+    // sans ce contrôle, publier puis supprimer un post pointant sur le fichier
+    // d'un autre effaçait ce fichier. On n'efface donc que les fichiers dont
+    // le nom porte l'identifiant du propriétaire du contenu supprimé.
+    if (!key || !isOwnedKey(key, ownerId)) return false;
     try {
       if (this.s3) {
         await this.s3.send(new DeleteObjectCommand({ Bucket: this.cfg.s3Bucket, Key: key }));
@@ -99,8 +130,8 @@ export class StorageService {
   }
 
   /** Supprime plusieurs fichiers, sans s'arrêter au premier échec. */
-  async removeMany(urls: Array<string | null | undefined>): Promise<number> {
-    const results = await Promise.all(urls.map((u) => this.remove(u)));
+  async removeMany(urls: Array<string | null | undefined>, ownerId: string): Promise<number> {
+    const results = await Promise.all(urls.map((u) => this.remove(u, ownerId)));
     return results.filter(Boolean).length;
   }
 

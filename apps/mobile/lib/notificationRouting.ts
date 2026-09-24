@@ -32,9 +32,13 @@ export function notificationTarget(n: NotificationLike): string {
       // La réponse atterrit en DM — pas de convId dans le payload, on ouvre
       // la liste des messages plutôt qu'une conversation précise.
       return '/chat';
-    case 'incoming_call':
-      // Déjà construit côté serveur avec tous les paramètres de l'appel.
-      return str(data.path) ?? '/notifications';
+    case 'incoming_call': {
+      // Déjà construit côté serveur avec tous les paramètres de l'appel. On
+      // n'accepte qu'un écran d'appel ENTRANT : une notification ne doit pas
+      // pouvoir ouvrir n'importe quel écran, ni lancer un appel sortant.
+      const path = str(data.path);
+      return path && path.startsWith('/call?') && path.includes('incoming=true') ? path : '/notifications';
+    }
     case 'badge_unlocked':
     case 'level_up':
     case 'streak_milestone':

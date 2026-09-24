@@ -55,8 +55,12 @@ export class MailerService {
     if (this.transporter) {
       await this.transporter.sendMail({ from: this.fromAddress, to, subject, html });
       this.logger.log(`Email OTP envoyé à ${to}`);
-    } else {
+    } else if (process.env.NODE_ENV !== 'production') {
       this.logger.log(`[DEV EMAIL] Destinataire: ${to} | Code: ${otp}`);
+    } else {
+      // Jamais le code dans les journaux de production : quiconque les lit
+      // pourrait prendre le compte.
+      this.logger.error('SMTP non configuré : code de réinitialisation non envoyé');
     }
   }
 

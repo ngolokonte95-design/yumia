@@ -24,7 +24,7 @@ export class CallsController {
   /** Polling léger : statut + SDP answer + candidats ICE partenaire */
   @Get(':id')
   get(@Param('id') id: string, @Req() req: AuthRequest) {
-    const call = this.calls.get(id);
+    const call = this.calls.get(id, req.user.sub);
     // Retourne le SDP answer si c'est l'appelant qui poll, l'offer si c'est l'appelé
     const isCallee = call.recipientId === req.user.sub;
     return {

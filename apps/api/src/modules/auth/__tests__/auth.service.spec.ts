@@ -20,6 +20,7 @@ jest.mock('google-auth-library', () => ({
     verifyIdToken: jest.fn().mockResolvedValue({
       getPayload: () => ({
         email: 'google@example.com',
+        email_verified: true,
         name: 'Google User',
         picture: 'https://pic.example.com/g.jpg',
         sub: 'google-sub-123',
@@ -151,7 +152,8 @@ const configMock = {
   get: jest.fn((key: string) => {
     const cfg: Record<string, any> = {
       jwt: { accessSecret: 'test-secret', refreshSecret: 'test-refresh-secret', accessTtl: 900, refreshTtl: 2592000 },
-      google: { clientId: 'test-google-client-id.apps.googleusercontent.com' },
+      google: { clientId: 'test-google-client-id.apps.googleusercontent.com', audiences: ['test-google-client-id.apps.googleusercontent.com'] },
+      apple: { audiences: ['com.yumia.app'] },
     };
     return cfg[key];
   }),
@@ -437,21 +439,24 @@ describe('AuthService', () => {
 
   describe('resetPassword', () => {
     const futureExpiry = new Date(Date.now() + 15 * 60 * 1000);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const sha = (v: string) => require('node:crypto').createHash('sha256').update(v).digest('hex');
+    const pending = (over: Record<string, unknown> = {}) => ({
+      id: 'prt-1', userId: 'user-1', tokenHash: sha('123456'), expiresAt: futureExpiry, usedAt: null, attempts: 0, ...over,
+    });
 
-    it('réinitialise le mot de passe avec un OTP valide', async () => {
-      prismaMock.passwordResetToken.findUnique.mockResolvedValue({
-        id: 'prt-1',
-        userId: 'user-1',
-        tokenHash: 'hash',
-        expiresAt: futureExpiry,
-        usedAt: null,
-        user: mockUser,
-      });
+    it('réinitialise le mot de passe avec le bon e-mail et le bon code', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaMock.passwordResetToken.findFirst.mockResolvedValue(pending());
       prismaMock.$transaction.mockResolvedValue([{}, {}, {}]);
 
-      await expect(service.resetPassword('123456', 'NewPass99!')).resolves.toBeUndefined();
+      await expect(service.resetPassword('test@yumia.app', '123456', 'NewPass99!')).resolves.toBeUndefined();
       expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
 
+      // La demande cherchée est celle de CE compte, encore valable.
+      expect(prismaMock.passwordResetToken.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ userId: 'user-1', usedAt: null }),
+      }));
       // Le nouveau hash de mot de passe est persisté et le provider repasse à 'password'.
       expect(prismaMock.user.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -473,36 +478,34 @@ describe('AuthService', () => {
       );
     });
 
-    it('lève BadRequestException si le token est expiré', async () => {
-      prismaMock.passwordResetToken.findUnique.mockResolvedValue({
-        id: 'prt-1',
-        userId: 'user-1',
-        tokenHash: 'hash',
-        expiresAt: new Date(Date.now() - 1000),
-        usedAt: null,
-        user: mockUser,
-      });
-
-      await expect(service.resetPassword('123456', 'NewPass99!')).rejects.toThrow(BadRequestException);
+    it('refuse un compte inconnu', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      await expect(service.resetPassword('x@yumia.app', '123456', 'NewPass99!')).rejects.toThrow(BadRequestException);
     });
 
-    it('lève BadRequestException si le token est déjà utilisé', async () => {
-      prismaMock.passwordResetToken.findUnique.mockResolvedValue({
-        id: 'prt-1',
-        userId: 'user-1',
-        tokenHash: 'hash',
-        expiresAt: futureExpiry,
-        usedAt: new Date(),
-        user: mockUser,
-      });
-
-      await expect(service.resetPassword('123456', 'NewPass99!')).rejects.toThrow(BadRequestException);
+    it("refuse quand aucune demande valable n'existe (expirée ou utilisée)", async () => {
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaMock.passwordResetToken.findFirst.mockResolvedValue(null);
+      await expect(service.resetPassword('test@yumia.app', '123456', 'NewPass99!')).rejects.toThrow(BadRequestException);
     });
 
-    it('lève BadRequestException si le token est inconnu', async () => {
-      prismaMock.passwordResetToken.findUnique.mockResolvedValue(null);
+    it('compte un code faux sans changer le mot de passe', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaMock.passwordResetToken.findFirst.mockResolvedValue(pending({ attempts: 1 }));
 
-      await expect(service.resetPassword('bad-token', 'NewPass99!')).rejects.toThrow(BadRequestException);
+      await expect(service.resetPassword('test@yumia.app', '000000', 'NewPass99!')).rejects.toThrow(BadRequestException);
+      expect(prismaMock.passwordResetToken.update).toHaveBeenCalledWith({ where: { id: 'prt-1' }, data: { attempts: 2 } });
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('annule la demande au 5e code faux (anti force brute)', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaMock.passwordResetToken.findFirst.mockResolvedValue(pending({ attempts: 4 }));
+
+      await expect(service.resetPassword('test@yumia.app', '000000', 'NewPass99!')).rejects.toThrow(BadRequestException);
+      expect(prismaMock.passwordResetToken.update).toHaveBeenCalledWith({
+        where: { id: 'prt-1' }, data: { attempts: 5, usedAt: expect.any(Date) },
+      });
     });
   });
 
@@ -691,14 +694,29 @@ describe('AuthService', () => {
     it('relie le compte Google à un compte password existant', async () => {
       prismaMock.user.findUnique.mockResolvedValue({ ...mockUser, email: 'google@example.com', authProvider: 'password' });
       prismaMock.user.update.mockResolvedValue({ ...mockUser, email: 'google@example.com', authProvider: 'google' });
+      prismaMock.$transaction.mockResolvedValue([{ ...mockUser, email: 'google@example.com', authProvider: 'google' }, { count: 1 }]);
       prismaMock.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
 
       const result = await service.loginWithGoogle('valid-id-token');
 
+      // Le mot de passe posé à l'inscription (e-mail jamais vérifié) est effacé
+      // et les sessions ouvertes sont coupées : un inconnu ne peut pas avoir
+      // pré-créé le compte pour y rester une fois l'identité Google rattachée.
       expect(prismaMock.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ authProvider: 'google' }) }),
+        expect.objectContaining({ data: expect.objectContaining({ authProvider: 'google', passwordHash: null }) }),
+      );
+      expect(prismaMock.refreshToken.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: mockUser.id, revokedAt: null } }),
       );
       expect(result.user.email).toBe('google@example.com');
+    });
+
+    it('refuse une adresse Google non vérifiée', async () => {
+      const { OAuth2Client } = jest.requireMock('google-auth-library');
+      OAuth2Client.mockImplementationOnce(() => ({
+        verifyIdToken: jest.fn().mockResolvedValue({ getPayload: () => ({ email: 'x@example.com', email_verified: false }) }),
+      }));
+      await expect(service.loginWithGoogle('valid-id-token')).rejects.toThrow(UnauthorizedException);
     });
 
     it('lève UnauthorizedException si Google OAuth n\'est pas configuré', async () => {
@@ -706,7 +724,7 @@ describe('AuthService', () => {
         get: jest.fn((key: string) => {
           const cfg: Record<string, any> = {
             jwt: configMock.get('jwt'),
-            google: { clientId: '' }, // pas de clientId
+            google: { clientId: '', audiences: [] }, // pas de clientId
           };
           return cfg[key];
         }),
@@ -770,6 +788,12 @@ describe('AuthService', () => {
         service.loginWithApple('valid-identity-token', 'apple-sub-456', 'Apple User'),
       ).rejects.toThrow(ForbiddenException);
       expect(prismaMock.user.create).not.toHaveBeenCalled();
+    });
+
+    it("refuse un appleUserId qui n'est pas celui signé par Apple", async () => {
+      prismaMock.user.findFirst = jest.fn();
+      await expect(service.loginWithApple('valid-identity-token', 'someone-else')).rejects.toThrow(UnauthorizedException);
+      expect(prismaMock.user.findFirst).not.toHaveBeenCalled();
     });
 
     it('retrouve l\'utilisateur par appleId et retourne les tokens', async () => {

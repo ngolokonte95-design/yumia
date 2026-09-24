@@ -397,6 +397,8 @@ model PasswordResetToken {
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
+  /// Codes faux saisis pour ce compte : au 5e, le code est invalidé.
+  attempts  Int       @default(0)
   createdAt DateTime  @default(now())
 
   @@index([userId])

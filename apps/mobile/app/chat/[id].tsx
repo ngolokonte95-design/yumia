@@ -26,6 +26,7 @@ import { haptics } from '../../lib/useHaptics';
 import { appendFile } from '../../lib/upload';
 import { saveRemoteMediaToGallery } from '../../lib/save-to-gallery';
 import type { TranslationKey } from '../../lib/translations';
+import { allowOutgoingCall } from '../../lib/outgoing-call';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
@@ -578,6 +579,7 @@ export default function ChatRoomScreen() {
   // ─── Appel ────────────────────────────────────────────────────────────────
   const startCall = (type: 'voice' | 'video') => {
     if (!partner) return;
+    allowOutgoingCall(convId, partner.id);
     router.push(`/call?convId=${convId}&partnerId=${partner.id}&partnerName=${encodeURIComponent(partner.displayName)}&partnerPhoto=${encodeURIComponent(partner.photoUrl ?? '')}&type=${type}` as never);
   };
 

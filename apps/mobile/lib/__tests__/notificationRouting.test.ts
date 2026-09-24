@@ -22,7 +22,11 @@ describe('notificationTarget', () => {
   });
 
   it('utilise le chemin déjà construit pour un appel entrant', () => {
-    expect(notificationTarget({ type: 'incoming_call', data: { path: '/call?callId=c1' } })).toBe('/call?callId=c1');
+    expect(notificationTarget({ type: 'incoming_call', data: { path: '/call?callId=c1&incoming=true' } }))
+      .toBe('/call?callId=c1&incoming=true');
+    // Ni appel sortant, ni autre écran depuis une notification.
+    expect(notificationTarget({ type: 'incoming_call', data: { path: '/call?callId=c1&partnerId=x' } })).toBe('/notifications');
+    expect(notificationTarget({ type: 'incoming_call', data: { path: '/settings?incoming=true' } })).toBe('/notifications');
   });
 
   it.each(['badge_unlocked', 'level_up', 'streak_milestone', 'streak_danger'])(

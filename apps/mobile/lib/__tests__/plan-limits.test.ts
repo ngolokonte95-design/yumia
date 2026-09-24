@@ -21,9 +21,11 @@ describe('paliers', () => {
 
   it('un palier supérieur n’est jamais plus avare que celui d’en dessous', () => {
     for (const feature of Object.keys(FREE_LIMITS) as LimitedFeature[]) {
+      // Plus n'est plus vendu : la gamme est Gratuit → Gold → Diamond, et
+      // les anciens abonnés Plus gardent au moins les quotas du Gratuit.
       const { free, plus, gold, diamond } = LIMITS_BY_PLAN;
       expect(plus[feature]).toBeGreaterThanOrEqual(free[feature]);
-      expect(gold[feature]).toBeGreaterThanOrEqual(plus[feature]);
+      expect(gold[feature]).toBeGreaterThanOrEqual(free[feature]);
       expect(diamond[feature]).toBeGreaterThanOrEqual(gold[feature]);
     }
     // Les plafonds d'affichage suivent la même règle : ils ont été réglés
@@ -32,15 +34,14 @@ describe('paliers', () => {
     for (const cap of Object.keys(FREE_DISPLAY_CAPS) as DisplayCap[]) {
       const { free, plus, gold, diamond } = DISPLAY_CAPS_BY_PLAN;
       expect(plus[cap]).toBeGreaterThanOrEqual(free[cap]);
-      expect(gold[cap]).toBeGreaterThanOrEqual(plus[cap]);
+      expect(gold[cap]).toBeGreaterThanOrEqual(free[cap]);
       expect(diamond[cap]).toBeGreaterThanOrEqual(gold[cap]);
     }
   });
 
   it('propose toujours le palier du dessus, et rien au-delà de Diamond', () => {
-    // Un abonné Plus à qui l'on propose Plus lit une offre absurde, au prix
-    // qu'il paie déjà.
-    expect(nextPaidPlan('free')).toBe('plus');
+    // Plus n'est plus vendu : Gratuit et anciens Plus montent à Gold.
+    expect(nextPaidPlan('free')).toBe('gold');
     expect(nextPaidPlan('plus')).toBe('gold');
     expect(nextPaidPlan('gold')).toBe('diamond');
     expect(nextPaidPlan('diamond')).toBeNull();

@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { resetPasswordRequest } from '../lib/auth-api';
 import { useI18n } from '../lib/useI18n';
@@ -25,6 +25,9 @@ export default function ResetPasswordScreen() {
   const { t } = useI18n();
   const passwordRef = useRef<TextInput>(null);
 
+  // L'e-mail vient de l'écran précédent ; saisi ici si on arrive par un lien.
+  const params = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -34,6 +37,7 @@ export default function ResetPasswordScreen() {
 
   const passwordMatch = password === confirm;
   const canSubmit =
+    email.includes('@') &&
     code.trim().length === 6 &&
     password.length >= 8 &&
     passwordMatch &&
@@ -44,7 +48,7 @@ export default function ResetPasswordScreen() {
     setLoading(true);
     setError(null);
     try {
-      await resetPasswordRequest(code.trim(), password);
+      await resetPasswordRequest(email.trim().toLowerCase(), code.trim(), password);
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('rp_error_generic'));
@@ -84,6 +88,22 @@ export default function ResetPasswordScreen() {
           <Text style={styles.emoji}>🔐</Text>
           <Text style={styles.title}>{t('rp_title')}</Text>
           <Text style={styles.sub}>{t('rp_sub')}</Text>
+
+          {!params.email && (
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('fp_email_label')}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="ton@email.com"
+                placeholderTextColor={colors.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          )}
 
           {/* Code OTP */}
           <View style={styles.field}>

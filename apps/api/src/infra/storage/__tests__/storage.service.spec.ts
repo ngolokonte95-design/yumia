@@ -127,3 +127,38 @@ describe('StorageService', () => {
     });
   });
 });
+
+describe('isOwnedKey', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { isOwnedKey } = require('../storage.service') as typeof import('../storage.service');
+
+  it("accepte un fichier du propriétaire", () => {
+    expect(isOwnedKey('posts/u1_abc.mp4', 'u1')).toBe(true);
+  });
+
+  it("refuse le fichier d'un autre utilisateur", () => {
+    expect(isOwnedKey('posts/u2_abc.mp4', 'u1')).toBe(false);
+  });
+
+  it('refuse les anciens fichiers sans préfixe', () => {
+    expect(isOwnedKey('posts/abc.mp4', 'u1')).toBe(false);
+  });
+
+  it('refuse toute sortie du dossier uploads', () => {
+    expect(isOwnedKey('../u1_x.js', 'u1')).toBe(false);
+    expect(isOwnedKey('posts/../../u1_x', 'u1')).toBe(false);
+    expect(isOwnedKey('a/b/u1_x.mp4', 'u1')).toBe(false);
+  });
+
+  it('refuse un propriétaire vide', () => {
+    expect(isOwnedKey('posts/_abc.mp4', '')).toBe(false);
+  });
+});
+
+describe('StorageService — extensions servies', () => {
+  it('remplace une extension dangereuse par .bin', async () => {
+    const service = makeService(diskConfig);
+    expect(await service.save(Buffer.from('x'), 'evil.html', 'posts')).toBe('http://localhost:4000/uploads/posts/fixed-uuid.bin');
+    expect(await service.save(Buffer.from('x'), 'evil.js', 'posts')).toBe('http://localhost:4000/uploads/posts/fixed-uuid.bin');
+  });
+});

@@ -402,7 +402,7 @@ export class StoriesService {
     if (!story) throw new NotFoundException('Story introuvable');
     if (story.userId !== userId) throw new ForbiddenException();
     const deleted = await this.prisma.story.delete({ where: { id: storyId } });
-    void this.storage.remove(story.mediaUrl);
+    void this.storage.remove(story.mediaUrl, story.userId);
     return deleted;
   }
 
@@ -417,7 +417,7 @@ export class StoriesService {
   async purgeExpired() {
     const expired = await this.prisma.story.findMany({
       where: { expiresAt: { lt: new Date() } },
-      select: { id: true, mediaUrl: true },
+      select: { id: true, userId: true, mediaUrl: true },
     });
     if (expired.length === 0) return;
 
@@ -425,6 +425,6 @@ export class StoriesService {
     // Après la base : un fichier orphelin se rattrape, une story rendue
     // invisible dont le fichier existe encore ne gêne personne. L'inverse —
     // fichier supprimé, ligne conservée — casserait l'affichage.
-    await this.storage.removeMany(expired.map((s) => s.mediaUrl));
+    await Promise.all(expired.map((s) => this.storage.remove(s.mediaUrl, s.userId)));
   }
 }

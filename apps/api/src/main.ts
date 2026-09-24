@@ -19,6 +19,11 @@ import { initSentry } from './infra/sentry/sentry.init';
  * Vérifie les variables d'environnement critiques en production.
  * Échoue immédiatement plutôt que de démarrer avec une config dangereuse.
  */
+/** Secret absent ou resté à une valeur d'exemple du dépôt (donc publique). */
+function isDefaultSecret(v: string): boolean {
+  return !v || /^(change-me|changeme|change_me|dev-)/i.test(v);
+}
+
 function assertEnv(isProd: boolean): void {
   if (!isProd) return;
 
@@ -28,10 +33,10 @@ function assertEnv(isProd: boolean): void {
   const jwtRefresh = process.env.JWT_REFRESH_SECRET ?? '';
   const dbUrl = process.env.DATABASE_URL ?? '';
 
-  if (!jwtAccess || jwtAccess === 'change-me-access') {
+  if (isDefaultSecret(jwtAccess)) {
     fatal.push('JWT_ACCESS_SECRET non configuré ou valeur par défaut.');
   }
-  if (!jwtRefresh || jwtRefresh === 'change-me-refresh') {
+  if (isDefaultSecret(jwtRefresh)) {
     fatal.push('JWT_REFRESH_SECRET non configuré ou valeur par défaut.');
   }
   if (!dbUrl) {

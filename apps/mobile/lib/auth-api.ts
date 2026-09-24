@@ -118,35 +118,15 @@ export function forgotPasswordRequest(email: string): Promise<{ message: string 
   return request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: { email } });
 }
 
-export function resetPasswordRequest(token: string, newPassword: string): Promise<{ message: string }> {
+export function resetPasswordRequest(email: string, token: string, newPassword: string): Promise<{ message: string }> {
   return request<{ message: string }>('/auth/reset-password', {
     method: 'POST',
-    body: { token, newPassword },
+    body: { email, token, newPassword },
   });
 }
 
 export function deleteAccountRequest(accessToken: string): Promise<void> {
   return request<void>('/auth/me', { method: 'DELETE', token: accessToken });
-}
-
-/** Active le Premium côté serveur après un achat RevenueCat validé. */
-export function activatePremiumRequest(
-  accessToken: string,
-  plan: 'monthly' | 'annual',
-): Promise<PublicUser> {
-  return request<PublicUser>('/auth/premium/activate', {
-    method: 'POST',
-    body: { plan },
-    token: accessToken,
-  });
-}
-
-/** Désactive le Premium côté serveur (annulation / expiration). */
-export function deactivatePremiumRequest(accessToken: string): Promise<PublicUser> {
-  return request<PublicUser>('/auth/premium/deactivate', {
-    method: 'POST',
-    token: accessToken,
-  });
 }
 
 export function exportDataRequest(accessToken: string): Promise<Record<string, unknown>> {

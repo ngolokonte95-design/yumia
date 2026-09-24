@@ -19,7 +19,7 @@ import { memoryStorage } from 'multer';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { StorageService } from '../../infra/storage/storage.service';
+import { StorageService, ownedFilename } from '../../infra/storage/storage.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AppleAuthDto } from './dto/apple-auth.dto';
@@ -31,7 +31,6 @@ import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
-import { ActivatePremiumDto } from './dto/premium.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { AuthResult, AuthTokens, JwtPayload, PublicUser } from './types';
 
@@ -169,7 +168,8 @@ export class AuthController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<{ photoUrl: string }> {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
-    const photoUrl = await this.storage.save(file.buffer, file.originalname, 'avatars');
+    const ext = file.mimetype === 'image/png' ? '.png' : file.mimetype === 'image/webp' ? '.webp' : '.jpg';
+    const photoUrl = await this.storage.save(file.buffer, file.originalname, 'avatars', ownedFilename(user.sub, ext));
     await this.auth.updateProfile(user.sub, { photoUrl });
     return { photoUrl };
   }
@@ -190,7 +190,7 @@ export class AuthController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
-    await this.auth.resetPassword(dto.token, dto.newPassword);
+    await this.auth.resetPassword(dto.email, dto.token, dto.newPassword);
     return { message: 'Mot de passe mis à jour. Connectez-vous avec votre nouveau mot de passe.' };
   }
 
@@ -205,29 +205,6 @@ export class AuthController {
     @Body() dto: PushTokenDto,
   ): Promise<void> {
     await this.notifications.registerToken(user.sub, dto.token);
-  }
-
-  /** POST /api/auth/premium/activate — active le Premium après achat RevenueCat validé. */
-  @ApiOperation({ summary: 'Activer le Premium' })
-  @ApiBearerAuth('access-token')
-  @Post('premium/activate')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  activatePremium(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: ActivatePremiumDto,
-  ): Promise<PublicUser> {
-    return this.auth.activatePremium(user.sub, dto.plan);
-  }
-
-  /** POST /api/auth/premium/deactivate — désactive le Premium (annulation / expiration). */
-  @ApiOperation({ summary: 'Désactiver le Premium' })
-  @ApiBearerAuth('access-token')
-  @Post('premium/deactivate')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  deactivatePremium(@CurrentUser() user: JwtPayload): Promise<PublicUser> {
-    return this.auth.deactivatePremium(user.sub);
   }
 
   /** DELETE /api/auth/me — supprime définitivement le compte et toutes les données. */

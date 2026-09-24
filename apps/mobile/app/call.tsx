@@ -13,6 +13,7 @@ import { isE2EAvailable } from '../lib/e2e-crypto';
 import { useI18n } from '../lib/useI18n';
 import { haptics } from '../lib/useHaptics';
 import { restorePlaybackAudio } from '../lib/audio-session';
+import { consumeOutgoingCall } from '../lib/outgoing-call';
 
 // Import lazy — react-native-webrtc nécessite un build natif (pas Expo Go)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -285,7 +286,12 @@ export default function CallScreen() {
 
   // ── Démarrage ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isIncoming) void initiateCall();
+    if (!isIncoming) {
+      // Appel sortant : uniquement depuis le bouton d'une conversation, jamais
+      // depuis un lien (cf. lib/outgoing-call.ts).
+      if (!consumeOutgoingCall(convId, partnerId)) { router.back(); return; }
+      void initiateCall();
+    }
     timeoutRef.current = setTimeout(() => {
       setCallState((prev) => {
         if (prev === 'calling' || prev === 'ringing') { void endCall(); return 'ended'; }

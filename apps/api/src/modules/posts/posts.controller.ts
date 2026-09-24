@@ -5,13 +5,52 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsService, type PostOverlay } from './posts.service';
-import { StorageService } from '../../infra/storage/storage.service';
+import { StorageService, ownedFilename } from '../../infra/storage/storage.service';
 import { VideoTranscodeService, type PreparedVideo } from '../../infra/media/video-transcode.service';
 
 const VIDEO_MIMETYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
+
+/** Extension d'un nom d'origine, limitée à ce que `StorageService` accepte de servir. */
+function safeExt(name: string): string {
+  const ext = extname(name).toLowerCase();
+  return ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.gif', '.m4a', '.mp3', '.aac', '.wav', '.webm', '.mp4', '.mov'].includes(ext)
+    ? ext : '.bin';
+}
+
+/** CDN des extraits de 30 s (Deezer, iTunes) — les seuls que l'audio-proxy accepte. */
+const PREVIEW_HOST_SUFFIXES = ['.dzcdn.net', '.itunes.apple.com', '.mzstatic.com'];
+/** Un extrait de 30 s pèse ~0,5–1 Mo ; au-delà ce n'est pas un extrait. */
+const MAX_PREVIEW_BYTES = 5 * 1024 * 1024;
+
+/** URL HTTPS d'un CDN d'extraits autorisé, ou null. */
+export function previewSourceUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw.length > 2048) return null;
+  let u: URL;
+  try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return null;
+  const host = u.hostname.toLowerCase();
+  return PREVIEW_HOST_SUFFIXES.some((s) => host.endsWith(s)) ? u.toString() : null;
+}
+
+/** Lit le corps sans dépasser `max` octets (un Content-Length peut mentir). */
+async function readCapped(resp: Response, max: number): Promise<Buffer> {
+  const declared = Number(resp.headers.get('content-length') ?? 0);
+  if (declared > max) throw new Error('trop volumineux');
+  if (!resp.body) throw new Error('corps vide');
+  const chunks: Buffer[] = [];
+  let total = 0;
+  const reader = resp.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) { await reader.cancel(); throw new Error('trop volumineux'); }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
 
 @Controller('posts')
 @UseGuards(JwtAuthGuard)
@@ -27,20 +66,30 @@ export class PostsController {
   /** POST /posts/audio-proxy — télécharge un preview audio depuis un CDN tiers (Deezer, iTunes)
    *  côté serveur et le stocke de façon permanente. Évite les restrictions AVFoundation sur iOS. */
   @Post('audio-proxy')
-  async proxyAudio(@Body() dto: { url: string }): Promise<{ url: string }> {
-    if (!dto?.url) throw new BadRequestException('url requis');
+  async proxyAudio(@Req() req: any, @Body() dto: { url: string }): Promise<{ url: string }> {
+    // Le serveur va chercher une URL fournie par le client : sans garde-fou, on
+    // pourrait lui faire lire des adresses internes (métadonnées du droplet,
+    // autres services de la machine). Seuls les CDN des extraits musicaux
+    // sont acceptés, en HTTPS, sans suivre de redirection, taille plafonnée.
+    const source = previewSourceUrl(dto?.url);
+    if (!source) throw new BadRequestException('Source audio non autorisée');
     let buffer: Buffer;
     try {
-      const resp = await fetch(dto.url, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'audio/*,*/*' },
+      const resp = await fetch(source, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'audio/*' },
+        redirect: 'manual',
         signal: AbortSignal.timeout(15_000),
       });
-      if (!resp.ok) throw new Error(`CDN ${resp.status}`);
-      buffer = Buffer.from(await resp.arrayBuffer());
+      const type = resp.headers.get('content-type') ?? '';
+      if (!resp.ok || !(type.startsWith('audio/') || type.startsWith('application/octet-stream'))) {
+        throw new Error(`CDN ${resp.status} ${type}`);
+      }
+      buffer = await readCapped(resp, MAX_PREVIEW_BYTES);
     } catch (e) {
-      throw new BadRequestException(`Téléchargement audio échoué : ${(e as Error).message}`);
+      this.logger.warn(`audio-proxy échoué : ${(e as Error).message}`);
+      throw new BadRequestException('Téléchargement audio échoué');
     }
-    const url = await this.storage.save(buffer, 'preview.mp3', 'music');
+    const url = await this.storage.save(buffer, 'preview.mp3', 'music', ownedFilename(req.user.sub, '.mp3'));
     return { url };
   }
 
@@ -69,15 +118,17 @@ export class PostsController {
       cb(null, ok.has(file.mimetype));
     },
   }))
-  async uploadMedia(@UploadedFile() file: Express.Multer.File): Promise<{ url: string; thumbnailUrl?: string }> {
+  async uploadMedia(@Req() req: any, @UploadedFile() file: Express.Multer.File): Promise<{ url: string; thumbnailUrl?: string }> {
     if (!file) throw new BadRequestException('Aucun fichier reçu.');
+    const owner: string = req.user.sub;
 
     if (!VIDEO_MIMETYPES.has(file.mimetype)) {
-      const url = await this.storage.save(file.buffer, file.originalname, 'posts');
+      const url = await this.storage.save(file.buffer, file.originalname, 'posts', ownedFilename(owner, safeExt(file.originalname)));
       return { url };
     }
 
-    const originalExt = extname(file.originalname);
+    // Extension passée à ffmpeg : jamais celle, arbitraire, envoyée par le client.
+    const originalExt = safeExt(file.originalname);
     let prepared: PreparedVideo | null = null;
     try {
       prepared = await this.videoTranscode.prepare(file.buffer, originalExt);
@@ -89,7 +140,7 @@ export class PostsController {
 
     // Nom fixe : le ré-encodage en tâche de fond écrasera ce même fichier, donc
     // l'URL renvoyée maintenant reste valable une fois le job terminé.
-    const videoFilename = `${randomUUID()}.mp4`;
+    const videoFilename = ownedFilename(owner, '.mp4');
     const url = await this.storage.save(
       prepared?.video ?? file.buffer,
       'video.mp4',
@@ -99,7 +150,7 @@ export class PostsController {
 
     let thumbnailUrl: string | undefined;
     if (prepared?.thumbnail) {
-      thumbnailUrl = await this.storage.save(prepared.thumbnail, 'cover.jpg', 'posts');
+      thumbnailUrl = await this.storage.save(prepared.thumbnail, 'cover.jpg', 'posts', ownedFilename(owner, '.jpg'));
     }
 
     // Le downscale (lourd) ne bloque plus la publication : il tourne après la

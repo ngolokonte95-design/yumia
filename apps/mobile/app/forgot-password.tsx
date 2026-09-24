@@ -99,7 +99,7 @@ export default function ForgotPasswordScreen() {
 
               <Pressable
                 style={styles.btn}
-                onPress={() => router.push('/reset-password')}
+                onPress={() => router.push({ pathname: '/reset-password', params: { email: email.trim().toLowerCase() } })}
               >
                 <Text style={styles.btnText}>{t('fp_enter_code_btn')}</Text>
               </Pressable>

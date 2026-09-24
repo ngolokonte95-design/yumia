@@ -51,6 +51,9 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-anthropic}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?missing}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-}
+      GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-}
+      APPLE_AUDIENCES: ${APPLE_AUDIENCES:-com.yumia.app}
       # Couverture mondiale des lieux : clé Google Places API (New). Vide = off.
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       PLACES_PROVIDER: ${PLACES_PROVIDER:-}
@@ -119,7 +122,11 @@ services:
     volumes:
       - yumia_uploads:/app/apps/api/uploads
     ports:
-      - '${API_PORT:-4000}:4000'
+      # Local uniquement : nginx (sur l'hôte) est la seule porte d'entrée. Publiée
+      # sur 0.0.0.0, l'API était joignable en direct sur :4000 — Docker passe
+      # outre ufw — avec un X-Forwarded-For choisi par le client, ce qui
+      # annulait toutes les limites de débit (connexion, codes, IA).
+      - '127.0.0.1:${API_PORT:-4000}:4000'
     # Liveness (et non readiness) : le conteneur n'est marqué unhealthy/redémarré
     # que si le PROCESS ne répond plus. Une panne transitoire de Postgres/Redis/ES
     # ne doit pas tuer l'API (qui a un fallback gracieux). La readiness (/api/health,

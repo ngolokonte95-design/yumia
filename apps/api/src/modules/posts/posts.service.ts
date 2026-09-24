@@ -229,7 +229,7 @@ export class PostsService {
       post.videoUrl,
       post.coverUrl,
       post.voiceTrackUrl,
-    ]);
+    ], post.userId);
   }
 
   async getFeed(userId: string, limit = 30, cursor?: string) {

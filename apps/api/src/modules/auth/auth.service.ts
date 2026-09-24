@@ -33,6 +33,9 @@ function extractCountryFromLocale(locale?: string): string | null {
   return null;
 }
 
+/** Codes faux tolérés par demande de réinitialisation. */
+const MAX_RESET_ATTEMPTS = 5;
+
 /** Apple JWKS — mis en cache côté jose (TTL intégré). */
 const APPLE_JWKS = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 
@@ -192,15 +195,15 @@ export class AuthService {
    * sinon on crée un nouveau compte.
    */
   async loginWithGoogle(idToken: string, birthDate?: string): Promise<AuthResult> {
-    const clientId = this.config.get<AppConfig['google']>('google')!.clientId;
-    if (!clientId) {
+    const { audiences } = this.config.get<AppConfig['google']>('google')!;
+    if (audiences.length === 0) {
       throw new UnauthorizedException('Google OAuth non configuré sur ce serveur.');
     }
 
-    const client = new OAuth2Client(clientId);
-    let payload: { email?: string; name?: string; picture?: string; sub?: string };
+    const client = new OAuth2Client();
+    let payload: { email?: string; email_verified?: boolean; name?: string; picture?: string; sub?: string };
     try {
-      const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+      const ticket = await client.verifyIdToken({ idToken, audience: audiences });
       payload = ticket.getPayload() ?? {};
     } catch {
       throw new UnauthorizedException('ID token Google invalide.');
@@ -208,16 +211,15 @@ export class AuthService {
 
     const email = payload.email?.trim().toLowerCase();
     if (!email) throw new UnauthorizedException('Email absent du token Google.');
+    // Une adresse non vérifiée chez Google ne prouve pas qu'on la possède :
+    // on ne s'en sert ni pour créer ni pour retrouver un compte.
+    if (payload.email_verified !== true) throw new UnauthorizedException('Adresse Google non vérifiée.');
 
     let user = await this.prisma.user.findUnique({ where: { email } });
 
     if (user) {
-      // Mise à jour de l'authProvider si le compte était password
       if (user.authProvider !== 'google') {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { authProvider: 'google', photoUrl: payload.picture ?? user.photoUrl },
-        });
+        user = await this.linkExternalIdentity(user.id, { authProvider: 'google', photoUrl: payload.picture ?? user.photoUrl });
       }
     } else {
       // Seule la CRÉATION est soumise à la barrière d'âge : un compte existant
@@ -255,6 +257,8 @@ export class AuthService {
     try {
       const { payload: verified } = await jwtVerify(identityToken, APPLE_JWKS, {
         issuer: 'https://appleid.apple.com',
+        // Sans audience, un jeton Apple émis pour N'IMPORTE QUELLE app était accepté.
+        audience: this.config.get<AppConfig['apple']>('apple')!.audiences,
         algorithms: ['RS256'],
       });
       payload = verified as { sub?: string; email?: string };
@@ -262,11 +266,15 @@ export class AuthService {
       throw new UnauthorizedException('Apple identity token invalide ou expiré.');
     }
 
+    // L'identité, c'est le `sub` SIGNÉ par Apple — jamais l'`appleUserId` du
+    // corps de la requête, qu'un attaquant choisit librement (il suffisait
+    // d'y mettre celui d'une victime avec son propre jeton pour entrer chez elle).
+    const sub = payload.sub;
+    if (!sub || sub !== appleUserId) throw new UnauthorizedException('Apple identity token invalide ou expiré.');
     const email = (payload.email as string | undefined)?.trim().toLowerCase();
-    const sub = (payload.sub as string | undefined) ?? appleUserId;
 
     let user = await this.prisma.user.findFirst({
-      where: { appleId: appleUserId },
+      where: { appleId: sub },
     });
 
     if (!user && email) {
@@ -274,12 +282,8 @@ export class AuthService {
     }
 
     if (user) {
-      // Lie l'appleId si le compte existait avec un autre provider
       if (!user.appleId) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { appleId: appleUserId, authProvider: 'apple' },
-        });
+        user = await this.linkExternalIdentity(user.id, { appleId: sub, authProvider: 'apple' });
       }
     } else {
       // Voir loginWithGoogle : barrière à la création seulement.
@@ -289,8 +293,8 @@ export class AuthService {
         (email ? email.split('@')[0] : `user_${sub.slice(-6)}`);
       user = await this.prisma.user.create({
         data: {
-          email: email ?? `${appleUserId}@privaterelay.appleid.com`,
-          appleId: appleUserId,
+          email: email ?? `${sub}@privaterelay.appleid.com`,
+          appleId: sub,
           displayName: fallbackName,
           authProvider: 'apple',
           birthYear,
@@ -369,15 +373,31 @@ export class AuthService {
     await this.mailer.sendPasswordResetOtp(normalizedEmail, otp);
   }
 
-  /** Réinitialise le mot de passe via l'OTP reçu par email. */
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    const record = await this.prisma.passwordResetToken.findUnique({
-      where: { tokenHash: hashToken(token) },
-      include: { user: true },
+  /**
+   * Réinitialise le mot de passe via l'OTP reçu par email.
+   *
+   * Le code (6 chiffres) était cherché parmi TOUS les comptes, sans limite
+   * d'essais : il suffisait d'en essayer assez pour tomber sur une demande en
+   * cours et prendre le compte. Désormais on vise le compte par son e-mail, et
+   * sa demande est annulée au 5e code faux (5 chances sur un million).
+   */
+  async resetPassword(emailRaw: string, token: string, newPassword: string): Promise<void> {
+    const invalid = new BadRequestException('Code invalide ou expiré.');
+    const user = await this.prisma.user.findUnique({ where: { email: emailRaw.trim().toLowerCase() } });
+    if (!user) throw invalid;
+    const record = await this.prisma.passwordResetToken.findFirst({
+      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
     });
+    if (!record) throw invalid;
 
-    if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
-      throw new BadRequestException('Code invalide ou expiré.');
+    if (record.tokenHash !== hashToken(token)) {
+      const attempts = record.attempts + 1;
+      await this.prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: attempts >= MAX_RESET_ATTEMPTS ? { attempts, usedAt: new Date() } : { attempts },
+      });
+      throw invalid;
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
@@ -444,35 +464,24 @@ export class AuthService {
   }
 
   /**
-   * Active l'abonnement Premium (après achat RevenueCat validé côté client).
-   * Synchronise aussi le champ `plan` historique (plus). `plan` ∈ {monthly, annual}.
+   * Rattache une identité Google/Apple à un compte existant retrouvé par son
+   * e-mail. L'inscription par mot de passe ne vérifie pas l'e-mail : un
+   * inconnu pouvait créer un compte à l'adresse de quelqu'un, attendre que
+   * cette personne se connecte avec Google ou Apple, puis rentrer avec SON
+   * mot de passe. Le fournisseur prouve l'adresse ; le mot de passe posé par
+   * on ne sait qui est donc effacé et les sessions ouvertes sont coupées.
+   * Le vrai propriétaire garde l'accès (Google/Apple, ou « mot de passe oublié »).
    */
-  async activatePremium(userId: string, plan: 'monthly' | 'annual'): Promise<PublicUser> {
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        isPremium: true,
-        premiumSince: new Date(),
-        premiumPlan: plan,
-        plan: 'plus',
-      },
-    });
-    this.logger.log(`Premium activé (${plan}) pour userId=${userId}`);
-    return toPublicUser(updated);
-  }
-
-  /** Désactive l'abonnement Premium (expiration / annulation / remboursement). */
-  async deactivatePremium(userId: string): Promise<PublicUser> {
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        isPremium: false,
-        premiumPlan: null,
-        plan: 'free',
-      },
-    });
-    this.logger.log(`Premium désactivé pour userId=${userId}`);
-    return toPublicUser(updated);
+  private async linkExternalIdentity(
+    userId: string,
+    data: { authProvider: 'google' | 'apple'; appleId?: string; photoUrl?: string | null },
+  ) {
+    const [user] = await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { ...data, passwordHash: null } }),
+      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
+    this.logger.log(`Identité ${data.authProvider} rattachée à ${userId} — mot de passe et sessions réinitialisés`);
+    return user;
   }
 
   /**

@@ -17,7 +17,8 @@ export interface AppConfig {
     s3Endpoint?: string;
     publicBaseUrl: string;
   };
-  google: { clientId: string };
+  google: { clientId: string; audiences: string[] };
+  apple: { audiences: string[] };
   places: {
     provider: 'google' | 'none';
     googleApiKey: string;
@@ -74,6 +75,16 @@ export default (): AppConfig => ({
   },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+    // Un id_token Google porte l'identifiant du client qui l'a demandé : web,
+    // iOS ou Android. Tous ceux de YUMIA sont acceptés, aucun autre.
+    audiences: [process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_IOS_CLIENT_ID, process.env.GOOGLE_ANDROID_CLIENT_ID]
+      .filter((v): v is string => !!v),
+  },
+  apple: {
+    // `aud` d'un jeton Apple natif = bundle id de l'app. Expo Go signe avec le
+    // sien (host.exp.Exponent) : accepté hors production seulement.
+    audiences: (process.env.APPLE_AUDIENCES || 'com.yumia.app').split(',').map((s) => s.trim()).filter(Boolean)
+      .concat(process.env.NODE_ENV === 'production' ? [] : ['host.exp.Exponent']),
   },
   places: {
     // Provider explicite (non vide), sinon déduit de la présence d'une clé.

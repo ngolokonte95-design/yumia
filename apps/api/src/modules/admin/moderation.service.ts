@@ -246,22 +246,22 @@ export class ModerationService {
         case 'post': {
           const post = await this.prisma.post.delete({
             where: { id },
-            select: { mediaUrls: true, videoUrl: true, coverUrl: true, voiceTrackUrl: true },
+            select: { userId: true, mediaUrls: true, videoUrl: true, coverUrl: true, voiceTrackUrl: true },
           });
           void this.storage.removeMany([
             ...post.mediaUrls,
             post.videoUrl,
             post.coverUrl,
             post.voiceTrackUrl,
-          ]);
+          ], post.userId);
           return true;
         }
         case 'comment':
           await this.prisma.postComment.delete({ where: { id } });
           return true;
         case 'story': {
-          const story = await this.prisma.story.delete({ where: { id }, select: { mediaUrl: true } });
-          void this.storage.remove(story.mediaUrl);
+          const story = await this.prisma.story.delete({ where: { id }, select: { userId: true, mediaUrl: true } });
+          void this.storage.remove(story.mediaUrl, story.userId);
           return true;
         }
         default:

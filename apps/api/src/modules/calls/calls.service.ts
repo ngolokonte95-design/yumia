@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { randomUUID } from 'crypto';
@@ -46,6 +46,28 @@ export class CallsService {
     conversationId?: string,
     senderPublicKey?: string,
   ): Promise<CallRecord> {
+    // On n'appelle que dans une conversation dont on est tous les deux
+    // membres, et jamais quelqu'un qui nous a bloqués (ou qu'on a bloqué) :
+    // sans ça, n'importe qui pouvait faire sonner le téléphone de n'importe
+    // qui, et écrire « Appel manqué » dans une conversation étrangère.
+    if (!conversationId || !recipientId || recipientId === callerId) {
+      throw new ForbiddenException('Appel impossible');
+    }
+    const [members, blocked] = await Promise.all([
+      this.prisma.conversationParticipant.count({
+        where: { conversationId, userId: { in: [callerId, recipientId] } },
+      }),
+      this.prisma.block.count({
+        where: {
+          OR: [
+            { blockerId: callerId, blockedId: recipientId },
+            { blockerId: recipientId, blockedId: callerId },
+          ],
+        },
+      }),
+    ]);
+    if (members !== 2 || blocked > 0) throw new ForbiddenException('Appel impossible');
+
     const caller = await this.prisma.user.findUnique({
       where: { id: callerId },
       select: { displayName: true, photoUrl: true },
@@ -65,6 +87,10 @@ export class CallsService {
     };
 
     this.calls.set(call.id, call);
+
+    // Les appels vivent en mémoire : on les oublie au bout de 2 h, sinon la
+    // table grossit indéfiniment.
+    setTimeout(() => this.calls.delete(call.id), 2 * 60 * 60 * 1000).unref?.();
 
     // Auto-expire après 60s si non décroché
     setTimeout(() => {
@@ -94,9 +120,12 @@ export class CallsService {
     return call;
   }
 
-  get(callId: string): CallRecord {
+  /** Un appel n'est lisible (SDP, candidats ICE → adresses IP) que par ses deux participants. */
+  get(callId: string, userId: string): CallRecord {
     const call = this.calls.get(callId);
-    if (!call) throw new NotFoundException('Appel introuvable');
+    if (!call || (call.callerId !== userId && call.recipientId !== userId)) {
+      throw new NotFoundException('Appel introuvable');
+    }
     return call;
   }
 
