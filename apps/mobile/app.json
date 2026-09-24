@@ -18,7 +18,7 @@
       "bundleIdentifier": "com.yumia.app",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi.",
+        "NSLocationWhenInUseUsageDescription": "YUMIA utilise ta position pour te proposer les meilleurs lieux autour de toi et, seulement si tu les actives, pour la carte des membres et les Rencontres.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bitcode": false,
@@ -171,7 +171,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "YUMIA utilise ta position pour te proposer les meilleures expériences autour de toi.",
+          "locationWhenInUsePermission": "YUMIA utilise ta position pour te proposer les meilleurs lieux autour de toi et, seulement si tu les actives, pour la carte des membres et les Rencontres.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false
         }
