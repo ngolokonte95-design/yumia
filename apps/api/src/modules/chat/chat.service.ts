@@ -216,7 +216,36 @@ export class ChatService {
       where: { conversationId, ...notExpired(), createdAt: { gt: new Date(after) } },
       orderBy: { createdAt: 'asc' },
     });
+    // Conversation ouverte à l'écran : ce qui arrive est lu à l'instant. Sans
+    // ça, le badge « non lu » réapparaissait en quittant la conversation pour
+    // des messages déjà vus.
+    if (messages.length > 0) {
+      await this.prisma.conversationParticipant
+        .update({ where: { conversationId_userId: { conversationId, userId } }, data: { lastReadAt: new Date() } })
+        .catch(() => undefined);
+    }
     return this.hydrateMessages(messages, userId);
+  }
+
+  /**
+   * Nombre de conversations contenant au moins un message d'un autre
+   * participant, arrivé après ma dernière lecture — le badge de l'onglet
+   * Messages. On compte des conversations, pas des messages : dix messages
+   * d'une même personne restent « 1 », comme sur Instagram.
+   */
+  async unreadConversations(userId: string): Promise<number> {
+    const rows = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "ConversationParticipant" cp
+      WHERE cp."userId" = ${userId}
+        AND EXISTS (
+          SELECT 1 FROM "Message" m
+          WHERE m."conversationId" = cp."conversationId"
+            AND m."senderId" <> ${userId}
+            AND (m."expiresAt" IS NULL OR m."expiresAt" > NOW())
+            AND (cp."lastReadAt" IS NULL OR m."createdAt" > cp."lastReadAt")
+        )`;
+    return Number(rows[0]?.count ?? 0);
   }
 
   /**

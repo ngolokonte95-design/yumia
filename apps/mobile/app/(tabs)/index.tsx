@@ -1,5 +1,6 @@
+import { useCallback, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode } from '@yumia/shared';
@@ -9,6 +10,7 @@ import { PlanBadgeIcon } from '../../components/Avatar';
 import { universeLabel } from '../../lib/universeMeta';
 import { useLocation } from '../../lib/useLocation';
 import { useAuth } from '../../lib/auth-context';
+import { request } from '../../lib/api';
 import { useI18n } from '../../lib/useI18n';
 import { WeatherCard } from '../../components/weather/WeatherCard';
 import { universeIcon } from '../../components/icons/universeIcons';
@@ -84,7 +86,25 @@ function universeRoute(u: string): string {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
+
+  // Badge de l'onglet Messages : conversations non lues. Relu à chaque retour
+  // sur l'accueil, puis toutes les 30 s tant qu'il est affiché — un message
+  // reçu pendant qu'on regarde l'accueil apparaît sans rien toucher.
+  const [unreadChats, setUnreadChats] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      if (!accessToken) return;
+      let active = true;
+      const refresh = () =>
+        request<{ count: number }>('/chat/unread-count', { token: accessToken })
+          .then((r) => { if (active) setUnreadChats(r.count); })
+          .catch(() => {});
+      refresh();
+      const id = setInterval(refresh, 30_000);
+      return () => { active = false; clearInterval(id); };
+    }, [accessToken]),
+  );
   const { t } = useI18n();
   const { title: greetTitle, sub: greetSub } = buildGreeting(user?.displayName ?? 'toi', t);
   const { coords, city } = useLocation();
@@ -138,6 +158,11 @@ export default function HomeScreen() {
           {FEATURE_SHORTCUTS.map((s) => (
             <Pressable key={s.key} style={styles.shortcut} onPress={() => router.push(s.route as never)}>
               <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
+              {s.key === 'chat' && unreadChats > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadChats > 9 ? '9+' : unreadChats}</Text>
+                </View>
+              )}
               <Text style={styles.shortcutLabel} numberOfLines={1}>{t(`home_shortcut_${s.key}` as never)}</Text>
             </Pressable>
           ))}
@@ -214,6 +239,13 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   shortcutEmoji: { fontSize: 20 },
+  badge: {
+    position: 'absolute', top: 3, right: 6,
+    minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: colors.surface,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
   modesRow: { flexDirection: 'row', gap: spacing.xs },
   modeChip: {

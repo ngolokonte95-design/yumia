@@ -40,6 +40,12 @@ export class ChatController {
     return { translated: translated.trim() };
   }
 
+  /** GET /api/chat/unread-count — conversations non lues (badge de l'onglet Messages). */
+  @Get('unread-count')
+  async unreadCount(@CurrentUser() user: JwtPayload) {
+    return { count: await this.chat.unreadConversations(user.sub) };
+  }
+
   /** GET /api/chat/conversations — liste des conversations */
   @Get('conversations')
   listConversations(@CurrentUser() user: JwtPayload) {
