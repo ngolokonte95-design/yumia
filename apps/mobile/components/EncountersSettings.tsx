@@ -7,7 +7,7 @@
  * activées ; sinon, carte d'explication et d'activation.
  */
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
@@ -76,25 +76,32 @@ export function EncountersSettings() {
   if (enabled) {
     return (
       <View style={styles.banner}>
+        {/* Interrupteur toujours visible : on désactive en un geste, sans
+            passer par « Modifier ». */}
         <View style={styles.bannerRow}>
-          <Text style={styles.bannerTxt} numberOfLines={2}>
-            ⚡ {t('enc_active_label')} · {t('wm_visible_to').replace('{who}', t(AUDIENCE_LABEL[audience]))}
+          <Text style={styles.bannerTxt} numberOfLines={1}>⚡ {t('enc_active_label')}</Text>
+          {saving && <ActivityIndicator size="small" color={colors.brand} />}
+          <Switch
+            value
+            disabled={saving}
+            onValueChange={(v) => { if (!v) void save({ shareEncounters: false }); }}
+            trackColor={{ false: colors.border, true: colors.brand }}
+            thumbColor="#fff"
+            accessibilityLabel={t('enc_turn_off')}
+          />
+        </View>
+        <View style={styles.bannerRow}>
+          <Text style={styles.bannerSub} numberOfLines={1}>
+            {t('wm_visible_to').replace('{who}', t(AUDIENCE_LABEL[audience]))}
           </Text>
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.brand} />
-          ) : (
-            <Pressable onPress={() => setEditing((v) => !v)} hitSlop={8}>
-              <Text style={styles.link}>{t('wm_change')}</Text>
-            </Pressable>
-          )}
+          <Pressable onPress={() => setEditing((v) => !v)} hitSlop={8}>
+            <Text style={styles.link}>{t('wm_change')}</Text>
+          </Pressable>
         </View>
         {editing && (
           <>
             {chips}
             {audience !== 'everyone' && <Text style={styles.note}>{t('esp_enc_audience_note')}</Text>}
-            <Pressable onPress={() => void save({ shareEncounters: false })} hitSlop={8} style={{ marginTop: spacing.sm }}>
-              <Text style={styles.off}>{t('enc_turn_off')}</Text>
-            </Pressable>
           </>
         )}
       </View>
@@ -145,8 +152,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
     padding: spacing.md, marginBottom: spacing.md,
   },
-  bannerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  bannerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 32 },
   bannerTxt: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  bannerSub: { flex: 1, fontSize: 12, color: colors.textMuted },
   link: { fontSize: 13, fontWeight: '700', color: colors.brandSoft },
-  off: { fontSize: 13, fontWeight: '700', color: colors.danger, textAlign: 'center' },
 });
