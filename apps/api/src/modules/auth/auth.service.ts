@@ -600,6 +600,8 @@ function toPublicUser(user: User): PublicUser {
     birthYear: (user as any).birthYear ?? null,
     interestedIn: (user as any).interestedIn ?? 'everyone',
     isPrivate: (user as any).isPrivate ?? false,
+    shareVisits: user.shareVisits,
+    shareEncounters: user.shareEncounters,
     isAdmin: (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).includes(user.email.toLowerCase()),
   };
 }

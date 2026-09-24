@@ -29,8 +29,11 @@ export class SocialController {
   // ── Comptes privés & demandes d'abonnement ─────────────────────────────────
 
   @Patch('social/profile/privacy')
-  setPrivacy(@CurrentUser() user: JwtPayload, @Body() dto: { isPrivate: boolean }) {
-    return this.social.setPrivacy(user.sub, !!dto.isPrivate);
+  setPrivacy(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: { isPrivate?: boolean; shareVisits?: boolean; shareEncounters?: boolean },
+  ) {
+    return this.social.setPrivacy(user.sub, dto ?? {});
   }
 
   @Get('social/follow-requests')

@@ -39,6 +39,8 @@ export interface PublicUser {
   birthYear: number | null;
   interestedIn: string;
   isPrivate: boolean;
+  shareVisits: boolean;
+  shareEncounters: boolean;
   isAdmin: boolean;
 }
 

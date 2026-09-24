@@ -37,6 +37,10 @@ export interface PublicUser {
   birthYear: number | null;
   interestedIn: string;
   isPrivate: boolean;
+  /** Mes visites apparaissent dans l'Activité de mes abonnés. */
+  shareVisits: boolean;
+  /** Onglet Rencontres activé (voir et être vu des membres croisés). */
+  shareEncounters: boolean;
   isAdmin: boolean;
 }
 

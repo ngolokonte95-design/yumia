@@ -29,6 +29,9 @@ const USER_SOCIAL_SELECT = {
   gender: true, level: true, totalXp: true,
 };
 
+/** Recul minimal entre un croisement et son affichage. */
+const ENCOUNTER_DELAY_MS = 60 * 60 * 1000;
+
 @Injectable()
 export class DiscoverService {
   constructor(
@@ -139,104 +142,45 @@ export class DiscoverService {
     await this.redis.raw.expire(seenKey, 86400);
   }
 
-  // ── Encounters ── detect same-place + send push notification ─────────────
-
-  async checkEncounters(userId: string, placeId: string, lat: number, lng: number) {
-    const keys = await this.redis.raw.keys('user:loc:*');
-    const nearbyUsers: string[] = [];
-
-    for (const key of keys) {
-      const raw = await this.redis.raw.get(key);
-      if (!raw) continue;
-      try {
-        const loc = JSON.parse(raw) as StoredLocation;
-        const uid = key.replace('user:loc:', '');
-        if (uid === userId || loc.visibility === 'off') continue;
-        const dist = this.haversineKm(lat, lng, loc.lat, loc.lng);
-        if (dist <= 0.1) nearbyUsers.push(uid);
-      } catch { /* ignore */ }
-    }
-
-    if (!nearbyUsers.length) return [];
-
-    // Load viewer name for notification
-    const viewer = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { displayName: true, gender: true },
-    });
-
-    const place = await this.prisma.place.findUnique({
-      where: { id: placeId },
-      select: { name: true },
-    });
-
-    const encounters: string[] = [];
-    for (const otherId of nearbyUsers) {
-      const [a, b] = [userId, otherId].sort();
-      try {
-        const result = await this.prisma.encounter.upsert({
-          where: { userAId_userBId_placeId: { userAId: a, userBId: b, placeId } },
-          update: { seenAt: new Date() },
-          create: { userAId: a, userBId: b, placeId },
-        });
-
-        // Only send push on first encounter (seenAt ~= createdAt)
-        const createdAtMs = (result as any).createdAt ? new Date((result as any).createdAt).getTime() : 0;
-        const isNew = Math.abs(result.seenAt.getTime() - createdAtMs) < 5000;
-        if (isNew || true) { // always notify on re-encounter within session
-          const otherUser = await this.prisma.user.findUnique({
-            where: { id: otherId },
-            select: { interestedIn: true, gender: true },
-          });
-
-          // Respect gender preference before notifying
-          const viewerGender = viewer?.gender;
-          const otherInterestedIn = otherUser?.interestedIn ?? 'everyone';
-          const matchesPreference = otherInterestedIn === 'everyone' || otherInterestedIn === viewerGender;
-
-          if (matchesPreference) {
-            await this.notifications.sendToUser(
-              otherId,
-              '⚡ Quelqu\'un est près de toi !',
-              `${viewer?.displayName ?? 'Un utilisateur'} est ${place ? 'à ' + place.name : 'près de toi'} en ce moment`,
-              { type: 'encounter', userId, placeId },
-            );
-          }
-        }
-        encounters.push(otherId);
-      } catch { /* ignore dup */ }
-    }
-    return encounters;
-  }
-
+  /**
+   * Onglet Rencontres. Seulement si j'ai activé les Rencontres, seulement avec
+   * des membres qui les ont encore activées, jamais un blocage ; et avec au
+   * moins une heure de recul sur le dernier croisement : on voit qui on a
+   * croisé, pas qui est à côté maintenant. Ni lieu ni heure dans la réponse.
+   */
   async getMyEncounters(userId: string, limit = 20) {
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { shareEncounters: true } });
+    if (!me?.shareEncounters) return [];
+
     const records = await this.prisma.encounter.findMany({
-      where: { OR: [{ userAId: userId }, { userBId: userId }] },
-      orderBy: { seenAt: 'desc' },
-      take: limit,
+      where: {
+        OR: [{ userAId: userId }, { userBId: userId }],
+        seenAt: { lt: new Date(Date.now() - ENCOUNTER_DELAY_MS) },
+      },
+      orderBy: { day: 'desc' },
+      take: limit * 2,
     });
-
     const otherIds = records.map((e) => (e.userAId === userId ? e.userBId : e.userAId));
-    const placeIds = [...new Set(records.map((e) => e.placeId))];
-
-    const [users, places] = await Promise.all([
+    const [users, blocks] = await Promise.all([
       this.prisma.user.findMany({
-        where: { id: { in: otherIds } },
-        select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true, gender: true },
+        where: { id: { in: otherIds }, shareEncounters: true },
+        select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true },
       }),
-      this.prisma.place.findMany({
-        where: { id: { in: placeIds } },
-        select: { id: true, name: true, universe: true, city: true },
+      this.prisma.block.findMany({
+        where: { OR: [{ blockerId: userId, blockedId: { in: otherIds } }, { blockedId: userId, blockerId: { in: otherIds } }] },
       }),
     ]);
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const blocked = new Set(blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)));
 
-    const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
-    const placeMap = Object.fromEntries(places.map((p) => [p.id, p]));
-
-    return records.map((e) => {
-      const otherId = e.userAId === userId ? e.userBId : e.userAId;
-      return { ...e, otherUser: userMap[otherId] ?? null, place: placeMap[e.placeId] ?? null };
-    });
+    return records
+      .flatMap((e) => {
+        const otherId = e.userAId === userId ? e.userBId : e.userAId;
+        const otherUser = userMap.get(otherId);
+        if (!otherUser || blocked.has(otherId)) return [];
+        return [{ id: e.id, day: e.day.toISOString().slice(0, 10), otherUser }];
+      })
+      .slice(0, limit);
   }
 
   private async getRandomProfiles(viewerId: string, seenSet: Set<string>, limit: number, interestedIn?: string) {

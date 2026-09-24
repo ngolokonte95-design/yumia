@@ -62,6 +62,12 @@ model User {
   birthYear    Int? // année de naissance → âge calculé côté client
   interestedIn String  @default("everyone") // 'male' | 'female' | 'everyone'
   isPrivate    Boolean @default(false) // compte privé → follow via demande d'abonnement
+  /// Mes visites (« J'y suis allé ») apparaissent dans l'onglet Activité de mes
+  /// abonnés. Désactivé par défaut : un lieu visité est une donnée de position.
+  shareVisits     Boolean @default(false)
+  /// Onglet Rencontres : je vois les membres que je croise et j'apparais chez
+  /// eux — seulement entre deux personnes qui l'ont activé. Désactivé par défaut.
+  shareEncounters Boolean @default(false)
 
   /// Suspension : date de fin, ou null si le compte est actif. Une date très
   /// lointaine vaut bannissement définitif. Exigé par la règle 1.2 de l'App
@@ -725,14 +731,17 @@ model MeetupRsvp {
 // Encounters — détection Happn-style (même lieu, proche dans le temps)
 // ----------------------------------------------------------------------------
 
+/// Deux membres qui ont activé les Rencontres se sont trouvés à moins de 100 m.
+/// Volontairement sans lieu ni heure : une ligne par paire et par JOUR, pour
+/// qu'on ne puisse pas s'en servir pour savoir où quelqu'un se trouve.
 model Encounter {
   id      String   @id @default(uuid())
   userAId String
   userBId String
-  placeId String
+  day     DateTime @db.Date
   seenAt  DateTime @default(now())
 
-  @@unique([userAId, userBId, placeId])
+  @@unique([userAId, userBId, day])
   @@index([userAId])
   @@index([userBId])
 }

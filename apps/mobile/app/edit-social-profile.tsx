@@ -30,7 +30,7 @@ const INTERESTED_IN: { value: string; labelKey: TranslationKey }[] = [
 const CURRENT_YEAR = new Date().getFullYear();
 
 export default function EditSocialProfileScreen() {
-  const { user, accessToken, updateProfile } = useAuth();
+  const { user, accessToken, updateProfile, reloadUser } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
@@ -41,6 +41,8 @@ export default function EditSocialProfileScreen() {
   const [birthYear, setBirthYear] = useState<string>(user?.birthYear ? String(user.birthYear) : '');
   const [interestedIn, setInterestedIn] = useState<string>(user?.interestedIn ?? 'everyone');
   const [isPrivate, setIsPrivate] = useState<boolean>(user?.isPrivate ?? false);
+  const [shareVisits, setShareVisits] = useState<boolean>(user?.shareVisits ?? false);
+  const [shareEncounters, setShareEncounters] = useState<boolean>(user?.shareEncounters ?? false);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -83,8 +85,10 @@ export default function EditSocialProfileScreen() {
         await fetch(`${API}/social/profile/privacy`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({ isPrivate }),
+          body: JSON.stringify({ isPrivate, shareVisits, shareEncounters }),
         }).catch(() => {});
+        // L'onglet Social lit ces réglages sur l'utilisateur en mémoire.
+        await reloadUser().catch(() => {});
       }
       router.back();
     } finally {
@@ -212,6 +216,33 @@ export default function EditSocialProfileScreen() {
           <Switch
             value={isPrivate}
             onValueChange={setIsPrivate}
+            trackColor={{ false: colors.border, true: colors.brand }}
+            thumbColor="#fff"
+          />
+        </View>
+
+        {/* Visites et rencontres : des données de position, donc désactivées
+            tant que l'utilisateur ne les active pas lui-même. */}
+        <View style={[styles.toggleRow, { marginTop: spacing.sm }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.toggleTitle}>{t('esp_visits_title')}</Text>
+            <Text style={styles.toggleSub}>{t('esp_visits_sub')}</Text>
+          </View>
+          <Switch
+            value={shareVisits}
+            onValueChange={setShareVisits}
+            trackColor={{ false: colors.border, true: colors.brand }}
+            thumbColor="#fff"
+          />
+        </View>
+        <View style={[styles.toggleRow, { marginTop: spacing.sm }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.toggleTitle}>{t('esp_encounters_title')}</Text>
+            <Text style={styles.toggleSub}>{t('esp_encounters_sub')}</Text>
+          </View>
+          <Switch
+            value={shareEncounters}
+            onValueChange={setShareEncounters}
             trackColor={{ false: colors.border, true: colors.brand }}
             thumbColor="#fff"
           />

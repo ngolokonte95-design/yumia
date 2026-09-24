@@ -94,9 +94,26 @@ export class SocialService {
 
   // ── Comptes privés & demandes d'abonnement ─────────────────────────────────
 
-  async setPrivacy(userId: string, isPrivate: boolean) {
-    await this.prisma.user.update({ where: { id: userId }, data: { isPrivate } });
-    return { isPrivate };
+  /** Réglages de confidentialité : chaque champ absent reste inchangé. */
+  async setPrivacy(
+    userId: string,
+    dto: { isPrivate?: boolean; shareVisits?: boolean; shareEncounters?: boolean },
+  ) {
+    const data: { isPrivate?: boolean; shareVisits?: boolean; shareEncounters?: boolean } = {};
+    if (typeof dto.isPrivate === 'boolean') data.isPrivate = dto.isPrivate;
+    if (typeof dto.shareVisits === 'boolean') data.shareVisits = dto.shareVisits;
+    if (typeof dto.shareEncounters === 'boolean') data.shareEncounters = dto.shareEncounters;
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { isPrivate: true, shareVisits: true, shareEncounters: true },
+    });
+    // Se retirer des Rencontres efface aussi celles déjà enregistrées : elles
+    // ne doivent plus apparaître chez personne.
+    if (dto.shareEncounters === false) {
+      await this.prisma.encounter.deleteMany({ where: { OR: [{ userAId: userId }, { userBId: userId }] } });
+    }
+    return user;
   }
 
   /** Demandes d'abonnement reçues (comptes privés), avec le profil du demandeur. */
@@ -398,9 +415,24 @@ export class SocialService {
     });
   }
 
+  /**
+   * Onglet Activité : lieux visités par les personnes que je suis — seulement
+   * celles qui ont choisi de montrer leurs visites (`shareVisits`), et jamais
+   * quelqu'un que j'ai bloqué ou qui m'a bloqué. Le réglage s'applique à la
+   * lecture : le désactiver retire aussi les visites passées.
+   */
   async getSocialFeed(userId: string, limit = 30) {
     const follows = await this.prisma.follow.findMany({ where: { followerId: userId } });
-    const followingIds = follows.map((f) => f.followingId);
+    const blocks = await this.prisma.block.findMany({
+      where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+    });
+    const blocked = new Set(blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)));
+    const sharing = await this.prisma.user.findMany({
+      where: { id: { in: follows.map((f) => f.followingId).filter((id) => !blocked.has(id)) }, shareVisits: true },
+      select: { id: true },
+    });
+    const followingIds = sharing.map((u) => u.id);
+    if (followingIds.length === 0) return [];
     const visits = await this.prisma.visit.findMany({
       where: { userId: { in: followingIds } },
       orderBy: { visitedAt: 'desc' },

@@ -55,10 +55,22 @@ interface FeedItem {
   visitedAt: string;
 }
 
+/** Rencontre : volontairement sans lieu ni heure, seulement le jour. */
 interface Encounter {
-  id: string; seenAt: string;
+  id: string;
+  day: string; // AAAA-MM-JJ
   otherUser: { id: string; displayName: string; photoUrl?: string; bio?: string; level: number; plan?: Plan | null } | null;
-  place: { id: string; name: string; universe: string; city?: string } | null;
+}
+
+/** « Croisé aujourd'hui », « Croisé hier », « Croisé le 12 septembre ». */
+function encounterDay(day: string, t: (key: TranslationKey) => string, locale: string): string {
+  const today = new Date();
+  const utc = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const days = Math.round((utc(today) - Date.parse(`${day}T00:00:00Z`)) / 86_400_000);
+  if (days <= 0) return t('social_encounter_today');
+  if (days === 1) return t('social_encounter_yesterday');
+  const label = new Date(`${day}T12:00:00Z`).toLocaleDateString(locale, { day: 'numeric', month: 'long' });
+  return t('social_encounter_on').replace('{date}', label);
 }
 
 function formatAgo(iso: string, t: (key: TranslationKey) => string) {
@@ -460,7 +472,7 @@ function PostCard({
 // ── Écran principal ──────────────────────────────────────────────────────────
 
 export default function SocialTab() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -1025,18 +1037,30 @@ export default function SocialTab() {
                       <Text style={styles.encounterName}>{item.otherUser?.displayName}</Text>
                       <PlanBadgeIcon plan={item.otherUser?.plan} size={32} />
                     </View>
-                    <Text style={styles.encounterPlace}>📍 {item.place?.name ?? '?'}</Text>
-                    <Text style={styles.encounterTime}>{t('social_encounter_crossed')} {formatAgo(item.seenAt, t)}</Text>
+                    <Text style={styles.encounterTime}>⚡ {encounterDay(item.day, t, locale)}</Text>
                   </View>
                   <Text style={styles.encounterLevel}>{t('social_level_prefix')} {item.otherUser?.level}</Text>
                 </Pressable>
               )}
               ListEmptyComponent={emptyOrLoading(
-                <View style={styles.empty}>
-                  <Text style={styles.emptyEmoji}>⚡</Text>
-                  <Text style={styles.emptyTitle}>{t('social_empty_encounters_title')}</Text>
-                  <Text style={styles.emptyText}>{t('social_empty_encounters_text')}</Text>
-                </View>
+                me?.shareEncounters ? (
+                  <View style={styles.empty}>
+                    <Text style={styles.emptyEmoji}>⚡</Text>
+                    <Text style={styles.emptyTitle}>{t('social_empty_encounters_title')}</Text>
+                    <Text style={styles.emptyText}>{t('social_empty_encounters_text')}</Text>
+                  </View>
+                ) : (
+                  // Rencontres désactivées : on dit pourquoi l'onglet est vide
+                  // et où l'activer, plutôt qu'une liste vide muette.
+                  <View style={styles.empty}>
+                    <Text style={styles.emptyEmoji}>🔒</Text>
+                    <Text style={styles.emptyTitle}>{t('social_encounters_optin_title')}</Text>
+                    <Text style={styles.emptyText}>{t('social_encounters_optin_text')}</Text>
+                    <Pressable style={styles.followBtn} onPress={() => router.push('/edit-social-profile' as never)}>
+                      <Text style={styles.followBtnText}>{t('social_encounters_optin_btn')}</Text>
+                    </Pressable>
+                  </View>
+                )
               )}
             />
           )}

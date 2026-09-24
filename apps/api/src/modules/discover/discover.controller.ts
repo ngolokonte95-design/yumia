@@ -28,13 +28,9 @@ export class DiscoverController {
     return this.discoverService.markSeen(req.user.sub, userId);
   }
 
-  @Post('encounter')
-  checkEncounter(
-    @Req() req: any,
-    @Body() body: { placeId: string; lat: number; lng: number },
-  ) {
-    return this.discoverService.checkEncounters(req.user.sub, body.placeId, body.lat, body.lng);
-  }
+  // POST /discover/encounter supprimé : il notifiait en temps réel un inconnu
+  // à moins de 100 m du nom et du lieu exact de l'utilisateur. Les rencontres
+  // sont désormais enregistrées par LocationService, sans lieu ni notification.
 
   @Get('encounters')
   myEncounters(@Req() req: any, @Query('limit') limit?: string) {

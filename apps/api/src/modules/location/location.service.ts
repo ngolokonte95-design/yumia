@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../../infra/redis/redis.service';
+import { PrismaService } from '../../infra/prisma/prisma.service';
 
 const KEY = (userId: string) => `user:loc:${userId}`;
 const TTL_SECONDS = 600; // 10 minutes sans update → invisible
+/** Distance en deçà de laquelle deux membres « se croisent ». */
+const ENCOUNTER_RADIUS_KM = 0.1;
 
 export type LocationVisibility = 'off' | 'friends' | 'everyone' | 'map';
 
@@ -17,7 +20,10 @@ interface StoredLocation {
 export class LocationService {
   private readonly logger = new Logger(LocationService.name);
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async updateLocation(userId: string, lat: number, lng: number, visibility: LocationVisibility = 'friends') {
     if (visibility === 'off') {
@@ -26,7 +32,75 @@ export class LocationService {
     }
     const data: StoredLocation = { lat, lng, visibility, updatedAt: new Date().toISOString() };
     await this.redis.raw.setex(KEY(userId), TTL_SECONDS, JSON.stringify(data));
+    // En arrière-plan : la mise à jour de position ne doit pas l'attendre.
+    void this.recordEncounters(userId, lat, lng, visibility).catch((e: Error) =>
+      this.logger.warn(`Rencontres non enregistrées : ${e.message}`),
+    );
     return { status: 'ok' };
+  }
+
+  /**
+   * Enregistre une rencontre avec chaque membre à moins de 100 m, à des
+   * conditions qui la rendent inutilisable pour pister quelqu'un :
+   * - les deux ont activé les Rencontres (`shareEncounters`) et partagent
+   *   leur position ;
+   * - si l'un des deux ne partage sa position qu'avec ses amis, il faut
+   *   qu'ils se suivent mutuellement ;
+   * - aucun blocage, dans un sens ou dans l'autre ;
+   * - on ne garde ni le lieu ni l'heure : une ligne par paire et par jour.
+   * Aucune notification : la rencontre s'affiche après coup (voir
+   * DiscoverService.getMyEncounters).
+   */
+  private async recordEncounters(userId: string, lat: number, lng: number, visibility: LocationVisibility) {
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { shareEncounters: true } });
+    if (!me?.shareEncounters) return;
+
+    const near: { uid: string; visibility: LocationVisibility }[] = [];
+    for (const key of await this.redis.raw.keys('user:loc:*')) {
+      const uid = key.replace('user:loc:', '');
+      if (uid === userId) continue;
+      const raw = await this.redis.raw.get(key);
+      if (!raw) continue;
+      try {
+        const loc = JSON.parse(raw) as StoredLocation;
+        if (loc.visibility === 'off') continue;
+        if (this.haversineKm(lat, lng, loc.lat, loc.lng) <= ENCOUNTER_RADIUS_KM) {
+          near.push({ uid, visibility: loc.visibility });
+        }
+      } catch {
+        // JSON corrompu, on ignore
+      }
+    }
+    if (near.length === 0) return;
+
+    const ids = near.map((n) => n.uid);
+    const [optedIn, blocks, follows] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: ids }, shareEncounters: true }, select: { id: true } }),
+      this.prisma.block.findMany({
+        where: { OR: [{ blockerId: userId, blockedId: { in: ids } }, { blockedId: userId, blockerId: { in: ids } }] },
+      }),
+      this.prisma.follow.findMany({
+        where: { OR: [{ followerId: userId, followingId: { in: ids } }, { followingId: userId, followerId: { in: ids } }] },
+      }),
+    ]);
+    const opted = new Set(optedIn.map((u) => u.id));
+    const blocked = new Set(blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)));
+    const iFollow = new Set(follows.filter((f) => f.followerId === userId).map((f) => f.followingId));
+    const followsMe = new Set(follows.filter((f) => f.followingId === userId).map((f) => f.followerId));
+
+    const now = new Date();
+    const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    for (const n of near) {
+      if (!opted.has(n.uid) || blocked.has(n.uid)) continue;
+      const friendsOnly = visibility === 'friends' || n.visibility === 'friends';
+      if (friendsOnly && !(iFollow.has(n.uid) && followsMe.has(n.uid))) continue;
+      const [userAId, userBId] = [userId, n.uid].sort();
+      await this.prisma.encounter.upsert({
+        where: { userAId_userBId_day: { userAId, userBId, day } },
+        update: { seenAt: now },
+        create: { userAId, userBId, day, seenAt: now },
+      });
+    }
   }
 
   async hideLocation(userId: string) {
