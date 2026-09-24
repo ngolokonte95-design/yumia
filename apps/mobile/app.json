@@ -14,7 +14,7 @@
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.yumia.app",
       "usesAppleSignIn": true,
       "infoPlist": {
