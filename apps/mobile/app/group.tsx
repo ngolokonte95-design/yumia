@@ -34,6 +34,7 @@ import { SuggestionCard } from '../components/SuggestionCard';
 import type { Top3Response } from '../lib/api';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
+import { FeatureTip } from '../components/FeatureTip';
 
 type Tab = 'session' | 'quick';
 
@@ -327,6 +328,7 @@ export default function GroupScreen() {
           </View>
         )}
       </ScrollView>
+      <FeatureTip feature="group" />
     </KeyboardAvoidingView>
   );
 }

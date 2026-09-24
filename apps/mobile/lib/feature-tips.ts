@@ -21,7 +21,7 @@ const KEY = '@yumia/tips-seen';
 export type FeatureTipId =
   | 'home' | 'map' | 'explorer' | 'social' | 'foryou' | 'passport' | 'reels' | 'chatbot'
   | 'itinerary' | 'chat' | 'shop' | 'tours' | 'place' | 'world_map' | 'post_create'
-  | 'tind' | 'social_map' | 'meetups' | 'activity' | 'encounters';
+  | 'tind' | 'social_map' | 'meetups' | 'activity' | 'encounters' | 'group';
 
 export const FEATURE_TIPS: Record<FeatureTipId, { emoji: string; title: TranslationKey; body: TranslationKey }> = {
   home: { emoji: '🏠', title: 'tip_home_title', body: 'tip_home_body' },
@@ -44,6 +44,7 @@ export const FEATURE_TIPS: Record<FeatureTipId, { emoji: string; title: Translat
   meetups: { emoji: '🎉', title: 'tip_meetups_title', body: 'tip_meetups_body' },
   activity: { emoji: '🏃', title: 'tip_activity_title', body: 'tip_activity_body' },
   encounters: { emoji: '⚡', title: 'tip_encounters_title', body: 'tip_encounters_body' },
+  group: { emoji: '👥', title: 'tip_group_title', body: 'tip_group_body' },
 };
 
 let seen: Set<string> | null = null;
