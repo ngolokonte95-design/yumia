@@ -26,6 +26,7 @@ import { isVideoUrl } from '../../lib/is-video-url';
 import { restorePlaybackAudio } from '../../lib/audio-session';
 import { TranslatableText } from '../../components/TranslatableText';
 import { FeatureTip } from '../../components/FeatureTip';
+import { EncountersSettings } from '../../components/EncountersSettings';
 
 const API = API_BASE_URL;
 
@@ -1030,6 +1031,7 @@ export default function SocialTab() {
             <FlatList
               data={encounters}
               keyExtractor={(e) => e.id}
+              ListHeaderComponent={me?.shareEncounters ? <EncountersSettings /> : null}
               contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 80 }}
               renderItem={({ item }) => (
                 <Pressable style={styles.encounterCard} onPress={() => item.otherUser && router.push(`/user/${item.otherUser.id}`)}>
@@ -1057,16 +1059,9 @@ export default function SocialTab() {
                     <Text style={styles.emptyText}>{t('social_empty_encounters_text')}</Text>
                   </View>
                 ) : (
-                  // Rencontres désactivées : on dit pourquoi l'onglet est vide
-                  // et où l'activer, plutôt qu'une liste vide muette.
-                  <View style={styles.empty}>
-                    <Text style={styles.emptyEmoji}>🔒</Text>
-                    <Text style={styles.emptyTitle}>{t('social_encounters_optin_title')}</Text>
-                    <Text style={styles.emptyText}>{t('social_encounters_optin_text')}</Text>
-                    <Pressable style={styles.followBtn} onPress={() => router.push('/edit-social-profile' as never)}>
-                      <Text style={styles.followBtnText}>{t('social_encounters_optin_btn')}</Text>
-                    </Pressable>
-                  </View>
+                  // Rencontres désactivées : explication, choix de qui peut me
+                  // voir et activation, ici même — sans détour par le profil.
+                  <EncountersSettings />
                 )
               )}
             />
