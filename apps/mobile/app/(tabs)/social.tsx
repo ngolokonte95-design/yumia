@@ -27,6 +27,7 @@ import { restorePlaybackAudio } from '../../lib/audio-session';
 import { TranslatableText } from '../../components/TranslatableText';
 import { FeatureTip } from '../../components/FeatureTip';
 import { EncountersSettings } from '../../components/EncountersSettings';
+import { VisitsVisibilityBanner } from '../../components/VisitsVisibilityBanner';
 
 const API = API_BASE_URL;
 
@@ -998,6 +999,7 @@ export default function SocialTab() {
           {tab === 'activity' && (
             <FlatList
               data={feed}
+              ListHeaderComponent={<VisitsVisibilityBanner />}
               keyExtractor={(i) => i.id}
               renderItem={({ item }) => (
                 <Pressable style={styles.feedCard} onPress={() => router.push(`/place?id=${item.place.id}`)}>
