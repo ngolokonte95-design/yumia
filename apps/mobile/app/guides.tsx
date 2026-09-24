@@ -22,6 +22,7 @@ import { useLocation } from '../lib/useLocation';
 import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
 import { QUICK_FILTERS, THEME_FACETS, THEME_TITLES } from '../lib/tour-themes';
+import type { TranslationKey } from '../lib/translations';
 
 const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
 
@@ -171,7 +172,7 @@ export default function GuidesScreen() {
         <Text style={styles.whatIcon}>🔍</Text>
         <TextInput
           style={styles.whatInput}
-          placeholder={t('gd_what_placeholder')}
+          placeholder={t(`gd_what_${theme ?? 'guides'}` as TranslationKey)}
           placeholderTextColor={colors.textMuted}
           value={what}
           onChangeText={setWhat}
