@@ -24,6 +24,7 @@ import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
 import { watchPlayerErrors } from '../lib/video-debug';
 import { epochSource, useMediaEpoch } from '../lib/media-epoch';
 import { restorePlaybackAudio } from '../lib/audio-session';
+import { TranslatableText } from '../components/TranslatableText';
 
 /** Écart entre le bouton son et le bloc auteur/légende, en px. */
 const MUTE_GAP = 12;
@@ -703,7 +704,7 @@ function ReelCardBase({
           </Pressable>
         ) : null}
         {item.caption ? (
-          <Text style={styles.reelCaption} numberOfLines={2}>{item.caption}</Text>
+          <TranslatableText text={item.caption} style={styles.reelCaption} numberOfLines={2} tone="light" />
         ) : null}
         {musicMeta?.title ? (
           <Text style={styles.reelMusicRow} numberOfLines={1}>🎵 {musicMeta.title}{musicMeta.artist ? ` • ${musicMeta.artist}` : ''}</Text>

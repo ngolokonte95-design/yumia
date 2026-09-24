@@ -18,6 +18,7 @@ import type { TranslationKey } from '../../lib/translations';
 import { formatCount } from '../../lib/format-count';
 import { parseMusicTrack, isPlayableAudioUrl } from '../../lib/music-track';
 import { isVideoUrl } from '../../lib/is-video-url';
+import { TranslatableText } from '../../components/TranslatableText';
 
 const API = API_BASE_URL;
 
@@ -315,7 +316,14 @@ export default function PostDetailScreen() {
           <Text style={styles.commentCount}>👁 {formatCount(post.viewsCount)}</Text>
         </View>
 
-        {post.caption ? <Text style={styles.caption}><Text style={styles.captionUser}>{post.user?.displayName} </Text>{post.caption}</Text> : null}
+        {post.caption ? (
+          <TranslatableText
+            text={post.caption}
+            render={(shown) => (
+              <Text style={styles.caption}><Text style={styles.captionUser}>{post.user?.displayName} </Text>{shown}</Text>
+            )}
+          />
+        ) : null}
 
         {/* Comments — en fil, avec likes et réponses */}
         <View style={styles.commentsSection}>
@@ -425,7 +433,7 @@ function CommentRow({ comment: c, onLike, onReply, onReport }: { comment: Commen
           </Text>
           <PlanBadgeIcon plan={c.user?.plan} size={28} />
         </View>
-        <Text style={styles.commentText}>{c.content}</Text>
+        <TranslatableText text={c.content} style={styles.commentText} />
         <View style={styles.commentActions}>
           <Text style={styles.commentAgo}>{formatAgo(c.createdAt, t)}</Text>
           <Pressable onPress={onReply} hitSlop={6}>

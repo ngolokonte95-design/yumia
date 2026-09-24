@@ -13,6 +13,7 @@ import { VideoThumb } from '../../components/VideoThumb';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
 import { PostViewer } from '../../components/PostViewer';
+import { TranslatableText } from '../../components/TranslatableText';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
@@ -219,7 +220,7 @@ export default function UserProfileScreen() {
           <Text style={styles.displayName}>{profile.displayName}</Text>
           <PlanBadgeIcon plan={profile.plan} size={42} />
         </View>
-        {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+        {profile.bio ? <TranslatableText text={profile.bio} style={styles.bio} /> : null}
         <Text style={styles.levelBadge}>{t('up_level_xp').replace('{level}', String(profile.level)).replace('{xp}', String(profile.totalXp))}</Text>
       </View>
 

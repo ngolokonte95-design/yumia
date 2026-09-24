@@ -29,6 +29,7 @@ import type { TranslationKey } from '../lib/translations';
 import type { AuthorRef } from '../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from './Avatar';
 import { colors, radius, spacing } from '../theme/tokens';
+import { TranslatableText } from '../components/TranslatableText';
 
 export interface SheetComment {
   id: string;
@@ -280,7 +281,7 @@ export function CommentsSheet({
           <Text style={styles.ago}>{formatAgo(c.createdAt, t)}</Text>
           {c.pinned ? <Text style={styles.ago}>📌</Text> : null}
         </View>
-        <Text style={styles.content}>{c.content}</Text>
+        <TranslatableText text={c.content} style={styles.content} />
         <View style={styles.actions}>
           {!disabled ? (
             <Pressable onPress={() => startReply(root, c)} hitSlop={8}>

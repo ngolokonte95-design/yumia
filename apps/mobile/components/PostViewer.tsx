@@ -48,6 +48,7 @@ import { PostVideo } from './PostVideo';
 import { CommentsSheet } from './CommentsSheet';
 import { parseMusicTrack, isPlayableAudioUrl } from '../lib/music-track';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { TranslatableText } from '../components/TranslatableText';
 
 /** Même détection que le fil et les profils : le backend n'envoie pas de type. */
 function isVideoUrl(url?: string | null): boolean {
@@ -462,7 +463,7 @@ function PostPage({
                 <Text style={styles.place} numberOfLines={1}>📍 {post.place.name}</Text>
               </Pressable>
             ) : null}
-            {post.caption ? <Text style={styles.caption} numberOfLines={3}>{post.caption}</Text> : null}
+            {post.caption ? <TranslatableText text={post.caption} style={styles.caption} numberOfLines={3} tone="light" /> : null}
 
             <View style={styles.actions}>
               <Pressable style={styles.action} onPress={onLike} hitSlop={8}>

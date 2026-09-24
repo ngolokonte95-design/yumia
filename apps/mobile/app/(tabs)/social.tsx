@@ -24,6 +24,7 @@ import { formatCount } from '../../lib/format-count';
 import { parseMusicTrack, isPlayableAudioUrl, type MusicMeta } from '../../lib/music-track';
 import { isVideoUrl } from '../../lib/is-video-url';
 import { restorePlaybackAudio } from '../../lib/audio-session';
+import { TranslatableText } from '../../components/TranslatableText';
 
 const API = API_BASE_URL;
 
@@ -455,10 +456,15 @@ function PostCard({
       </View>
 
       {item.caption ? (
-        <Text style={styles.postCaption} numberOfLines={3}>
-          <Text style={{ fontWeight: '700' }}>{item.user?.displayName} </Text>
-          {item.caption}
-        </Text>
+        <TranslatableText
+          text={item.caption}
+          render={(shown) => (
+            <Text style={styles.postCaption} numberOfLines={3}>
+              <Text style={{ fontWeight: '700' }}>{item.user?.displayName} </Text>
+              {shown}
+            </Text>
+          )}
+        />
       ) : null}
       {item.commentsCount > 0 ? (
         <Pressable onPress={() => onComment(item.id)}>

@@ -6,6 +6,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { ChatService } from './chat.service';
 import { AiService } from '../ai/ai.service';
+import { createHash } from 'crypto';
+import { RedisService } from '../../infra/redis/redis.service';
 
 const LOCALE_NAMES: Record<string, string> = {
   fr: 'French', en: 'English', es: 'Spanish', pt: 'Portuguese', ar: 'Arabic',
@@ -19,6 +21,7 @@ export class ChatController {
   constructor(
     private readonly chat: ChatService,
     private readonly ai: AiService,
+    private readonly redis: RedisService,
   ) {}
 
   /**
@@ -30,14 +33,22 @@ export class ChatController {
   @Post('translate')
   @HttpCode(HttpStatus.OK)
   async translate(@Body() dto: { text: string; targetLocale: string }): Promise<{ translated: string }> {
+    // Sert aussi aux bios, légendes et commentaires (« Voir la traduction ») :
+    // le même texte lu par cent personnes n'est traduit qu'une fois.
+    const text = (dto.text ?? '').slice(0, 2000);
+    if (!text.trim()) return { translated: '' };
+    const cacheKey = `translate:${dto.targetLocale}:${createHash('sha1').update(text).digest('hex')}`;
+    const cached = await this.redis.getJson<string>(cacheKey).catch(() => null);
+    if (cached) return { translated: cached };
     const targetName = LOCALE_NAMES[dto.targetLocale] ?? dto.targetLocale;
     const system = [
       `Translate the user's message into ${targetName}.`,
       'Output ONLY the translation, nothing else — no quotes, no explanation, no original text.',
       'If the message is already in that language, return it unchanged.',
     ].join(' ');
-    const translated = await this.ai.freeChat(system, dto.text, 'fast');
-    return { translated: translated.trim() };
+    const translated = (await this.ai.freeChat(system, text, 'fast')).trim();
+    await this.redis.setJson(cacheKey, translated, 30 * 24 * 60 * 60).catch(() => undefined);
+    return { translated };
   }
 
   /** GET /api/chat/unread-count — conversations non lues (badge de l'onglet Messages). */
