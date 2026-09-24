@@ -68,6 +68,12 @@ model User {
   /// Onglet Rencontres : je vois les membres que je croise et j'apparais chez
   /// eux — seulement entre deux personnes qui l'ont activé. Désactivé par défaut.
   shareEncounters Boolean @default(false)
+  /// Qui voit ma position quand je la partage sur la carte / « à proximité » :
+  /// 'everyone' ou 'friends' (abonnements mutuels). Appliqué par le serveur.
+  mapAudience       String  @default("friends")
+  /// Qui peut me voir dans ses Rencontres : 'everyone', 'female' ou 'male'
+  /// (d'après le genre déclaré de celui qui regarde).
+  encounterAudience String  @default("everyone")
 
   /// Suspension : date de fin, ou null si le compte est actif. Une date très
   /// lointaine vaut bannissement définitif. Exigé par la règle 1.2 de l'App

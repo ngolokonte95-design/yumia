@@ -24,6 +24,16 @@ export class LocationController {
     return this.locationSvc.updateLocation(user.sub, dto.lat, dto.lng, dto.visibility);
   }
 
+  /**
+   * PUT /api/location/encounter — position « Rencontres », envoyée par l'app
+   * ouverte. N'apparaît ni sur la carte ni dans « à proximité ».
+   */
+  @Put('encounter')
+  updateEncounterLocation(@CurrentUser() user: JwtPayload, @Body() dto: { lat: number; lng: number }) {
+    if (!Number.isFinite(dto?.lat) || !Number.isFinite(dto?.lng)) return { status: 'invalid' };
+    return this.locationSvc.updateEncounterLocation(user.sub, dto.lat, dto.lng);
+  }
+
   /** DELETE /api/location/me — se rendre invisible */
   @Delete('me')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -39,15 +49,26 @@ export class LocationController {
     @Query('lng') lng: string,
     @Query('radius') radius?: string,
   ) {
-    const follows = await this.prisma.follow.findMany({ where: { followerId: user.sub }, select: { followingId: true } });
-    const followingIds = follows.map((f) => f.followingId);
+    const [follows, blocks] = await Promise.all([
+      this.prisma.follow.findMany({
+        where: { OR: [{ followerId: user.sub }, { followingId: user.sub }] },
+        select: { followerId: true, followingId: true },
+      }),
+      this.prisma.block.findMany({ where: { OR: [{ blockerId: user.sub }, { blockedId: user.sub }] } }),
+    ]);
+    const iFollow = new Set(follows.filter((f) => f.followerId === user.sub).map((f) => f.followingId));
+    const friendIds = follows
+      .filter((f) => f.followingId === user.sub && iFollow.has(f.followerId))
+      .map((f) => f.followerId);
+    const blockedIds = blocks.map((b) => (b.blockerId === user.sub ? b.blockedId : b.blockerId));
 
     const nearby = await this.locationSvc.getNearbyUsers(
       parseFloat(lat),
       parseFloat(lng),
       radius ? parseFloat(radius) : 5,
       user.sub,
-      followingIds,
+      friendIds,
+      blockedIds,
     );
 
     if (!nearby.length) return [];

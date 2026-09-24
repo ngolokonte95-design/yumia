@@ -31,7 +31,13 @@ export class SocialController {
   @Patch('social/profile/privacy')
   setPrivacy(
     @CurrentUser() user: JwtPayload,
-    @Body() dto: { isPrivate?: boolean; shareVisits?: boolean; shareEncounters?: boolean },
+    @Body() dto: {
+      isPrivate?: boolean;
+      shareVisits?: boolean;
+      shareEncounters?: boolean;
+      mapAudience?: string;
+      encounterAudience?: string;
+    },
   ) {
     return this.social.setPrivacy(user.sub, dto ?? {});
   }

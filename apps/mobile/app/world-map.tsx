@@ -25,7 +25,7 @@ interface WorldUser {
 }
 
 export default function WorldMapScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
@@ -148,6 +148,16 @@ export default function WorldMapScreen() {
           <Text style={styles.broadcastTitle}>
             {broadcasting ? t('wm_visible') : t('wm_invisible')}
           </Text>
+          {/* Qui me verra : rappelé ici, modifiable en un geste. */}
+          <Pressable onPress={() => router.push('/edit-social-profile' as never)} hitSlop={6}>
+            <Text style={styles.audienceLink}>
+              {t('wm_visible_to').replace(
+                '{who}',
+                t(user?.mapAudience === 'everyone' ? 'esp_audience_everyone' : 'esp_audience_friends'),
+              )}
+              {' · '}{t('wm_change')}
+            </Text>
+          </Pressable>
           <Text style={styles.broadcastSub}>
             {permissionDenied
               ? t('wm_perm_denied')
@@ -198,4 +208,5 @@ const styles = StyleSheet.create({
   broadcastBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 16, paddingVertical: 10 },
   broadcastBtnActive: { backgroundColor: '#ef4444' },
   broadcastBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  audienceLink: { color: colors.brandSoft, fontSize: 12, fontWeight: '600', marginTop: 2 },
 });

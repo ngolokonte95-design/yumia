@@ -41,6 +41,10 @@ export interface PublicUser {
   shareVisits: boolean;
   /** Onglet Rencontres activé (voir et être vu des membres croisés). */
   shareEncounters: boolean;
+  /** Qui voit ma position partagée sur la carte (appliqué par le serveur). */
+  mapAudience: 'everyone' | 'friends';
+  /** Qui peut me voir dans ses Rencontres. */
+  encounterAudience: 'everyone' | 'female' | 'male';
   isAdmin: boolean;
 }
 

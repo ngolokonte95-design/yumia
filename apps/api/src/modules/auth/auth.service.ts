@@ -602,6 +602,8 @@ function toPublicUser(user: User): PublicUser {
     isPrivate: (user as any).isPrivate ?? false,
     shareVisits: user.shareVisits,
     shareEncounters: user.shareEncounters,
+    mapAudience: user.mapAudience as PublicUser['mapAudience'],
+    encounterAudience: user.encounterAudience as PublicUser['encounterAudience'],
     isAdmin: (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).includes(user.email.toLowerCase()),
   };
 }

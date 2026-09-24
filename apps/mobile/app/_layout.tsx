@@ -15,6 +15,7 @@ import { refreshUnreadCount } from '../lib/useNotifications';
 import { useDailyDigest } from '../lib/useDailyDigest';
 import { initPurchases } from '../lib/purchases';
 import { useDeepLinks } from '../lib/useDeepLinks';
+import { useEncounterBeacon } from '../lib/useEncounterBeacon';
 import { initSentry } from '../lib/sentry';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { getCachedDeviceLocale, loadDeviceLocale } from '../lib/device-locale';
@@ -47,6 +48,7 @@ function AuthGate() {
   const [deviceLocale, setDeviceLocale] = useState<string | null | undefined>(undefined);
 
   usePushNotifications(accessToken);
+  useEncounterBeacon(accessToken, user?.shareEncounters === true);
   useDailyDigest();
   useDeepLinks();
 

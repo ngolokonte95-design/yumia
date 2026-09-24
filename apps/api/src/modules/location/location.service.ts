@@ -3,6 +3,12 @@ import { RedisService } from '../../infra/redis/redis.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
 const KEY = (userId: string) => `user:loc:${userId}`;
+/**
+ * Position « Rencontres » : distincte de celle de la carte. Envoyée par l'app
+ * ouverte, quel que soit l'écran, elle ne sert qu'à détecter les croisements
+ * et n'apparaît ni sur la carte ni dans « à proximité ».
+ */
+const ENC_KEY = (userId: string) => `user:enc:${userId}`;
 const TTL_SECONDS = 600; // 10 minutes sans update → invisible
 /** Distance en deçà de laquelle deux membres « se croisent ». */
 const ENCOUNTER_RADIUS_KM = 0.1;
@@ -25,14 +31,35 @@ export class LocationService {
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Partage de position sur la carte / « à proximité ». Le client ne choisit
+   * que d'arrêter (`off`) : l'audience vient du réglage `mapAudience` de
+   * l'utilisateur, pour qu'aucune version de l'app ne puisse l'élargir.
+   */
   async updateLocation(userId: string, lat: number, lng: number, visibility: LocationVisibility = 'friends') {
     if (visibility === 'off') {
       await this.redis.raw.del(KEY(userId));
       return { status: 'hidden' };
     }
-    const data: StoredLocation = { lat, lng, visibility, updatedAt: new Date().toISOString() };
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { mapAudience: true } });
+    const effective: LocationVisibility = user?.mapAudience === 'everyone' ? 'map' : 'friends';
+    const data: StoredLocation = { lat, lng, visibility: effective, updatedAt: new Date().toISOString() };
     await this.redis.raw.setex(KEY(userId), TTL_SECONDS, JSON.stringify(data));
-    // En arrière-plan : la mise à jour de position ne doit pas l'attendre.
+    return { status: 'ok', visibility: effective };
+  }
+
+  /**
+   * Position « Rencontres » (PUT /location/encounter), ignorée si les
+   * Rencontres sont désactivées.
+   */
+  async updateEncounterLocation(userId: string, lat: number, lng: number) {
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { shareEncounters: true } });
+    if (!me?.shareEncounters) {
+      await this.redis.raw.del(ENC_KEY(userId));
+      return { status: 'disabled' };
+    }
+    const data = { lat, lng, updatedAt: new Date().toISOString() };
+    await this.redis.raw.setex(ENC_KEY(userId), TTL_SECONDS, JSON.stringify(data));
     void this.recordEncounters(userId, lat, lng).catch((e: Error) =>
       this.logger.warn(`Rencontres non enregistrées : ${e.message}`),
     );
@@ -53,18 +80,14 @@ export class LocationService {
    * DiscoverService.getMyEncounters).
    */
   private async recordEncounters(userId: string, lat: number, lng: number) {
-    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { shareEncounters: true } });
-    if (!me?.shareEncounters) return;
-
     const near: string[] = [];
-    for (const key of await this.redis.raw.keys('user:loc:*')) {
-      const uid = key.replace('user:loc:', '');
+    for (const key of await this.redis.raw.keys('user:enc:*')) {
+      const uid = key.replace('user:enc:', '');
       if (uid === userId) continue;
       const raw = await this.redis.raw.get(key);
       if (!raw) continue;
       try {
-        const loc = JSON.parse(raw) as StoredLocation;
-        if (loc.visibility === 'off') continue;
+        const loc = JSON.parse(raw) as { lat: number; lng: number };
         if (this.haversineKm(lat, lng, loc.lat, loc.lng) <= ENCOUNTER_RADIUS_KM) {
           near.push(uid);
         }
@@ -101,12 +124,23 @@ export class LocationService {
     await this.redis.raw.del(KEY(userId));
   }
 
+  /** Coupe la position Rencontres (Rencontres désactivées). */
+  async hideEncounterLocation(userId: string) {
+    await this.redis.raw.del(ENC_KEY(userId));
+  }
+
+  /**
+   * @param friendIds abonnements MUTUELS du lecteur : seuls eux voient une
+   *   position partagée « aux amis ». Suivre quelqu'un ne suffit pas.
+   * @param blockedIds exclus dans les deux sens.
+   */
   async getNearbyUsers(
     lat: number,
     lng: number,
     radiusKm: number,
     viewerId: string,
-    followingIds: string[],
+    friendIds: string[],
+    blockedIds: string[] = [],
   ): Promise<Array<{ userId: string; lat: number; lng: number; distanceKm: number }>> {
     // Récupère toutes les locations actives
     const keys = await this.redis.raw.keys('user:loc:*');
@@ -118,9 +152,9 @@ export class LocationService {
       try {
         const loc = JSON.parse(raw) as StoredLocation;
         const uid = key.replace('user:loc:', '');
-        if (uid === viewerId) continue;
+        if (uid === viewerId || blockedIds.includes(uid)) continue;
 
-        if (loc.visibility === 'friends' && !followingIds.includes(uid)) continue;
+        if (loc.visibility === 'friends' && !friendIds.includes(uid)) continue;
         if (loc.visibility === 'off') continue;
 
         const dist = this.haversineKm(lat, lng, loc.lat, loc.lng);

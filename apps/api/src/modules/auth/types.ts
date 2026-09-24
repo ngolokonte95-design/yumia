@@ -41,6 +41,8 @@ export interface PublicUser {
   isPrivate: boolean;
   shareVisits: boolean;
   shareEncounters: boolean;
+  mapAudience: 'everyone' | 'friends';
+  encounterAudience: 'everyone' | 'female' | 'male';
   isAdmin: boolean;
 }
 

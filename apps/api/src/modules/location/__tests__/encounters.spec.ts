@@ -18,7 +18,7 @@ describe('LocationService — rencontres', () => {
     mutual?: boolean;
   }) {
     const store = new Map<string, string>([
-      ['user:loc:other', JSON.stringify({ ...NEAR, visibility: opts.otherVisibility ?? 'everyone', updatedAt: '' })],
+      ['user:enc:other', JSON.stringify({ ...NEAR, updatedAt: '' })],
     ]);
     const redis = {
       raw: {
@@ -45,7 +45,8 @@ describe('LocationService — rencontres', () => {
     };
     const service = new LocationService(redis as never, prisma as never);
     const run = async (visibility = 'everyone') => {
-      await service.updateLocation('me', PARIS.lat, PARIS.lng, visibility as never);
+      void visibility;
+      await service.updateEncounterLocation('me', PARIS.lat, PARIS.lng);
       await new Promise((r) => setImmediate(r));
       await new Promise((r) => setImmediate(r));
     };
@@ -82,5 +83,18 @@ describe('LocationService — rencontres', () => {
     const { run, upsert } = setup({ otherVisibility: 'friends', mutual: false });
     await run('friends');
     expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("n'enregistre aucune rencontre depuis le partage sur la carte", async () => {
+    // Carte et Rencontres sont séparées : partager sa position sur la carte
+    // n'expose pas aux Rencontres, et inversement.
+    const { upsert } = setup({});
+    const redis = { raw: { setex: jest.fn(), del: jest.fn(), keys: jest.fn(async () => []), get: jest.fn() } };
+    const prisma = { user: { findUnique: jest.fn(async () => ({ mapAudience: 'friends' })) } };
+    const service = new LocationService(redis as never, prisma as never);
+    const res = await service.updateLocation('me', PARIS.lat, PARIS.lng, 'everyone' as never);
+    // L'audience vient du réglage, pas de ce que demande l'app.
+    expect(res).toEqual({ status: 'ok', visibility: 'friends' });
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

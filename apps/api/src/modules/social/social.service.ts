@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
@@ -97,21 +97,45 @@ export class SocialService {
   /** Réglages de confidentialité : chaque champ absent reste inchangé. */
   async setPrivacy(
     userId: string,
-    dto: { isPrivate?: boolean; shareVisits?: boolean; shareEncounters?: boolean },
+    dto: {
+      isPrivate?: boolean;
+      shareVisits?: boolean;
+      shareEncounters?: boolean;
+      mapAudience?: string;
+      encounterAudience?: string;
+    },
   ) {
-    const data: { isPrivate?: boolean; shareVisits?: boolean; shareEncounters?: boolean } = {};
+    const data: {
+      isPrivate?: boolean;
+      shareVisits?: boolean;
+      shareEncounters?: boolean;
+      mapAudience?: string;
+      encounterAudience?: string;
+    } = {};
     if (typeof dto.isPrivate === 'boolean') data.isPrivate = dto.isPrivate;
     if (typeof dto.shareVisits === 'boolean') data.shareVisits = dto.shareVisits;
     if (typeof dto.shareEncounters === 'boolean') data.shareEncounters = dto.shareEncounters;
+    if (dto.mapAudience !== undefined) {
+      if (!['everyone', 'friends'].includes(dto.mapAudience)) throw new BadRequestException('mapAudience invalide.');
+      data.mapAudience = dto.mapAudience;
+    }
+    if (dto.encounterAudience !== undefined) {
+      if (!['everyone', 'female', 'male'].includes(dto.encounterAudience)) {
+        throw new BadRequestException('encounterAudience invalide.');
+      }
+      data.encounterAudience = dto.encounterAudience;
+    }
     const user = await this.prisma.user.update({
       where: { id: userId },
       data,
-      select: { isPrivate: true, shareVisits: true, shareEncounters: true },
+      select: { isPrivate: true, shareVisits: true, shareEncounters: true, mapAudience: true, encounterAudience: true },
     });
     // Se retirer des Rencontres efface aussi celles déjà enregistrées : elles
     // ne doivent plus apparaître chez personne.
     if (dto.shareEncounters === false) {
       await this.prisma.encounter.deleteMany({ where: { OR: [{ userAId: userId }, { userBId: userId }] } });
+      // La position Rencontres expire seule en 10 min ; la détection ignore
+      // de toute façon un membre qui a désactivé les Rencontres.
     }
     return user;
   }

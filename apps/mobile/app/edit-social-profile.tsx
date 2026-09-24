@@ -12,6 +12,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
+import * as Location from 'expo-location';
 
 const API = API_BASE_URL;
 
@@ -43,6 +44,21 @@ export default function EditSocialProfileScreen() {
   const [isPrivate, setIsPrivate] = useState<boolean>(user?.isPrivate ?? false);
   const [shareVisits, setShareVisits] = useState<boolean>(user?.shareVisits ?? false);
   const [shareEncounters, setShareEncounters] = useState<boolean>(user?.shareEncounters ?? false);
+  const [mapAudience, setMapAudience] = useState<'everyone' | 'friends'>(user?.mapAudience ?? 'friends');
+  const [encounterAudience, setEncounterAudience] = useState<'everyone' | 'female' | 'male'>(
+    user?.encounterAudience ?? 'everyone',
+  );
+
+  /**
+   * Activer les Rencontres demande la localisation (au premier plan
+   * seulement) : sans elle, aucun croisement ne peut être détecté. Refusée,
+   * le réglage reste désactivé plutôt que d'être actif et sans effet.
+   */
+  const toggleEncounters = async (on: boolean) => {
+    if (!on) { setShareEncounters(false); return; }
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    setShareEncounters(status === 'granted');
+  };
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
@@ -85,7 +101,7 @@ export default function EditSocialProfileScreen() {
         await fetch(`${API}/social/profile/privacy`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({ isPrivate, shareVisits, shareEncounters }),
+          body: JSON.stringify({ isPrivate, shareVisits, shareEncounters, mapAudience, encounterAudience }),
         }).catch(() => {});
         // L'onglet Social lit ces réglages sur l'utilisateur en mémoire.
         await reloadUser().catch(() => {});
@@ -242,10 +258,51 @@ export default function EditSocialProfileScreen() {
           </View>
           <Switch
             value={shareEncounters}
-            onValueChange={setShareEncounters}
+            onValueChange={(v) => void toggleEncounters(v)}
             trackColor={{ false: colors.border, true: colors.brand }}
             thumbColor="#fff"
           />
+        </View>
+        {shareEncounters && (
+          <View style={{ marginTop: spacing.sm }}>
+            <Text style={styles.toggleSub}>{t('esp_enc_audience_title')}</Text>
+            <View style={[styles.chips, { marginTop: 6 }]}>
+              {(['everyone', 'female', 'male'] as const).map((a) => (
+                <Pressable
+                  key={a}
+                  style={[styles.chip, encounterAudience === a && styles.chipActive]}
+                  onPress={() => setEncounterAudience(a)}
+                >
+                  <Text style={[styles.chipText, encounterAudience === a && styles.chipTextActive]}>
+                    {t(a === 'everyone' ? 'esp_audience_everyone' : a === 'female' ? 'esp_audience_female' : 'esp_audience_male')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {encounterAudience !== 'everyone' && (
+              <Text style={[styles.toggleSub, { marginTop: 6 }]}>{t('esp_enc_audience_note')}</Text>
+            )}
+          </View>
+        )}
+
+        {/* Carte : qui voit ma position quand je la partage. Le serveur
+            applique ce choix, quelle que soit la version de l'app. */}
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={styles.toggleTitle}>{t('esp_map_title')}</Text>
+          <Text style={styles.toggleSub}>{t('esp_map_sub')}</Text>
+          <View style={[styles.chips, { marginTop: 6 }]}>
+            {(['everyone', 'friends'] as const).map((a) => (
+              <Pressable
+                key={a}
+                style={[styles.chip, mapAudience === a && styles.chipActive]}
+                onPress={() => setMapAudience(a)}
+              >
+                <Text style={[styles.chipText, mapAudience === a && styles.chipTextActive]}>
+                  {t(a === 'everyone' ? 'esp_audience_everyone' : 'esp_audience_friends')}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       </View>
 

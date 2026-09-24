@@ -40,12 +40,27 @@ export class DiscoverService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  // ── World Map ── all users with visibility 'map' or 'everyone' ────────────
+  // ── World Map ── positions « tout le monde », plus celles « amis » des
+  //    abonnements mutuels ; jamais un blocage, dans un sens ou dans l'autre.
+  //    L'audience a été fixée par le réglage `mapAudience` du propriétaire.
 
   async getWorldMapUsers(viewerId: string, interestedIn?: string): Promise<Array<{
     userId: string; lat: number; lng: number;
     displayName: string; photoUrl?: string | null; bio?: string | null; gender?: string | null;
   }>> {
+    const [follows, blocks] = await Promise.all([
+      this.prisma.follow.findMany({
+        where: { OR: [{ followerId: viewerId }, { followingId: viewerId }] },
+        select: { followerId: true, followingId: true },
+      }),
+      this.prisma.block.findMany({ where: { OR: [{ blockerId: viewerId }, { blockedId: viewerId }] } }),
+    ]);
+    const iFollow = new Set(follows.filter((f) => f.followerId === viewerId).map((f) => f.followingId));
+    const friends = new Set(
+      follows.filter((f) => f.followingId === viewerId && iFollow.has(f.followerId)).map((f) => f.followerId),
+    );
+    const blocked = new Set(blocks.map((b) => (b.blockerId === viewerId ? b.blockedId : b.blockerId)));
+
     const keys = await this.redis.raw.keys('user:loc:*');
     const visibleIds: Array<{ userId: string; lat: number; lng: number }> = [];
 
@@ -55,10 +70,11 @@ export class DiscoverService {
       try {
         const loc = JSON.parse(raw) as StoredLocation;
         const uid = key.replace('user:loc:', '');
-        if (uid === viewerId) continue;
-        if (loc.visibility === 'map' || loc.visibility === 'everyone') {
-          visibleIds.push({ userId: uid, lat: loc.lat, lng: loc.lng });
-        }
+        if (uid === viewerId || blocked.has(uid)) continue;
+        const visible =
+          loc.visibility === 'map' || loc.visibility === 'everyone' ||
+          (loc.visibility === 'friends' && friends.has(uid));
+        if (visible) visibleIds.push({ userId: uid, lat: loc.lat, lng: loc.lng });
       } catch { /* ignore */ }
     }
 
@@ -149,7 +165,7 @@ export class DiscoverService {
    * croisé, pas qui est à côté maintenant. Ni lieu ni heure dans la réponse.
    */
   async getMyEncounters(userId: string, limit = 20) {
-    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { shareEncounters: true } });
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { shareEncounters: true, gender: true } });
     if (!me?.shareEncounters) return [];
 
     const records = await this.prisma.encounter.findMany({
@@ -164,7 +180,7 @@ export class DiscoverService {
     const [users, blocks] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: otherIds }, shareEncounters: true },
-        select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true },
+        select: { id: true, displayName: true, photoUrl: true, plan: true, bio: true, level: true, encounterAudience: true },
       }),
       this.prisma.block.findMany({
         where: { OR: [{ blockerId: userId, blockedId: { in: otherIds } }, { blockedId: userId, blockerId: { in: otherIds } }] },
@@ -176,8 +192,12 @@ export class DiscoverService {
     return records
       .flatMap((e) => {
         const otherId = e.userAId === userId ? e.userBId : e.userAId;
-        const otherUser = userMap.get(otherId);
-        if (!otherUser || blocked.has(otherId)) return [];
+        const other = userMap.get(otherId);
+        if (!other || blocked.has(otherId)) return [];
+        // L'autre a choisi qui peut le voir : « femmes » ou « hommes »
+        // uniquement, d'après le genre déclaré de celui qui regarde.
+        if (other.encounterAudience !== 'everyone' && other.encounterAudience !== me.gender) return [];
+        const { encounterAudience: _audience, ...otherUser } = other;
         return [{ id: e.id, day: e.day.toISOString().slice(0, 10), otherUser }];
       })
       .slice(0, limit);
