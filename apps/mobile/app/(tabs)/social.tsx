@@ -11,7 +11,7 @@ import { useAuth } from '../../lib/auth-context';
 import { promptReport } from '../../lib/report-content';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
-import { feedApi, type FeedPost, type StoryGroup, type Plan } from '../../lib/feed-api';
+import { feedApi, FEED_PAGE_SIZE, oldestPostId, type FeedPost, type StoryGroup, type Plan } from '../../lib/feed-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PostVideo } from '../../components/PostVideo';
 import { CommentsSheet } from '../../components/CommentsSheet';
@@ -490,6 +490,9 @@ export default function SocialTab() {
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [globalPosts, setGlobalPosts] = useState<FeedPost[]>([]);
   const [followingPosts, setFollowingPosts] = useState<FeedPost[]>([]);
+  // Défilement infini : reste-t-il des pages, et une est-elle en cours ?
+  const [hasMore, setHasMore] = useState<{ foryou: boolean; following: boolean }>({ foryou: true, following: true });
+  const [loadingMore, setLoadingMore] = useState<'foryou' | 'following' | null>(null);
   // Publication dont la fenêtre des commentaires est ouverte (null = fermée).
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const bumpComments = useCallback((postId: string, delta: number) => {
@@ -710,6 +713,10 @@ export default function SocialTab() {
     if (storiesRes.status === 'fulfilled') setStories(storiesRes.value);
     if (globalRes.status === 'fulfilled') setGlobalPosts(globalRes.value);
     if (followRes.status === 'fulfilled') setFollowingPosts(followRes.value);
+    setHasMore({
+      foryou: globalRes.status === 'fulfilled' && globalRes.value.length >= FEED_PAGE_SIZE,
+      following: followRes.status === 'fulfilled' && followRes.value.length >= FEED_PAGE_SIZE,
+    });
     if (actRes.status === 'fulfilled' && actRes.value?.ok) setFeed(await actRes.value.json());
     if (encRes.status === 'fulfilled' && encRes.value?.ok) setEncounters(await encRes.value.json());
     if (followingRes.status === 'fulfilled' && followingRes.value?.ok) {
@@ -829,10 +836,44 @@ export default function SocialTab() {
     ? <ActivityIndicator color={colors.brand} style={{ marginTop: 60 }} />
     : content;
 
-  const renderPostList = (data: FeedPost[], emptyEmoji: string, emptyTitle: string, emptyText: string, withStories: boolean) => (
+  /**
+   * Page suivante du fil, à l'approche du bas. Avant, l'app s'arrêtait aux 30
+   * dernières publications : une publication sortait du fil dès que 30 plus
+   * récentes arrivaient, et n'était plus visible que sur le profil.
+   */
+  const loadMore = useCallback(async (kind: 'foryou' | 'following') => {
+    if (!accessToken || loadingMore || !hasMore[kind]) return;
+    const current = kind === 'foryou' ? globalPosts : followingPosts;
+    const cursor = oldestPostId(current);
+    if (!cursor) return;
+    setLoadingMore(kind);
+    try {
+      const page = kind === 'foryou'
+        ? await feedApi.globalFeed(accessToken, FEED_PAGE_SIZE, cursor)
+        : await feedApi.followingFeed(accessToken, FEED_PAGE_SIZE, cursor);
+      const append = (prev: FeedPost[]) => {
+        const seen = new Set(prev.map((p) => p.id));
+        return [...prev, ...page.filter((p) => !seen.has(p.id))];
+      };
+      if (kind === 'foryou') setGlobalPosts(append); else setFollowingPosts(append);
+      setHasMore((h) => ({ ...h, [kind]: page.length >= FEED_PAGE_SIZE }));
+    } finally {
+      setLoadingMore(null);
+    }
+  }, [accessToken, loadingMore, hasMore, globalPosts, followingPosts]);
+
+  const renderPostList = (
+    data: FeedPost[], emptyEmoji: string, emptyTitle: string, emptyText: string, withStories: boolean,
+    kind: 'foryou' | 'following',
+  ) => (
     <FlatList
       data={data}
       keyExtractor={(p) => p.id}
+      onEndReached={() => void loadMore(kind)}
+      onEndReachedThreshold={0.6}
+      ListFooterComponent={loadingMore === kind
+        ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.lg }} />
+        : null}
       viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
       {...FEED_PERF_PROPS}
       ListHeaderComponent={withStories ? (
@@ -992,9 +1033,9 @@ export default function SocialTab() {
             ))}
           </View>
 
-          {tab === 'foryou' && renderPostList(globalPosts, '✨', t('social_empty_foryou_title'), t('social_empty_foryou_text'), true)}
+          {tab === 'foryou' && renderPostList(globalPosts, '✨', t('social_empty_foryou_title'), t('social_empty_foryou_text'), true, 'foryou')}
 
-          {tab === 'following' && renderPostList(followingPosts, '📸', t('social_empty_following_title'), t('social_empty_following_text'), true)}
+          {tab === 'following' && renderPostList(followingPosts, '📸', t('social_empty_following_title'), t('social_empty_following_text'), true, 'following')}
 
           {tab === 'activity' && (
             <FlatList

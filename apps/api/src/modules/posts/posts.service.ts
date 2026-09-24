@@ -248,7 +248,11 @@ export class PostsService {
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
-    // Les comptes favoris remontent en tête du feed (façon « Favoris » d'Instagram).
+    // Les comptes favoris remontent en tête du feed (façon « Favoris » d'Instagram)
+    // — sur la première page seulement : les suivantes, chargées au défilement,
+    // restent dans l'ordre chronologique, sinon chaque page recommencerait par
+    // des favoris au milieu du fil.
+    if (cursor) return this.hydratePosts(posts, userId);
     const favoriteSet = new Set(favorites.map((f) => f.favoriteId));
     const sorted = [...posts].sort((a, b) => {
       const aFav = favoriteSet.has(a.userId) ? 0 : 1;

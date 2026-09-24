@@ -123,13 +123,30 @@ async function safe<T>(r: Response, fallback: T): Promise<T> {
   try { return (await r.json()) as T; } catch { return fallback; }
 }
 
+/** Publications par page du fil ; une page pleine signale qu'il en reste. */
+export const FEED_PAGE_SIZE = 30;
+
+/**
+ * Curseur de la page suivante : la publication la plus ANCIENNE de la liste,
+ * pas la dernière affichée — le fil Abonnements remonte les favoris en tête,
+ * si bien que la dernière affichée n'est pas forcément la plus ancienne.
+ */
+export function oldestPostId(posts: FeedPost[]): string | undefined {
+  let oldest: FeedPost | undefined;
+  for (const p of posts) if (!oldest || p.createdAt < oldest.createdAt) oldest = p;
+  return oldest?.id;
+}
+
 export const feedApi = {
   // ── Posts ──────────────────────────────────────────────────────────────
-  globalFeed: (token: string, limit = 30) =>
-    fetch(`${API}/posts/global?limit=${limit}`, { headers: auth(token) }).then((r) => safe<FeedPost[]>(r, [])),
+  /** `cursor` : id de la publication la plus ANCIENNE déjà reçue (page suivante). */
+  globalFeed: (token: string, limit = FEED_PAGE_SIZE, cursor?: string) =>
+    fetch(`${API}/posts/global?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`, { headers: auth(token) })
+      .then((r) => safe<FeedPost[]>(r, [])),
 
-  followingFeed: (token: string, limit = 30) =>
-    fetch(`${API}/posts/feed?limit=${limit}`, { headers: auth(token) }).then((r) => safe<FeedPost[]>(r, [])),
+  followingFeed: (token: string, limit = FEED_PAGE_SIZE, cursor?: string) =>
+    fetch(`${API}/posts/feed?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`, { headers: auth(token) })
+      .then((r) => safe<FeedPost[]>(r, [])),
 
   savedPosts: (token: string, limit = 30) =>
     fetch(`${API}/posts/saved?limit=${limit}`, { headers: auth(token) }).then((r) => safe<FeedPost[]>(r, [])),
