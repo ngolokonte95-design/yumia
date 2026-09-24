@@ -2,8 +2,8 @@ import { LocationService } from '../location.service';
 
 /**
  * Règles de sécurité des Rencontres : une rencontre n'est enregistrée
- * qu'entre deux membres consentants, jamais malgré un blocage, et seulement
- * entre amis mutuels quand l'un partage sa position « aux amis » seulement.
+ * qu'entre deux membres consentants, jamais malgré un blocage — et sans
+ * exiger d'abonnement : le but est de rencontrer de nouvelles personnes.
  */
 describe('LocationService — rencontres', () => {
   const PARIS = { lat: 48.8566, lng: 2.3522 };
@@ -76,12 +76,11 @@ describe('LocationService — rencontres', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it('exige des amis mutuels quand la position est partagée aux amis seulement', async () => {
-    const oneWay = setup({ otherVisibility: 'friends', mutual: false });
-    await oneWay.run();
-    expect(oneWay.upsert).not.toHaveBeenCalled();
-    const mutual = setup({ otherVisibility: 'friends', mutual: true });
-    await mutual.run();
-    expect(mutual.upsert).toHaveBeenCalledTimes(1);
+  it("fonctionne entre inconnus : aucun abonnement n'est exigé", async () => {
+    // Le but des Rencontres est d'en faire de nouvelles, y compris quand la
+    // position n'est partagée qu'« aux amis » pour la carte.
+    const { run, upsert } = setup({ otherVisibility: 'friends', mutual: false });
+    await run('friends');
+    expect(upsert).toHaveBeenCalledTimes(1);
   });
 });
