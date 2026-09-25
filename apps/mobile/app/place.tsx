@@ -15,6 +15,7 @@ import {
   Share,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import type { VisitFeedback } from '../lib/passport-api';
@@ -83,11 +84,33 @@ export default function PlaceScreen() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewBody, setReviewBody] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  /** Mon avis sur ce lieu, s'il existe : affiché, modifiable et supprimable. */
+  const [myReview, setMyReview] = useState<{ rating: number; body: string | null } | null>(null);
   // Tous les partenaires configurés pour l'univers de ce lieu (pas juste le
   // premier) — un musée par ex. peut avoir GetYourGuide ET Viator, on montre
   // les deux plutôt que d'arbitrairement en cacher un.
   const [affiliateProviders, setAffiliateProviders] = useState<string[]>([]);
   const [bookingLoadingProvider, setBookingLoadingProvider] = useState<string | null>(null);
+
+  // Mon avis sur ce lieu (null si je n'en ai pas laissé).
+  useEffect(() => {
+    const placeId = suggestion?.place.id;
+    if (!accessToken || !placeId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${(await import('../lib/api')).apiBase}/places/${placeId}/reviews/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const text = res.ok ? await res.text() : '';
+        const review = text ? (JSON.parse(text) as { rating: number; body: string | null } | null) : null;
+        if (!cancelled) setMyReview(review ? { rating: review.rating, body: review.body ?? null } : null);
+      } catch {
+        // silencieux : sans réseau, le bouton « Écrire un avis » reste proposé
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [accessToken, suggestion?.place.id]);
 
   // Partenaires de réservation dispo pour ce lieu (silencieux si aucun — la
   // plupart des univers n'en ont pas, ce n'est pas une erreur).
@@ -479,7 +502,7 @@ export default function PlaceScreen() {
           {accessToken ? (
             <View style={reviewFormStyles.section}>
               <View style={reviewFormStyles.header}>
-                <Text style={reviewFormStyles.title}>{t('place_leave_review')}</Text>
+                <Text style={reviewFormStyles.title}>{t(myReview && !reviewModal ? 'place_your_review' : 'place_leave_review')}</Text>
               </View>
               {reviewModal ? (
                 <View style={reviewFormStyles.form}>
@@ -511,11 +534,12 @@ export default function PlaceScreen() {
                         if (reviewRating === 0 || !accessToken) return;
                         setReviewSubmitting(true);
                         try {
-                          await fetch(`${(await import('../lib/api')).apiBase}/places/${place.id}/reviews`, {
+                          const res = await fetch(`${(await import('../lib/api')).apiBase}/places/${place.id}/reviews`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
                             body: JSON.stringify({ rating: reviewRating, body: reviewBody || undefined }),
                           });
+                          if (res.ok) setMyReview({ rating: reviewRating, body: reviewBody.trim() || null });
                           setReviewModal(false);
                           setReviewBody('');
                           setReviewRating(0);
@@ -525,6 +549,50 @@ export default function PlaceScreen() {
                       }}
                     >
                       <Text style={reviewFormStyles.submitText}>{reviewSubmitting ? '…' : t('place_publish')}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : myReview ? (
+                // Mon avis existant : je peux le modifier ou le supprimer.
+                <View style={reviewFormStyles.form}>
+                  <Text style={reviewFormStyles.star}>{'⭐'.repeat(myReview.rating)}{'☆'.repeat(5 - myReview.rating)}</Text>
+                  {myReview.body ? <Text style={reviewFormStyles.myBody}>{myReview.body}</Text> : null}
+                  <View style={reviewFormStyles.formBtns}>
+                    <Pressable
+                      style={reviewFormStyles.cancelBtn}
+                      onPress={() => {
+                        Alert.alert(t('place_delete_review_title'), t('place_delete_review_body'), [
+                          { text: t('place_cancel'), style: 'cancel' },
+                          {
+                            text: t('chat_delete'),
+                            style: 'destructive',
+                            onPress: async () => {
+                              if (!accessToken) return;
+                              try {
+                                const res = await fetch(`${(await import('../lib/api')).apiBase}/places/${place.id}/reviews/me`, {
+                                  method: 'DELETE',
+                                  headers: { Authorization: `Bearer ${accessToken}` },
+                                });
+                                if (res.ok) setMyReview(null);
+                              } catch {
+                                // réseau : l'avis reste affiché, on peut réessayer
+                              }
+                            },
+                          },
+                        ]);
+                      }}
+                    >
+                      <Text style={reviewFormStyles.deleteText}>{t('chat_delete')}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={reviewFormStyles.submitBtn}
+                      onPress={() => {
+                        setReviewRating(myReview.rating);
+                        setReviewBody(myReview.body ?? '');
+                        setReviewModal(true);
+                      }}
+                    >
+                      <Text style={reviewFormStyles.submitText}>{t('place_edit_review')}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -1181,6 +1249,8 @@ const hoursStyles = StyleSheet.create({
 });
 
 const reviewFormStyles = StyleSheet.create({
+  myBody: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  deleteText: { color: colors.danger, fontWeight: '700' },
   section: {
     marginTop: spacing.md,
     backgroundColor: colors.surface,

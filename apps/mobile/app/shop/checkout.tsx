@@ -56,6 +56,30 @@ export default function CheckoutScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
+  /** Supprime une adresse enregistrée (les commandes passées gardent la leur). */
+  function confirmDeleteAddress(a: ShippingAddress) {
+    Alert.alert('Supprimer cette adresse ?', `${a.fullName}, ${a.line1}, ${a.city}`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          if (!accessToken) return;
+          try {
+            await shopApi.deleteAddress(accessToken, a.id);
+            setAddresses((prev) => {
+              const next = prev.filter((x) => x.id !== a.id);
+              if (selectedId === a.id) setSelectedId(next[0]?.id ?? null);
+              return next;
+            });
+          } catch {
+            Alert.alert('Suppression impossible', 'Réessaie dans un instant.');
+          }
+        },
+      },
+    ]);
+  }
+
   async function saveAddress() {
     if (!accessToken) return;
     const required: Array<[keyof typeof form, string]> = [
@@ -136,6 +160,9 @@ export default function CheckoutScreen() {
               <Text style={styles.addressLine}>{a.postalCode} {a.city} · {a.countryCode}</Text>
               <Text style={styles.addressPhone}>{a.phone}</Text>
             </View>
+            <Pressable onPress={() => confirmDeleteAddress(a)} hitSlop={10} accessibilityLabel="Supprimer cette adresse">
+              <Text style={styles.addressDelete}>Supprimer</Text>
+            </Pressable>
           </Pressable>
         ))}
 
@@ -254,6 +281,7 @@ const styles = StyleSheet.create({
   addressName: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   addressLine: { fontSize: 13, color: colors.textSecondary },
   addressPhone: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  addressDelete: { fontSize: 12, fontWeight: '700', color: colors.danger, marginLeft: spacing.sm },
 
   addAddressBtn: {
     borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,

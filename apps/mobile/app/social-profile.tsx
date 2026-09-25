@@ -55,6 +55,29 @@ export default function SocialProfileScreen() {
   const [highlights, setHighlights] = useState<StoryHighlight[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeHighlight, setActiveHighlight] = useState<StoryHighlight | null>(null);
+
+  /** Supprime la story à la une ouverte (ses fichiers sont effacés côté serveur). */
+  const confirmDeleteHighlight = () => {
+    const hl = activeHighlight;
+    if (!hl || !accessToken) return;
+    Alert.alert(t('sp_delete_highlight_title'), t('sp_delete_highlight_body'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('sp_delete'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await feedApi.deleteHighlight(accessToken, hl.id);
+            if (!res.ok) throw new Error(String(res.status));
+            setHighlights((prev) => prev.filter((h) => h.id !== hl.id));
+            setActiveHighlight(null);
+          } catch {
+            Alert.alert(t('sp_impossible'), t('sp_delete_highlight_error'));
+          }
+        },
+      },
+    ]);
+  };
   const [hasActiveStory, setHasActiveStory] = useState(false);
   const [profileTab, setProfileTab] = useState<ProfileTab>('grid');
   const [loading, setLoading] = useState(true);
@@ -289,7 +312,7 @@ export default function SocialProfileScreen() {
           <Text style={styles.hlLabel} numberOfLines={1}>{t('sp_new_highlight')}</Text>
         </Pressable>
         {highlights.map((hl) => (
-          <Pressable key={hl.id} style={styles.hlItem} onPress={() => setActiveHighlight(hl)}>
+          <Pressable key={hl.id} style={styles.hlItem} onPress={() => setActiveHighlight(hl)} onLongPress={() => setActiveHighlight(hl)}>
             <View style={styles.hlBubble}>
               {hl.coverUrl ? (
                 <Image source={{ uri: hl.coverUrl }} style={styles.hlCover} />
@@ -528,9 +551,14 @@ export default function SocialProfileScreen() {
         <View style={styles.hlViewer}>
           <View style={[styles.hlViewerHeader, { paddingTop: insets.top + 8 }]}>
             <Text style={styles.hlViewerTitle}>{activeHighlight?.title}</Text>
-            <Pressable onPress={() => setActiveHighlight(null)} hitSlop={12}>
-              <Text style={styles.hlViewerClose}>✕</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+              <Pressable onPress={confirmDeleteHighlight} hitSlop={12} accessibilityLabel={t('sp_delete_highlight_title')}>
+                <Text style={styles.hlViewerClose}>🗑</Text>
+              </Pressable>
+              <Pressable onPress={() => setActiveHighlight(null)} hitSlop={12}>
+                <Text style={styles.hlViewerClose}>✕</Text>
+              </Pressable>
+            </View>
           </View>
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
             {activeHighlight?.items.map((it) => (
