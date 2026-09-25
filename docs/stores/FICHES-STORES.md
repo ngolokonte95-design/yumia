@@ -14,7 +14,7 @@ Les limites de caractères sont indiquées ; respecte-les (Apple tronque sans pr
 
 ### Nom de l'app (max 30)
 ```
-YUMIA : Sorties, IA & Cadeaux
+YUMIA : Sorties, IA & Vacances
 ```
 
 ### Sous-titre (max 30)
@@ -29,7 +29,7 @@ Une envie, une humeur, un lieu parfait en trois secondes. Et quand l'envie est d
 
 ### Mots-clés (max 100, séparés par des virgules, SANS espaces inutiles)
 ```
-sortie,restaurant,café,bar,cadeau,boutique,itinéraire,voyage,IA,date,famille,autour de moi
+sortie,restaurant,café,bar,cadeau,boutique,itinéraire,voyage,IA,date,famille,autour de moi,vacances
 ```
 
 ### Description (max 4000)
@@ -88,7 +88,7 @@ Bienvenue sur YUMIA ! Première version : Top 3 contextuel par IA, itinéraires 
 
 ### Titre (max 30)
 ```
-YUMIA : Sorties, IA & Cadeaux
+YUMIA : Sorties, IA & Vacances
 ```
 
 ### Description courte (max 80)
@@ -142,7 +142,7 @@ Tes envies, partout.
 
 ### App name (max 30)
 ```
-YUMIA: Outings, AI & Gifts
+YUMIA: Outings, AI & Holidays
 ```
 
 ### Subtitle (max 30)

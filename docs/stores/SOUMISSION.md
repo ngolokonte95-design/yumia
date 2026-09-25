@@ -69,7 +69,7 @@ vérification d'identité. Ce qui est exigé, c'est que la question soit posée 
 
 | Champ | Valeur |
 |---|---|
-| Nom | `YUMIA : Sorties, IA & Cadeaux` |
+| Nom | `YUMIA : Sorties, IA & Vacances` |
 | Sous-titre | `Sorties, voyages et cadeaux` |
 | Catégorie principale | Voyages |
 | Catégorie secondaire | Cuisine et boissons |
@@ -224,7 +224,7 @@ Les trois abonnements passent par l'achat intégré.
 
 | Champ | Valeur |
 |---|---|
-| Titre | `YUMIA : Sorties, IA & Cadeaux` |
+| Titre | `YUMIA : Sorties, IA & Vacances` |
 | Description courte | `Sorties, itinéraires, cadeaux : l'IA choisit le lieu parfait autour de toi.` |
 | Description complète | `FICHES-STORES.md` |
 | Catégorie | Style de vie |
