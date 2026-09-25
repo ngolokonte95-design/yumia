@@ -4,7 +4,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
@@ -554,9 +554,18 @@ export default function SocialTab() {
   // immédiatement au lieu d'écraser la ref — sinon deux sons jouent en parallèle
   // (l'ancien devient orphelin, plus jamais stoppable).
   const playGenRef = useRef(0);
+  /**
+   * Publication dont la musique joue ou DÉMARRE. L'état `playingMusicId`
+   * n'est à jour qu'au rendu suivant : entre le rappel de visibilité et ce
+   * rendu, un second déclencheur relançait la même piste — lecteur créé,
+   * détruit, recréé en 50 ms, à chaque changement de publication (mesuré
+   * image par image). La ref, elle, est à jour immédiatement.
+   */
+  const playingPostIdRef = useRef<string | null>(null);
 
   const stopMusic = useCallback(async () => {
     playGenRef.current += 1;
+    playingPostIdRef.current = null;
     if (musicSoundRef.current) {
       musicSoundRef.current.pause();
       musicSoundRef.current.remove();
@@ -579,13 +588,16 @@ export default function SocialTab() {
 
   const startTrack = useCallback(async (postId: string, previewUrl: string) => {
     const myGen = ++playGenRef.current;
+    playingPostIdRef.current = postId;
     if (musicSoundRef.current) {
       musicSoundRef.current.pause();
       musicSoundRef.current.remove();
       musicSoundRef.current = null;
     }
     try {
-      await setAudioModeAsync({ playsInSilentMode: true });
+      // Le mode audio (lecture, même en silencieux) est posé une fois à
+      // l'ouverture de l'écran par restorePlaybackAudio() : le refaire ici
+      // coûtait 15 à 35 ms de session audio iOS à chaque musique.
       const sound = createAudioPlayer(previewUrl);
       sound.loop = true;
       if (myGen !== playGenRef.current) {
@@ -603,13 +615,13 @@ export default function SocialTab() {
       // suivante : on repart toujours en lecture.
       setMusicPaused(false);
     } catch {
-      if (myGen === playGenRef.current) setPlayingMusicId(null);
+      if (myGen === playGenRef.current) { playingPostIdRef.current = null; setPlayingMusicId(null); }
     }
   }, [makeStatusCb]);
 
   // Auto-play à la visibilité (ne redémarre pas si déjà en cours)
   const autoPlayPost = useCallback(async (postId: string, previewUrl: string) => {
-    if (playingMusicId === postId) return;
+    if (playingMusicId === postId || playingPostIdRef.current === postId) return;
     if (!isPlayableAudioUrl(previewUrl)) { await stopMusic(); return; }
     await startTrack(postId, previewUrl);
   }, [playingMusicId, stopMusic, startTrack]);
@@ -649,18 +661,93 @@ export default function SocialTab() {
   const stopMusicRef = useRef(stopMusic);
   stopMusicRef.current = stopMusic;
 
+  /**
+   * Démarrer une musique bloque le fil principal (`play()` mesuré à 55 ms sur
+   * un lecteur tout neuf), monter la vidéo voisine aussi (~30 ms). Pendant un
+   * défilement, ce sont des à-coups ; à l'arrêt, personne ne les voit. On
+   * mémorise donc l'intention (jouer telle piste, ou couper) et le
+   * préchargement du voisin, et on les applique quand le défilement s'arrête.
+   * La vidéo VISIBLE, elle, démarre tout de suite (`visiblePostId`).
+   */
+  type MusicIntent = { kind: 'play'; postId: string; previewUrl: string } | { kind: 'stop' };
+  const scrollingRef = useRef(false);
+  const pendingMusicRef = useRef<MusicIntent | null>(null);
+  const pendingIndexRef = useRef<number | null>(null);
+  const dragEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyPendingMusic = useRef(() => {
+    const intent = pendingMusicRef.current;
+    pendingMusicRef.current = null;
+    if (!intent) return;
+    if (intent.kind === 'stop') void stopMusicRef.current();
+    else void autoPlayPostRef.current(intent.postId, intent.previewUrl);
+  }).current;
+
+  const requestMusic = useRef((intent: MusicIntent) => {
+    if (intent.kind === 'play' && playingPostIdRef.current === intent.postId) { pendingMusicRef.current = null; return; }
+    if (intent.kind === 'stop' && !playingPostIdRef.current && !musicSoundRef.current) { pendingMusicRef.current = null; return; }
+    pendingMusicRef.current = intent;
+    if (!scrollingRef.current) applyPendingMusic();
+  }).current;
+
+  const onScrollSettled = useRef(() => {
+    scrollingRef.current = false;
+    if (pendingIndexRef.current !== null) { setActiveIndex(pendingIndexRef.current); pendingIndexRef.current = null; }
+    applyPendingMusic();
+  }).current;
+
+  const clearDragEndTimer = () => {
+    if (dragEndTimer.current) { clearTimeout(dragEndTimer.current); dragEndTimer.current = null; }
+  };
+  const scrollHandlers = useRef({
+    onScrollBeginDrag: () => { clearDragEndTimer(); scrollingRef.current = true; },
+    onMomentumScrollBegin: () => { clearDragEndTimer(); scrollingRef.current = true; },
+    onMomentumScrollEnd: () => { clearDragEndTimer(); onScrollSettled(); },
+    // Le doigt se lève : s'il n'y a pas d'élan derrière (onMomentumScrollBegin
+    // dans les 120 ms), le défilement est fini.
+    onScrollEndDrag: () => {
+      clearDragEndTimer();
+      dragEndTimer.current = setTimeout(() => { dragEndTimer.current = null; onScrollSettled(); }, 120);
+    },
+  }).current;
+
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  /**
+   * Entre deux publications, aucune n'atteint 60 % de visibilité : le rappel
+   * arrive VIDE pendant ~50 ms, puis avec la suivante. Y réagir tout de suite
+   * arrêtait la musique (lecteur détruit), coupait la vidéo et redessinait
+   * tout le fil, pour tout relancer 50 ms plus tard — c'était l'essentiel de
+   * chaque à-coup. On attend : si rien ne devient visible dans 300 ms (arrêt
+   * entre deux publications très hautes), alors seulement on coupe.
+   */
+  const emptyViewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewablePostsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const top = viewableItems[0];
-    const topItem = top?.item as { musicTrack?: string | null; id: string } | undefined;
-    setVisiblePostId(topItem?.id ?? null);
+    if (!top) {
+      if (!emptyViewTimer.current) {
+        emptyViewTimer.current = setTimeout(() => {
+          emptyViewTimer.current = null;
+          setVisiblePostId(null);
+          void stopMusicRef.current();
+        }, 300);
+      }
+      return;
+    }
+    if (emptyViewTimer.current) { clearTimeout(emptyViewTimer.current); emptyViewTimer.current = null; }
+    const topItem = top.item as { musicTrack?: string | null; id: string };
+    setVisiblePostId(topItem.id);
     // L'index (et pas seulement l'id) pilote le préchargement vidéo, cf.
-    // `shouldMount` dans renderItem.
-    if (typeof top?.index === 'number') setActiveIndex(top.index);
-    if (!topItem?.musicTrack) { void stopMusicRef.current(); return; }
+    // `shouldMount` dans renderItem — appliqué à l'arrêt du défilement.
+    if (typeof top.index === 'number') {
+      if (scrollingRef.current) pendingIndexRef.current = top.index;
+      else setActiveIndex(top.index);
+    }
     const music = parseMusicTrack(topItem.musicTrack);
-    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) void autoPlayPostRef.current(topItem.id, music.previewUrl);
-    else void stopMusicRef.current();
+    if (music?.previewUrl && isPlayableAudioUrl(music.previewUrl)) {
+      requestMusic({ kind: 'play', postId: topItem.id, previewUrl: music.previewUrl });
+    } else {
+      requestMusic({ kind: 'stop' });
+    }
   }).current;
 
   const viewabilityConfigCallbackPairs = useRef([
@@ -681,11 +768,15 @@ export default function SocialTab() {
     const visible = [...globalPosts, ...followingPosts].find((p) => p.id === visiblePostId);
     const track = parseMusicTrack(visible?.musicTrack);
     if (visible && track?.previewUrl && isPlayableAudioUrl(track.previewUrl)) {
-      void autoPlayPost(visible.id, track.previewUrl);
+      requestMusic({ kind: 'play', postId: visible.id, previewUrl: track.previewUrl });
     }
-  }, [globalPosts, followingPosts, visiblePostId, autoPlayPost]));
+  }, [globalPosts, followingPosts, visiblePostId, requestMusic]));
 
-  useEffect(() => () => { void stopMusic(); }, [stopMusic]);
+  useEffect(() => () => {
+    if (emptyViewTimer.current) clearTimeout(emptyViewTimer.current);
+    if (dragEndTimer.current) clearTimeout(dragEndTimer.current);
+    void stopMusic();
+  }, [stopMusic]);
 
   // Changer d'onglet (Activité, Rencontres, Personnes…) démonte la liste des
   // publications, donc leurs vidéos — mais pas le lecteur de musique, qui vit
@@ -887,6 +978,7 @@ export default function SocialTab() {
         ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.lg }} />
         : null}
       viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
+      {...scrollHandlers}
       {...FEED_PERF_PROPS}
       ListHeaderComponent={withStories ? (
         <StoriesBar
