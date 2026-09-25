@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   ActivityIndicator, Alert, Dimensions, FlatList, Modal, Platform, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
@@ -201,22 +201,7 @@ function MediaCarousel({ urls, onPress, active, onExpand }: { urls: string[]; on
 
 // ── Carte de publication (façon Instagram) ───────────────────────────────────
 
-/**
- * Fonction stable qui appelle toujours la dernière version de `fn`. Les
- * gestionnaires du fil (j'aime, commentaire…) étaient recréés à chaque rendu :
- * chaque changement de post visible pendant le défilement re-rendait alors
- * TOUTES les cartes montées, d'où les à-coups. Avec des fonctions stables, la
- * carte mémoïsée ne se re-rend que si ses propres données changent.
- */
-function useStableFn<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
-  const ref = useRef(fn);
-  ref.current = fn;
-  return useCallback((...args: A) => ref.current(...args), []);
-}
-
-const PostCard = memo(PostCardView);
-
-function PostCardView({
+function PostCard({
   item, onLike, onSave, onRepost, onComment, onPhoto, onShare, onUserPress, currentUserId, onDelete, isActive, shouldMount,
   musicPaused, onToggleMusic,
   onVideoPlayingChange, onVideoLoop,
@@ -230,7 +215,7 @@ function PostCardView({
   musicPaused?: boolean;
   onToggleMusic?: () => void;
   /** Ouvre la photo en plein écran, à l'image choisie. */
-  onPhoto: (postId: string, urls: string[], index: number) => void;
+  onPhoto: (urls: string[], index: number) => void;
   onShare: (item: FeedPost) => void;
   onUserPress: (id: string) => void;
   currentUserId?: string;
@@ -340,7 +325,7 @@ function PostCardView({
               // carrousel, l'agrandissement passe par `onExpand` (le bouton du
               // lecteur) ; le tap, lui, reste sur les commentaires.
               onPress={(index) =>
-                isVideoUrl(item.mediaUrls[index]) ? onComment(item.id) : onPhoto(item.id, item.mediaUrls, index)
+                isVideoUrl(item.mediaUrls[index]) ? onComment(item.id) : onPhoto(item.mediaUrls, index)
               }
               active={isActive}
               onExpand={goFullscreen}
@@ -393,7 +378,7 @@ function PostCardView({
               );
           } else if (media) {
             mediaEl = (
-              <Pressable onPress={() => onPhoto(item.id, [media], 0)}>
+              <Pressable onPress={() => onPhoto([media], 0)}>
                 <Image source={{ uri: media }} style={styles.postImage} />
               </Pressable>
             );
@@ -889,16 +874,6 @@ export default function SocialTab() {
     }
   }, [accessToken, loadingMore, hasMore, globalPosts, followingPosts]);
 
-  // Gestionnaires stables pour les cartes mémoïsées (cf. useStableFn).
-  const stableLike = useStableFn(toggleLike);
-  const stableSave = useStableFn(toggleSave);
-  const stableRepost = useStableFn(toggleRepost);
-  const stableComment = useStableFn(openComments);
-  const stableShare = useStableFn(shareToDM);
-  const openPhoto = useStableFn((postId: string, _urls: string[], index: number) =>
-    router.push(`/reels?postId=${postId}&i=${index}` as never));
-  const openUser = useStableFn((id: string) => router.push(`/user/${id}` as never));
-
   const renderPostList = (
     data: FeedPost[], emptyEmoji: string, emptyTitle: string, emptyText: string, withStories: boolean,
     kind: 'foryou' | 'following',
@@ -926,18 +901,18 @@ export default function SocialTab() {
       renderItem={({ item, index }) => (
         <PostCard
           item={item}
-          onLike={stableLike}
-          onSave={stableSave}
-          onRepost={stableRepost}
-          onComment={stableComment}
+          onLike={toggleLike}
+          onSave={toggleSave}
+          onRepost={toggleRepost}
+          onComment={openComments}
           // Une photo ouvre le reel, exactement comme une vidéo : même plein
           // écran, et le défilement vertical continue sur les publications
           // suivantes. `i` désigne la photo touchée dans un carrousel.
-          onPhoto={openPhoto}
+          onPhoto={(_urls, index) => router.push(`/reels?postId=${item.id}&i=${index}` as never)}
           musicPaused={musicPaused}
           onToggleMusic={toggleMusicPaused}
-          onShare={stableShare}
-          onUserPress={openUser}
+          onShare={shareToDM}
+          onUserPress={(id) => router.push(`/user/${id}` as never)}
           currentUserId={me?.id}
           onDelete={handleDeletePost}
           isActive={visiblePostId === item.id && screenFocused}
