@@ -17,12 +17,39 @@ export const apiBase = API_BASE_URL;
  */
 let _tokenRefresher: (() => Promise<string | null>) | null = null;
 
+/**
+ * Rafraîchissement en cours, partagé. Le refresh token est à usage unique
+ * (rotation côté API) : si plusieurs requêtes prennent un 401 en même temps
+ * et lancent chacune leur refresh avec le même jeton, une seule réussit, les
+ * autres échouent et la session saute. Toutes attendent donc la même promesse.
+ */
+let _inflightRefresh: Promise<string | null> | null = null;
+
 export function registerTokenRefresher(fn: () => Promise<string | null>): void {
   _tokenRefresher = fn;
 }
 
 export function unregisterTokenRefresher(): void {
   _tokenRefresher = null;
+  _inflightRefresh = null;
+}
+
+/**
+ * Renouvelle le jeton d'accès via le refresher enregistré, en mutualisant les
+ * appels simultanés. Ne rejette jamais : `null` si pas de refresher ou échec.
+ */
+export function refreshAccessTokenOnce(): Promise<string | null> {
+  const refresher = _tokenRefresher;
+  if (!refresher) return Promise.resolve(null);
+  if (!_inflightRefresh) {
+    const p: Promise<string | null> = refresher()
+      .catch(() => null)
+      .finally(() => {
+        if (_inflightRefresh === p) _inflightRefresh = null;
+      });
+    _inflightRefresh = p;
+  }
+  return _inflightRefresh;
 }
 
 /** Réponse de `POST /recommendations/top3` (miroir de `Top3Result` de l'API). */
@@ -133,7 +160,7 @@ async function _request<T>(path: string, opts: RequestOptions): Promise<T> {
 
   // On 401, attempt a silent token refresh once then retry.
   if (res.status === 401 && _tokenRefresher) {
-    const freshToken = await _tokenRefresher().catch(() => null);
+    const freshToken = await refreshAccessTokenOnce();
     if (freshToken) {
       res = await doFetch(path, { ...opts, token: freshToken });
     }

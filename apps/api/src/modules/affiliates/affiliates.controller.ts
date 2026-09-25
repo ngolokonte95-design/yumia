@@ -1,10 +1,28 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Param, ParseFloatPipe, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, NotFoundException, Param, ParseFloatPipe, ParseUUIDPipe, Post, Query, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { AffiliatesService, isThemeFacet, isTourTheme, type TourTheme } from './affiliates.service';
 import { isQuickFilter, type QuickFilter } from './tour-relevance';
 import type { AffiliateProviderKey } from './providers/affiliate-provider.interface';
+
+/** Rayon maximal de Bons Plans, en mètres. */
+const DEALS_MAX_RADIUS_M = 50_000;
+
+/**
+ * Compare le secret reçu à AFFILIATE_WEBHOOK_SECRET en temps constant.
+ * Env absente : tout est refusé en production ; accepté hors production pour
+ * ne pas bloquer le développement local.
+ */
+export function webhookSecretMatches(received: string | undefined): boolean {
+  const expected = process.env.AFFILIATE_WEBHOOK_SECRET ?? '';
+  if (!expected) return process.env.NODE_ENV !== 'production';
+  if (!received) return false;
+  const a = Buffer.from(received, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 @Controller()
 export class AffiliatesController {
@@ -18,7 +36,11 @@ export class AffiliatesController {
     @Query('lng', ParseFloatPipe) lng: number,
     @Query('radius') radius?: string,
   ) {
-    return this.affiliates.getNearbyDeals({ lat, lng, radius: radius ? +radius : 10_000 });
+    // Rayon en mètres, plafonné à 50 km : chaque univers interroge le
+    // fournisseur de lieux, un rayon démesuré ne sert qu'à coûter plus cher.
+    const r = radius ? Number(radius) : 10_000;
+    const safeRadius = Number.isFinite(r) && r > 0 ? Math.min(r, DEALS_MAX_RADIUS_M) : 10_000;
+    return this.affiliates.getNearbyDeals({ lat, lng, radius: safeRadius });
   }
 
   /** GET /api/places/:id/affiliate-providers — providers pertinents pour ce lieu, vérifiés (fiche réelle chez le partenaire). */
@@ -109,7 +131,15 @@ export class AffiliatesController {
   /** POST /api/affiliates/webhook/:provider — conversion rapportée par un partenaire (public, pas d'auth utilisateur). */
   @Post('affiliates/webhook/:provider')
   @HttpCode(HttpStatus.OK)
-  async webhook(@Param('provider') provider: string, @Body() payload: unknown) {
+  async webhook(
+    @Param('provider') provider: string,
+    @Headers('x-yumia-webhook-secret') secret: string | undefined,
+    @Body() payload: unknown,
+  ) {
+    // Route publique : sans secret partagé, n'importe qui pouvait écrire des
+    // conversions (et des Mo de `raw`) en base.
+    if (!webhookSecretMatches(secret)) throw new UnauthorizedException('Secret de webhook invalide.');
+    if (!this.affiliates.isKnownProvider(provider)) throw new NotFoundException('Partenaire inconnu.');
     await this.affiliates.recordConversion(provider, payload);
     return { received: true };
   }

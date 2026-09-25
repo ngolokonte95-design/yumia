@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { createHash, randomUUID } from 'crypto';
 import type { Universe } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { RedisService } from '../../infra/redis/redis.service';
 import { PlacesService } from '../places/places.service';
 import type { AffiliateProvider, AffiliateProviderKey } from './providers/affiliate-provider.interface';
 import { BookingProvider } from './providers/booking.provider';
@@ -140,6 +141,27 @@ function categoryEnabled(spec: { requiresEnvFlag?: string }): boolean {
   return !spec.requiresEnvFlag || process.env[spec.requiresEnvFlag] === 'true';
 }
 
+/** Durée de vie d'une vérification de fiche partenaire (7 jours). */
+const VERIFY_LISTING_CACHE_SECONDS = 7 * 24 * 3600;
+
+/** Taille maximale du `raw` d'une conversion stockée (~10 Ko). */
+const CONVERSION_RAW_MAX_BYTES = 10_000;
+
+/**
+ * Le webhook est public : un corps de plusieurs Mo finissait tel quel en
+ * base. Au-delà de ~10 Ko, on garde un extrait tronqué (chaîne) et un marqueur.
+ */
+export function boundRawPayload(payload: unknown): unknown {
+  let json: string;
+  try {
+    json = JSON.stringify(payload ?? null) ?? 'null';
+  } catch {
+    return { truncated: true, excerpt: '' };
+  }
+  if (Buffer.byteLength(json, 'utf8') <= CONVERSION_RAW_MAX_BYTES) return payload ?? null;
+  return { truncated: true, excerpt: json.slice(0, CONVERSION_RAW_MAX_BYTES) };
+}
+
 @Injectable()
 export class AffiliatesService {
   private readonly providers: Map<AffiliateProviderKey, AffiliateProvider>;
@@ -151,6 +173,8 @@ export class AffiliatesService {
     getyourguide: GetYourGuideProvider,
     private readonly viator: ViatorProvider,
     private readonly discovercars: DiscoverCarsProvider,
+    // Optionnel : sans Redis (tests), la vérification n'est simplement pas cachée.
+    @Optional() private readonly redis?: RedisService,
   ) {
     // Chaque nouveau partenaire (Fever, Treatwell, Trainline...) s'ajoute
     // simplement ici une fois son provider implémenté — le mapping univers →
@@ -200,10 +224,39 @@ export class AffiliatesService {
     const checks = await Promise.all(candidates.map(async (p) => {
       const provider = this.providers.get(p.key);
       if (options?.dealsOnly && provider?.hasWorkingVerification?.() === false) return null;
-      const ok = await provider?.verifyListing?.(place) ?? true;
+      const ok = provider?.verifyListing ? await this.cachedVerifyListing(provider, place) : true;
       return ok ? p.key : null;
     }));
     return checks.filter((k): k is AffiliateProviderKey => k !== null);
+  }
+
+  /**
+   * `verifyListing` avec cache Redis de 7 jours (clé : partenaire + ville +
+   * nom). Chaque ouverture de Bons Plans vérifiait jusqu'à 6 lieux × univers
+   * × partenaires chez Viator/GetYourGuide ; une fiche partenaire n'apparaît
+   * ni ne disparaît d'un jour à l'autre. Pas de cache quand le partenaire ne
+   * peut pas vérifier (clé absente) : la réponse est gratuite, et la cacher
+   * figerait « vérifié » après l'ajout de la clé.
+   */
+  private async cachedVerifyListing(
+    provider: AffiliateProvider,
+    place: { name: string; city: string },
+  ): Promise<boolean> {
+    const verify = () => provider.verifyListing!(place);
+    if (!this.redis || provider.hasWorkingVerification?.() === false) return verify();
+    const norm = (v: string) => (v ?? '').trim().toLowerCase();
+    const digest = createHash('sha1').update(`${norm(place.city)}|${norm(place.name)}`).digest('hex');
+    const key = `aff:verify:${provider.key}:${digest}`;
+    const cached = await this.redis.getJson<boolean>(key).catch(() => null);
+    if (typeof cached === 'boolean') return cached;
+    const ok = await verify();
+    await this.redis.setJson(key, ok, VERIFY_LISTING_CACHE_SECONDS).catch(() => undefined);
+    return ok;
+  }
+
+  /** Partenaires connus de l'API (liste blanche du webhook de conversion). */
+  isKnownProvider(key: string): key is AffiliateProviderKey {
+    return this.providers.has(key as AffiliateProviderKey);
   }
 
   /** Pour la fiche d'un lieu — GET /places/:id/affiliate-providers. */
@@ -400,7 +453,7 @@ export class AffiliatesService {
         clickId,
         amountCents: parsed?.amountCents,
         currency: parsed?.currency,
-        raw: payload as never,
+        raw: boundRawPayload(payload) as never,
       },
     });
   }

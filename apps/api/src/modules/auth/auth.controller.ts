@@ -28,7 +28,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { PushTokenDto } from './dto/push-token.dto';
-import { RefreshDto } from './dto/refresh.dto';
+import { LogoutDto, RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
@@ -105,8 +105,8 @@ export class AuthController {
   /** POST /api/auth/logout — révoque le refresh token fourni. */
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(@Body() dto: RefreshDto): Promise<void> {
-    await this.auth.logout(dto.refreshToken);
+  async logout(@Body() dto: LogoutDto): Promise<void> {
+    await this.auth.logout(dto.refreshToken, dto.pushToken);
   }
 
   /** POST /api/auth/me/logout-all — révoque tous les refresh tokens sur tous les appareils. */

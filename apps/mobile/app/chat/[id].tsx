@@ -20,7 +20,7 @@ import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
 import { EmojiPicker } from '../../components/chat/EmojiPicker';
 import { PhotoViewer } from '../../components/PhotoViewer';
-import { translateMessage } from '../../lib/chat-translate-api';
+import { isTranslateQuotaError, translateMessage } from '../../lib/chat-translate-api';
 import { ensureAiConsent } from '../../lib/ai-consent';
 import { SUPPORTED_LOCALES } from '../../lib/locales';
 import { haptics } from '../../lib/useHaptics';
@@ -441,10 +441,10 @@ export default function ChatRoomScreen() {
     if (!(await ensureAiConsent())) return;
     setTranslatingId(msg.id);
     try {
-      const { translated } = await translateMessage(accessToken, getDisplayContent(msg), locale);
+      const { translated } = await translateMessage(accessToken, getDisplayContent(msg), locale, 'message');
       setTranslations((prev) => new Map(prev).set(msg.id, translated));
-    } catch {
-      Alert.alert(t('chat_delete_error_title'), t('chat_translate_error'));
+    } catch (err) {
+      Alert.alert(t('chat_delete_error_title'), t(isTranslateQuotaError(err) ? 'translate_quota_reached' : 'chat_translate_error'));
     } finally {
       setTranslatingId(null);
     }
@@ -456,10 +456,10 @@ export default function ChatRoomScreen() {
     if (!(await ensureAiConsent())) return;
     setTranslatingInput(true);
     try {
-      const { translated } = await translateMessage(accessToken, input, code);
+      const { translated } = await translateMessage(accessToken, input, code, 'message');
       setInput(translated);
-    } catch {
-      Alert.alert(t('chat_delete_error_title'), t('chat_translate_error'));
+    } catch (err) {
+      Alert.alert(t('chat_delete_error_title'), t(isTranslateQuotaError(err) ? 'translate_quota_reached' : 'chat_translate_error'));
     } finally {
       setTranslatingInput(false);
     }

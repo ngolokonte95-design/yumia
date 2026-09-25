@@ -65,11 +65,15 @@ export function captureException(err: unknown, context?: Record<string, unknown>
   }
 }
 
-/** Set the authenticated user on the Sentry scope. */
-export function setSentryUser(id: string, email?: string): void {
+/**
+ * Set the authenticated user on the Sentry scope.
+ * Only the opaque user id is sent — the email isn't needed for crash triage
+ * and would be personal data stored at a third party.
+ */
+export function setSentryUser(id: string): void {
   const Sentry = getSentry();
   if (!Sentry) return;
-  Sentry['setUser']({ id, email });
+  Sentry['setUser']({ id });
 }
 
 /** Clear the user (on logout). */

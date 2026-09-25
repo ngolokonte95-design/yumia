@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ReviewsService, type CreateReviewDto } from './reviews.service';
+import { ReviewsService } from './reviews.service';
+import { CreateReviewDto } from './dto/create-review.dto';
 import type { Request } from 'express';
 
 interface AuthRequest extends Request {

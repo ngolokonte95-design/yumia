@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MeetupService } from './meetup.service';
+import { clampLimit } from '../../common/pagination';
 
 @Controller('meetups')
 @UseGuards(JwtAuthGuard)
@@ -17,7 +18,7 @@ export class MeetupController {
 
   @Get()
   list(@Req() req: any, @Query('city') city?: string, @Query('limit') limit?: string) {
-    return this.meetupService.listMeetups(city, limit ? +limit : 30, req.user.sub);
+    return this.meetupService.listMeetups(city, clampLimit(limit, 30), req.user.sub);
   }
 
   @Get('mine')

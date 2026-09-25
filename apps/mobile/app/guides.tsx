@@ -11,7 +11,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, Linking,
+  View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
+import { openExternalHttps } from '../lib/external-link';
 import { QUICK_FILTERS, THEME_FACETS, THEME_TITLES } from '../lib/tour-themes';
 import type { TranslationKey } from '../lib/translations';
 import { FeatureTip } from '../components/FeatureTip';
@@ -139,7 +140,7 @@ export default function GuidesScreen() {
 
   useEffect(() => { void load(query); /* chargement initial */ }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const open = (url: string) => { void Linking.openURL(url); };
+  const open = (url: string) => { void openExternalHttps(url).catch(() => {}); };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>

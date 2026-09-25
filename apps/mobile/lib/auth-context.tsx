@@ -4,7 +4,7 @@
  * sécurisé, avec rafraîchissement automatique du jeton si l'accès a expiré.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ApiError, registerTokenRefresher, unregisterTokenRefresher } from './api';
+import { ApiError, refreshAccessTokenOnce, registerTokenRefresher, unregisterTokenRefresher } from './api';
 import { clearSentryUser, setSentryUser } from './sentry';
 import { loginPurchases, logoutPurchases } from './purchases';
 import {
@@ -21,7 +21,30 @@ import {
   type UserPreferences,
 } from './auth-api';
 import { clearTokens, loadTokens, saveTokens } from './token-storage';
+import { currentPushToken } from './usePushNotifications';
+
+/**
+ * Le serveur a-t-il réellement refusé la session (jeton révoqué, expiré,
+ * compte suspendu) ? Une erreur réseau ou un 5xx n'est PAS un refus : la
+ * traiter comme tel déconnectait l'utilisateur à chaque lancement hors ligne,
+ * et effaçait ses données locales avec.
+ */
+function isSessionRejected(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 400 || err.status === 401 || err.status === 403);
+}
 import { getCachedDeviceLocale } from './device-locale';
+import { purgeUserData } from './user-data-purge';
+import { stopSharingLocation } from './share-location';
+import { clearUnreadCountLocally } from './useNotifications';
+import { clearUnreadMessagesLocally } from './useUnreadMessages';
+
+/** Borne un appel best-effort pour ne jamais bloquer la déconnexion. */
+function withTimeout(p: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    p.catch(() => {}).finally(() => { clearTimeout(timer); resolve(); });
+  });
+}
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -60,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshTokenRef = useRef<string | null>(null);
 
-  const applySession = useCallback(async (u: PublicUser, tokens: AuthTokens) => {
+  const applySession = useCallback(async (u: PublicUser, tokens: Pick<AuthTokens, 'accessToken' | 'refreshToken'>) => {
     await saveTokens(tokens);
     refreshTokenRef.current = tokens.refreshToken;
     setRefreshToken(tokens.refreshToken);
@@ -71,29 +94,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // State setters (setAccessToken, setRefreshToken) are stable — safe to close over.
     registerTokenRefresher(async () => {
       if (!refreshTokenRef.current) return null;
-      const fresh = await refreshRequest(refreshTokenRef.current);
+      let fresh: Awaited<ReturnType<typeof refreshRequest>>;
+      try {
+        fresh = await refreshRequest(refreshTokenRef.current);
+      } catch (err) {
+        // Seul un refus du serveur met fin à la session. Sans réseau, on
+        // garde tout : le prochain appel retentera le renouvellement.
+        if (isSessionRejected(err)) await clearSessionRef.current?.();
+        return null;
+      }
       refreshTokenRef.current = fresh.refreshToken;
       await saveTokens(fresh);
       setAccessToken(fresh.accessToken);
       setRefreshToken(fresh.refreshToken);
       return fresh.accessToken;
     });
-    setSentryUser(u.id, u.email);
+    setSentryUser(u.id);
     void loginPurchases(u.id);
   }, []);
 
+  const clearSessionRef = useRef<(() => Promise<void>) | null>(null);
   const clearSession = useCallback(async () => {
     if (refreshTimer.current) { clearTimeout(refreshTimer.current); refreshTimer.current = null; }
     unregisterTokenRefresher();
     clearSentryUser();
     void logoutPurchases();
     refreshTokenRef.current = null;
-    await clearTokens();
+    await clearTokens().catch(() => {});
+    // Données locales du compte (cache, souvenirs, historique, quotas) : un
+    // autre compte connecté ensuite sur ce téléphone ne doit pas en hériter.
+    await purgeUserData();
+    clearUnreadCountLocally();
+    clearUnreadMessagesLocally();
     setRefreshToken(null);
     setAccessToken(null);
     setUser(null);
     setStatus('unauthenticated');
   }, []);
+  clearSessionRef.current = clearSession;
 
   // Rafraîchissement proactif : renouvelle l'access token 60 s avant expiration.
   useEffect(() => {
@@ -104,49 +142,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const delay = expMs - Date.now() - 60_000;
     if (delay <= 0) return;
     refreshTimer.current = setTimeout(async () => {
-      try {
-        const tokens = await refreshRequest(refreshToken);
-        const me = await meRequest(tokens.accessToken);
-        await applySession(me, tokens);
-      } catch {
-        await clearSession();
-      }
+      // Même promesse partagée que le refresh sur 401 (api.ts) : le refresh
+      // token est à usage unique, deux refresh concurrents déconnecteraient.
+      // Le refresher enregistré par applySession sauvegarde et applique les
+      // nouveaux jetons lui-même.
+      // Un échec ici n'efface rien : un refus du serveur est déjà traité par
+      // le refresher (fin de session), un échec réseau sera retenté au
+      // prochain appel.
+      await refreshAccessTokenOnce();
     }, delay);
     return () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [accessToken, refreshToken, applySession, clearSession]);
+  }, [accessToken, refreshToken, clearSession]);
 
   // Bootstrap : restaure la session depuis le stockage sécurisé.
   useEffect(() => {
     let active = true;
     (async () => {
-      const stored = await loadTokens();
+      // Keychain/Keystore illisible (appareil verrouillé au boot, stockage
+      // corrompu…) : sans ce garde-fou l'app restait bloquée sur le splash
+      // en 'loading'. On repart déconnecté.
+      let stored: Awaited<ReturnType<typeof loadTokens>> = null;
+      try {
+        stored = await loadTokens();
+      } catch {
+        stored = null;
+      }
       if (!stored) {
         if (active) setStatus('unauthenticated');
         return;
       }
       try {
         const me = await meRequest(stored.accessToken);
-        if (active) {
-          setRefreshToken(stored.refreshToken);
-          setAccessToken(stored.accessToken);
-          setUser(me);
-          setStatus('authenticated');
-        }
+        // Même chemin qu'après un login : refresher sur 401, utilisateur
+        // Sentry et identifiant RevenueCat (sinon un achat fait dans les
+        // premières minutes part sur un id anonyme introuvable par le webhook).
+        if (active) await applySession(me, stored);
       } catch (err) {
         // Accès expiré → on tente un rafraîchissement.
+        let rejected = !(err instanceof ApiError && err.status === 401) && isSessionRejected(err);
         if (err instanceof ApiError && err.status === 401) {
           try {
             const tokens = await refreshRequest(stored.refreshToken);
+            await saveTokens(tokens);
             const me = await meRequest(tokens.accessToken);
             if (active) await applySession(me, tokens);
             return;
-          } catch {
-            // refresh KO → session invalide
+          } catch (refreshErr) {
+            rejected = isSessionRejected(refreshErr);
           }
         }
-        if (active) await clearSession();
+        if (!active) return;
+        if (rejected) {
+          await clearSession();
+        } else {
+          // Pas de réseau (ou serveur indisponible) au lancement : on ne
+          // déconnecte pas et on n'efface rien. Écran de connexion pour cette
+          // fois ; la session stockée sera reprise au prochain lancement.
+          setStatus('unauthenticated');
+        }
       }
     })();
     return () => {
@@ -184,15 +239,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    // Retire la position partagée AVANT d'effacer le jeton (il faut encore
+    // être authentifié). Best-effort et borné : le TTL serveur de 10 min
+    // finit le travail si le réseau manque.
+    if (accessToken) await withTimeout(stopSharingLocation(accessToken), 3000);
     if (refreshToken) {
       try {
-        await logoutRequest(refreshToken);
+        await logoutRequest(refreshToken, currentPushToken());
       } catch {
         // révocation best-effort ; on nettoie localement quoi qu'il arrive
       }
     }
     await clearSession();
-  }, [refreshToken, clearSession]);
+  }, [accessToken, refreshToken, clearSession]);
 
   const updateProfile = useCallback(
     async (patch: { displayName?: string; bio?: string; locale?: string; preferences?: UserPreferences }) => {

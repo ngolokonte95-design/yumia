@@ -18,6 +18,7 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, formatPrice, type CartSummary, type ShippingAddress } from '../../lib/shop-api';
 import { CGV_URL } from '../../lib/legal';
+import { isHttpsUrl, openExternalHttps } from '../../lib/external-link';
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
@@ -88,11 +89,11 @@ export default function CheckoutScreen() {
     setPaying(true);
     try {
       const res = await shopApi.checkout(accessToken, selectedId);
-      if (!res.checkoutUrl) {
+      if (!isHttpsUrl(res.checkoutUrl)) {
         Alert.alert('Paiement indisponible', 'Le paiement n\'est pas encore configuré. Réessaie plus tard.');
         return;
       }
-      await Linking.openURL(res.checkoutUrl);
+      await openExternalHttps(res.checkoutUrl);
       // La commande est créée et en attente : on renvoie vers le suivi plutôt
       // que de laisser l'utilisateur sur un panier qui semble inchangé.
       router.replace('/shop/orders');

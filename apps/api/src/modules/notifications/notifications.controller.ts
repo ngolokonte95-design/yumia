@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { NotificationsService } from './notifications.service';
+import { clampLimit } from '../../common/pagination';
 
 @ApiTags('notifications')
 @ApiBearerAuth('access-token')
@@ -19,7 +20,7 @@ export class NotificationsController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.notifications.list(user.sub, { cursor, limit: limit ? +limit : undefined });
+    return this.notifications.list(user.sub, { cursor, limit: limit ? clampLimit(limit, 30, 50) : undefined });
   }
 
   @Get('unread-count')

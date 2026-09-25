@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { CalendarService, type EventInput, type EventOccurrence } from './calendar.service';
+import { clampLimit } from '../../common/pagination';
 
 @ApiTags('calendar')
 @ApiBearerAuth('access-token')
@@ -36,7 +37,7 @@ export class CalendarController {
     @Query('q') q: string,
     @Query('limit') limit?: string,
   ): Promise<EventOccurrence[]> {
-    return this.calendar.search(user.sub, q, limit ? +limit : 30);
+    return this.calendar.search(user.sub, q, clampLimit(limit, 30));
   }
 
   /** POST /api/calendar — crée un événement. 60/60s. */

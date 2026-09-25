@@ -21,6 +21,15 @@ export const API_BASE_URL =
   extra.apiBaseUrl ??
   'http://localhost:4000/api';
 
+// Hors développement, l'API DOIT être en https : jetons, mots de passe et
+// positions transiteraient sinon en clair. Mieux vaut un build qui plante au
+// démarrage (visible dès le premier test) qu'un build qui fuit en silence.
+// Les profils EAS preview/production fixent EXPO_PUBLIC_API_BASE_URL en https.
+// (`typeof` : __DEV__ n'existe pas sous jest/node, où ce module est aussi chargé.)
+if (typeof __DEV__ !== 'undefined' && !__DEV__ &&!/^https:\/\//i.test(API_BASE_URL)) {
+  throw new Error(`[config] API_BASE_URL doit être en https hors développement (reçu : ${API_BASE_URL}).`);
+}
+
 /** Google OAuth client IDs — renseigner dans app.json > extra ou via EAS secrets. */
 export const GOOGLE_CLIENT_IDS = {
   web: extra.googleClientIdWeb ?? '',

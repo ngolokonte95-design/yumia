@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import {
+  CHATBOT_HISTORY_CONTENT_MAX,
+  CHATBOT_HISTORY_MAX_ITEMS,
+  CHATBOT_MESSAGE_MAX,
+} from './dto/chatbot-message.dto';
 
 const SYSTEM_PROMPT = `Tu es YUMIA Assistant, un copilote IA pour découvrir des expériences du quotidien (restaurants, cafés, bars, activités, sorties, culture...).
 
@@ -90,9 +95,15 @@ export class ChatbotService {
       ? `${SYSTEM_PROMPT}\n\n${describeUser(user, place?.city)}`
       : SYSTEM_PROMPT;
 
+    // Troncature défensive (le DTO valide déjà) : borne le coût d'un appel
+    // même si le service est appelé sans passer par la validation HTTP.
+    const safeHistory = (Array.isArray(history) ? history : [])
+      .filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string')
+      .slice(-CHATBOT_HISTORY_MAX_ITEMS)
+      .map((h) => ({ role: h.role, content: h.content.slice(0, CHATBOT_HISTORY_CONTENT_MAX) }));
     const messages: Anthropic.Messages.MessageParam[] = [
-      ...history.map((h) => ({ role: h.role, content: h.content })),
-      { role: 'user', content: message },
+      ...safeHistory,
+      { role: 'user', content: String(message ?? '').slice(0, CHATBOT_MESSAGE_MAX) },
     ];
 
     try {

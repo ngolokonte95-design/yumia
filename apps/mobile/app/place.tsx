@@ -30,6 +30,7 @@ import { useSaved } from '../lib/useSaved';
 import { placeStore } from '../lib/place-store';
 import { recordVisit } from '../lib/passport-api';
 import { Linking } from 'react-native';
+import { openExternalHttps } from '../lib/external-link';
 import * as ImagePicker from 'expo-image-picker';
 import { haptics } from '../lib/useHaptics';
 import { askAboutPlace } from '../lib/chat-api';
@@ -188,7 +189,7 @@ export default function PlaceScreen() {
     setBookingLoadingProvider(provider);
     try {
       const url = await fetchBookingLink(place.id, provider, accessToken);
-      void Linking.openURL(url);
+      await openExternalHttps(url);
     } catch {
       // Silencieux : pas grave si un lien échoue à se générer, l'utilisateur
       // n'a juste pas de bouton qui répond, pas de crash.
@@ -352,7 +353,7 @@ export default function PlaceScreen() {
               style={styles.photoCredit}
               hitSlop={6}
               disabled={!heroAuthor.uri}
-              onPress={() => { if (heroAuthor.uri) void Linking.openURL(heroAuthor.uri); }}
+              onPress={() => { if (heroAuthor.uri) void openExternalHttps(heroAuthor.uri).catch(() => {}); }}
               accessibilityRole={heroAuthor.uri ? 'link' : 'text'}
             >
               <Text style={styles.photoCreditText} numberOfLines={1}>

@@ -19,6 +19,7 @@ import type { JwtPayload } from '../auth/types';
 import { RecordVisitDto } from './dto/record-visit.dto';
 import { SavePlaceDto } from './dto/save-place.dto';
 import { PassportService } from './passport.service';
+import { clampLimit } from '../../common/pagination';
 
 /** Passeport & gamification de l'utilisateur authentifié. */
 @ApiTags('passport')
@@ -54,7 +55,7 @@ export class PassportController {
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
   ) {
-    return this.passport.getVisitHistory(user.sub, limit ? parseInt(limit, 10) : 20, cursor);
+    return this.passport.getVisitHistory(user.sub, clampLimit(limit, 20), cursor);
   }
 
   /** GET /api/passport/heatmap — activité des 90 derniers jours (format { "YYYY-MM-DD": count }). */

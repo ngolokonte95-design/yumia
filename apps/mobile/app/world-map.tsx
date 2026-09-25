@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -14,6 +14,15 @@ import { useI18n } from '../lib/useI18n';
 import { FeatureTip } from '../components/FeatureTip';
 
 const API = API_BASE_URL;
+
+/**
+ * Plafond de marqueurs affichés. Chaque marqueur est une vue React (Avatar)
+ * rendue en bitmap par react-native-maps, qui fuit de la mémoire sur iOS :
+ * au-delà de quelques dizaines, l'app finit tuée par le système (même
+ * raison que la limite de 80 lieux de l'onglet Carte). On garde les plus
+ * proches de l'utilisateur (ou du centre par défaut).
+ */
+const MAX_MARKERS = 60;
 
 interface WorldUser {
   userId: string;
@@ -102,6 +111,17 @@ export default function WorldMapScreen() {
     }
   };
 
+  const shownUsers = useMemo(() => {
+    if (users.length <= MAX_MARKERS) return users;
+    const c = myLoc ?? { lat: 48.8566, lng: 2.3522 };
+    const d2 = (u: WorldUser) => {
+      const dLat = u.lat - c.lat;
+      const dLng = (u.lng - c.lng) * Math.cos((c.lat * Math.PI) / 180);
+      return dLat * dLat + dLng * dLng;
+    };
+    return [...users].sort((a, b) => d2(a) - d2(b)).slice(0, MAX_MARKERS);
+  }, [users, myLoc]);
+
   const initialRegion = myLoc
     ? { latitude: myLoc.lat, longitude: myLoc.lng, latitudeDelta: 60, longitudeDelta: 60 }
     : { latitude: 48.8566, longitude: 2.3522, latitudeDelta: 60, longitudeDelta: 60 };
@@ -119,7 +139,7 @@ export default function WorldMapScreen() {
       </View>
 
       <MapView style={styles.map} initialRegion={initialRegion} showsUserLocation>
-        {users.map((u) => (
+        {shownUsers.map((u) => (
           <Marker key={u.userId} coordinate={{ latitude: u.lat, longitude: u.lng }}>
             <View style={styles.markerContainer}>
               <Avatar

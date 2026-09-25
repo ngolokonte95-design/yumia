@@ -1,5 +1,3 @@
-version: '3.9'
-
 # Production compose — utiliser avec un fichier .env.prod ou des secrets Docker.
 # Lancement : docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
@@ -7,6 +5,11 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-yumia}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing}
@@ -22,6 +25,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
     command: redis-server --requirepass ${REDIS_PASSWORD:?missing}
     volumes:
       - yumia_redis:/data
@@ -34,6 +42,13 @@ services:
   api:
     image: ${API_IMAGE:-ghcr.io/yumia/api:latest}
     restart: unless-stopped
+    # Rotation des logs : sans elle, json-file grossit sans limite sur le disque
+    # du droplet (partagé avec d'autres projets).
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
     depends_on:
       postgres:
         condition: service_healthy
@@ -41,7 +56,8 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: 4000
+      # Lu par configuration.ts (API_PORT) ; le conteneur écoute toujours 4000.
+      API_PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER:-yumia}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-yumia}?schema=public&connection_limit=10&pool_timeout=10
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?missing}
@@ -72,10 +88,13 @@ services:
       AWS_REGION: ${AWS_REGION:-eu-west-3}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      S3_BUCKET: ${S3_BUCKET:-yumia-uploads}
+      # Nom lu par configuration.ts (S3_BUCKET n'était lu nulle part).
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-yumia-uploads}
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
+      # Clé secrète RevenueCat (API REST v1) : vérification serveur des achats.
+      REVENUECAT_SECRET_API_KEY: ${REVENUECAT_SECRET_API_KEY:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://yumia.app}
@@ -91,12 +110,12 @@ services:
       # qu'un lieu a vraiment une fiche Viator avant de l'afficher dans Bons Plans.
       VIATOR_API_KEY: ${VIATOR_API_KEY:-}
       BOOKING_AFFILIATE_ID: ${BOOKING_AFFILIATE_ID:-}
-      # Onglets génériques Booking (Hôtel/Location de voiture/Billet d'avion) :
-      # visibles seulement quand ce drapeau vaut 'true'.
-      BOOKING_GENERIC_TABS_ENABLED: ${BOOKING_GENERIC_TABS_ENABLED:-}
       # Discover Cars (location de voiture) — identifiant d'affilié « yumia »,
       # public (il figure dans chaque lien). Vide = onglet Location masqué.
       DISCOVERCARS_AFFILIATE_ID: ${DISCOVERCARS_AFFILIATE_ID:-}
+      # Secret partagé du webhook de conversion (en-tête x-yumia-webhook-secret).
+      # Vide en production = webhook fermé (toutes les requêtes refusées).
+      AFFILIATE_WEBHOOK_SECRET: ${AFFILIATE_WEBHOOK_SECRET:-}
 
       # Boutique — dropshipping AliExpress. APP_KEY/APP_SECRET viennent de la
       # console AliExpress Open Platform ; le jeton OAuth, lui, est stocké en

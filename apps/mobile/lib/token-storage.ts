@@ -8,7 +8,7 @@ import type { AuthTokens } from './auth-api';
 const ACCESS_KEY = 'yumia.accessToken';
 const REFRESH_KEY = 'yumia.refreshToken';
 
-export async function saveTokens(tokens: AuthTokens): Promise<void> {
+export async function saveTokens(tokens: Pick<AuthTokens, 'accessToken' | 'refreshToken'>): Promise<void> {
   await Promise.all([
     SecureStore.setItemAsync(ACCESS_KEY, tokens.accessToken),
     SecureStore.setItemAsync(REFRESH_KEY, tokens.refreshToken),

@@ -6,7 +6,7 @@
  * qui ne montre plus que la grille d'univers).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image as RNImage, Linking, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
+import { Image as RNImage, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +38,7 @@ import { universeSearchRadius } from '../../lib/universeRadius';
 import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/affiliates-api';
 import { ratingSuffix } from '../../lib/place-rating';
 import { TOUR_THEME_KEYS } from '../../lib/tour-themes';
+import { openExternalHttps } from '../../lib/external-link';
 import { FeatureTip } from '../../components/FeatureTip';
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
@@ -155,7 +156,7 @@ export default function ExplorerScreen() {
     setGenericLinkLoading(category);
     try {
       const url = await fetchGenericAffiliateLink(category, accessToken);
-      void Linking.openURL(url);
+      await openExternalHttps(url);
     } catch {
       // Ne devrait plus arriver : la grille ne montre que les catégories que
       // le serveur déclare ouvertes. Reste silencieux plutôt que d'alerter sur

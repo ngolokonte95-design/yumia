@@ -24,6 +24,12 @@ export interface QuotaRule {
   margin?: number;
   scope?: (req: Request) => string | undefined;
   anonymousPerDay?: number;
+  /**
+   * Plafond propre à la route, par forfait, quand elle n'a pas d'entrée dans
+   * LIMITS_BY_PLAN (fonction bon marché que l'app ne compte pas, ex. la
+   * traduction). Un forfait absent retombe sur `free`.
+   */
+  perDayByPlan?: Partial<Record<Plan, number>> & { free: number };
 }
 
 /** Durée de vie d'un compteur : la journée UTC, plus une marge. */
@@ -96,11 +102,14 @@ export class QuotaService {
   }
 
   private async limitFor(rule: QuotaRule, userId: string): Promise<number> {
-    if (!rule.feature) return rule.anonymousPerDay ?? Infinity;
+    if (!rule.feature && !rule.perDayByPlan) return rule.anonymousPerDay ?? Infinity;
     const user = await this.prisma.user
       .findUnique({ where: { id: userId }, select: { plan: true } })
       .catch(() => null);
     const plan = (user?.plan ?? 'free') as Plan;
-    return LIMITS_BY_PLAN[plan][rule.feature] + (rule.margin ?? 0);
+    if (!rule.feature && rule.perDayByPlan) {
+      return rule.perDayByPlan[plan] ?? rule.perDayByPlan.free;
+    }
+    return LIMITS_BY_PLAN[plan][rule.feature!] + (rule.margin ?? 0);
   }
 }

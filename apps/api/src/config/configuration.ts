@@ -19,6 +19,8 @@ export interface AppConfig {
   };
   google: { clientId: string; audiences: string[] };
   apple: { audiences: string[] };
+  /** Clé secrète API RevenueCat (sk_…) — suppression du client à la suppression de compte. Optionnelle. */
+  revenuecat: { secretApiKey: string };
   places: {
     provider: 'google' | 'none';
     googleApiKey: string;
@@ -85,6 +87,10 @@ export default (): AppConfig => ({
     // sien (host.exp.Exponent) : accepté hors production seulement.
     audiences: (process.env.APPLE_AUDIENCES || 'com.yumia.app').split(',').map((s) => s.trim()).filter(Boolean)
       .concat(process.env.NODE_ENV === 'production' ? [] : ['host.exp.Exponent']),
+  },
+  revenuecat: {
+    // `||` : compose injecte une chaîne vide quand la variable est absente.
+    secretApiKey: (process.env.REVENUECAT_SECRET_API_KEY || '').trim(),
   },
   places: {
     // Provider explicite (non vide), sinon déduit de la présence d'une clé.

@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard } from '../auth/admin.guard';
 import { PipelineService } from './pipeline.service';
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
@@ -60,8 +61,13 @@ export class PipelineController {
     return this.pipeline.getMenu(placeId, language);
   }
 
+  // Les routes d'ÉCRITURE sont réservées aux admins : elles écrivent sur
+  // n'importe quel lieu (carte, événements) et déclenchent des appels payants
+  // (modèle de vision, Ticketmaster/Eventbrite). L'app ne les appelle pas.
+
   /** Ajoute des items manuellement à la carte d'un lieu. */
   @Post('menu/:placeId')
+  @UseGuards(AdminGuard)
   addMenuItems(
     @Param('placeId') placeId: string,
     @Body() dto: AddMenuItemsDto,
@@ -74,6 +80,7 @@ export class PipelineController {
    * Renvoie immédiatement un jobId ; le résultat est disponible via GET /pipeline/jobs/:jobId.
    */
   @Post('menu/:placeId/extract-photo')
+  @UseGuards(AdminGuard)
   extractMenuPhoto(
     @Param('placeId') placeId: string,
     @Body() dto: ExtractMenuPhotoDto,
@@ -97,6 +104,7 @@ export class PipelineController {
    * Renvoie immédiatement un jobId.
    */
   @Post('events/:placeId/fetch')
+  @UseGuards(AdminGuard)
   fetchEvents(
     @Param('placeId') placeId: string,
     @Body() dto: FetchEventsDto,
@@ -108,11 +116,13 @@ export class PipelineController {
 
   /** Liste les jobs d'enrichissement (admin / debug). */
   @Get('jobs')
+  @UseGuards(AdminGuard)
   listJobs(
     @Query('placeId') placeId?: string,
     @Query('status') status?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.pipeline.listJobs(placeId, status, limit ? parseInt(limit, 10) : 50);
+    const n = limit ? parseInt(limit, 10) : 50;
+    return this.pipeline.listJobs(placeId, status, Number.isFinite(n) ? Math.min(Math.max(n, 1), 100) : 50);
   }
 }

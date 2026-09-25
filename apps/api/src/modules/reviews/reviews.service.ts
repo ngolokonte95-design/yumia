@@ -2,11 +2,9 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { assertClean } from '../../common/moderation/moderation';
 
-export interface CreateReviewDto {
-  rating: number;   // 1..5
-  body?: string;
-  photoUrl?: string;
-}
+import type { CreateReviewDto } from './dto/create-review.dto';
+
+export type { CreateReviewDto };
 
 @Injectable()
 export class ReviewsService {

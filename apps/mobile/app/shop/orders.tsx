@@ -1,12 +1,13 @@
 /** Mes commandes — statut, articles et suivi du colis. */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, formatPrice, type Order } from '../../lib/shop-api';
+import { isHttpsUrl, openExternalHttps } from '../../lib/external-link';
 
 /** Libellé + couleur par statut — le client ne voit jamais l'énum brute. */
 const STATUS: Record<Order['status'], { label: string; color: string }> = {
@@ -112,8 +113,8 @@ export default function OrdersScreen() {
                   <Text style={styles.totalValue}>{formatPrice(o.totalCents, o.currency)}</Text>
                 </View>
 
-                {o.trackingUrl && (
-                  <Pressable style={styles.trackBtn} onPress={() => Linking.openURL(o.trackingUrl!)}>
+                {isHttpsUrl(o.trackingUrl) && (
+                  <Pressable style={styles.trackBtn} onPress={() => void openExternalHttps(o.trackingUrl).catch(() => {})}>
                     <Text style={styles.trackTxt}>
                       Suivre mon colis{o.trackingNumber ? ` · ${o.trackingNumber}` : ''}
                     </Text>

@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { NotebookService, type NoteInput } from './notebook.service';
+import { clampLimit } from '../../common/pagination';
 
 @ApiTags('notebook')
 @ApiBearerAuth('access-token')
@@ -37,7 +38,7 @@ export class NotebookController {
       placeId,
       calendarEventId,
       date,
-    }, limit ? +limit : 100);
+    }, clampLimit(limit, 100));
   }
 
   @Get(':id')

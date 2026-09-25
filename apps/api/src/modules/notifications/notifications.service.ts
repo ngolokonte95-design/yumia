@@ -30,8 +30,19 @@ export class NotificationsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Enregistre ou met à jour le push token Expo d'un utilisateur. */
+  /**
+   * Enregistre ou met à jour le push token Expo d'un utilisateur.
+   *
+   * Un jeton désigne un APPAREIL : si un autre compte l'avait (téléphone
+   * partagé, compte changé sans déconnexion), il le perd — sinon l'ancien
+   * compte continuait de recevoir ses notifications, messages compris, sur le
+   * téléphone de quelqu'un d'autre.
+   */
   async registerToken(userId: string, token: string): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: { expoPushToken: token, id: { not: userId } },
+      data: { expoPushToken: null },
+    });
     await this.prisma.user.update({
       where: { id: userId },
       data: { expoPushToken: token },

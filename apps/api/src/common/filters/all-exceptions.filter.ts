@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { captureException } from '../../infra/sentry/sentry.init';
+import { stripQuery } from '../strip-query';
 
 /** Filtre global : réponse d'erreur uniforme + journalisation. */
 @Catch()
@@ -30,18 +31,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     const requestId = req.headers['x-request-id'] as string | undefined;
+    // Chemin seul : la query (lat/lng, recherches) ne part ni dans les logs ni dans Sentry.
+    const path = stripQuery(req.url);
 
     if (status >= 500) {
       this.logger.error(
-        `${req.method} ${req.url} [requestId=${requestId ?? '-'}]`,
+        `${req.method} ${path} [requestId=${requestId ?? '-'}]`,
         (exception as Error)?.stack,
       );
-      captureException(exception, { method: req.method, url: req.url, requestId });
+      captureException(exception, { method: req.method, url: path, requestId });
     }
 
     res.status(status).json({
       statusCode: status,
-      path: req.url,
+      path,
       timestamp: new Date().toISOString(),
       requestId,
       error: message,

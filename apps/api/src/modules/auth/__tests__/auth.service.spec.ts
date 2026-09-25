@@ -8,7 +8,9 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcryptjs';
-import { AuthService } from '../auth.service';
+import { AuthService, DELETED_REPORTER_ID } from '../auth.service';
+import { StorageService } from '../../../infra/storage/storage.service';
+import { RedisService } from '../../../infra/redis/redis.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
 import { MailerService } from '../../mailer/mailer.service';
 
@@ -85,6 +87,8 @@ const explicitModels: any = {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
+    delete: jest.fn(),
   },
   refreshToken: {
     findUnique: jest.fn(),
@@ -148,12 +152,30 @@ const jwtMock = {
   signAsync: jest.fn().mockResolvedValue('access-token'),
 };
 
+/** Clé RevenueCat vue par le service — vide par défaut (aucun appel). */
+let revenueCatKey = '';
+
+const storageMock = { removeMany: jest.fn().mockResolvedValue(0) };
+
+/** Client ioredis simulé : un SCAN qui trouve un compteur de quota. */
+const redisRaw = {
+  scan: jest.fn().mockResolvedValue(['0', ['quota:ai:u:user-1:2026-09-25']]),
+  del: jest.fn().mockResolvedValue(1),
+  zrange: jest.fn().mockResolvedValue([]),
+  zrem: jest.fn(),
+  get: jest.fn().mockResolvedValue(null),
+  ttl: jest.fn().mockResolvedValue(-2),
+  setex: jest.fn(),
+};
+const redisMock = { raw: redisRaw };
+
 const configMock = {
   get: jest.fn((key: string) => {
     const cfg: Record<string, any> = {
       jwt: { accessSecret: 'test-secret', refreshSecret: 'test-refresh-secret', accessTtl: 900, refreshTtl: 2592000 },
       google: { clientId: 'test-google-client-id.apps.googleusercontent.com', audiences: ['test-google-client-id.apps.googleusercontent.com'] },
       apple: { audiences: ['com.yumia.app'] },
+      revenuecat: { secretApiKey: revenueCatKey },
     };
     return cfg[key];
   }),
@@ -176,6 +198,8 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwtMock },
         { provide: ConfigService, useValue: configMock },
         { provide: MailerService, useValue: mailerMock },
+        { provide: StorageService, useValue: storageMock },
+        { provide: RedisService, useValue: redisMock },
       ],
     }).compile();
 
@@ -399,6 +423,37 @@ describe('AuthService', () => {
 
       await expect(service.logout('already-revoked')).resolves.not.toThrow();
     });
+
+    // Un téléphone déconnecté ne doit plus recevoir les notifications du compte.
+    it('efface le jeton push du compte', async () => {
+      prismaMock.refreshToken.findUnique.mockResolvedValue({ userId: 'user-1' });
+
+      await service.logout('some-refresh-token');
+
+      expect(prismaMock.user.updateMany).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { expoPushToken: null },
+      });
+    });
+
+    it("n'efface que le jeton de cet appareil quand l'app le fournit", async () => {
+      prismaMock.refreshToken.findUnique.mockResolvedValue({ userId: 'user-1' });
+
+      await service.logout('some-refresh-token', 'ExponentPushToken[device-a]');
+
+      expect(prismaMock.user.updateMany).toHaveBeenCalledWith({
+        where: { id: 'user-1', expoPushToken: 'ExponentPushToken[device-a]' },
+        data: { expoPushToken: null },
+      });
+    });
+
+    it('ne touche à aucun compte pour un refresh token inconnu', async () => {
+      prismaMock.refreshToken.findUnique.mockResolvedValue(null);
+
+      await service.logout('unknown-refresh-token');
+
+      expect(prismaMock.user.updateMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('me', () => {
@@ -579,9 +634,21 @@ describe('AuthService', () => {
   });
 
   describe('deleteAccount', () => {
+    beforeEach(() => {
+      prismaMock.user.findUnique.mockResolvedValue({ id: 'user-1', displayName: 'Test User', photoUrl: null });
+      prismaMock.user.delete = jest.fn().mockResolvedValue(mockUser);
+      storageMock.removeMany.mockResolvedValue(0);
+      revenueCatKey = '';
+    });
+
+    it('refuse un compte inexistant', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      await expect(service.deleteAccount('ghost')).rejects.toThrow(UnauthorizedException);
+      expect(transactionMock).not.toHaveBeenCalled();
+    });
+
     it('révoque d\'abord tous les refresh tokens puis supprime le compte', async () => {
       prismaMock.refreshToken.deleteMany = jest.fn().mockResolvedValue({ count: 2 });
-      prismaMock.user.delete = jest.fn().mockResolvedValue(mockUser);
 
       await service.deleteAccount('user-1');
 
@@ -611,7 +678,6 @@ describe('AuthService', () => {
     it('conserve les commandes en les détachant du compte, sans les supprimer', async () => {
       prismaMock.order.updateMany = jest.fn().mockResolvedValue({ count: 3 });
       prismaMock.order.deleteMany = jest.fn();
-      prismaMock.user.delete = jest.fn().mockResolvedValue(mockUser);
 
       await service.deleteAccount('user-1');
 
@@ -621,6 +687,123 @@ describe('AuthService', () => {
       });
       expect(prismaMock.order.deleteMany).not.toHaveBeenCalled();
     });
+
+    it('efface le graphe social dans les deux sens et ses messages envoyés', async () => {
+      await service.deleteAccount('user-1');
+
+      expect(prismaMock.follow.deleteMany).toHaveBeenCalledWith({
+        where: { OR: [{ followerId: 'user-1' }, { followingId: 'user-1' }] },
+      });
+      expect(prismaMock.followRequest.deleteMany).toHaveBeenCalledWith({
+        where: { OR: [{ requesterId: 'user-1' }, { targetId: 'user-1' }] },
+      });
+      expect(prismaMock.block.deleteMany).toHaveBeenCalledWith({
+        where: { OR: [{ blockerId: 'user-1' }, { blockedId: 'user-1' }] },
+      });
+      expect(prismaMock.encounter.deleteMany).toHaveBeenCalledWith({
+        where: { OR: [{ userAId: 'user-1' }, { userBId: 'user-1' }] },
+      });
+      expect(prismaMock.message.deleteMany).toHaveBeenCalledWith({ where: { senderId: 'user-1' } });
+      expect(prismaMock.meetupEvent.deleteMany).toHaveBeenCalledWith({ where: { hostId: 'user-1' } });
+      expect(prismaMock.groupSession.updateMany).toHaveBeenCalledWith({
+        where: { createdById: 'user-1' },
+        data: { createdById: null },
+      });
+    });
+
+    it('anonymise ses signalements et retire son id des publications d\'autrui', async () => {
+      prismaMock.post.findMany = jest.fn().mockImplementation((args: any) =>
+        Promise.resolve(args?.where?.taggedUserIds ? [{ id: 'p-other', taggedUserIds: ['user-1', 'user-9'] }] : []),
+      );
+
+      await service.deleteAccount('user-1');
+
+      expect(prismaMock.report.updateMany).toHaveBeenCalledWith({
+        where: { reporterId: 'user-1' },
+        data: { reporterId: DELETED_REPORTER_ID },
+      });
+      expect(prismaMock.post.update).toHaveBeenCalledWith({
+        where: { id: 'p-other' },
+        data: { taggedUserIds: ['user-9'] },
+      });
+      expect(prismaMock.post.updateMany).toHaveBeenCalledWith({
+        where: { collabUserId: 'user-1' },
+        data: { collabUserId: null },
+      });
+      prismaMock.post.findMany = jest.fn().mockResolvedValue([]);
+    });
+
+    it('retire ses j\'aime des compteurs des publications d\'autrui', async () => {
+      prismaMock.postLike.findMany = jest.fn().mockResolvedValue([{ postId: 'p-1' }, { postId: 'p-2' }]);
+
+      await service.deleteAccount('user-1');
+
+      expect(prismaMock.post.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['p-1', 'p-2'] }, likesCount: { gt: 0 } },
+        data: { likesCount: { decrement: 1 } },
+      });
+      prismaMock.postLike.findMany = jest.fn().mockResolvedValue([]);
+    });
+
+    it('transfère un groupe qu\'il a créé et supprime les conversations vidées', async () => {
+      prismaMock.conversationParticipant.findMany = jest.fn().mockResolvedValue([
+        { conversationId: 'c-group' },
+        { conversationId: 'c-alone' },
+      ]);
+      prismaMock.conversation.findMany = jest.fn().mockResolvedValue([
+        { id: 'c-group', creatorId: 'user-1', participants: [{ userId: 'user-1' }, { userId: 'user-7' }] },
+        { id: 'c-alone', creatorId: null, participants: [{ userId: 'user-1' }] },
+      ]);
+
+      await service.deleteAccount('user-1');
+
+      expect(prismaMock.conversation.update).toHaveBeenCalledWith({ where: { id: 'c-group' }, data: { creatorId: 'user-7' } });
+      expect(prismaMock.conversation.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['c-alone'] } } });
+      prismaMock.conversationParticipant.findMany = jest.fn().mockResolvedValue([]);
+    });
+
+    it('efface ses fichiers APRÈS la transaction, et ses clés Redis', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({ id: 'user-1', displayName: 'Test User', photoUrl: 'https://api/uploads/avatars/user-1_a.jpg' });
+      prismaMock.story.findMany = jest.fn().mockImplementation((args: any) =>
+        Promise.resolve(args?.select?.mediaUrl ? [{ mediaUrl: 'https://api/uploads/posts/user-1_s.mp4', musicTrack: null }] : []),
+      );
+
+      await service.deleteAccount('user-1');
+
+      expect(storageMock.removeMany).toHaveBeenCalledWith(
+        expect.arrayContaining(['https://api/uploads/avatars/user-1_a.jpg', 'https://api/uploads/posts/user-1_s.mp4']),
+        'user-1',
+      );
+      expect(storageMock.removeMany.mock.invocationCallOrder[0]).toBeGreaterThan(transactionMock.mock.invocationCallOrder[0]);
+      expect(redisRaw.del.mock.calls[0]).toEqual(expect.arrayContaining([
+        'user:loc:user-1', 'user:enc:user-1', 'social:intent:user-1', 'swipe:seen:user-1', 'saved:ids:user-1',
+        'quota:ai:u:user-1:2026-09-25',
+      ]));
+      prismaMock.story.findMany = jest.fn().mockResolvedValue([]);
+    });
+
+    it('supprime le client RevenueCat quand la clé secrète est configurée', async () => {
+      revenueCatKey = 'sk_test';
+      const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200 });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await service.deleteAccount('user-1');
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.revenuecat.com/v1/subscribers/user-1',
+        expect.objectContaining({ method: 'DELETE', headers: expect.objectContaining({ Authorization: 'Bearer sk_test' }) }),
+      );
+    });
+
+    it('n\'échoue pas si le stockage, Redis ou RevenueCat sont en panne', async () => {
+      revenueCatKey = 'sk_test';
+      global.fetch = jest.fn().mockRejectedValue(new Error('réseau')) as unknown as typeof fetch;
+      storageMock.removeMany.mockRejectedValue(new Error('disque'));
+      redisRaw.scan.mockRejectedValueOnce(new Error('redis'));
+
+      await expect(service.deleteAccount('user-1')).resolves.toBeUndefined();
+      expect(prismaMock.user.delete).toHaveBeenCalled();
+    });
   });
 
   describe('exportData', () => {
@@ -628,6 +811,7 @@ describe('AuthService', () => {
       prismaMock.user.findUnique.mockResolvedValue({
         id: 'user-1', email: 'test@yumia.app', displayName: 'Test', locale: 'fr',
         currency: 'EUR', countryCode: null, plan: 'free', totalXp: 0, level: 1, createdAt: new Date(),
+        gender: 'female', birthYear: 1990, interestedIn: 'everyone', isPrivate: true,
       });
       prismaMock.visit = {
         findMany: jest.fn().mockResolvedValue([
@@ -643,9 +827,33 @@ describe('AuthService', () => {
       const result = await service.exportData('user-1');
 
       expect(result).toHaveProperty('exportedAt');
-      expect(result.profile).toMatchObject({ id: 'user-1', email: 'test@yumia.app' });
+      expect(result.profile).toMatchObject({ id: 'user-1', email: 'test@yumia.app', gender: 'female', birthYear: 1990 });
       expect(Array.isArray(result.visits)).toBe(true);
       expect(Array.isArray(result.savedPlaces)).toBe(true);
+    });
+
+    it('exporte messages, abonnements, commandes et le reste des données personnelles', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'test@yumia.app', totalXp: 120, level: 2 });
+      prismaMock.message.findMany = jest.fn().mockResolvedValue([{ id: 'm-1', conversationId: 'c-1', content: 'salut', createdAt: new Date() }]);
+      prismaMock.follow.findMany = jest.fn().mockResolvedValue([{ followingId: 'user-2', createdAt: new Date() }]);
+      prismaMock.order.findMany = jest.fn().mockResolvedValue([{ reference: 'YUM-1', addressSnapshot: { city: 'Paris' } }]);
+
+      const result: any = await service.exportData('user-1');
+
+      expect(prismaMock.message.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { senderId: 'user-1' },
+        take: 5000,
+      }));
+      expect(result.messages).toHaveLength(1);
+      expect(result.social.following).toHaveLength(1);
+      expect(result.shop.orders[0].reference).toBe('YUM-1');
+      expect(result.gamification).toMatchObject({ xp: 120, level: 2 });
+      for (const key of ['posts', 'comments', 'likes', 'saves', 'stories', 'highlights', 'calendarEvents', 'notebookNotes', 'itineraries', 'placeReviews', 'notifications']) {
+        expect(result).toHaveProperty(key);
+      }
+      prismaMock.message.findMany = jest.fn().mockResolvedValue([]);
+      prismaMock.follow.findMany = jest.fn().mockResolvedValue([]);
+      prismaMock.order.findMany = jest.fn().mockResolvedValue([]);
     });
 
     it('retourne des tableaux vides si l\'utilisateur n\'a aucune donnée', async () => {
@@ -736,6 +944,8 @@ describe('AuthService', () => {
           { provide: JwtService, useValue: jwtMock },
           { provide: ConfigService, useValue: noGoogleConfig },
           { provide: MailerService, useValue: mailerMock },
+          { provide: StorageService, useValue: storageMock },
+          { provide: RedisService, useValue: redisMock },
         ],
       }).compile();
       const svc = module.get(AuthService);

@@ -32,6 +32,28 @@ import { NearbyQueryDto } from './dto/nearby-query.dto';
 import { PlacesService, type PlaceWithDistance } from './places.service';
 import { Quota } from '../../common/quota/quota.interceptor';
 import { isGenericName, namesMatch } from '../itinerary/itinerary.service';
+import { clampLimit } from '../../common/pagination';
+
+/** Nom de photo Google Places (API v1) : `places/{placeId}/photos/{photoId}`. */
+const PHOTO_REF_PATTERN = /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/;
+
+/**
+ * Largeurs servies par le proxy. Toutes les URL construites par l'API
+ * utilisent 800 ; les autres paliers laissent de la place à des vignettes
+ * ou à un plein écran sans ouvrir 4 800 variantes en cache (chacune payée).
+ */
+export const PHOTO_WIDTHS = [200, 400, 800, 1200] as const;
+
+/** Ramène `w` au palier autorisé le plus proche (800 par défaut). */
+export function snapPhotoWidth(raw: string | undefined): number {
+  const n = raw ? parseInt(raw, 10) : NaN;
+  if (!Number.isFinite(n) || n <= 0) return 800;
+  let best: number = PHOTO_WIDTHS[0];
+  for (const w of PHOTO_WIDTHS) {
+    if (Math.abs(w - n) < Math.abs(best - n) || (Math.abs(w - n) === Math.abs(best - n) && w > best)) best = w;
+  }
+  return best;
+}
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -171,9 +193,10 @@ export class PlacesController {
     return this.places.trending({
       lat,
       lng,
-      radius: radius ? parseFloat(radius) : 5_000,
-      limit: limit ? parseInt(limit, 10) : 10,
-      hours: hours ? parseInt(hours, 10) : 24,
+      // Bornés : ces trois valeurs entrent dans la clé de cache et la requête.
+      radius: Math.min(Math.max(parseFloat(radius ?? '') || 5_000, 100), 50_000),
+      limit: clampLimit(limit, 10, 50),
+      hours: clampLimit(hours, 24, 168),
     });
   }
 
@@ -194,11 +217,13 @@ export class PlacesController {
     @Query('w') width: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    if (!ref) {
+    // Route publique : une référence arbitraire ou une largeur quelconque
+    // créait une nouvelle entrée de cache, donc un nouvel appel Google payé.
+    if (!ref || ref.length > 1000 || !PHOTO_REF_PATTERN.test(ref)) {
       res.status(HttpStatus.BAD_REQUEST).end();
       return;
     }
-    const url = await this.places.resolvePhotoUrl(ref, width ? parseInt(width, 10) : undefined);
+    const url = await this.places.resolvePhotoUrl(ref, snapPhotoWidth(width));
     if (!url) {
       res.status(HttpStatus.NOT_FOUND).end();
       return;

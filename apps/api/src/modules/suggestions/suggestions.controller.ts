@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE } from '@yumia/shared';
 import { AiService } from '../ai/ai.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ContextDto } from './dto/context.dto';
+import { Quota } from '../../common/quota/quota.interceptor';
 
 interface MoodResult {
   reason: string;
@@ -26,6 +27,9 @@ export class SuggestionsController {
   /** POST /api/suggestions/mood — interprétation contextuelle de l'humeur. 20/60s. */
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('mood')
+  // Appel au modèle à chaque requête : même plafond que « Dis-moi ton envie »,
+  // sur un compteur séparé (l'app n'appelle pas cette route aujourd'hui).
+  @Quota({ name: 'mood', feature: 'desirePerDay' })
   async mood(@Body() dto: ContextDto): Promise<MoodResult> {
     const ctx: AiContext = {
       userId: 'demo',

@@ -4,7 +4,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { Quota } from '../../common/quota/quota.interceptor';
-import { ItineraryService, type ItineraryRequest, type ItineraryStep } from './itinerary.service';
+import { ItineraryService, type ItineraryStep } from './itinerary.service';
+import { GenerateItineraryDto, ITINERARY_MOODS } from './dto/generate-itinerary.dto';
+
+function moodScope(mood: unknown): string {
+  return typeof mood === 'string' && (ITINERARY_MOODS as readonly string[]).includes(mood) ? mood : 'other';
+}
 
 @Controller('itinerary')
 @UseGuards(JwtAuthGuard)
@@ -14,8 +19,11 @@ export class ItineraryController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('generate')
   // Par mode, comme dans l'app : trois en Date n'entament pas le quota Voyage.
-  @Quota({ name: 'itinerary', feature: 'itineraryPerModePerDay', scope: (req) => String(req.body?.mood ?? 'none') })
-  generate(@CurrentUser() user: JwtPayload, @Body() dto: ItineraryRequest) {
+  // Le scope n'accepte que les 5 modes connus (le DTO rejette le reste, et
+  // l'intercepteur passe AVANT la validation : une valeur inconnue retombe sur
+  // un compteur commun). Le quota total est donc borné à 5 × la limite du mode.
+  @Quota({ name: 'itinerary', feature: 'itineraryPerModePerDay', scope: (req) => moodScope(req.body?.mood) })
+  generate(@CurrentUser() user: JwtPayload, @Body() dto: GenerateItineraryDto) {
     return this.itinerary.generate(user.sub, dto);
   }
 

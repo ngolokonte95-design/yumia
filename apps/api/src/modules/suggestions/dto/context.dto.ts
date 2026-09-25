@@ -1,14 +1,16 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { MODES, MOODS, type Mode, type Mood } from '@yumia/shared';
 
 /** Entrée minimale d'une requête de suggestion (contexte utilisateur). */
 export class ContextDto {
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   city?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(40)
   localTimeIso?: string;
 
   @IsOptional()
@@ -21,9 +23,11 @@ export class ContextDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   query?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(10)
   locale?: string;
 }

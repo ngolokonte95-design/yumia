@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { YumiaThrottlerGuard } from './common/guards/throttler.guard';
 import { LoggerModule } from 'nestjs-pino';
+import { serializeReqWithoutQuery } from './common/strip-query';
 import configuration from './config/configuration';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { RedisModule } from './infra/redis/redis.module';
@@ -59,6 +60,9 @@ import { ShopModule } from './modules/shop/shop.module';
           ? { target: 'pino-pretty', options: { colorize: true } }
           : undefined,
         redact: ['req.headers.authorization', 'req.headers.cookie'],
+        // Chemin sans query string : `?lat=..&lng=..` donnait la position
+        // exacte de l'utilisateur dans chaque ligne de log.
+        serializers: { req: serializeReqWithoutQuery },
         genReqId: (req: import('http').IncomingMessage) => req.headers['x-request-id'] as string,
         customProps: (req: import('http').IncomingMessage) => ({
           requestId: req.headers['x-request-id'],

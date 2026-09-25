@@ -8,7 +8,7 @@
  * et retombe sinon sur leur accueil.
  */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
@@ -16,6 +16,7 @@ import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchCarRentalLink, fetchTourCities } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
+import { openExternalHttps } from '../lib/external-link';
 
 export default function CarRentalScreen() {
   const insets = useSafeAreaInsets();
@@ -56,7 +57,7 @@ export default function CarRentalScreen() {
     setError(false);
     try {
       const { url } = await fetchCarRentalLink(c, locale, accessToken);
-      await Linking.openURL(url);
+      if (!(await openExternalHttps(url))) setError(true);
     } catch {
       setError(true);
     } finally {

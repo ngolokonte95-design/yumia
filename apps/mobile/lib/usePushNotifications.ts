@@ -50,6 +50,7 @@ async function registerPushToken(accessToken: string): Promise<void> {
   try {
     const result = await Notifications.getExpoPushTokenAsync();
     token = result.data;
+    lastPushToken = token;
   } catch {
     // Simulateur ou environnement sans project ID — on ignore.
     return;
@@ -65,11 +66,24 @@ async function registerPushToken(accessToken: string): Promise<void> {
   });
 }
 
+/** Jeton push de CET appareil, envoyé à la déconnexion (cf. auth-context). */
+let lastPushToken: string | null = null;
+export function currentPushToken(): string | null {
+  return lastPushToken;
+}
+
 export function usePushNotifications(accessToken: string | null) {
   const registered = useRef(false);
 
   useEffect(() => {
-    if (!accessToken || registered.current) return;
+    // Déconnexion : on réarme, pour que le prochain compte connecté sur cet
+    // appareil enregistre à son tour le push token (sinon il ne recevait
+    // rien jusqu'au redémarrage de l'app).
+    if (!accessToken) {
+      registered.current = false;
+      return;
+    }
+    if (registered.current) return;
     registered.current = true;
 
     registerPushToken(accessToken).catch(() => {

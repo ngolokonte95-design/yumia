@@ -5,6 +5,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/types';
 import { ChatbotService } from './chatbot.service';
 import { Quota } from '../../common/quota/quota.interceptor';
+import { ChatbotMessageDto } from './dto/chatbot-message.dto';
 
 @Controller('chatbot')
 @UseGuards(JwtAuthGuard)
@@ -16,12 +17,7 @@ export class ChatbotController {
   @Quota({ name: 'chatbot', feature: 'chatbotPerDay' })
   sendMessage(
     @CurrentUser() user: JwtPayload,
-    @Body() dto: {
-      message: string;
-      history?: Array<{ role: 'user' | 'assistant'; content: string }>;
-      /** Ville résolue par l'app — évite à l'assistant de la redemander. */
-      city?: string;
-    },
+    @Body() dto: ChatbotMessageDto,
   ) {
     return this.chatbot.chat(user.sub, dto.message, dto.history ?? [], { city: dto.city });
   }

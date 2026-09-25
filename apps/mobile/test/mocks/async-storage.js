@@ -14,6 +14,11 @@ module.exports = {
       store.delete(k);
       return Promise.resolve();
     },
+    getAllKeys: () => Promise.resolve([...store.keys()]),
+    multiRemove: (keys) => {
+      keys.forEach((k) => store.delete(k));
+      return Promise.resolve();
+    },
     // Helper de test (hors contrat RN) pour repartir d'un cache vide.
     __reset: () => store.clear(),
   },

@@ -273,7 +273,51 @@ export class StoriesService {
     const highlight = await this.prisma.storyHighlight.findUnique({ where: { id: highlightId }, select: { userId: true } });
     if (!highlight) throw new NotFoundException('Story à la une introuvable');
     if (highlight.userId !== userId) throw new ForbiddenException();
-    return this.prisma.storyHighlight.delete({ where: { id: highlightId } });
+    const deleted = await this.prisma.storyHighlight.delete({
+      where: { id: highlightId },
+      include: { items: { select: { mediaUrl: true } } },
+    });
+    // Après la base, et seulement les fichiers que plus rien n'utilise : le
+    // média d'une story à la une est le MÊME fichier que celui de la story
+    // (l'app ne le duplique pas), et peut figurer dans d'autres « à la une ».
+    await this.removeUnreferencedMedia([deleted.coverUrl, ...deleted.items.map((i) => i.mediaUrl)], userId);
+    return deleted;
+  }
+
+  /**
+   * Efface les fichiers de `ownerId` parmi `urls` qu'aucune de ses stories ni
+   * aucune de ses stories à la une n'utilise encore.
+   *
+   * Sans ce contrôle, l'expiration d'une story (24 h) supprimait son fichier…
+   * qui était aussi celui de l'élément « à la une » créé depuis elle : les
+   * stories à la une perdaient toutes leur média le lendemain. Seules les
+   * références du même propriétaire comptent — une « à la une » d'autrui
+   * pointant sur ce fichier ne doit pas pouvoir le garder en vie.
+   */
+  private async removeUnreferencedMedia(urls: Array<string | null | undefined>, ownerId: string): Promise<void> {
+    const candidates = [...new Set(urls.filter((u): u is string => !!u))];
+    if (candidates.length === 0) return;
+    const [items, covers, stories] = await Promise.all([
+      this.prisma.storyHighlightItem.findMany({
+        where: { mediaUrl: { in: candidates }, highlight: { userId: ownerId } },
+        select: { mediaUrl: true },
+      }),
+      this.prisma.storyHighlight.findMany({
+        where: { coverUrl: { in: candidates }, userId: ownerId },
+        select: { coverUrl: true },
+      }),
+      this.prisma.story.findMany({
+        where: { mediaUrl: { in: candidates }, userId: ownerId },
+        select: { mediaUrl: true },
+      }),
+    ]);
+    const used = new Set<string>([
+      ...items.map((i) => i.mediaUrl),
+      ...covers.map((c) => c.coverUrl).filter((u): u is string => !!u),
+      ...stories.map((st) => st.mediaUrl),
+    ]);
+    const orphans = candidates.filter((u) => !used.has(u));
+    if (orphans.length) await this.storage.removeMany(orphans, ownerId);
   }
 
   /**
@@ -394,7 +438,9 @@ export class StoriesService {
       story.userId,
       '↩️ Réponse à votre story',
       `${replier?.displayName ?? 'Quelqu\'un'} a répondu : ${text.slice(0, 60)}`,
-      { type: 'story_reply', storyId },
+      // `actorId` : permet d'effacer cette notification si l'auteur de la
+      // réponse supprime son compte (cf. AuthService.deleteAccount).
+      { type: 'story_reply', storyId, actorId: userId },
     );
     return message;
   }
@@ -404,7 +450,8 @@ export class StoriesService {
     if (!story) throw new NotFoundException('Story introuvable');
     if (story.userId !== userId) throw new ForbiddenException();
     const deleted = await this.prisma.story.delete({ where: { id: storyId } });
-    void this.storage.remove(story.mediaUrl, story.userId);
+    // Le fichier reste s'il est aussi celui d'une story à la une.
+    void this.removeUnreferencedMedia([story.mediaUrl], story.userId).catch(() => undefined);
     return deleted;
   }
 
@@ -427,6 +474,9 @@ export class StoriesService {
     // Après la base : un fichier orphelin se rattrape, une story rendue
     // invisible dont le fichier existe encore ne gêne personne. L'inverse —
     // fichier supprimé, ligne conservée — casserait l'affichage.
-    await Promise.all(expired.map((s) => this.storage.remove(s.mediaUrl, s.userId)));
+    // Les fichiers repris dans une story à la une sont conservés.
+    const byOwner = new Map<string, string[]>();
+    for (const st of expired) byOwner.set(st.userId, [...(byOwner.get(st.userId) ?? []), st.mediaUrl]);
+    await Promise.all([...byOwner].map(([ownerId, urls]) => this.removeUnreferencedMedia(urls, ownerId)));
   }
 }

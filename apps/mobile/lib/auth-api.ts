@@ -78,8 +78,15 @@ export function refreshRequest(refreshToken: string): Promise<AuthTokens> {
   return request<AuthTokens>('/auth/refresh', { method: 'POST', body: { refreshToken } });
 }
 
-export function logoutRequest(refreshToken: string): Promise<void> {
-  return request<void>('/auth/logout', { method: 'POST', body: { refreshToken } });
+/**
+ * `pushToken` : jeton de CET appareil — le serveur n'efface que lui, sans
+ * couper les notifications des autres appareils du compte.
+ */
+export function logoutRequest(refreshToken: string, pushToken?: string | null): Promise<void> {
+  return request<void>('/auth/logout', {
+    method: 'POST',
+    body: pushToken ? { refreshToken, pushToken } : { refreshToken },
+  });
 }
 
 export function meRequest(accessToken: string): Promise<PublicUser> {

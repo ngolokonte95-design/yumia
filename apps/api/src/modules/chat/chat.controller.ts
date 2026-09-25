@@ -8,8 +8,13 @@ import { ChatService } from './chat.service';
 import { AiService } from '../ai/ai.service';
 import { createHash } from 'crypto';
 import { RedisService } from '../../infra/redis/redis.service';
+import { Quota } from '../../common/quota/quota.interceptor';
+import { TranslateDto, TRANSLATE_TEXT_MAX, type TranslateLocale } from './dto/translate.dto';
 
-const LOCALE_NAMES: Record<string, string> = {
+/** 24 h : voir translate() — pas de rétention longue de textes possiblement privés. */
+const TRANSLATE_CACHE_TTL_SECONDS = 24 * 60 * 60;
+
+const LOCALE_NAMES: Record<TranslateLocale, string> = {
   fr: 'French', en: 'English', es: 'Spanish', pt: 'Portuguese', ar: 'Arabic',
   nl: 'Dutch', it: 'Italian', de: 'German', pl: 'Polish', sv: 'Swedish',
   zh: 'Chinese', ru: 'Russian', hi: 'Hindi',
@@ -28,26 +33,38 @@ export class ChatController {
    * POST /api/chat/translate — traduit un texte à la demande (bouton "Traduire"
    * sur un message, pas d'appel automatique) pour le clavier multilingue.
    * 30 appels / 60s : traduction courte et peu coûteuse, mais fréquente.
+   * Quota quotidien : 200 (Gratuit) / 1 000 (payants) — assez pour tout usage
+   * humain, assez bas pour qu'un script ne transforme pas la route en
+   * traducteur gratuit.
    */
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('translate')
   @HttpCode(HttpStatus.OK)
-  async translate(@Body() dto: { text: string; targetLocale: string }): Promise<{ translated: string }> {
+  @Quota({ name: 'translate', perDayByPlan: { free: 200, plus: 1000, gold: 1000, diamond: 1000 } })
+  async translate(@Body() dto: TranslateDto): Promise<{ translated: string }> {
     // Sert aussi aux bios, légendes et commentaires (« Voir la traduction ») :
     // le même texte lu par cent personnes n'est traduit qu'une fois.
-    const text = (dto.text ?? '').slice(0, 2000);
+    const text = (dto.text ?? '').slice(0, TRANSLATE_TEXT_MAX);
     if (!text.trim()) return { translated: '' };
+    // Cache 24 h (au lieu de 30 jours) : l'app n'envoie pas encore `context`,
+    // on ne sait donc pas distinguer un message privé d'une légende publique.
+    // Quand elle enverra context='message', ces textes ne seront plus cachés.
+    const cacheable = dto.context !== 'message';
     const cacheKey = `translate:${dto.targetLocale}:${createHash('sha1').update(text).digest('hex')}`;
-    const cached = await this.redis.getJson<string>(cacheKey).catch(() => null);
-    if (cached) return { translated: cached };
-    const targetName = LOCALE_NAMES[dto.targetLocale] ?? dto.targetLocale;
+    if (cacheable) {
+      const cached = await this.redis.getJson<string>(cacheKey).catch(() => null);
+      if (cached) return { translated: cached };
+    }
+    const targetName = LOCALE_NAMES[dto.targetLocale];
     const system = [
       `Translate the user's message into ${targetName}.`,
       'Output ONLY the translation, nothing else — no quotes, no explanation, no original text.',
       'If the message is already in that language, return it unchanged.',
     ].join(' ');
     const translated = (await this.ai.freeChat(system, text, 'fast')).trim();
-    await this.redis.setJson(cacheKey, translated, 30 * 24 * 60 * 60).catch(() => undefined);
+    if (cacheable) {
+      await this.redis.setJson(cacheKey, translated, TRANSLATE_CACHE_TTL_SECONDS).catch(() => undefined);
+    }
     return { translated };
   }
 

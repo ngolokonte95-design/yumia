@@ -61,6 +61,19 @@ describe('NotificationsService', () => {
         data: { expoPushToken: 'ExponentPushToken[abc123]' },
       });
     });
+
+    // Téléphone partagé : le jeton appartient à l'appareil, pas au compte.
+    it("retire le même jeton à tout autre compte avant de l'attribuer", async () => {
+      await service.registerToken('user-2', 'ExponentPushToken[shared]');
+
+      expect(prisma.user.updateMany).toHaveBeenCalledWith({
+        where: { expoPushToken: 'ExponentPushToken[shared]', id: { not: 'user-2' } },
+        data: { expoPushToken: null },
+      });
+      const cleared = prisma.user.updateMany.mock.invocationCallOrder[0];
+      const assigned = prisma.user.update.mock.invocationCallOrder[0];
+      expect(cleared).toBeLessThan(assigned);
+    });
   });
 
   // ── sendToUser ────────────────────────────────────────────────────────────
