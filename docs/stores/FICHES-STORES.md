@@ -53,22 +53,22 @@ Restos, bars et cafés bien sûr — mais aussi spas, salons de coiffure, garage
 • Voyage : explore comme un local, loin des pièges à touristes
 
 🧭 DES ITINÉRAIRES QUI TIENNENT DEBOUT
-D'une soirée à une semaine entière. Choisis ton mode et reçois un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes. En mode séjour, chaque journée se déroule moment par moment.
+D'une soirée à une semaine entière. Choisis ton mode et reçois un programme heure par heure, avec de vrais lieux et leurs photos. En mode séjour, chaque journée se déroule moment par moment.
 
 🎁 L'ASSISTANT IDÉES CADEAUX
-Noël, anniversaire, fête des mères, crémaillère, anniversaire de mariage : dis pour qui et quel budget, et reçois une sélection de quarante idées. Chacune est un produit réel, commandable en deux tapes.
+Noël, anniversaire, fête des mères, crémaillère, anniversaire de mariage : dis pour qui et quel budget, et reçois une sélection d'idées. Chacune est un produit réel, commandable en deux tapes.
 
-🛍️ UNE BOUTIQUE, 33 RAYONS
+🛍️ UNE BOUTIQUE, 37 RAYONS
 Du vélo au matériel de sport, des jouets aux loisirs créatifs, de la déco aux bijoux. Livraison à domicile, paiement sécurisé.
 
 👥 LE SOCIAL, SANS LA COURSE AUX LIKES
-Un fil, des reels, des stories, des rencontres autour d'un lieu et des sorties de groupe. On y parle d'endroits où aller, pas de soi.
+Un fil, des reels, des stories, des sorties de groupe et des rencontres (réservées aux 18 ans et plus). On y parle d'endroits où aller, pas de soi.
 
 🔥 DES XP À CHAQUE SORTIE
 Niveaux, badges, séries : ton passeport garde la trace de ce que tu as vécu.
 
 FORFAITS
-YUMIA est utilisable gratuitement, tous les jours. Plus, Gold et Diamond augmentent les quotas quotidiens — assistant, itinéraires, chargements de lieux — et ouvrent la carte sociale. Abonnement mensuel, résiliable à tout moment.
+YUMIA est utilisable gratuitement, tous les jours. Gold (4,99 €/mois) et Diamond (9,99 €/mois) augmentent les quotas quotidiens — assistant, itinéraires, chargements de lieux — et ouvrent la carte sociale. Abonnement mensuel renouvelé automatiquement, résiliable à tout moment.
 
 Tes envies, partout. Télécharge YUMIA.
 ```
@@ -112,22 +112,22 @@ SIX MODES POUR CHAQUE MOMENT
 Surprends-moi, Date, Famille, Groupe, Solo, Voyage. Chacun change ce que l'IA te propose.
 
 DES ITINÉRAIRES QUI TIENNENT DEBOUT
-D'une soirée à une semaine, un programme heure par heure, avec de vrais lieux, leurs photos et leurs notes.
+D'une soirée à une semaine, un programme heure par heure, avec de vrais lieux et leurs photos.
 
 L'ASSISTANT IDÉES CADEAUX
-Noël, anniversaire, fête des mères, crémaillère : dis pour qui et quel budget, reçois quarante idées. Chacune est un produit réel, commandable en deux tapes.
+Noël, anniversaire, fête des mères, crémaillère : dis pour qui et quel budget, reçois une sélection d'idées. Chacune est un produit réel, commandable en deux tapes.
 
-UNE BOUTIQUE, 33 RAYONS
+UNE BOUTIQUE, 37 RAYONS
 Du vélo au matériel de sport, des jouets à la déco. Livraison à domicile, paiement sécurisé.
 
 LE SOCIAL, SANS LA COURSE AUX LIKES
-Un fil, des reels, des stories, des sorties de groupe. On y parle d'endroits où aller.
+Un fil, des reels, des stories, des sorties de groupe et des rencontres (réservées aux 18 ans et plus). On y parle d'endroits où aller.
 
 DES XP À CHAQUE SORTIE
 Niveaux, badges et séries : ton passeport garde la trace de ce que tu as vécu.
 
 FORFAITS
-YUMIA s'utilise gratuitement tous les jours. Plus, Gold et Diamond augmentent les quotas quotidiens et ouvrent la carte sociale. Abonnement mensuel, résiliable à tout moment.
+YUMIA s'utilise gratuitement tous les jours. Gold (4,99 €/mois) et Diamond (9,99 €/mois) augmentent les quotas quotidiens et ouvrent la carte sociale. Abonnement mensuel renouvelé automatiquement, résiliable à tout moment.
 
 Tes envies, partout.
 ```
@@ -181,22 +181,22 @@ Restaurants, bars and cafés, sure — but also spas, garages, pharmacies, escap
 • Travel: explore like a local, away from tourist traps
 
 🧭 ITINERARIES THAT ACTUALLY HOLD UP
-From one evening to a full week. Pick a mode and get an hour-by-hour plan built from real places, with their photos and ratings. In trip mode, every day unfolds moment by moment.
+From one evening to a full week. Pick a mode and get an hour-by-hour plan built from real places, with their photos. In trip mode, every day unfolds moment by moment.
 
 🎁 THE GIFT IDEA ASSISTANT
-Christmas, birthdays, Mother's Day, housewarmings, wedding anniversaries: say who it's for and your budget, get forty ideas. Each one is a real product, orderable in two taps.
+Christmas, birthdays, Mother's Day, housewarmings, wedding anniversaries: say who it's for and your budget, get a curated list of ideas. Each one is a real product, orderable in two taps.
 
-🛍️ A SHOP WITH 33 AISLES
+🛍️ A SHOP WITH 37 AISLES
 Bikes and sports gear, toys and crafts, home and jewellery. Home delivery, secure payment.
 
 👥 SOCIAL, WITHOUT THE LIKE RACE
-A feed, reels, stories, meetups and group outings. It's about places to go, not about yourself.
+A feed, reels, stories, group outings and encounters (18+ only). It's about places to go, not about yourself.
 
 🔥 XP EVERY TIME YOU GO OUT
 Levels, badges and streaks: your passport keeps track of what you've lived.
 
 PLANS
-YUMIA is free to use, every day. Plus, Gold and Diamond raise the daily limits — assistant, itineraries, place loads — and unlock the social map. Monthly subscription, cancel anytime.
+YUMIA is free to use, every day. Gold (€4.99/month) and Diamond (€9.99/month) raise the daily limits — assistant, itineraries, place loads — and unlock the social map. Auto-renewing monthly subscription, cancel anytime.
 
 Your cravings, everywhere. Download YUMIA.
 ```
@@ -210,16 +210,20 @@ Welcome to YUMIA! First release: AI contextual Top 3, itineraries from one eveni
 
 ## 📋 À préparer aussi (côté store, non-texte)
 
-- **Captures d'écran** : les cinq mockups de `docs/stores/screenshots/` (1290×2796) datent d'avant la
-  boutique, l'assistant cadeaux et les itinéraires de séjour — **à refaire**. Le mieux est de prendre
-  de vraies captures depuis le *development build* (les mockups sont un pis-aller pour une première
-  soumission). Prévoir au moins : Top 3, itinéraire d'une journée, assistant cadeaux, boutique, carte.
-  Régénérer les mockups : `node docs/stores/build-screenshots.mjs`.
-- **Icône** : déjà en place (`assets/icon.png`).
-- **Achats intégrés** : déclarer les trois abonnements (Plus 2,99 € / Gold 5,99 € / Diamond 9,99 €)
-  dans App Store Connect **et** Play Console avant la soumission — une app qui propose un achat
-  introuvable côté store est refusée. Les produits physiques de la boutique sont payés hors achat
-  intégré (Stripe), ce que les deux boutiques exigent.
+- **Captures d'écran** : **faites** (25/09/2026), de vraies captures de l'app actuelle.
+  - App Store : 10 captures 1284×2778, déjà envoyées dans App Store Connect
+    (`C:\Users\DELL\Downloads\captures-apple\a-envoyer`).
+  - Play Store : les mêmes, converties en 1080×1920 (`C:\Users\DELL\Downloads\captures-google`).
+    Google refuse un ratio supérieur à 2:1, donc les captures iPhone (9:19,5) ne passent PAS telles
+    quelles : la capture entière est réduite et centrée sur un fond sombre.
+  - Les cinq maquettes de `docs/stores/screenshots/` sont périmées : ne pas les utiliser.
+- **Icône Play 512×512** : `apps/mobile/assets/icon-play-512-black-v2.png` ; **image mise en avant
+  1024×500** : `apps/mobile/assets/feature-graphic-1024x500-v2.png`.
+- **Achats intégrés** : deux abonnements, Gold 4,99 € et Diamond 9,99 € par mois (Plus n'est plus
+  vendu). Créés et prêts dans App Store Connect (groupe « YUMIA Premium ») ; **à créer dans Play
+  Console** puis à rattacher dans RevenueCat. Une app qui propose un achat introuvable côté store est
+  refusée. Les produits physiques de la boutique sont payés hors achat intégré (Stripe), ce que les
+  deux boutiques exigent.
 - **URL politique de confidentialité** : https://yumia.eu/privacy
 - **URL conditions d'utilisation** : https://yumia.eu/terms
 - **URL suppression de compte** (exigée par Google en plus du parcours in-app) :

@@ -104,10 +104,10 @@ retrait.
 | Contenu médical ou traitement | **Aucun** | Pharmacies et vétérinaires sont des adresses, pas des conseils |
 | Jeux d'argent réels | **Non** | Aucune mise, aucun jeu |
 | Contenu créé par les utilisateurs | **Oui** | Fil, reels, stories, commentaires, messages |
-| Fonctions de modération | **Oui** | Filtrage automatique des textes, signalement sur les quatre surfaces, blocage, restriction de compte |
+| Fonctions de modération | **Oui** | Filtrage automatique des textes ; signalement des publications, commentaires, stories, messages, sorties et comptes ; blocage appliqué par le serveur ; suspension |
 | Messagerie sans restriction | **Oui** | Messages privés et réponses aux stories |
 | Partage de position entre utilisateurs | **Oui** | Carte sociale, visibilité activable |
-| Rencontre / mise en relation | **Oui** | Écran Tind, découverte de profils par swipe |
+| Rencontre / mise en relation | **Oui** | Tind (swipe) et Rencontres — **réservés aux 18 ans et plus**, refus côté serveur, message dans l'app |
 | Accès web non filtré | **Non** | Pas de navigateur intégré |
 | Concours | **Non** | — |
 
@@ -122,22 +122,21 @@ Précédent utile si on te le conteste : **Yelp**, annuaire de lieux comparable,
 Réponds **non** à « suivi entre applications » : `NSPrivacyTracking` est à faux et aucune régie
 publicitaire n'est intégrée. Cela t'évite la fenêtre ATT.
 
-| Donnée collectée | Liée au compte | Suivi publicitaire | Finalité |
-|---|---|---|---|
-| Adresse e-mail | Oui | Non | Fonctionnement de l'app |
-| Nom affiché | Oui | Non | Fonctionnement de l'app |
-| Identifiant utilisateur | Oui | Non | Fonctionnement de l'app |
-| Position précise | Non | Non | Fonctionnement de l'app |
-| Photos et vidéos | Oui | Non | Fonctionnement de l'app |
-| Autre contenu utilisateur | Oui | Non | Fonctionnement de l'app |
-| Adresse postale | Oui | Non | Livraison des commandes |
-| Historique d'achats | Oui | Non | Commandes de la boutique |
-| Genre, année de naissance, pays | Oui | Non | Personnalisation, barrière d'âge |
-| Identifiant d'appareil | Non | Non | Notifications push |
-| Plantages et performance | Non | Non | Diagnostic (Sentry) |
+✅ **Publiée le 24/09/2026** dans App Store Connect, après audit du code. 18 types, **tous liés au
+compte**, aucun suivi publicitaire. À reprendre à l'identique dans la « Sécurité des données » de
+Google (§4.3) :
 
-**N'oublie ni l'adresse postale ni l'historique d'achats** : ce sont des catégories à part entière,
-et la boutique en collecte depuis qu'elle existe.
+| Donnée collectée | Liée au compte | Suivi | Finalité |
+|---|---|---|---|
+| Nom, e-mail, téléphone, adresse postale | Oui | Non | Compte, livraison des commandes |
+| Position précise **et** approximative | Oui | Non | Lieux autour de soi ; carte des membres et Rencontres si activées |
+| Informations sensibles (« intéressé par » : hommes / femmes / tous) | Oui | Non | Tind et Rencontres |
+| Messages, photos et vidéos, données audio (vocaux), autre contenu (bio, avis, assistant) | Oui | Non | Fonctionnement de l'app |
+| Identifiant utilisateur, identifiant d'appareil | Oui | Non | Compte, notifications |
+| Historique d'achats | Oui | Non | Abonnements, boutique |
+| Interactions avec le produit | Oui | Non | Fonctionnement + analyses |
+| Plantages, performance | Oui | Non | Diagnostic (Sentry, rattaché à l'identifiant) |
+| Autres données (genre, année de naissance) | Oui | Non | Profil, barrière d'âge |
 
 Sous-traitants, si le formulaire les demande : Sentry (diagnostic), RevenueCat (abonnements),
 Stripe (paiement boutique), Google Places (données de lieux), Resend (courriels), DigitalOcean
@@ -148,22 +147,24 @@ Stripe (paiement boutique), Google Places (données de lieux), Resend (courriels
 À créer **avant** de soumettre : une app qui propose un achat introuvable côté boutique est refusée.
 
 Un seul groupe — `YUMIA` — pour que passer d'un palier à l'autre soit une simple montée de gamme.
-Trois niveaux dans ce groupe, du moins cher au plus cher :
+**Deux** niveaux (Plus n'est plus vendu), du plus cher au moins cher — c'est l'ordre qu'Apple
+demande, et il est déjà en place dans le groupe « YUMIA Premium » :
 
 | Produit | Identifiant | Prix / mois | Rang |
 |---|---|---|---|
-| YUMIA Plus | `yumia_plus_monthly` | 2,99 € | 1 |
-| YUMIA Gold | `yumia_gold_monthly` | 5,99 € | 2 |
-| YUMIA Diamond | `yumia_diamond_monthly` | 9,99 € | 3 |
+| YUMIA Diamond | `yumia_diamond_monthly` | 9,99 € | 1 |
+| YUMIA Gold | `yumia_gold_monthly` | 4,99 € | 2 |
 
-Chaque abonnement demande un nom affiché et une description :
+✅ **App Store Connect : créés, complets, « Prêt à soumettre »** (25/09/2026). Ils partent avec la
+version 1.0 : cocher les deux dans la section « Achats intégrés et abonnements » de la version.
 
-- **Plus** — « Deux fois plus de tout : assistant, itinéraires, chargements de lieux, et la carte
-  sociale débloquée. »
-- **Gold** — « Pour les curieux quotidiens : 40 messages par jour, 20 chargements par univers,
-  30 lieux affichés par chargement. »
-- **Diamond** — « Le maximum : 60 messages par jour, 30 chargements par univers, 40 lieux affichés,
-  et For You sans se rationner. »
+Nom affiché et description (les chiffres viennent de `packages/shared/src/plan-quotas.ts`) :
+
+- **YUMIA Gold** — « 30 messages IA, 10 itinéraires et 20 envies par jour. »
+- **YUMIA Diamond** — « 50 messages IA, 15 itinéraires et 40 envies par jour. »
+
+⬜ **Play Console : à créer** (Monétiser → Produits → Abonnements), mêmes identifiants, mêmes prix,
+mêmes textes, puis rattacher dans RevenueCat (app « YUMIA (Play Store) »).
 
 Les prix viennent de `packages/shared/src/gamification.ts`. S'ils changent là-bas, ils ne changent
 pas tout seuls dans les consoles : à reporter à la main.
@@ -235,9 +236,9 @@ Visuels — **tous déjà produits**, sauf les captures :
 
 | Élément | Fichier | État |
 |---|---|---|
-| Icône 512×512 | `apps/mobile/assets/icon-play-512.png` | prêt |
-| Image mise en avant 1024×500 | `apps/mobile/assets/feature-graphic-1024x500.png` | prêt |
-| Captures téléphone | `docs/stores/screenshots/` | **à refaire** (§6) |
+| Icône 512×512 | `apps/mobile/assets/icon-play-512-black-v2.png` | prêt |
+| Image mise en avant 1024×500 | `apps/mobile/assets/feature-graphic-1024x500-v2.png` | prêt |
+| Captures téléphone 1080×1920 | `C:\Users\DELL\Downloads\captures-google` (10 fichiers) | **prêtes** (§6) |
 
 ### 4.2 Accès à l'app
 
@@ -246,11 +247,18 @@ qu'à Apple, avec la même explication. Google refuse aussi les apps qu'il ne pe
 
 ### 4.3 Sécurité des données
 
-Mêmes données qu'en §3.4. Deux réponses transversales :
+Mêmes données qu'en §3.4 (la déclaration Apple publiée le 24/09/2026 fait foi). Réponses
+transversales :
 
 - Données **chiffrées en transit** : oui, HTTPS partout.
-- L'utilisateur peut **demander la suppression** : oui — dans l'app, et par
+- L'utilisateur peut **demander la suppression** : oui — dans l'app (Réglages → Supprimer mon
+  compte, suppression immédiate et complète, fichiers compris) et par
   https://yumia.eu/delete-account (Google exige l'URL **en plus** du parcours in-app).
+- Aucune donnée n'est **partagée** avec des tiers à des fins publicitaires. Les sous-traitants
+  (Anthropic pour l'IA, Sentry, RevenueCat, Resend, Google Places, DigitalOcean) sont des
+  prestataires, pas des destinataires au sens de Google : répondre « collectées », pas « partagées »,
+  sauf pour Anthropic (le texte des demandes) qu'il est plus sûr de déclarer partagé, finalité
+  « fonctionnalités de l'app », avec consentement (demandé dans l'app avant le premier usage).
 
 ### 4.4 Classification du contenu (IARC)
 
@@ -262,7 +270,9 @@ seulement, aucune violence, aucun contenu sexuel.
 
 Tranches d'âge : **16-17 ans** et **18 ans et plus**. Ne coche aucune tranche en dessous : l'app
 basculerait sous le programme *Families*, dont les règles sont bien plus strictes, et contredirait
-ta propre barrière.
+ta propre barrière. Précise dans le questionnaire que **Tind et les Rencontres sont réservés aux
+18 ans et plus** (refus côté serveur, écran d'explication pour les 16-17 ans) : Google vérifie
+qu'une app accessible aux mineurs ne les met pas en relation avec des adultes.
 
 ### 4.6 Déclarations
 
@@ -276,6 +286,7 @@ ta propre barrière.
 | Application publique / gouvernementale | Non |
 | Identifiant publicitaire | Non |
 | **Localisation en arrière-plan** | **Non** — retirée (§5), donc ni formulaire ni vidéo |
+| **Normes de sécurité des enfants (CSAE)** | **Obligatoire** pour une app sociale : cocher la déclaration et donner l'URL d'une page publique décrivant les normes, le signalement dans l'app et le point de contact (page à publier sur yumia.eu, à rédiger) |
 | Statut de professionnel (DSA) | Même mur qu'en §3.2 : dépend de l'immatriculation |
 
 ---
@@ -289,9 +300,13 @@ celle que produit la configuration :
 cd apps/mobile && npx expo config --type introspect | sed -n '/permissions:/,/]/p'
 ```
 
-Au 13 septembre 2026, dix-neuf permissions, dont aucune classée sensible par Google : localisation
-approximative et précise, micro, caméra, réseau, Bluetooth, réveil, service au premier plan,
-fenêtre système, et les accès média (images, vidéo, audio, sélection partielle).
+Au 25 septembre 2026 (après nettoyage) : INTERNET, ACCESS_NETWORK_STATE, ACCESS_COARSE_LOCATION,
+ACCESS_FINE_LOCATION, CAMERA, RECORD_AUDIO, MODIFY_AUDIO_SETTINGS, VIBRATE, WAKE_LOCK, BLUETOOTH,
+SYSTEM_ALERT_WINDOW, READ/WRITE_EXTERNAL_STORAGE (limitées à Android 12 et moins, `maxSdkVersion=32`).
+**Retirées** : READ_MEDIA_IMAGES / VIDEO / AUDIO / VISUAL_USER_SELECTED et ACCESS_MEDIA_LOCATION
+(l'app n'écrit dans la galerie que pour enregistrer, elle ne la lit pas — la règle Play « photos et
+vidéos » ne s'applique donc plus), FOREGROUND_SERVICE_MEDIA_PLAYBACK (plus de lecture audio en
+arrière-plan), localisation en arrière-plan, AD_ID.
 
 ✅ **Pas de localisation en arrière-plan**, pas d'identifiant publicitaire :
 
@@ -309,15 +324,19 @@ l'écran ouvert, et le serveur oublie la position au bout de 10 minutes.
 ✅ **App Store : faites** (15 septembre 2026), remplacées dans App Store Connect par de vraies
 captures de l'app.
 
-⬜ **Play Store : à faire.** Les mêmes images conviennent — Google accepte les formats d'Apple.
+✅ **Play Store : faites** (25/09/2026) — `C:\Users\DELL\Downloads\captures-google`, 10 captures
+1080×1920. Les images d'Apple ne conviennent PAS telles quelles : Google refuse un ratio supérieur à
+2:1, or 1284×2778 fait 2,16. La capture entière (barre d'onglets comprise) est réduite et centrée
+sur un fond sombre, coins arrondis.
 
 Les cinq maquettes dessinées de `docs/stores/screenshots/` sont donc périmées : elles datent d'avant
 la boutique, l'assistant cadeaux et les itinéraires de séjour. Ne les réutilise pas.
 
-Formats : 1290×2796 (iPhone 6,7″) et 1284×2778 (6,5″) — les mêmes conviennent à Google.
+Formats : 1284×2778 (iPhone 6,5″) pour Apple ; 1080×1920 pour Google.
 
-Cinq écrans, dans cet ordre : **Top 3 du jour**, **itinéraire d'une journée**, **assistant
-cadeaux**, **boutique**, **carte des lieux**.
+Dix écrans, dans cet ordre (les trois premiers apparaissent dans les résultats de recherche) :
+**accueil**, **carte**, **assistant**, **itinéraire (mode date)**, **social**, **explorer**,
+**fiche d'un lieu**, **univers**, **desserts**, **mode voyage**.
 
 Deux façons de les produire :
 
@@ -332,11 +351,14 @@ Deux façons de les produire :
 
 - [ ] Le compte de démonstration existe, est en Diamond, et tu viens de t'y connecter
 - [ ] `node docs/stores/check-lengths.mjs` → 13 conformes
-- [ ] Les trois abonnements sont créés **et** approuvés dans les deux consoles
+- [ ] Les deux abonnements (Gold, Diamond) sont créés dans les deux consoles et rattachés à la version
+- [ ] La déclaration « Normes de sécurité des enfants » est remplie côté Google, avec sa page en ligne
+- [ ] Le test fermé Google a tourné 14 jours avec 12 testeurs (compte développeur individuel)
 - [ ] Les captures montrent la version actuelle de l'app
 - [ ] https://yumia.eu/privacy, /terms et /delete-account répondent
-- [ ] La classification affichée est bien 16+ des deux côtés
-- [ ] Le build soumis contient la barrière d'âge
+- [ ] La classification affichée est bien 16+ des deux côtés, Tind et Rencontres 18+ dans l'app
+- [ ] Le build soumis est celui d'après l'audit (25/09/2026) : iPhone seul, permissions nettoyées,
+      texte de position à jour, consentement IA
 
 ---
 
@@ -349,11 +371,17 @@ Deux façons de les produire :
    **Stripe n'est pas concerné** : un compte de particulier suffit en France, et l'éditeur encaisse
    déjà des paiements Stripe sur d'autres boutiques sans numéro d'immatriculation. Ne redis pas le
    contraire — c'était une supposition, démentie par l'usage.
-2. **Le development build** — il valide d'un coup les cartes Android, le crash carte iOS et la
-   barrière d'âge. Rien ne se teste en vrai avant lui, et les captures en dépendent.
-3. **Les captures Play Store** — celles d'Apple sont faites (§6).
-4. **Les abonnements** — à créer dans les deux consoles.
-5. **Le compte de démonstration** — à créer sur la prod, en Diamond (§3.6).
+2. **La build EAS de production** (iPhone seul + Android `.aab`) — décision de l'éditeur : lancée
+   seulement quand toutes les fiches sont remplies. Côté Google, elle sert d'abord au **test fermé
+   obligatoire : 12 testeurs pendant 14 jours** avant de pouvoir demander la production.
+3. **Les abonnements côté Play Console** (Apple : faits) — puis rattachement RevenueCat.
+4. **La page « Normes de sécurité des enfants »** sur yumia.eu, exigée par Google pour une app
+   sociale (§4.6).
+5. **La connexion Google** — clients OAuth iOS et Android à créer dans Google Cloud ; tant qu'ils
+   manquent, le bouton est masqué dans l'app (acceptable pour une première version).
+
+Réglés : l'âge (16 ans partout, Tind et Rencontres 18+), la localisation en arrière-plan, les
+captures des deux boutiques, la déclaration de confidentialité Apple, le compte de démonstration.
 
 Réglés : l'âge (16 ans partout, barrière côté serveur) et la localisation en arrière-plan
 (retirée de la première soumission).
