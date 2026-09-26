@@ -4,7 +4,7 @@
  * sécurisé, avec rafraîchissement automatique du jeton si l'accès a expiré.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ApiError, refreshAccessTokenOnce, registerTokenRefresher, unregisterTokenRefresher } from './api';
+import { ApiError, refreshAccessTokenOnce, registerTokenRefresher, setCurrentAccessToken, unregisterTokenRefresher } from './api';
 import { clearSentryUser, setSentryUser } from './sentry';
 import { loginPurchases, logoutPurchases } from './purchases';
 import {
@@ -79,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Copie lue par les routes publiques qui identifient l'appelant (lib/api).
+  useEffect(() => { setCurrentAccessToken(accessToken); }, [accessToken]);
 
 
   const refreshTokenRef = useRef<string | null>(null);

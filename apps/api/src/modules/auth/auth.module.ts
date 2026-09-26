@@ -5,6 +5,7 @@ import { MediaModule } from '../../infra/media/media.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { AuthCleanupCron } from './auth-cleanup.cron';
 
 /**
@@ -19,9 +20,9 @@ import { AuthCleanupCron } from './auth-cleanup.cron';
 @Module({
   imports: [JwtModule.register({}), StorageModule, MediaModule],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, AuthCleanupCron],
+  providers: [AuthService, JwtAuthGuard, OptionalJwtAuthGuard, AuthCleanupCron],
   // JwtModule est ré-exporté pour que `JwtAuthGuard` (utilisé via @UseGuards
   // dans les modules importateurs) puisse résoudre `JwtService` chez eux.
-  exports: [AuthService, JwtAuthGuard, JwtModule],
+  exports: [AuthService, JwtAuthGuard, OptionalJwtAuthGuard, JwtModule],
 })
 export class AuthModule {}

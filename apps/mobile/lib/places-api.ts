@@ -2,7 +2,7 @@
  * Client des endpoints Lieux (`/places/*`, publics).
  */
 import type { Universe } from '@yumia/shared';
-import { request } from './api';
+import { getCurrentAccessToken, request } from './api';
 import { API_BASE_URL } from './config';
 import { appendFile } from './upload';
 
@@ -39,7 +39,9 @@ export function fetchNearby(params: NearbyParams): Promise<NearbyPlace[]> {
   if (params.radius != null) q.set('radius', String(params.radius));
   if (params.universe) q.set('universe', params.universe);
   if (params.limit != null) q.set('limit', String(params.limit));
-  return request<NearbyPlace[]>(`/places/nearby?${q.toString()}`);
+  // Jeton facultatif : la route est publique, mais le serveur compte le
+  // budget d'appels Google par compte quand il sait qui appelle.
+  return request<NearbyPlace[]>(`/places/nearby?${q.toString()}`, { token: getCurrentAccessToken() });
 }
 
 /**

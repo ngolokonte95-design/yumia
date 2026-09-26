@@ -25,6 +25,22 @@ let _tokenRefresher: (() => Promise<string | null>) | null = null;
  */
 let _inflightRefresh: Promise<string | null> | null = null;
 
+/**
+ * Jeton d'accès courant, tenu à jour par AuthProvider. Pour les routes
+ * publiques qui reconnaissent quand même l'appelant (ex. `/places/nearby`,
+ * dont le budget d'appels Google se compte par compte) sans que chaque écran
+ * ait à faire suivre le jeton.
+ */
+let _currentAccessToken: string | null = null;
+
+export function setCurrentAccessToken(token: string | null): void {
+  _currentAccessToken = token;
+}
+
+export function getCurrentAccessToken(): string | undefined {
+  return _currentAccessToken ?? undefined;
+}
+
 export function registerTokenRefresher(fn: () => Promise<string | null>): void {
   _tokenRefresher = fn;
 }

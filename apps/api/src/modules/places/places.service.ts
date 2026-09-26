@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, type Place } from '@prisma/client';
-import type { Universe } from '@yumia/shared';
+import type { Plan, Universe } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { ElasticsearchService } from '../../infra/elasticsearch/elasticsearch.service';
 import { RedisService } from '../../infra/redis/redis.service';
@@ -38,9 +38,37 @@ const HYDRATE_TILE_TTL_SECONDS = 30 * 24 * 60 * 60;
 // Verrou court anti-stampede pendant l'appel réseau (plusieurs requêtes
 // concurrentes sur la même zone vide ne déclenchent qu'un seul appel).
 const HYDRATE_LOCK_TTL_SECONDS = 60;
-// Zone où le fournisseur n'a (pour l'instant) rien renvoyé : on retente après ce
-// délai au lieu de la bloquer une semaine entière (couverture mondiale).
-const HYDRATE_EMPTY_RETRY_TTL_SECONDS = 6 * 60 * 60; // 6 h
+// Zone où le fournisseur n'a rien (ou presque) renvoyé. C'était 6 h : un
+// univers rare dans une zone rurale était re-payé quatre fois par jour, pour
+// une réponse qui ne change pas en quelques heures. Une vraie panne Google ne
+// passe pas par ici (l'erreur retire la clé, la zone est retentée tout de
+// suite) : ce délai ne s'applique qu'à une réponse vide mais valide.
+const HYDRATE_EMPTY_RETRY_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 jours
+
+/**
+ * Appels Google qu'un même demandeur peut déclencher par jour (UTC).
+ *
+ * Ce n'est pas un quota d'affichage : une zone déjà chargée est servie depuis
+ * la base, sans appel, et ne consomme rien. Seules les zones NEUVES coûtent.
+ * Un utilisateur normal n'approche jamais ces chiffres ; ils arrêtent un script
+ * ou une réinstallation en boucle qui balaierait la carte zone par zone. Budget
+ * épuisé : on continue de servir la base, sans erreur, jusqu'au lendemain.
+ * Sans compte (anciennes versions de l'app, appels directs), compté par IP,
+ * plus large car plusieurs abonnés mobiles partagent souvent une IP.
+ */
+const HYDRATION_CALLS_PER_DAY: Record<Plan | 'anonymous', number> = {
+  anonymous: 200,
+  free: 60,
+  plus: 100,
+  gold: 150,
+  diamond: 250,
+};
+
+/** Qui déclenche la recherche — pour le budget d'appels Google ci-dessus. */
+export interface PlacesRequester {
+  userId?: string;
+  ip?: string;
+}
 // Un lieu dont le renouvellement de photos a échoué n'est pas réessayé avant
 // ce délai : sans lui, chaque affichage de sa fiche relancerait une recherche
 // facturée pour le même résultat vide.
@@ -80,18 +108,17 @@ export type PlaceWithDistance = Place & { distanceMeters: number };
  * Google plafonne `searchNearby` à 20 résultats/appel : en couvrant plusieurs
  * catégories, on remonte beaucoup plus de lieux variés par zone.
  */
-// Huit catégories, pas dix-sept : chacune est une recherche Google facturée à
-// chaque nouvelle zone ouverte en « Tous ». Les autres (cinéma, hôtel, club…)
-// se chargent quand l'utilisateur choisit leur univers.
+// Cinq catégories (c'était huit, et dix-sept avant) : chacune est une recherche
+// Google facturée à chaque nouvelle zone ouverte en « Tous », le plus gros
+// multiplicateur de coût de l'app. Les autres (musée, parc, shopping, cinéma…)
+// se chargent quand l'utilisateur choisit leur univers, et remplissent alors
+// aussi la carte « Tous » de la zone, puisque tout va dans la même base.
 const MAP_DENSITY_UNIVERSES: Universe[] = [
   'restaurant',
   'cafe',
   'bar',
   'bakery',
   'tourist_activity',
-  'museum',
-  'park',
-  'shopping',
 ];
 
 const EARTH_RADIUS_M = 6_371_000;
@@ -410,6 +437,8 @@ export class PlacesService {
     radius: number;
     universe?: Universe;
     limit: number;
+    /** Absent pour les appels internes (recommandations…), déjà quotés ailleurs. */
+    requester?: PlacesRequester;
   }): Promise<PlaceWithDistance[]> {
     let results = await this.queryNearby(params);
 
@@ -458,6 +487,7 @@ export class PlacesService {
     lng: number;
     radius: number;
     universe?: Universe;
+    requester?: PlacesRequester;
   }): Promise<boolean> {
     const tile = hydrationTile(params.lat, params.lng, params.radius);
     const tileKey = [
@@ -478,6 +508,9 @@ export class PlacesService {
     const already = await this.redis.getJson<boolean>(tileKey).catch(() => null);
     if (already) return false;
 
+    const cost = params.universe ? 1 : MAP_DENSITY_UNIVERSES.length;
+    if (params.requester && !(await this.takeHydrationBudget(params.requester, cost))) return false;
+
     // Verrou COURT posé AVANT l'appel : évite le stampede si plusieurs requêtes
     // concurrentes ciblent la même zone vide, sans la bloquer durablement.
     await this.redis.setJson(tileKey, true, HYDRATE_LOCK_TTL_SECONDS).catch(() => undefined);
@@ -490,13 +523,20 @@ export class PlacesService {
         // Carte "Tous" : Google plafonne searchNearby à 20 résultats par appel.
         // Pour densifier, on interroge plusieurs catégories clés en parallèle et
         // on fusionne (dédup par providerPlaceId dans persistProviderPlaces).
+        let failures = 0;
         const batches = await Promise.all(
           MAP_DENSITY_UNIVERSES.map((u) =>
             this.provider
               .searchNearby({ ...zone, universe: u, limit: 20 })
-              .catch(() => [] as ProviderPlace[]),
+              .catch(() => { failures += 1; return [] as ProviderPlace[]; }),
           ),
         );
+        // Toutes les recherches en échec = panne, pas zone vide : sans ça, la
+        // zone serait marquée vide pour sept jours (voir le catch plus bas,
+        // qui retire la clé pour retenter).
+        if (failures === MAP_DENSITY_UNIVERSES.length) {
+          throw new Error('toutes les recherches de densité ont échoué');
+        }
         const seen = new Set<string>();
         found = batches.flat().filter((p) => {
           if (seen.has(p.providerPlaceId)) return false;
@@ -511,8 +551,8 @@ export class PlacesService {
         return false;
       }
       await this.persistProviderPlaces(found);
-      // Peu de résultats (< 5) : on retente dans 6h plutôt que 7 jours — la
-      // couverture Google peut s'améliorer ou un rayon plus large peut aider.
+      // Peu de résultats (< 5) : délai « zone vide » plutôt que 30 jours — la
+      // couverture Google peut s'améliorer.
       const ttl = found.length < 5 ? HYDRATE_EMPTY_RETRY_TTL_SECONDS : HYDRATE_TILE_TTL_SECONDS;
       await this.redis.setJson(tileKey, true, ttl).catch(() => undefined);
       this.logger.log(`Hydratation : ${found.length} lieux importés (${tileKey}, ttl=${ttl}s).`);
@@ -522,6 +562,36 @@ export class PlacesService {
       // On retire le marqueur pour autoriser une nouvelle tentative plus tard.
       await this.redis.del(tileKey).catch(() => undefined);
       return false;
+    }
+  }
+
+  /**
+   * Réserve `cost` appels Google sur le budget du jour du demandeur. `false` si
+   * le budget est épuisé. Redis indisponible : on laisse passer, comme les
+   * quotas, plutôt que de priver tout le monde de nouvelles zones.
+   */
+  private async takeHydrationBudget(requester: PlacesRequester, cost: number): Promise<boolean> {
+    const who = requester.userId ? `u:${requester.userId}` : `ip:${requester.ip ?? 'unknown'}`;
+    const day = new Date().toISOString().slice(0, 10);
+    const key = `places:hydrate-budget:${who}:${day}`;
+    try {
+      let limit = HYDRATION_CALLS_PER_DAY.anonymous;
+      if (requester.userId) {
+        const user = await this.prisma.user
+          .findUnique({ where: { id: requester.userId }, select: { plan: true } })
+          .catch(() => null);
+        limit = HYDRATION_CALLS_PER_DAY[(user?.plan ?? 'free') as Plan] ?? HYDRATION_CALLS_PER_DAY.free;
+      }
+      const used = Number((await this.redis.raw.get(key)) ?? 0);
+      if (used + cost > limit) {
+        this.logger.warn(`Budget Google du jour atteint (${who}, ${used}/${limit}) : zone neuve non chargée.`);
+        return false;
+      }
+      const next = await this.redis.raw.incrby(key, cost);
+      if (next === cost) await this.redis.raw.expire(key, 26 * 3600);
+      return true;
+    } catch {
+      return true;
     }
   }
 

@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
   Res,
   UploadedFile,
   UseGuards,
@@ -20,10 +21,12 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import type { Place } from '@prisma/client';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
+import type { JwtPayload } from '../auth/types';
 import { StorageService } from '../../infra/storage/storage.service';
 import { ImageSanitizeService } from '../../infra/media/image-sanitize.service';
 import { CreatePlaceDto } from './dto/create-place.dto';
@@ -86,13 +89,18 @@ export class PlacesController {
   // Routes publiques : compté par IP, large (IP partagées sur mobile). Un
   // garde-fou contre les scripts, pas une limite de forfait.
   @Quota({ name: 'places-nearby', anonymousPerDay: 3000 })
-  async nearby(@Query() query: NearbyQueryDto) {
+  // Jeton facultatif : la route reste publique, mais un appelant connecté est
+  // reconnu, pour que son budget d'appels Google soit tenu par compte (une
+  // réinstallation ne le remet plus à zéro).
+  @UseGuards(OptionalJwtAuthGuard)
+  async nearby(@Query() query: NearbyQueryDto, @Req() req: Request & { user?: JwtPayload }) {
     const places = await this.places.nearby({
       lat: query.lat,
       lng: query.lng,
       radius: query.radius ?? 2_000,
       universe: query.universe,
       limit: query.limit ?? 20,
+      requester: { userId: req.user?.sub, ip: req.ip },
     });
     return places.map((p) => {
       // $queryRaw retourne les colonnes JSON comme des chaînes — on parse si besoin.

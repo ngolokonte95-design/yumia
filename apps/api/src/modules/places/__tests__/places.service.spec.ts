@@ -371,6 +371,60 @@ describe('PlacesService', () => {
       expect(provider.searchNearby).not.toHaveBeenCalled();
       expect(result).toEqual([]);
     });
+
+    describe("budget d'appels Google par demandeur", () => {
+      const withRaw = (used: number) => {
+        const raw = {
+          get: jest.fn().mockResolvedValue(String(used)),
+          incrby: jest.fn().mockImplementation((_k: string, n: number) => Promise.resolve(used + n)),
+          expire: jest.fn().mockResolvedValue(1),
+        };
+        (redis as unknown as { raw: typeof raw }).raw = raw;
+        return raw;
+      };
+
+      beforeEach(() => {
+        es.isAvailable = false;
+        provider.isEnabled = true;
+        prisma.$queryRaw.mockResolvedValue([]); // zone neuve : base vide
+        (prisma as unknown as { user: unknown }).user = {
+          findUnique: jest.fn().mockResolvedValue({ plan: 'free' }),
+        };
+      });
+
+      it('budget épuisé : aucune recherche Google, la base est servie sans erreur', async () => {
+        withRaw(60); // plafond du forfait gratuit atteint
+
+        const result = await service.nearby({
+          lat: 35.68, lng: 139.69, radius: 3000, universe: 'restaurant', limit: 5,
+          requester: { userId: 'u-1', ip: '1.2.3.4' },
+        });
+
+        expect(provider.searchNearby).not.toHaveBeenCalled();
+        expect(result).toEqual([]);
+      });
+
+      it('carte « Tous » : décompte le nombre de catégories interrogées', async () => {
+        const raw = withRaw(0);
+
+        await service.nearby({
+          lat: 35.68, lng: 139.69, radius: 3000, limit: 5,
+          requester: { userId: 'u-1' },
+        });
+
+        expect(provider.searchNearby).toHaveBeenCalled();
+        expect(raw.incrby).toHaveBeenCalledWith(expect.stringContaining('u:u-1'), 5);
+      });
+
+      it('appel interne sans demandeur : pas de budget appliqué', async () => {
+        const raw = withRaw(10_000);
+
+        await service.nearby({ lat: 35.68, lng: 139.69, radius: 3000, universe: 'restaurant', limit: 5 });
+
+        expect(provider.searchNearby).toHaveBeenCalled();
+        expect(raw.get).not.toHaveBeenCalled();
+      });
+    });
   });
 
   // ── resolvePhotoUrl ────────────────────────────────────────────────────────────
