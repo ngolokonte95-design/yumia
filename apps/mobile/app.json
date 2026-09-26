@@ -11,7 +11,8 @@
       "enabled": false
     },
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0E0E12",
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
