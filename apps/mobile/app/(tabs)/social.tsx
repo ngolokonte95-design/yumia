@@ -1126,24 +1126,33 @@ export default function SocialTab() {
         />
       ) : (
         <>
-          {/* Onglets — puces défilantes plutôt que cinq cases à parts égales :
-              cinq libellés avec emoji ne tiennent pas en largeur d'écran sans
-              descendre à 10 px, illisible. Chaque puce garde sa taille
-              naturelle et la rangée défile si besoin. */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.tabsScroll}
-            contentContainerStyle={styles.tabs}
-          >
-            {(['foryou', 'following', 'activity', 'encounters', 'people'] as Tab[]).map((tabKey) => (
-              <Pressable key={tabKey} style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]} onPress={() => setTab(tabKey)}>
-                <Text style={[styles.tabBtnText, tab === tabKey && styles.tabBtnTextActive]}>
-                  {t(`social_tab_${tabKey}` as never)}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          {/* Onglets — cinq colonnes égales, sans défilement (voulu par
+              l'utilisateur). Emoji et libellé sur deux lignes : côte à côte,
+              cinq libellés ne tenaient qu'à 10 px, illisible. Le libellé
+              traduit commence par l'emoji, séparé par une espace. */}
+          <View style={styles.tabs}>
+            {(['foryou', 'following', 'activity', 'encounters', 'people'] as Tab[]).map((tabKey) => {
+              const label = t(`social_tab_${tabKey}` as never) as string;
+              const sp = label.indexOf(' ');
+              const [icon, text] = sp > 0 ? [label.slice(0, sp), label.slice(sp + 1)] : ['', label];
+              const active = tab === tabKey;
+              return (
+                <Pressable key={tabKey} style={[styles.tabBtn, active && styles.tabBtnActive]} onPress={() => setTab(tabKey)}>
+                  {icon ? <Text style={[styles.tabBtnIcon, !active && styles.tabBtnIconInactive]}>{icon}</Text> : null}
+                  <Text
+                    style={[styles.tabBtnText, active && styles.tabBtnTextActive]}
+                    numberOfLines={1}
+                    // Sur un petit écran, un libellé long (« Abonnements ») se
+                    // resserre légèrement plutôt que d'être coupé par « … ».
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
+                    {text}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {tab === 'foryou' && renderPostList(globalPosts, '✨', t('social_empty_foryou_title'), t('social_empty_foryou_text'), true, 'foryou')}
 
@@ -1346,17 +1355,13 @@ const styles = StyleSheet.create({
   headerBtnText: { fontSize: 12, color: colors.text, fontWeight: '600' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginBottom: spacing.sm, gap: 8 },
   searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
-  // flexGrow/flexShrink 0 : sans ça, la liste en dessous (flex: 1) écrase la
-  // rangée et coupe les puces à mi-hauteur.
-  tabsScroll: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.sm },
-  tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, alignItems: 'center' },
-  tabBtn: {
-    paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-  },
-  tabBtnActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  tabBtnText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
-  tabBtnTextActive: { color: '#fff', fontWeight: '700' },
+  tabs: { flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 4, gap: 2 },
+  tabBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 2, alignItems: 'center', gap: 3, borderRadius: radius.md },
+  tabBtnActive: { backgroundColor: colors.background },
+  tabBtnIcon: { fontSize: 18, lineHeight: 22 },
+  tabBtnIconInactive: { opacity: 0.55 },
+  tabBtnText: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
+  tabBtnTextActive: { color: colors.brand, fontWeight: '700' },
   // Stories
   storyItem: { alignItems: 'center', width: 68 },
   storyMineWrap: { width: 64, height: 64, marginBottom: 4 },
