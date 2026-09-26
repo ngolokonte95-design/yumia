@@ -534,7 +534,7 @@ export function MusicPickerModal({
                 onPress={() => setSource(s)}
               >
                 <Text style={[ms.sourceTabText, source === s && ms.sourceTabTextActive]}>
-                  {s === 'itunes' ? '🍎 Apple Music' : '🟢 Deezer'}
+                  {s === 'itunes' ? 'Apple Music' : 'Deezer'}
                 </Text>
               </Pressable>
             ))}
@@ -659,10 +659,12 @@ const ms = StyleSheet.create({
   title: { ...typography.h3, color: colors.text },
   close: { fontSize: 20, color: colors.textMuted, paddingHorizontal: 8 },
   sourceTabs: { flexDirection: 'row', marginHorizontal: spacing.md, marginTop: spacing.sm, marginBottom: 4, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 4 },
-  sourceTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: radius.md },
+  // Sources discrètes : la marque mise en avant est YUMIA Music (titre),
+  // Deezer et Apple Music restent nommés comme l'exigent leurs conditions d'API.
+  sourceTab: { flex: 1, paddingVertical: 6, alignItems: 'center', borderRadius: radius.md },
   sourceTabActive: { backgroundColor: colors.background },
-  sourceTabText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  sourceTabTextActive: { color: colors.brand, fontWeight: '700' },
+  sourceTabText: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
+  sourceTabTextActive: { color: colors.text, fontWeight: '600' },
   searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginVertical: spacing.sm },
   searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
   trackRow: {
