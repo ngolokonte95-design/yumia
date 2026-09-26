@@ -1126,8 +1126,16 @@ export default function SocialTab() {
         />
       ) : (
         <>
-          {/* Onglets */}
-          <View style={styles.tabs}>
+          {/* Onglets — puces défilantes plutôt que cinq cases à parts égales :
+              cinq libellés avec emoji ne tiennent pas en largeur d'écran sans
+              descendre à 10 px, illisible. Chaque puce garde sa taille
+              naturelle et la rangée défile si besoin. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabsScroll}
+            contentContainerStyle={styles.tabs}
+          >
             {(['foryou', 'following', 'activity', 'encounters', 'people'] as Tab[]).map((tabKey) => (
               <Pressable key={tabKey} style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]} onPress={() => setTab(tabKey)}>
                 <Text style={[styles.tabBtnText, tab === tabKey && styles.tabBtnTextActive]}>
@@ -1135,7 +1143,7 @@ export default function SocialTab() {
                 </Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
 
           {tab === 'foryou' && renderPostList(globalPosts, '✨', t('social_empty_foryou_title'), t('social_empty_foryou_text'), true, 'foryou')}
 
@@ -1338,11 +1346,17 @@ const styles = StyleSheet.create({
   headerBtnText: { fontSize: 12, color: colors.text, fontWeight: '600' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginBottom: spacing.sm, gap: 8 },
   searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
-  tabs: { flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 4 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: radius.md },
-  tabBtnActive: { backgroundColor: colors.background },
-  tabBtnText: { fontSize: 10, color: colors.textMuted, fontWeight: '600' },
-  tabBtnTextActive: { color: colors.brand, fontWeight: '700' },
+  // flexGrow/flexShrink 0 : sans ça, la liste en dessous (flex: 1) écrase la
+  // rangée et coupe les puces à mi-hauteur.
+  tabsScroll: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.sm },
+  tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, alignItems: 'center' },
+  tabBtn: {
+    paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  },
+  tabBtnActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  tabBtnText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
+  tabBtnTextActive: { color: '#fff', fontWeight: '700' },
   // Stories
   storyItem: { alignItems: 'center', width: 68 },
   storyMineWrap: { width: 64, height: 64, marginBottom: 4 },
