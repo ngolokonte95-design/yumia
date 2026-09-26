@@ -1062,23 +1062,26 @@ export default function SocialTab() {
         </View>
       </View>
 
-      {/* Raccourcis (profil, découvrir, carte, meetups) */}
+      {/* Raccourcis (profil, découvrir, carte, meetups) — quatre puces à
+          parts égales, sans défilement : sur Android (Roboto plus large) la
+          quatrième sortait de l'écran. Un libellé trop long pour sa colonne
+          se resserre plutôt que d'être coupé. */}
       <View style={styles.header}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.headerActions}>
+        <View style={styles.headerActions}>
           <Pressable onPress={() => router.push('/social-profile')} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>{t('social_menu_my_profile')}</Text>
+            <Text style={styles.headerBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t('social_menu_my_profile')}</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/discover-people')} style={[styles.headerBtn, styles.headerBtnRow]}>
             <LollipopIcon size={14} />
-            <Text style={styles.headerBtnText}>{t('social_menu_tind')}</Text>
+            <Text style={styles.headerBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t('social_menu_tind')}</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/nearby-users')} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>{t('social_menu_map')}</Text>
+            <Text style={styles.headerBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t('social_menu_map')}</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/meetup')} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>{t('social_menu_meetups')}</Text>
+            <Text style={styles.headerBtnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t('social_menu_meetups')}</Text>
           </Pressable>
-        </ScrollView>
+        </View>
       </View>
 
       {/* Recherche */}
@@ -1349,10 +1352,13 @@ const styles = StyleSheet.create({
   iconBtnTxt: { fontSize: 18 },
   unreadDot: { position: 'absolute', top: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
   header: { paddingBottom: 6 },
-  headerActions: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md },
-  headerBtn: { backgroundColor: colors.surface, borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
-  headerBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  headerBtnText: { fontSize: 12, color: colors.text, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.sm },
+  headerBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, borderRadius: radius.full, paddingHorizontal: 6, paddingVertical: 7, borderWidth: 1, borderColor: colors.border,
+  },
+  headerBtnRow: { flexDirection: 'row', gap: 4 },
+  headerBtnText: { fontSize: 12, lineHeight: 16, color: colors.text, fontWeight: '600', textAlign: 'center' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginBottom: spacing.sm, gap: 8 },
   searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
   // Marges latérales réduites (sm) : c'est ce qui donne à « Abonnements »
