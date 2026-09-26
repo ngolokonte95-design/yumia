@@ -651,34 +651,41 @@ export default function PlaceScreen() {
 
           <Text style={styles.reason}>🤖 {reason}</Text>
 
-          {/* Actions */}
+          {/* Actions — quatre tuiles égales, icône au-dessus du libellé. Côte à
+              côte sur une ligne, « 🤍 Sauvegarder » débordait de sa pastille.
+              Les icônes sont posées ici ; on retire celle que portent certains
+              libellés traduits pour ne pas l'afficher deux fois. */}
           <View style={styles.actions}>
-            <Pressable
-              style={[styles.actionBtn, isSaved && styles.actionBtnActive]}
-              onPress={handleSave}
-            >
-              <Text style={styles.actionText}>{isSaved ? t('place_saved_btn') : t('place_save_btn')}</Text>
-            </Pressable>
-            <Pressable style={styles.actionBtn} onPress={handleShare}>
-              <Text style={styles.actionText}>{t('place_share_btn')}</Text>
-            </Pressable>
-            <Pressable style={styles.actionBtn} onPress={handleOpenMaps}>
-              <Text style={styles.actionText}>{t('place_maps_btn')}</Text>
-            </Pressable>
-            {/* Le calendrier récupère nom, adresse et catégorie du lieu : plus
-                rien à ressaisir. La catégorie retenue dépend de l'univers. */}
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() => router.push(
-                `/calendar?title=${encodeURIComponent(place.name)}`
-                + `&placeId=${encodeURIComponent(place.id)}`
-                + `&placeName=${encodeURIComponent(place.name)}`
-                + `&address=${encodeURIComponent(place.city ?? '')}`
-                + `&category=${calendarCategoryFor(place.universe)}` as never,
-              )}
-            >
-              <Text style={styles.actionText}>{t('place_calendar_btn')}</Text>
-            </Pressable>
+            {([
+              { key: 'save', icon: isSaved ? '❤️' : '🤍', label: isSaved ? t('place_saved_btn') : t('place_save_btn'), onPress: handleSave, active: isSaved },
+              { key: 'share', icon: '📤', label: t('place_share_btn'), onPress: handleShare },
+              { key: 'maps', icon: '🗺️', label: t('place_maps_btn'), onPress: handleOpenMaps },
+              {
+                key: 'calendar',
+                icon: '🗓️',
+                label: t('place_calendar_btn'),
+                // Le calendrier récupère nom, adresse et catégorie du lieu :
+                // plus rien à ressaisir. La catégorie dépend de l'univers.
+                onPress: () => router.push(
+                  `/calendar?title=${encodeURIComponent(place.name)}`
+                  + `&placeId=${encodeURIComponent(place.id)}`
+                  + `&placeName=${encodeURIComponent(place.name)}`
+                  + `&address=${encodeURIComponent(place.city ?? '')}`
+                  + `&category=${calendarCategoryFor(place.universe)}` as never,
+                ),
+              },
+            ] as { key: string; icon: string; label: string; onPress: () => void; active?: boolean }[]).map((a) => (
+              <Pressable
+                key={a.key}
+                style={({ pressed }) => [styles.actionBtn, a.active && styles.actionBtnActive, pressed && styles.actionBtnPressed]}
+                onPress={a.onPress}
+              >
+                <Text style={styles.actionIcon}>{a.icon}</Text>
+                <Text style={styles.actionText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                  {a.label.replace(/^[^\p{L}]+/u, '')}
+                </Text>
+              </Pressable>
+            ))}
           </View>
 
           {/* Réserver autour de ce lieu (guides) */}
@@ -1108,18 +1115,22 @@ const styles = StyleSheet.create({
   },
   tagText: { ...typography.label, color: colors.textSecondary },
 
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   actionBtn: {
     flex: 1,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
+    gap: 6,
   },
   actionBtnActive: { backgroundColor: `${colors.danger}18`, borderColor: colors.danger },
-  actionText: { ...typography.caption, color: colors.textPrimary },
+  actionBtnPressed: { opacity: 0.7 },
+  actionIcon: { fontSize: 22, lineHeight: 26 },
+  actionText: { fontSize: 12, lineHeight: 16, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' },
 
   feedbackBox: { marginTop: spacing.sm, gap: spacing.sm },
   feedbackPrompt: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
