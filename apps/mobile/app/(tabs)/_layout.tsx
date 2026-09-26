@@ -66,6 +66,10 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Fond du conteneur des onglets, visible un instant au changement
+        // d'onglet et derrière un écran qui se ferme (voir navTheme dans
+        // app/_layout.tsx pour le même flash blanc côté pile).
+        sceneStyle: { backgroundColor: colors.bg },
         tabBarShowLabel: true,
         tabBarStyle: {
           backgroundColor: colors.surface,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AppState, View, ActivityIndicator, StyleSheet } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -32,6 +32,23 @@ initPurchases();
 // écran mis en cache par l'OS avant que la vraie route (Home, login…) prenne
 // sa place — perçu comme "une page qui apparaît et disparaît".
 void SplashScreen.preventAutoHideAsync().catch(() => null);
+
+// Thème du navigateur. Sans ThemeProvider, expo-router applique son thème
+// clair par défaut : le conteneur natif de la pile (react-native-screens)
+// est alors peint en blanc, et sur Android ce blanc apparaît derrière
+// l'écran qui se ferme pendant l'animation de retour — le « flash blanc ».
+// `contentStyle` ne couvre que le contenu de chaque écran, pas ce conteneur.
+const navTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: colors.bg,
+    card: colors.surface,
+    border: colors.border,
+    primary: colors.brand,
+    text: colors.textPrimary,
+  },
+};
 
 /**
  * Garde de navigation selon l'état d'authentification + onboarding.
@@ -224,7 +241,9 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <StatusBar style="light" />
           <AuthProvider>
-            <AuthGate />
+            <ThemeProvider value={navTheme}>
+              <AuthGate />
+            </ThemeProvider>
             <OfflineBanner />
             {/* Motifs de signalement sur Android (Alert.alert n'y montre que 3 boutons). */}
             <ReportReasonSheet />
