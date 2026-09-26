@@ -1145,7 +1145,7 @@ export default function SocialTab() {
                     // Sur un petit écran, un libellé long (« Abonnements ») se
                     // resserre légèrement plutôt que d'être coupé par « … ».
                     adjustsFontSizeToFit
-                    minimumFontScale={0.8}
+                    minimumFontScale={0.85}
                   >
                     {text}
                   </Text>
@@ -1355,12 +1355,17 @@ const styles = StyleSheet.create({
   headerBtnText: { fontSize: 12, color: colors.text, fontWeight: '600' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginBottom: spacing.sm, gap: 8 },
   searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
-  tabs: { flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 4, gap: 2 },
-  tabBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 2, alignItems: 'center', gap: 3, borderRadius: radius.md },
+  // Marges latérales réduites (sm) : c'est ce qui donne à « Abonnements »
+  // la place de s'afficher à la même taille que les autres, sans
+  // resserrement — un libellé réduit paraissait plus petit et plus bas.
+  tabs: { flexDirection: 'row', marginHorizontal: spacing.sm, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 3 },
+  tabBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 1, alignItems: 'center', gap: 2, borderRadius: radius.md },
   tabBtnActive: { backgroundColor: colors.background },
-  tabBtnIcon: { fontSize: 18, lineHeight: 22 },
+  tabBtnIcon: { fontSize: 18, lineHeight: 22, textAlign: 'center' },
   tabBtnIconInactive: { opacity: 0.55 },
-  tabBtnText: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
+  // lineHeight fixe : même ligne de base pour tous, même si un libellé long
+  // doit encore se resserrer un peu dans une autre langue.
+  tabBtnText: { fontSize: 10.5, lineHeight: 14, letterSpacing: -0.2, color: colors.textMuted, fontWeight: '600', textAlign: 'center' },
   tabBtnTextActive: { color: colors.brand, fontWeight: '700' },
   // Stories
   storyItem: { alignItems: 'center', width: 68 },
