@@ -42,6 +42,36 @@ function metersBetween(a: Coordinates, b: Coordinates): number {
   return Math.sqrt(x * x + y * y) * 6_371_000;
 }
 
+/**
+ * Lecture de la position bornée dans le temps. Sur Android,
+ * `getCurrentPositionAsync` peut ne jamais répondre (intérieur sans Wi-Fi,
+ * appareil GPS seul, économiseur d'énergie) : l'onglet Carte restait alors
+ * sur son spinner, sans carte ni bouton. Passé le délai, on se rabat sur la
+ * dernière position connue du système (souvent à quelques minutes près), et
+ * seulement ensuite sur Paris.
+ */
+const POSITION_TIMEOUT_MS = 8_000;
+const LAST_KNOWN_MAX_AGE_MS = 15 * 60 * 1000;
+
+async function readPosition(): Promise<Location.LocationObject> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('position timeout')), POSITION_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      timeout,
+    ]);
+  } catch (err) {
+    const last = await Location.getLastKnownPositionAsync({ maxAge: LAST_KNOWN_MAX_AGE_MS });
+    if (last) return last;
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export function useLocation(): LocationState {
   const [coords, setCoords] = useState<Coordinates>(DEFAULT_LOCATION);
   const [resolving, setResolving] = useState(true);
@@ -60,9 +90,14 @@ export function useLocation(): LocationState {
         setStatus('denied');
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      // Permission accordée mais localisation coupée dans les réglages
+      // (tuile « Localisation » sur Android) : inutile d'attendre le délai.
+      if (!(await Location.hasServicesEnabledAsync())) {
+        setCoords(DEFAULT_LOCATION);
+        setStatus('fallback');
+        return;
+      }
+      const pos = await readPosition();
       const { latitude, longitude } = pos.coords;
       setCoords({ lat: latitude, lng: longitude });
       setStatus('granted');
@@ -92,7 +127,7 @@ export function useLocation(): LocationState {
     try {
       const { status: perm } = await Location.getForegroundPermissionsAsync();
       if (perm !== 'granted') return;
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const pos = await readPosition();
       const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       if (metersBetween(coordsRef.current, next) < minMeters) return;
       setCoords(next);

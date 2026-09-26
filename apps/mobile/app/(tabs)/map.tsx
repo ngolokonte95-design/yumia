@@ -14,11 +14,12 @@ import {
   Dimensions,
   Keyboard,
   PixelRatio,
+  BackHandler,
 } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META, type Universe } from '@yumia/shared';
 import { safeMeta, placeEmoji, universeLabel } from '../../lib/universeMeta';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
@@ -145,9 +146,30 @@ export default function MapScreen() {
           : dy < -60 || vy < -0.8;
         animateDrawer(shouldExpand);
       },
-      onPanResponderTerminate: () => drawerAnim.flattenOffset(),
+      // Android : un geste système (retour par le bord, volet de
+      // notifications) interrompt le glissement ; sans re-calage, le tiroir
+      // restait à mi-hauteur, désynchronisé de `drawerExpanded`.
+      onPanResponderTerminate: () => {
+        drawerAnim.flattenOffset();
+        animateDrawer(drawerExpanded.current);
+      },
     })
   ).current;
+
+  // Bouton retour Android : ferme ce qui est ouvert sur la carte (suggestions,
+  // panneaux, tiroir) avant de laisser le système quitter l'onglet. Sans ça,
+  // le retour sautait à l'accueil en laissant ces états ouverts.
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (suggestOpen) { setSuggestOpen(false); return true; }
+      if (filterPanelOpen) { setFilterPanelOpen(false); return true; }
+      if (radiusPanelOpen) { setRadiusPanelOpen(false); return true; }
+      if (expanded) { toggleDrawer(false); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [suggestOpen, filterPanelOpen, radiusPanelOpen, expanded, toggleDrawer]));
 
   // Fondu du contenu (liste) synchronisé au glissement du tiroir — évite qu'un
   // fragment de ligne dépasse visuellement sous le titre quand le tiroir est replié.
@@ -516,7 +538,10 @@ export default function MapScreen() {
         freshIds.forEach((id) => next.delete(id));
         return next;
       });
-    }, 200);
+      // Android : la bulle est rasterisée quand le suivi repasse à false ; avec
+      // 25 marqueurs montés d'un coup sur un appareil modeste, 200 ms ne
+      // suffisaient pas toujours et une bulle pouvait se figer sans son icône.
+    }, Platform.OS === 'android' ? 600 : 200);
     return () => clearTimeout(t);
   }, [markerIds]);
 
@@ -707,6 +732,15 @@ export default function MapScreen() {
           // jamais en tapant dessus. On les masque juste (pas de couleurs
           // custom, contrairement à l'ancien style sombre retiré plus haut).
           {...(Platform.OS === 'android' ? { customMapStyle: ANDROID_HIDE_POI_STYLE } : {})}
+          // Android uniquement (défauts Google) : le tap sur un marqueur
+          // ouvrait notre fiche ET laissait Google recentrer la caméra puis
+          // afficher sa barre « Itinéraire / Ouvrir dans Maps », qui emmène
+          // hors de YUMIA ; on retrouvait les deux au retour de la fiche.
+          // mapPadding : le tiroir replié couvrait le logo Google, que les
+          // conditions Google Maps Platform imposent de laisser visible.
+          {...(Platform.OS === 'android'
+            ? { toolbarEnabled: false, moveOnMarkerPress: false, mapPadding: { top: 0, right: 0, bottom: DRAWER_COLLAPSED, left: 0 } }
+            : {})}
           onPress={handleMapTap}
           onRegionChangeComplete={onRegionChangeComplete}
         >
@@ -714,8 +748,11 @@ export default function MapScreen() {
             <Marker
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}
-              title={place.name}
-              description={`${universeLabel(t, place.universe) || place.universe}${ratingSuffix(place.rating)}`}
+              // iOS seulement : sur Android, un titre fait apparaître
+              // l'info-bulle Google par-dessus notre fiche.
+              {...(Platform.OS === 'ios'
+                ? { title: place.name, description: `${universeLabel(t, place.universe) || place.universe}${ratingSuffix(place.rating)}` }
+                : {})}
               tracksViewChanges={trackingIds.has(place.id)}
               onPress={() => openDetail(place)}
               // Android uniquement : notre bulle est ronde (pas une épingle
@@ -723,7 +760,9 @@ export default function MapScreen() {
               // bas-centre par défaut de react-native-maps. Sans ça, la bulle
               // s'affiche décalée de son vrai point GPS et un tap "à côté"
               // du lieu déclenche quand même sa sélection.
-              {...(Platform.OS === 'android' ? { anchor: { x: 0.5, y: 0.5 } } : {})}
+              // zIndex : la bulle sélectionnée grossit mais pouvait rester
+              // dessinée sous ses voisines.
+              {...(Platform.OS === 'android' ? { anchor: { x: 0.5, y: 0.5 }, zIndex: place.id === selectedId ? 1 : 0 } : {})}
             >
               <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
                 {universeIcon(place.universe, 22) ?? (
