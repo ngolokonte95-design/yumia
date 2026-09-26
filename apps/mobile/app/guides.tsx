@@ -176,6 +176,10 @@ export default function GuidesScreen() {
           style={styles.whatInput}
           placeholder={t(`gd_what_${theme ?? 'guides'}` as TranslationKey)}
           placeholderTextColor={colors.textMuted}
+          // Android : sans hauteur fixe ni numberOfLines, un placeholder plus
+          // long que le champ passe à la ligne, et le haut de la 2e ligne
+          // dépasse sous le padding (on voyait des « ''' » sous le texte).
+          numberOfLines={1}
           value={what}
           onChangeText={setWhat}
           returnKeyType="search"
@@ -349,7 +353,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill, paddingHorizontal: spacing.md,
   },
   whatIcon: { fontSize: 13 },
-  whatInput: { flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 9 },
+  whatInput: { flex: 1, color: colors.textPrimary, fontSize: 14, height: 40, paddingVertical: 0 },
   whatClear: { fontSize: 14, color: colors.textMuted, paddingHorizontal: 4 },
   moreBtn: {
     alignItems: 'center', paddingVertical: spacing.md, borderRadius: radius.pill,
