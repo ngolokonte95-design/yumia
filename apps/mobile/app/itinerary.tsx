@@ -25,6 +25,7 @@ import { DayDetailModal, type DayMoment } from '../components/DayDetailModal';
 import { itineraryMoodLabel, itineraryMoodSub } from '../lib/labelHelpers';
 import type { CitySuggestion } from '../lib/services/weather';
 import { FeatureTip } from '../components/FeatureTip';
+import { useKeyboardReveal } from '../lib/useKeyboardReveal';
 import { ensureAiConsent } from '../lib/ai-consent';
 
 const API = API_BASE_URL;
@@ -105,6 +106,9 @@ export default function ItineraryScreen() {
   const [citySuggestOpen, setCitySuggestOpen] = useState(false);
   const { results: citySuggestions, loading: citySearching } = useCitySearch(citySuggestOpen ? city : '');
   const scrollRef = useRef<ScrollView>(null);
+  // « Contraintes » est en bas du formulaire : sans ça, le clavier le
+  // recouvrait et l'on écrivait sans voir le texte.
+  const kb = useKeyboardReveal(scrollRef);
   const cityFieldY = useRef(0);
   const [constraints, setConstraints] = useState('');
   const [loading, setLoading] = useState(false);
@@ -331,7 +335,13 @@ export default function ItineraryScreen() {
         )}
       </View>
 
-      <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 }}>
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        onScroll={kb.onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 + kb.bottomInset }}
+      >
 
         {/* Sélection du mood */}
         <Text style={styles.label}>{tr('itin_label_forwho')}</Text>
