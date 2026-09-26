@@ -314,9 +314,12 @@ export default function ItineraryScreen() {
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerEmoji}>{meta.emoji}</Text>
-          <View>
-            <Text style={styles.headerTitle}>{itineraryMoodLabel(tr, mood, meta.label)}</Text>
-            <Text style={styles.headerSub}>{itineraryMoodSub(tr, mood, meta.sub)}</Text>
+          {/* flex: 1 : quand le bouton « partager » apparaît après la
+              génération, le texte doit rétrécir au lieu de passer sous
+              « Mes itinéraires ». */}
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle} numberOfLines={1}>{itineraryMoodLabel(tr, mood, meta.label)}</Text>
+            <Text style={styles.headerSub} numberOfLines={2}>{itineraryMoodSub(tr, mood, meta.sub)}</Text>
           </View>
         </View>
         <Pressable onPress={() => router.push('/saved-itineraries' as never)} style={styles.savedLink} hitSlop={6}>
@@ -643,6 +646,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: 22, color: '#fff', fontWeight: '700' },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerEmoji: { fontSize: 26 },
+  headerText: { flex: 1, minWidth: 0 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
   headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
   shareBtn: {
@@ -651,7 +655,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   shareIcon: { fontSize: 18, color: '#fff', fontWeight: '700' },
-  savedLink: { alignItems: 'center', gap: 3, maxWidth: 84 },
+  savedLink: { alignItems: 'center', gap: 3, maxWidth: 84, marginLeft: 8 },
   savedLinkTxt: { fontSize: 10, color: '#fff', fontWeight: '600', textAlign: 'center' },
 
   label: { fontWeight: '700', color: colors.text, fontSize: 14, marginTop: spacing.lg, marginBottom: 8 },
