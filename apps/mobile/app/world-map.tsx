@@ -138,7 +138,7 @@ export default function WorldMapScreen() {
         <Text style={styles.count}>{t('wm_online_count').replace('{n}', String(users.length))}</Text>
       </View>
 
-      <MapView style={styles.map} initialRegion={initialRegion} showsUserLocation>
+      <MapView style={styles.map} initialRegion={initialRegion} showsUserLocation userInterfaceStyle="light">
         {shownUsers.map((u) => (
           <Marker key={u.userId} coordinate={{ latitude: u.lat, longitude: u.lng }}>
             <View style={styles.markerContainer}>

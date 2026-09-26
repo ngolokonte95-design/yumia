@@ -697,6 +697,10 @@ export default function MapScreen() {
           showsUserLocation
           showsMyLocationButton={false}
           mapType="standard"
+          // Carte claire quelle que soit l'apparence : sans ça, la carte suit
+          // le thème de l'app (forcé en sombre dans app.json) et Google Maps
+          // comme Apple Plans passent en mode nuit.
+          userInterfaceStyle="light"
           // Android uniquement : sans ça, les icônes de commerces de Google
           // Maps sont cliquables et interceptent le tap (onPoiClick au lieu
           // de onPress) — le petit spinner de chargement ne se déclenchait

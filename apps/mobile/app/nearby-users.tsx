@@ -414,6 +414,7 @@ export default function NearbyUsersScreen() {
         <View style={{ flex: 1 }}>
           <MapView
             style={styles.map}
+            userInterfaceStyle="light"
             initialRegion={{
               latitude: coords.lat,
               longitude: coords.lng,
