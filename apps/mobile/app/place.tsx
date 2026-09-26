@@ -3,7 +3,7 @@
  * Les données arrivent via placeStore (module singleton) pour éviter
  * la sérialisation d'objets complexes dans les URL params.
  */
-import { useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import type { VisitFeedback } from '../lib/passport-api';
@@ -67,7 +69,28 @@ export default function PlaceScreen() {
 
   const suggestion = placeStore.get() ?? deepLinkSuggestion;
   const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const reviewInputRef = useRef<TextInput>(null);
+  const { height: windowHeight } = useWindowDimensions();
   const { stats } = usePlaceStats(suggestion?.place.id ?? '');
+
+  // Fait remonter le champ d'avis au-dessus du clavier. Sur Android, le
+  // clavier redimensionne la fenêtre mais la ScrollView ne suit pas le champ
+  // qui a le focus : on écrivait sans voir le texte. On mesure le champ à
+  // l'écran une fois le clavier ouvert, et on défile juste de ce qui dépasse.
+  const revealReviewInput = useCallback((keyboardHeight: number) => {
+    reviewInputRef.current?.measureInWindow((_x, y, _w, h) => {
+      const keyboardTop = windowHeight - keyboardHeight;
+      const overflow = y + h + spacing.lg - keyboardTop;
+      if (overflow > 0) scrollRef.current?.scrollTo({ y: scrollY.current + overflow, animated: true });
+    });
+  }, [windowHeight]);
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', (e) => {
+      if (reviewInputRef.current?.isFocused()) revealReviewInput(e.endCoordinates.height);
+    });
+    return () => sub.remove();
+  }, [revealReviewInput]);
 
   const [visitState, setVisitState] = useState<'idle' | 'submitting' | 'feedback' | 'done'>('idle');
   const [xpResult, setXpResult] = useState<VisitResult | null>(null);
@@ -350,6 +373,9 @@ export default function PlaceScreen() {
         style={styles.screen}
         contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
       >
         {/* Hero */}
         <Pressable style={styles.hero} onPress={place.photoUrls?.length ? () => setPhotoViewerIndex(0) : undefined}>
@@ -515,6 +541,7 @@ export default function PlaceScreen() {
                     ))}
                   </View>
                   <TextInput
+                    ref={reviewInputRef}
                     style={reviewFormStyles.input}
                     placeholder={t('place_review_placeholder')}
                     placeholderTextColor={colors.textMuted}
@@ -534,15 +561,33 @@ export default function PlaceScreen() {
                         if (reviewRating === 0 || !accessToken) return;
                         setReviewSubmitting(true);
                         try {
+                          const body = reviewBody.trim();
                           const res = await fetch(`${(await import('../lib/api')).apiBase}/places/${place.id}/reviews`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-                            body: JSON.stringify({ rating: reviewRating, body: reviewBody || undefined }),
+                            body: JSON.stringify({ rating: reviewRating, body: body || undefined }),
                           });
-                          if (res.ok) setMyReview({ rating: reviewRating, body: reviewBody.trim() || null });
+                          if (!res.ok) {
+                            // Avant, un refus (texte modéré, note invalide, session
+                            // expirée…) fermait le formulaire comme un succès :
+                            // « laisser un avis ne marche pas ». On affiche le
+                            // motif du serveur et on garde la saisie.
+                            let message = t('error_generic');
+                            try {
+                              const err = (await res.json()) as { message?: string | string[] };
+                              const m = Array.isArray(err.message) ? err.message[0] : err.message;
+                              if (typeof m === 'string' && m) message = m;
+                            } catch { /* corps non JSON : message générique */ }
+                            Alert.alert(t('place_leave_review'), message);
+                            return;
+                          }
+                          Keyboard.dismiss();
+                          setMyReview({ rating: reviewRating, body: body || null });
                           setReviewModal(false);
                           setReviewBody('');
                           setReviewRating(0);
+                        } catch {
+                          Alert.alert(t('place_leave_review'), t('error_generic'));
                         } finally {
                           setReviewSubmitting(false);
                         }
