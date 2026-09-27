@@ -95,39 +95,32 @@ const RESTRICTION_EXCLUDED: Record<string, Universe[]> = {
 };
 
 /**
- * Univers "destination volontaire" — on y va sur décision, jamais en suggestion
- * spontanée. Exclus du Top 3 / recherche / feed pour éviter qu'une église ou un
- * magasin bien noté et proche ne prenne la place d'un vrai lieu de sortie/food.
- * Ils restent accessibles via la grille d'univers (`/universe?u=...`).
+ * Univers qu'on peut SUGGÉRER spontanément : des lieux où l'on sort — manger,
+ * boire, se divertir, visiter, prendre l'air.
+ *
+ * C'était une liste noire d'une vingtaine d'univers : tout ce qu'elle oubliait
+ * passait, et l'Explorer proposait des laveries, des serruriers, des
+ * distributeurs, des banques ou des stations-service. Une liste blanche ne
+ * laisse passer que ce qui est voulu ; un nouvel univers n'apparaît en
+ * suggestion que si on l'ajoute ici.
+ *
+ * Les autres univers restent accessibles quand l'utilisateur les demande :
+ * grille d'univers, Surprise Me ciblé (`universeFilter`), humeur qui les
+ * vise (`universeSet`, ex. spa pour « Me détendre »), ou plat recherché.
  */
-const RECO_EXCLUDED_UNIVERSES = new Set<string>([
-  // Beauté & Services personnels
-  'place_of_worship',
-  'spa',
-  'fitness',
-  'florist',
-  'library',
-  'nail_salon',
-  'hair_salon',
-  'barber',
-  'massage',
-  // Shopping (on ne recommande pas de magasin comme expérience du soir)
-  'shopping',
-  'mall',
-  'jewelry',
-  // Sport & Loisirs fonctionnels (recherche intentionnelle, pas reco)
-  'padel',
-  'karting',
-  'laser_game',
-  // Services / infrastructures
-  'coworking',
-  'gare',
-  'hotel',
-  'event_venue',
-  // Valeurs héritées supprimées de l'UI
-  'cheese_shop',
-  'nightlife',
-  'art_gallery',
+const RECO_OUTING_UNIVERSES = new Set<Universe>([
+  // Manger & boire
+  'restaurant', 'cafe', 'bar', 'bakery', 'brunch', 'dessert', 'pub', 'ice_cream',
+  'chocolatier', 'tea_house', 'juice_bar', 'food_truck',
+  // Soirées
+  'nightclub', 'hookah', 'live_music', 'rooftop', 'karaoke', 'comedy_club',
+  // Culture & activités
+  'cinema', 'theater', 'museum', 'monument', 'tourist_activity', 'cultural_outing',
+  'photo_spot', 'amusement_park', 'zoo', 'escape_game', 'bowling', 'laser_game', 'karting',
+  // Nature & plein air
+  'park', 'beach', 'hiking', 'natural_site', 'waterspot', 'botanical_garden', 'picnic_area',
+  // Loisirs aquatiques & sensations
+  'aquatic', 'jetski', 'quad',
 ]);
 
 /**
@@ -478,7 +471,10 @@ export class RecommendationsService {
       radius,
       // Avec une humeur, un pool plus large : les lieux les plus proches, tous
       // univers confondus, n'en contiennent souvent que quelques-uns du bon type.
-      limit: universeSet ? 200 : Math.max(40, limit * 3),
+      // Sans humeur aussi, un pool assez large : en ville, les 40 plus proches
+      // sont souvent des banques, pharmacies ou commerces que la liste des lieux
+      // de sortie écarte ensuite. Lecture en base seulement, sans coût Google.
+      limit: universeSet ? 200 : Math.max(120, limit * 3),
     });
 
     if (universeSet) {
@@ -523,9 +519,9 @@ export class RecommendationsService {
       dishMatchIds = new Set(dishMatches.map((p) => p.id));
     }
 
-    // Exclut les univers "destination volontaire" (culte, magasins, spa…) des
-    // suggestions spontanées : une église proche et bien notée ne doit jamais
-    // sortir pour une envie de couscous. Les matchs de plat échappent à ce
+    // Ne garde, en suggestion spontanée, que des lieux de sortie (voir
+    // RECO_OUTING_UNIVERSES) : une laverie ou une église proche et bien notée
+    // ne doit jamais sortir pour une envie de couscous. Les matchs de plat échappent à ce
     // filtre (lieux food explicitement demandés) — et de même pour un univers
     // explicitement choisi par l'utilisateur (ex. Surprise Me → "Spa") : cette
     // exclusion ne vaut que pour des suggestions spontanées, pas un choix assumé.
@@ -535,7 +531,7 @@ export class RecommendationsService {
         // Univers choisi via l'humeur (spa, massage pour « Me détendre ») :
         // un choix assumé, comme universeFilter.
         || universeSet?.has(p.universe as string)
-        || !RECO_EXCLUDED_UNIVERSES.has(p.universe as string),
+        || RECO_OUTING_UNIVERSES.has(p.universe as Universe),
     );
 
     // Fusionne les matchs de plat dans le pool (dédup par id), puis applique les

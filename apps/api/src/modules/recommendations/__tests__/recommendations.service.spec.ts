@@ -410,7 +410,7 @@ describe('RecommendationsService', () => {
     });
 
     it('lève l\'exclusion des univers "destination volontaire" quand choisis explicitement', async () => {
-      // spa fait partie de RECO_EXCLUDED_UNIVERSES (jamais suggéré spontanément).
+      // spa n'est pas dans RECO_OUTING_UNIVERSES (jamais suggéré spontanément).
       // Un choix explicite doit passer outre, sinon le dé ne renverrait jamais rien.
       aiMock.runStructured.mockResolvedValue({ reason: '', universesSuggested: [] });
       placesMock.nearby.mockResolvedValue([
@@ -435,6 +435,23 @@ describe('RecommendationsService', () => {
       const result = await service.top3({ lat: 48.856, lng: 2.352, radius: 3000 });
 
       expect(result.suggestions.map((s) => s.place.universe)).not.toContain('spa');
+    });
+
+    it('ne suggère jamais de services du quotidien, même les plus proches et les mieux notés', async () => {
+      aiMock.runStructured.mockResolvedValue({ reason: '', universesSuggested: [] });
+      placesMock.nearby.mockResolvedValue([
+        mockPlace({ id: 'l1', universe: 'laundry', rating: 5, distanceMeters: 50 }),
+        mockPlace({ id: 'k1', universe: 'locksmith', rating: 5, distanceMeters: 60 }),
+        mockPlace({ id: 'a1', universe: 'atm', rating: 5, distanceMeters: 70 }),
+        mockPlace({ id: 'b1', universe: 'bank', rating: 5, distanceMeters: 80 }),
+        mockPlace({ id: 'r1', universe: 'restaurant', rating: 4.0, distanceMeters: 600 }),
+        mockPlace({ id: 'd1', universe: 'dessert', rating: 4.2, distanceMeters: 700 }),
+        mockPlace({ id: 'h1', universe: 'beach', rating: 4.4, distanceMeters: 900 }),
+      ]);
+
+      const result = await service.top3({ lat: 48.856, lng: 2.352, radius: 3000 });
+
+      expect(result.suggestions.map((s) => s.place.universe).sort()).toEqual(['beach', 'dessert', 'restaurant']);
     });
 
     it('distingue le cache d\'un universeFilter de celui sans filtre, au même endroit', async () => {
