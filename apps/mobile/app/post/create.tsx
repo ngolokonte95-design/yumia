@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image,
   Pressable, ScrollView, StyleSheet, Text, TextInput, View,
@@ -15,6 +15,7 @@ import { PlacePicker, type PickedPlace } from '../../components/PlacePicker';
 import { VideoEditor } from '../../components/postEditor/VideoEditor';
 import type { PostOverlay } from '../../lib/feed-api';
 import { useI18n } from '../../lib/useI18n';
+import { useKeyboardReveal } from '../../lib/useKeyboardReveal';
 import { appendFile } from '../../lib/upload';
 import { FeatureTip } from '../../components/FeatureTip';
 
@@ -30,6 +31,9 @@ export default function CreatePostScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ uri?: string; mediaType?: string }>();
   const insets = useSafeAreaInsets();
+  // La légende est sous l'aperçu du média : sans ça, le clavier la recouvrait.
+  const scrollRef = useRef<ScrollView>(null);
+  const kb = useKeyboardReveal(scrollRef);
   const { t } = useI18n();
   const [mode, setMode] = useState<MediaMode>('photo');
   const [images, setImages] = useState<string[]>(params.uri && params.mediaType !== 'video' ? [params.uri] : []);
@@ -215,7 +219,13 @@ export default function CreatePostScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        onScroll={kb.onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 40 + kb.bottomInset }}
+      >
         {/* Mode toggle */}
         <View style={styles.modeRow}>
           <Pressable style={[styles.modeBtn, mode === 'photo' && styles.modeBtnActive]} onPress={() => { setMode('photo'); setVideoUri(null); }}>

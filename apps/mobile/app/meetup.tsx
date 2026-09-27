@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Modal, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
@@ -9,6 +9,7 @@ import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
+import { useKeyboardReveal } from '../lib/useKeyboardReveal';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { FeatureTip } from '../components/FeatureTip';
@@ -37,6 +38,10 @@ export default function MeetupScreen() {
   const { accessToken, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // Formulaire de création : les derniers champs (lieu, date, participants)
+  // passaient sous le clavier.
+  const createScrollRef = useRef<ScrollView>(null);
+  const kb = useKeyboardReveal(createScrollRef);
   const { t } = useI18n();
   const [meetups, setMeetups] = useState<Meetup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -203,7 +208,13 @@ export default function MeetupScreen() {
               {creating ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>{t('mu_create').replace('+ ', '')}</Text>}
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={{ padding: spacing.md, gap: 12 }}>
+          <ScrollView
+            ref={createScrollRef}
+            keyboardShouldPersistTaps="handled"
+            onScroll={kb.onScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ padding: spacing.md, gap: 12, paddingBottom: spacing.md + kb.bottomInset }}
+          >
             <TextInput style={styles.input} placeholder={t('mu_title_field_placeholder')} placeholderTextColor={colors.textMuted} value={form.title} onChangeText={(v) => setForm((f) => ({ ...f, title: v }))} />
             <TextInput style={[styles.input, { minHeight: 80 }]} placeholder={t('mu_description_placeholder')} placeholderTextColor={colors.textMuted} value={form.description} onChangeText={(v) => setForm((f) => ({ ...f, description: v }))} multiline />
             <TextInput style={styles.input} placeholder={t('mu_city_field_placeholder')} placeholderTextColor={colors.textMuted} value={form.city} onChangeText={(v) => setForm((f) => ({ ...f, city: v }))} />

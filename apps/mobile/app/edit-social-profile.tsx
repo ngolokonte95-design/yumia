@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator, Image, Pressable, ScrollView, Switch,
   StyleSheet, Text, TextInput, View,
@@ -11,6 +11,7 @@ import { uploadAvatarRequest } from '../lib/auth-api';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
+import { useKeyboardReveal } from '../lib/useKeyboardReveal';
 import type { TranslationKey } from '../lib/translations';
 import * as Location from 'expo-location';
 
@@ -34,6 +35,9 @@ export default function EditSocialProfileScreen() {
   const { user, accessToken, updateProfile, reloadUser } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // La bio est en bas du formulaire : sans ça, le clavier la recouvrait.
+  const scrollRef = useRef<ScrollView>(null);
+  const kb = useKeyboardReveal(scrollRef);
   const { t } = useI18n();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
@@ -117,7 +121,15 @@ export default function EditSocialProfileScreen() {
     : null;
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={scrollRef}
+      style={[styles.container, { paddingTop: insets.top }]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      onScroll={kb.onScroll}
+      scrollEventThrottle={16}
+      contentContainerStyle={{ paddingBottom: kb.bottomInset }}
+    >
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
         <Text style={styles.title}>{t('esp_title')}</Text>
