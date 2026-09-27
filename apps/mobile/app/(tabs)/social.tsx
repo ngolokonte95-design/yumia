@@ -350,31 +350,37 @@ function PostCard({
               // plus aucune vidéo ne démarrait jusqu'au redémarrage de l'app.
               // iOS était exempté au motif qu'il « gère mieux » : faux à
               // l'usage, cf. FEED_PERF_PROPS.
-              : (!isActive && !shouldMount)
-              ? (
+              // La miniature reste montée EN DESSOUS du lecteur, dans la même
+              // vue, au lieu d'être remplacée par lui. Avant, passer de la
+              // miniature au lecteur (à l'arrêt du défilement) démontait
+              // l'image avant que le lecteur et son propre poster soient
+              // peints : 2 images de fond de carte, le « flash » (mesuré image
+              // par image, iOS et Android). Tant que le lecteur n'a rien peint,
+              // on voit maintenant la même miniature à travers lui.
+              : (
                 <View style={styles.postVideo}>
                   {item.coverUrl ? (
                     <Image source={{ uri: item.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   ) : (
                     <View style={[StyleSheet.absoluteFill, styles.videoPlaceholder]} />
                   )}
+                  {(isActive || shouldMount) && (
+                    <PostVideo
+                      uri={videoSrc}
+                      style={StyleSheet.absoluteFill}
+                      active={isActive}
+                      onExpand={goFullscreen}
+                      overlays={item.overlays}
+                      // Une musique ajoutée remplace le son d'origine de la vidéo — les
+                      // deux ne doivent jamais jouer en même temps.
+                      videoMuted={item.videoMuted || !!music}
+                      voiceTrackUrl={item.voiceTrackUrl}
+                      onPlayingChange={music ? (playing) => onVideoPlayingChange?.(item.id, playing) : undefined}
+                      onLoop={music ? () => onVideoLoop?.(item.id) : undefined}
+                      posterUri={item.coverUrl}
+                    />
+                  )}
                 </View>
-              )
-              : (
-                <PostVideo
-                  uri={videoSrc}
-                  style={styles.postVideo}
-                  active={isActive}
-                  onExpand={goFullscreen}
-                  overlays={item.overlays}
-                  // Une musique ajoutée remplace le son d'origine de la vidéo — les
-                  // deux ne doivent jamais jouer en même temps.
-                  videoMuted={item.videoMuted || !!music}
-                  voiceTrackUrl={item.voiceTrackUrl}
-                  onPlayingChange={music ? (playing) => onVideoPlayingChange?.(item.id, playing) : undefined}
-                  onLoop={music ? () => onVideoLoop?.(item.id) : undefined}
-                  posterUri={item.coverUrl}
-                />
               );
           } else if (media) {
             mediaEl = (
