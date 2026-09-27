@@ -73,6 +73,8 @@ export function PostVideo({
     p.loop = true;
     p.muted = videoMuted;
     p.audioMixingMode = 'doNotMix';
+    // Sert à savoir quand la lecture avance vraiment (voir le poster plus bas).
+    p.timeUpdateEventInterval = 0.1;
     if (active) p.play();
   });
 
@@ -80,27 +82,35 @@ export function PostVideo({
   // réinitialisé : tous les lecteurs sont alors à recréer (lib/media-epoch.ts).
   useEffect(() => watchPlayerErrors(player, 'PostVideo'), [player]);
 
-  // La première image RÉELLEMENT peinte dans la vue, signalée par VideoView.
-  // `readyToPlay` ne suffit pas : le lecteur se dit prêt, puis va chercher la
-  // position demandée (`startAtSec`, reprise) avant d'afficher quoi que ce
-  // soit — sa vue est noire entre-temps. Mesuré : 0,8 s de noir.
-  const [firstFrame, setFirstFrame] = useState(false);
-
-  // Le poster reste tant que la vidéo n'est pas à la fois ACTIVE et
-  // peinte. Repli : si la vue ne signale jamais de première image, on se
-  // rabat sur readyToPlay + 1,5 s plutôt que de garder le poster pour
-  // toujours.
+  // Le poster reste tant que la vidéo n'a pas été repeinte DEPUIS QU'ELLE EST
+  // ACTIVE. Deux signaux, le premier arrivé l'emporte :
+  //  - la première image peinte (VideoView), si elle arrive pendant que la
+  //    vidéo est active — cas d'un premier chargement ;
+  //  - la lecture qui avance depuis l'activation — cas d'une vidéo déjà
+  //    chargée qu'on retrouve en défilant.
+  // Avant, un seul booléen « première image » était posé une fois pour toutes :
+  // en revenant sur une vidéo déjà chargée, le poster s'effaçait aussitôt,
+  // avant que le lecteur ait repeint quoi que ce soit — flash sombre de
+  // ~50 ms à l'arrêt du défilement, sur iOS comme sur Android (mesuré image
+  // par image). `readyToPlay` seul ne suffit pas non plus : la vue reste noire
+  // le temps d'aller chercher la position (0,8 s mesurées).
+  // Repli : readyToPlay + 1,5 s, pour ne jamais garder le poster pour toujours.
+  const activeRef = useRef(active);
+  activeRef.current = active;
   useEffect(() => {
     if (!active) { setReady(false); return undefined; }
-    if (firstFrame) { setReady(true); return undefined; }
+    const start = player.currentTime ?? 0;
+    const progress = player.addListener('timeUpdate', ({ currentTime }) => {
+      if (player.playing && Math.abs(currentTime - start) > 0.05) setReady(true);
+    });
     let timer: ReturnType<typeof setTimeout> | null = null;
     const fallback = () => { if (!timer) timer = setTimeout(() => setReady(true), 1500); };
     if (player.status === 'readyToPlay') fallback();
-    const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay') fallback();
+    const status = player.addListener('statusChange', ({ status: st }) => {
+      if (st === 'readyToPlay') fallback();
     });
-    return () => { sub.remove(); if (timer) clearTimeout(timer); };
-  }, [player, active, firstFrame]);
+    return () => { progress.remove(); status.remove(); if (timer) clearTimeout(timer); };
+  }, [player, active]);
 
   // Fondu du poster synchronisé sur `ready` — remplace le changement instantané
   // (poster affiché/retiré d'un coup) par une transition douce vers la vidéo.
@@ -232,7 +242,7 @@ export function PostVideo({
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         nativeControls={false}
-        onFirstFrameRender={() => setFirstFrame(true)}
+        onFirstFrameRender={() => { if (activeRef.current) setReady(true); }}
         // Android : la SurfaceView par défaut ne se découpe pas toujours
         // proprement pendant un défilement rapide de liste, laissant une
         // vidéo "baver" par-dessus le contenu voisin le temps que le scroll
