@@ -83,6 +83,8 @@ export default function AdminScreen() {
   const [affiliateStats, setAffiliateStats] = useState<AffiliateStats | null>(null);
   const [affiliateTrend, setAffiliateTrend] = useState<TrendRow[]>([]);
   const [pendingReports, setPendingReports] = useState<number | null>(null);
+  /** Commandes qui demandent une action : en cours (à payer chez AliExpress) + à transmettre. */
+  const [ordersToHandle, setOrdersToHandle] = useState<{ inProgress: number; toTransmit: number } | null>(null);
 
   async function backfillCountries() {
     if (!accessToken) return;
@@ -150,6 +152,11 @@ export default function AdminScreen() {
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { count: number } | null) => setPendingReports(d?.count ?? null))
         .catch(() => setPendingReports(null));
+      void fetch(`${API}/shop/admin/orders?tab=in_progress`, { headers: h })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { counts: { in_progress: number; to_transmit: number } } | null) =>
+          setOrdersToHandle(d ? { inProgress: d.counts.in_progress, toTransmit: d.counts.to_transmit } : null))
+        .catch(() => setOrdersToHandle(null));
       if (ovRes.status === 'fulfilled') {
         if (ovRes.value.ok) setOverview(await ovRes.value.json());
         else setError(`Stats: ${ovRes.value.status}`);
@@ -211,6 +218,29 @@ export default function AdminScreen() {
           </Text>
         </View>
         {pendingReports ? <Text style={styles.moderationBadge}>{pendingReports}</Text> : null}
+        <Text style={styles.moderationChevron}>›</Text>
+      </Pressable>
+
+      {/* ── Commandes de la boutique ──
+          Juste après la modération : une commande transmise à AliExpress y
+          reste « à payer » jusqu'au paiement manuel, sinon elle est annulée. */}
+      <Pressable style={styles.moderationCard} onPress={() => router.push('/admin-orders' as never)}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.moderationTitle}>Commandes</Text>
+          <Text style={styles.planHint}>
+            {ordersToHandle === null
+              ? 'Boutique : paiement AliExpress, suivi, retransmission'
+              : ordersToHandle.inProgress + ordersToHandle.toTransmit === 0
+                ? 'Aucune commande en attente'
+                : [
+                    ordersToHandle.inProgress ? `${ordersToHandle.inProgress} en cours (à payer ou en préparation)` : null,
+                    ordersToHandle.toTransmit ? `${ordersToHandle.toTransmit} à transmettre` : null,
+                  ].filter(Boolean).join(' · ')}
+          </Text>
+        </View>
+        {ordersToHandle && ordersToHandle.inProgress + ordersToHandle.toTransmit > 0 ? (
+          <Text style={styles.moderationBadge}>{ordersToHandle.inProgress + ordersToHandle.toTransmit}</Text>
+        ) : null}
         <Text style={styles.moderationChevron}>›</Text>
       </Pressable>
 

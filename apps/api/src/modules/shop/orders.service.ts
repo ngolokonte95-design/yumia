@@ -341,6 +341,22 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Retransmet à AliExpress une commande payée non transmise (refusée, ou
+   * annulée faute de paiement). Même chemin que le webhook Stripe : l'adresse
+   * figée et les règles d'adresse s'appliquent pareil.
+   */
+  async retransmit(reference: string): Promise<{ status: string; aliexpressOrderId: string | null }> {
+    const order = await this.prisma.order.findUnique({ where: { reference }, select: { id: true, status: true } });
+    if (!order) throw new NotFoundException('Commande introuvable');
+    if (order.status !== 'paid') {
+      throw new BadRequestException(`Commande « ${order.status} » : seule une commande payée non transmise peut être retransmise.`);
+    }
+    await this.fulfill(order.id);
+    const after = await this.prisma.order.findUnique({ where: { id: order.id }, select: { status: true, aliexpressOrderId: true } });
+    return { status: after?.status ?? 'paid', aliexpressOrderId: after?.aliexpressOrderId ?? null };
+  }
+
   // ── Consultation ──────────────────────────────────────────────────────────
 
   async listOrders(userId: string) {

@@ -60,6 +60,9 @@ export function aliexpressOrderUrl(aliexpressOrderId: string): string {
   return `https://www.aliexpress.com/p/order/detail.html?orderId=${encodeURIComponent(aliexpressOrderId)}`;
 }
 
+/** Onglets de l'écran admin des commandes. */
+export type AdminOrdersTab = 'in_progress' | 'to_transmit' | 'shipped' | 'delivered' | 'all';
+
 /** Délai entre deux rappels de paiement pour une même commande. */
 const PAY_REMINDER_EVERY_SECONDS = 6 * 3600;
 
@@ -187,6 +190,115 @@ export class OrderSyncService {
         this.logger.warn(`Commande ${order.reference} : état AliExpress non reconnu (${states.map((s) => s.status).join(', ')})`);
     }
     return stage;
+  }
+
+  // ── Administration ──────────────────────────────────────────────────────
+
+  /** Commandes pour l'écran admin, par onglet. */
+  async adminList(tab: AdminOrdersTab) {
+    const where =
+      tab === 'in_progress' ? { status: 'fulfilling' as const }
+      : tab === 'to_transmit' ? { status: 'paid' as const }
+      : tab === 'shipped' ? { status: 'shipped' as const }
+      : tab === 'delivered' ? { status: 'delivered' as const }
+      : { status: { notIn: ['pending' as const] } };
+    const [orders, counts] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: {
+          id: true, reference: true, status: true, totalCents: true, currency: true, createdAt: true,
+          aliexpressOrderId: true, trackingNumber: true,
+          user: { select: { displayName: true } },
+          _count: { select: { items: true } },
+        },
+      }),
+      this.prisma.order.groupBy({ by: ['status'], where: { status: { not: 'pending' } }, _count: { _all: true } }),
+    ]);
+    const count = (s: string) => counts.find((c) => c.status === s)?._count._all ?? 0;
+    return {
+      counts: {
+        in_progress: count('fulfilling'),
+        to_transmit: count('paid'),
+        shipped: count('shipped'),
+        delivered: count('delivered'),
+      },
+      orders: orders.map((o) => ({
+        reference: o.reference,
+        status: o.status,
+        totalCents: o.totalCents,
+        currency: o.currency,
+        createdAt: o.createdAt,
+        itemCount: o._count.items,
+        customer: o.user?.displayName ?? null,
+        transmitted: !!o.aliexpressOrderId,
+        trackingNumber: o.trackingNumber,
+      })),
+    };
+  }
+
+  /**
+   * Détail d'une commande, avec l'état EN DIRECT de chaque commande
+   * AliExpress : c'est là qu'on voit si elle attend encore d'être payée.
+   */
+  async adminDetail(reference: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { reference },
+      include: { items: true, user: { select: { displayName: true, email: true } } },
+    });
+    if (!order) return null;
+    const ids = (order.aliexpressOrderId ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const aliexpress = await Promise.all(
+      ids.map(async (id) => {
+        const state = await this.aliexpress.getOrderStatus(id).catch(() => null);
+        return {
+          id,
+          url: aliexpressOrderUrl(id),
+          stage: state ? stageOf(state) : ('unknown' as OrderStage),
+          status: state?.status ?? null,
+          endReason: state?.endReason ?? null,
+          amount: state?.amount ?? null,
+          trackingNumber: state?.trackingNumber ?? null,
+          carrier: state?.carrier ?? null,
+        };
+      }),
+    );
+    return {
+      reference: order.reference,
+      status: order.status,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      shippedAt: order.shippedAt,
+      subtotalCents: order.subtotalCents,
+      shippingCents: order.shippingCents,
+      totalCents: order.totalCents,
+      currency: order.currency,
+      customer: order.user ? { name: order.user.displayName, email: order.user.email } : null,
+      address: order.addressSnapshot,
+      trackingNumber: order.trackingNumber,
+      trackingUrl: order.trackingUrl,
+      items: order.items.map((i) => ({
+        title: i.titleSnapshot,
+        image: i.imageSnapshot,
+        variant: i.variantLabel,
+        quantity: i.quantity,
+        unitPriceCents: i.unitPriceCents,
+        aliexpressProductId: i.aliexpressProductId,
+      })),
+      aliexpress,
+    };
+  }
+
+  /** « Actualiser » : la synchro d'une seule commande, tout de suite. */
+  async adminSync(reference: string): Promise<OrderStage | null> {
+    const order = await this.prisma.order.findUnique({
+      where: { reference },
+      select: { id: true, reference: true, userId: true, status: true, aliexpressOrderId: true, trackingNumber: true, shippedAt: true },
+    });
+    if (!order) return null;
+    if (!order.aliexpressOrderId) return 'unknown';
+    return this.syncOne(order);
   }
 
   private setStatus(id: string, data: Record<string, unknown>) {

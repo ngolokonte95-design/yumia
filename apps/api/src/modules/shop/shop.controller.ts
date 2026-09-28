@@ -7,7 +7,7 @@
  * administration de l'import réservée aux admins.
  */
 import {
-  BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus,
+  BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException,
   Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -21,6 +21,7 @@ import { CartService } from './cart.service';
 import { CatalogService, type ProductSort } from './catalog.service';
 import { GiftService } from './gift.service';
 import { OrdersService } from './orders.service';
+import { OrderSyncService, type AdminOrdersTab } from './order-sync.service';
 import { ShopImportService } from './shop-import.service';
 
 /** `?featured=true` arrive en chaîne — on ne veut pas que "false" soit vrai. */
@@ -40,6 +41,7 @@ export class ShopController {
     private readonly gifts: GiftService,
     private readonly imports: ShopImportService,
     private readonly aliexpress: AliExpressService,
+    private readonly orderSync: OrderSyncService,
   ) {}
 
   // ── Catalogue ─────────────────────────────────────────────────────────────
@@ -245,6 +247,39 @@ export class ShopController {
   }
 
   // ── Administration ────────────────────────────────────────────────────────
+
+  /** GET /shop/admin/orders?tab=in_progress|to_transmit|shipped|delivered|all */
+  @Get('admin/orders')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  adminOrders(@Query('tab') tab?: string) {
+    const tabs: AdminOrdersTab[] = ['in_progress', 'to_transmit', 'shipped', 'delivered', 'all'];
+    return this.orderSync.adminList(tabs.includes(tab as AdminOrdersTab) ? (tab as AdminOrdersTab) : 'in_progress');
+  }
+
+  /** Détail d'une commande, avec l'état en direct chez AliExpress. */
+  @Get('admin/orders/:reference')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async adminOrder(@Param('reference') reference: string) {
+    const detail = await this.orderSync.adminDetail(reference);
+    if (!detail) throw new NotFoundException('Commande introuvable');
+    return detail;
+  }
+
+  /** Relit tout de suite l'état AliExpress d'une commande (sans attendre la synchro de 2 h). */
+  @Post('admin/orders/:reference/sync')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async adminSyncOrder(@Param('reference') reference: string) {
+    const stage = await this.orderSync.adminSync(reference);
+    if (stage === null) throw new NotFoundException('Commande introuvable');
+    return { stage };
+  }
+
+  /** Retransmet à AliExpress une commande payée non transmise ou annulée. */
+  @Post('admin/orders/:reference/retransmit')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  adminRetransmit(@Param('reference') reference: string) {
+    return this.orders.retransmit(reference);
+  }
 
   @Get('admin/status')
   @UseGuards(JwtAuthGuard, AdminGuard)
