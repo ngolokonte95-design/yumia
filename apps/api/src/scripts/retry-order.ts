@@ -85,7 +85,9 @@ async function main(): Promise<void> {
       }
       await prisma.order.update({
         where: { id: order.id },
-        data: { status: 'shipped', shippedAt: new Date(), aliexpressOrderId: numero },
+        // « En préparation » : la synchro AliExpress la passera en expédiée
+        // quand le colis partira (cf. OrderSyncService).
+        data: { status: 'fulfilling', aliexpressOrderId: numero },
       });
       console.log(`Commande ${order.reference} enregistrée comme transmise (AliExpress ${numero}). Aucune nouvelle commande passée.`);
       return;

@@ -760,6 +760,37 @@ export class AliExpressService {
     return pickShipping(options);
   }
 
+  // ── Suivi de commande ─────────────────────────────────────────────────────
+
+  /**
+   * État d'une commande AliExpress : statut, motif de fin, montant, transport.
+   *
+   * `aliexpress.trade.ds.order.get` est la méthode qui répond (diagnostic du
+   * 28/09/2026 sur YUM-E2EE26 ; `aliexpress.ds.order.get` n'existe pas).
+   * `null` si la réponse est illisible — on ne touche alors à rien.
+   */
+  async getOrderStatus(aliexpressOrderId: string): Promise<AliExpressOrderStatus | null> {
+    const data = await this.call('aliexpress.trade.ds.order.get', {
+      single_order_query: JSON.stringify({ order_id: aliexpressOrderId }),
+    });
+    const r = (data['aliexpress_trade_ds_order_get_response'] as Record<string, any> | undefined)?.['result'];
+    if (!r || typeof r['order_status'] !== 'string') {
+      this.logger.warn(`Suivi AliExpress illisible pour ${aliexpressOrderId} : ${JSON.stringify(data).slice(0, 300)}`);
+      return null;
+    }
+    const children: any[] = r['child_order_list']?.['aeop_child_order_info'] ?? [];
+    const logistics: any[] = r['logistics_info_list']?.['aeop_order_logistics_info'] ?? [];
+    const tracking = logistics.find((l) => typeof l?.['logistics_no'] === 'string' && l['logistics_no']);
+    return {
+      status: r['order_status'],
+      logisticsStatus: typeof r['logistics_status'] === 'string' ? r['logistics_status'] : null,
+      endReason: children.find((c) => c?.['end_reason'])?.['end_reason'] ?? null,
+      amount: r['order_amount']?.['amount'] ? `${r['order_amount']['amount']} ${r['order_amount']['currency_code'] ?? ''}`.trim() : null,
+      trackingNumber: tracking ? String(tracking['logistics_no']) : null,
+      carrier: tracking?.['logistics_service'] ? String(tracking['logistics_service']) : null,
+    };
+  }
+
   // ── Commande ──────────────────────────────────────────────────────────────
 
   /**
@@ -845,6 +876,18 @@ export class AliExpressService {
     this.logger.error(`Commande AliExpress refusée pour ${params.outOrderId} : ${JSON.stringify(result ?? data)}`);
     return { accepted: false, orderIds: [] };
   }
+}
+
+export interface AliExpressOrderStatus {
+  /** PLACE_ORDER_SUCCESS (à payer), WAIT_SELLER_SEND_GOODS, WAIT_BUYER_ACCEPT_GOODS, FINISH… */
+  status: string;
+  /** NO_LOGISTICS, SELLER_SEND_GOODS, BUYER_ACCEPT_GOODS… */
+  logisticsStatus: string | null;
+  /** Motif de fin d'une commande close sans livraison (ex. PAYMENT_TIMEOUT_BUYER). */
+  endReason: string | null;
+  amount: string | null;
+  trackingNumber: string | null;
+  carrier: string | null;
 }
 
 export interface ShippingOption {

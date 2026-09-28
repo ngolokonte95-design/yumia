@@ -17,6 +17,7 @@ import Stripe from 'stripe';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { envOr } from '../../common/env';
 import { AliExpressService } from './aliexpress.service';
+import { OrderSyncService } from './order-sync.service';
 import { CartService } from './cart.service';
 import { aliexpressProvince, normalizeRecipientName, shippingAddressProblem, splitPhone } from './address-rules';
 
@@ -29,6 +30,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly cart: CartService,
     private readonly aliexpress: AliExpressService,
+    private readonly orderSync: OrderSyncService,
   ) {}
 
   private get stripe(): Stripe {
@@ -315,10 +317,17 @@ export class OrdersService {
           'vérifier dans le compte AliExpress, NE PAS la retransmettre',
       );
     } else if (envoi.accepted) {
+      // « En préparation », pas « expédiée » : la commande existe chez
+      // AliExpress mais reste à PAYER à la main dans le compte revendeur
+      // (aucune API ne le fait). La synchro (OrderSyncService) la passera
+      // en expédiée quand le colis partira vraiment, numéro de suivi compris.
       await this.prisma.order.update({
         where: { id: order.id },
-        data: { status: 'shipped', shippedAt: new Date(), aliexpressOrderId: envoi.orderIds.join(',') },
+        data: { status: 'fulfilling', aliexpressOrderId: envoi.orderIds.join(',') },
       });
+      for (const aeId of envoi.orderIds) {
+        await this.orderSync.alertPaymentNeeded(order.reference, aeId, null, true).catch(() => undefined);
+      }
       // Les ventes affichées sur la fiche produit reflètent les ventes réelles.
       await Promise.all(order.items.filter((i) => i.productId).map((i) =>
         this.prisma.product.update({ where: { id: i.productId! }, data: { salesCount: { increment: i.quantity } } }),

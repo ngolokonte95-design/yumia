@@ -34,6 +34,19 @@ export class MailerService {
     }
   }
 
+  /**
+   * Alerte d'exploitation aux administrateurs (commande à payer, commande
+   * annulée…). Texte brut : lue sur téléphone, sans mise en forme à maintenir.
+   */
+  async sendAdminAlert(to: string[], subject: string, text: string): Promise<void> {
+    if (!to.length) return;
+    if (this.transporter) {
+      await this.transporter.sendMail({ from: this.fromAddress, to: to.join(','), subject, text });
+    } else {
+      this.logger.warn(`[ALERTE ADMIN non envoyée, SMTP absent] ${subject} — ${text}`);
+    }
+  }
+
   async sendPasswordResetOtp(to: string, otp: string): Promise<void> {
     const subject = 'Ton code YUMIA — réinitialisation de mot de passe';
     const html = `
