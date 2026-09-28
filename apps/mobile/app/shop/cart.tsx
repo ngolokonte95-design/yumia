@@ -8,11 +8,13 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, formatPrice, type CartSummary } from '../../lib/shop-api';
 import { haptics } from '../../lib/useHaptics';
+import { useI18n } from '../../lib/useI18n';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [cart, setCart] = useState<CartSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,10 +64,10 @@ export default function CartScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('gs_back')}>
           <Text style={styles.back}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Mon panier</Text>
+        <Text style={styles.title}>{t('shop_cart_title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -74,10 +76,10 @@ export default function CartScreen() {
       ) : isEmpty ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🛒</Text>
-          <Text style={styles.emptyTitle}>Ton panier est vide</Text>
-          <Text style={styles.emptyText}>Parcours la boutique et ajoute tes premiers articles.</Text>
+          <Text style={styles.emptyTitle}>{t('shop_cart_empty_title')}</Text>
+          <Text style={styles.emptyText}>{t('shop_cart_empty_text')}</Text>
           <Pressable style={styles.shopBtn} onPress={() => router.replace('/shop' as never)}>
-            <Text style={styles.shopBtnTxt}>Découvrir la boutique</Text>
+            <Text style={styles.shopBtnTxt}>{t('shop_cart_discover_shop')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -96,7 +98,7 @@ export default function CartScreen() {
                 <View style={styles.lineBody}>
                   <Text style={styles.lineTitle} numberOfLines={2}>{line.title}</Text>
                   {line.variantLabel && <Text style={styles.lineVariant}>{line.variantLabel}</Text>}
-                  {!line.available && <Text style={styles.unavailable}>Indisponible — retire-le pour continuer</Text>}
+                  {!line.available && <Text style={styles.unavailable}>{t('shop_cart_line_unavailable')}</Text>}
 
                   <View style={styles.lineFooter}>
                     <Text style={styles.linePrice}>{formatPrice(line.lineTotalCents, cart!.currency)}</Text>
@@ -105,6 +107,8 @@ export default function CartScreen() {
                         style={styles.qtyBtn}
                         onPress={() => (line.quantity <= 1 ? removeItem(line.id) : changeQuantity(line.id, line.quantity - 1))}
                         disabled={busyItemId === line.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={t(line.quantity <= 1 ? 'shop_cart_remove_item' : 'shop_cart_decrease_qty')}
                       >
                         <Text style={styles.qtyBtnTxt}>{line.quantity <= 1 ? '🗑' : '−'}</Text>
                       </Pressable>
@@ -113,6 +117,8 @@ export default function CartScreen() {
                         style={styles.qtyBtn}
                         onPress={() => changeQuantity(line.id, line.quantity + 1)}
                         disabled={busyItemId === line.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('shop_cart_increase_qty')}
                       >
                         <Text style={styles.qtyBtnTxt}>+</Text>
                       </Pressable>
@@ -126,17 +132,17 @@ export default function CartScreen() {
           {/* Récapitulatif */}
           <View style={[styles.summary, { paddingBottom: insets.bottom + spacing.md }]}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Sous-total</Text>
+              <Text style={styles.summaryLabel}>{t('shop_cart_subtotal')}</Text>
               <Text style={styles.summaryValue}>{formatPrice(cart!.subtotalCents, cart!.currency)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Livraison</Text>
+              <Text style={styles.summaryLabel}>{t('shop_cart_shipping')}</Text>
               <Text style={[styles.summaryValue, cart!.shippingCents === 0 && styles.free]}>
-                {cart!.shippingCents === 0 ? 'Offerte' : formatPrice(cart!.shippingCents, cart!.currency)}
+                {cart!.shippingCents === 0 ? t('shop_cart_shipping_free') : formatPrice(cart!.shippingCents, cart!.currency)}
               </Text>
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalLabel}>{t('sor_total')}</Text>
               <Text style={styles.totalValue}>{formatPrice(cart!.totalCents, cart!.currency)}</Text>
             </View>
             <Pressable
@@ -144,7 +150,7 @@ export default function CartScreen() {
               onPress={() => router.push('/shop/checkout' as never)}
               disabled={!hasBuyable}
             >
-              <Text style={styles.checkoutTxt}>Passer commande</Text>
+              <Text style={styles.checkoutTxt}>{t('shop_cart_checkout')}</Text>
             </Pressable>
           </View>
         </>

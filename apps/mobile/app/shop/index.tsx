@@ -15,11 +15,14 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, type ProductListItem, type ShopCategory } from '../../lib/shop-api';
 import { ProductCard } from '../../components/shop/ProductCard';
 import { FeatureTip } from '../../components/FeatureTip';
+import { useI18n } from '../../lib/useI18n';
+import { shopCategoryName } from '../../lib/shop-category-name';
 
 export default function ShopHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   const [featured, setFeatured] = useState<ProductListItem[]>([]);
@@ -84,7 +87,7 @@ export default function ShopHomeScreen() {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Rechercher un produit"
+            placeholder={t('shop_home_search_placeholder')}
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -96,7 +99,7 @@ export default function ShopHomeScreen() {
           onPress={() => router.push('/shop/orders' as never)}
           hitSlop={8}
           style={styles.cartBtn}
-          accessibilityLabel="Mes commandes"
+          accessibilityLabel={t('shop_home_orders_a11y')}
         >
           <Text style={styles.cartIcon}>📦</Text>
         </Pressable>
@@ -123,17 +126,15 @@ export default function ShopHomeScreen() {
           {isEmpty ? (
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🛍️</Text>
-              <Text style={styles.emptyTitle}>Boutique en préparation</Text>
-              <Text style={styles.emptyText}>
-                Les premiers produits arrivent très bientôt. Reviens dans un moment.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('shop_home_empty_title')}</Text>
+              <Text style={styles.emptyText}>{t('shop_home_empty_text')}</Text>
             </View>
           ) : (
             <>
               {/* Rayons */}
               {categories.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Nos rayons</Text>
+                  <Text style={styles.sectionTitle}>{t('shop_home_categories')}</Text>
                   <View style={styles.categoryGrid}>
                     {categories.map((c) => (
                       <Pressable
@@ -142,16 +143,16 @@ export default function ShopHomeScreen() {
                         onPress={() => router.push(`/shop/category/${c.slug}` as never)}
                       >
                         <Text style={styles.categoryEmoji}>{c.emoji}</Text>
-                        <Text style={styles.categoryName} numberOfLines={2}>{c.nameFr}</Text>
+                        <Text style={styles.categoryName} numberOfLines={2}>{shopCategoryName(t, c.slug, c.nameFr)}</Text>
                       </Pressable>
                     ))}
                   </View>
                 </View>
               )}
 
-              <ProductRow title="Sélection YUMIA" products={featured} onSeeAll={() => router.push('/shop/search?featured=true')} />
-              <ProductRow title="Meilleures ventes" products={bestsellers} onSeeAll={() => router.push('/shop/search?sort=bestsellers')} />
-              <ProductRow title="Nouveautés" products={newest} onSeeAll={() => router.push('/shop/search?sort=newest')} />
+              <ProductRow title={t('shop_home_featured')} products={featured} onSeeAll={() => router.push('/shop/search?featured=true')} />
+              <ProductRow title={t('shop_home_bestsellers')} products={bestsellers} onSeeAll={() => router.push('/shop/search?sort=bestsellers')} />
+              <ProductRow title={t('shop_home_newest')} products={newest} onSeeAll={() => router.push('/shop/search?sort=newest')} />
             </>
           )}
         </ScrollView>
@@ -163,13 +164,14 @@ export default function ShopHomeScreen() {
 
 function ProductRow({ title, products, onSeeAll }: { title: string; products: ProductListItem[]; onSeeAll: () => void }) {
   const router = useRouter();
+  const { t } = useI18n();
   if (!products.length) return null;
   return (
     <View style={styles.section}>
       <View style={styles.sectionHead}>
         <Text style={[styles.sectionTitle, styles.sectionTitleInHead]}>{title}</Text>
         <Pressable onPress={onSeeAll} hitSlop={8}>
-          <Text style={styles.seeAll}>Tout voir</Text>
+          <Text style={styles.seeAll}>{t('shop_home_see_all')}</Text>
         </Pressable>
       </View>
       <FlatList

@@ -3,6 +3,7 @@
  * Tous les montants sont en centimes — voir `formatPrice` pour l'affichage.
  */
 import { request } from './api';
+import { getRuntimeLocale } from './i18n-runtime';
 
 export interface ShopCategory {
   id: string;
@@ -199,8 +200,17 @@ export interface ProductQuery {
 }
 
 /** Centimes → "12,90 €". */
+/**
+ * Formate un montant en centimes dans la langue active de l'app (tenue à
+ * jour par `useI18n` via `setRuntimeLocale`). Repli sur 'fr-FR' si le moteur
+ * Intl ne connaît pas la locale.
+ */
 export function formatPrice(cents: number, currency = 'EUR'): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
+  try {
+    return new Intl.NumberFormat(getRuntimeLocale(), { style: 'currency', currency }).format(cents / 100);
+  } catch {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100);
+  }
 }
 
 function qs(params: Record<string, string | number | boolean | undefined>): string {

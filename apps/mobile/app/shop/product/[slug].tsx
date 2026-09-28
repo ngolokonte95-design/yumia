@@ -15,6 +15,8 @@ import { colors, radius, spacing, typography } from '../../../theme/tokens';
 import { shopApi, formatPrice, type ProductDetail } from '../../../lib/shop-api';
 import { ProductCard } from '../../../components/shop/ProductCard';
 import { haptics } from '../../../lib/useHaptics';
+import { useI18n } from '../../../lib/useI18n';
+import { shopCategoryName } from '../../../lib/shop-category-name';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -23,6 +25,7 @@ export default function ProductDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,19 +66,19 @@ export default function ProductDetailScreen() {
     // Une déclinaison non choisie enverrait au panier un article que le
     // fournisseur ne saurait pas préparer.
     if (product.variants.length > 0 && !variantId) {
-      Alert.alert('Choisis une option', 'Sélectionne une déclinaison avant d\'ajouter au panier.');
+      Alert.alert(t('shop_product_choose_option_title'), t('shop_product_choose_option_body'));
       return;
     }
     setAdding(true);
     try {
       await shopApi.addToCart(accessToken, product.id, variantId);
       haptics.success();
-      Alert.alert('Ajouté au panier', product.title, [
-        { text: 'Continuer mes achats', style: 'cancel' },
-        { text: 'Voir le panier', onPress: () => router.push('/shop/cart' as never) },
+      Alert.alert(t('shop_product_added_title'), product.title, [
+        { text: t('shop_product_continue_shopping'), style: 'cancel' },
+        { text: t('shop_product_view_cart'), onPress: () => router.push('/shop/cart' as never) },
       ]);
     } catch (e) {
-      Alert.alert('Impossible d\'ajouter', e instanceof Error ? e.message : 'Réessaie dans un instant.');
+      Alert.alert(t('shop_product_add_failed_title'), e instanceof Error ? e.message : t('shop_product_retry_soon'));
     } finally {
       setAdding(false);
     }
@@ -103,9 +106,9 @@ export default function ProductDetailScreen() {
     return (
       <View style={[styles.screen, styles.center, { paddingTop: insets.top }]}>
         <Text style={styles.emptyEmoji}>😕</Text>
-        <Text style={styles.emptyTitle}>Produit introuvable</Text>
+        <Text style={styles.emptyTitle}>{t('shop_product_not_found')}</Text>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnTxt}>Retour</Text>
+          <Text style={styles.backBtnTxt}>{t('gs_back')}</Text>
         </Pressable>
       </View>
     );
@@ -141,10 +144,20 @@ export default function ProductDetailScreen() {
               )
             }
           />
-          <Pressable style={[styles.floatingBtn, { top: insets.top + 8, left: spacing.md }]} onPress={() => router.back()}>
+          <Pressable
+            style={[styles.floatingBtn, { top: insets.top + 8, left: spacing.md }]}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={t('gs_back')}
+          >
             <Text style={styles.floatingIcon}>←</Text>
           </Pressable>
-          <Pressable style={[styles.floatingBtn, { top: insets.top + 8, right: spacing.md }]} onPress={toggleWishlist}>
+          <Pressable
+            style={[styles.floatingBtn, { top: insets.top + 8, right: spacing.md }]}
+            onPress={toggleWishlist}
+            accessibilityRole="button"
+            accessibilityLabel={t(wishlisted ? 'shop_product_wishlist_remove' : 'shop_product_wishlist_add')}
+          >
             <Text style={styles.floatingIcon}>{wishlisted ? '❤️' : '🤍'}</Text>
           </Pressable>
           {product.images.length > 1 && (
@@ -158,7 +171,7 @@ export default function ProductDetailScreen() {
 
         <View style={styles.body}>
           <Pressable onPress={() => router.push(`/shop/category/${product.category.slug}` as never)}>
-            <Text style={styles.categoryLink}>{product.category.emoji} {product.category.nameFr}</Text>
+            <Text style={styles.categoryLink}>{product.category.emoji} {shopCategoryName(t, product.category.slug, product.category.nameFr)}</Text>
           </Pressable>
 
           <Text style={styles.title}>{product.title}</Text>
@@ -176,7 +189,12 @@ export default function ProductDetailScreen() {
                 <Text style={styles.reviewsTxt}>({product.reviewsCount})</Text>
               </View>
             )}
-            {product.salesCount > 0 && <Text style={styles.sales}>{product.salesCount} vendus</Text>}
+            {product.salesCount > 0 && (
+              <Text style={styles.sales}>
+                {t(product.salesCount === 1 ? 'shop_product_sold_one' : 'shop_product_sold_other')
+                  .replace('{n}', String(product.salesCount))}
+              </Text>
+            )}
           </View>
 
           <View style={styles.priceRow}>
@@ -189,29 +207,35 @@ export default function ProductDetailScreen() {
           {/* Bloc admin — l'API ne renvoie `adminMargin` qu'aux comptes admin. */}
           {product.adminMargin && (
             <View style={styles.marginBox}>
-              <Text style={styles.marginTitle}>Marge (visible par toi seul)</Text>
+              <Text style={styles.marginTitle}>{t('shop_product_margin_title')}</Text>
               <View style={styles.marginRow}>
                 <Text style={styles.marginValue}>
                   {formatPrice(product.adminMargin.marginCents, product.currency)}
                 </Text>
-                <Text style={styles.marginPct}>{product.adminMargin.marginPercent} % du prix de vente</Text>
+                <Text style={styles.marginPct}>
+                  {t('shop_product_margin_percent').replace('{pct}', String(product.adminMargin.marginPercent))}
+                </Text>
               </View>
               <Text style={styles.marginCost}>
-                Prix d'achat {formatPrice(product.adminMargin.costCents, product.currency)} · coefficient ×
-                {product.adminMargin.multiplier}
+                {t('shop_product_margin_cost')
+                  .replace('{cost}', formatPrice(product.adminMargin.costCents, product.currency))
+                  .replace('{multiplier}', String(product.adminMargin.multiplier))}
               </Text>
             </View>
           )}
 
           {product.deliveryDays != null && (
-            <Text style={styles.delivery}>🚚 Livraison estimée sous {product.deliveryDays} jours</Text>
+            <Text style={styles.delivery}>
+              {t(product.deliveryDays === 1 ? 'shop_product_delivery_one' : 'shop_product_delivery_other')
+                .replace('{n}', String(product.deliveryDays))}
+            </Text>
           )}
 
           {/* Déclinaisons */}
           {product.variants.length > 0 && (
             <View style={styles.block}>
               <Text style={styles.blockTitle}>
-                {product.variants[0].optionName ?? 'Options'}
+                {product.variants[0].optionName ?? t('shop_product_options')}
               </Text>
               <View style={styles.variantRow}>
                 {product.variants.map((v) => {
@@ -237,12 +261,12 @@ export default function ProductDetailScreen() {
           {/* Description */}
           {product.description && (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Description</Text>
+              <Text style={styles.blockTitle}>{t('shop_product_description')}</Text>
               <Text style={styles.description} numberOfLines={descExpanded ? undefined : 5}>
                 {product.description}
               </Text>
               <Pressable onPress={() => setDescExpanded((v) => !v)}>
-                <Text style={styles.more}>{descExpanded ? 'Voir moins' : 'Voir plus'}</Text>
+                <Text style={styles.more}>{descExpanded ? t('shop_product_see_less') : t('explorer_see_more')}</Text>
               </Pressable>
             </View>
           )}
@@ -250,7 +274,7 @@ export default function ProductDetailScreen() {
           {/* Caractéristiques */}
           {product.specifications.length > 0 && (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Caractéristiques</Text>
+              <Text style={styles.blockTitle}>{t('shop_product_specifications')}</Text>
               {product.specifications.slice(0, 12).map((s, i) => (
                 <View key={`${s.name}-${i}`} style={styles.specRow}>
                   <Text style={styles.specName}>{s.name}</Text>
@@ -263,7 +287,7 @@ export default function ProductDetailScreen() {
           {/* Avis */}
           {product.reviews.length > 0 && (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Avis clients</Text>
+              <Text style={styles.blockTitle}>{t('shop_product_reviews')}</Text>
               {product.reviews.slice(0, 5).map((r) => (
                 <View key={r.id} style={styles.review}>
                   <View style={styles.reviewHead}>
@@ -279,7 +303,7 @@ export default function ProductDetailScreen() {
           {/* Suggestions */}
           {product.related.length > 0 && (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Vous aimerez aussi</Text>
+              <Text style={styles.blockTitle}>{t('shop_product_related')}</Text>
               <FlatList
                 horizontal
                 data={product.related}
@@ -308,7 +332,7 @@ export default function ProductDetailScreen() {
         >
           {adding
             ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={styles.addBtnTxt}>{outOfStock ? 'Indisponible' : 'Ajouter au panier'}</Text>}
+            : <Text style={styles.addBtnTxt}>{outOfStock ? t('shop_product_unavailable') : t('shop_product_add_to_cart')}</Text>}
         </Pressable>
       </View>
     </View>

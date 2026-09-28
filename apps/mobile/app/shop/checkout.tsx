@@ -19,11 +19,13 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, formatPrice, type CartSummary, type ShippingAddress } from '../../lib/shop-api';
 import { CGV_URL } from '../../lib/legal';
 import { isHttpsUrl, openExternalHttps } from '../../lib/external-link';
+import { useI18n } from '../../lib/useI18n';
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
 
   const [cart, setCart] = useState<CartSummary | null>(null);
   const [addresses, setAddresses] = useState<ShippingAddress[]>([]);
@@ -58,10 +60,10 @@ export default function CheckoutScreen() {
 
   /** Supprime une adresse enregistrée (les commandes passées gardent la leur). */
   function confirmDeleteAddress(a: ShippingAddress) {
-    Alert.alert('Supprimer cette adresse ?', `${a.fullName}, ${a.line1}, ${a.city}`, [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('shop_checkout_delete_address_title'), `${a.fullName}, ${a.line1}, ${a.city}`, [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('shop_checkout_delete'),
         style: 'destructive',
         onPress: async () => {
           if (!accessToken) return;
@@ -73,7 +75,7 @@ export default function CheckoutScreen() {
               return next;
             });
           } catch {
-            Alert.alert('Suppression impossible', 'Réessaie dans un instant.');
+            Alert.alert(t('shop_checkout_delete_failed_title'), t('shop_checkout_retry_soon'));
           }
         },
       },
@@ -83,15 +85,15 @@ export default function CheckoutScreen() {
   async function saveAddress() {
     if (!accessToken) return;
     const required: Array<[keyof typeof form, string]> = [
-      ['fullName', 'Prénom et nom'], ['line1', 'Adresse'], ['city', 'Ville'],
+      ['fullName', t('shop_checkout_field_full_name')], ['line1', t('shop_checkout_field_line1')], ['city', t('shop_checkout_field_city')],
       // La région est exigée par le transporteur : la rendre facultative
       // ferait échouer l'expédition après le paiement, au pire moment.
-      ['province', 'Région / département'],
-      ['postalCode', 'Code postal'], ['phone', 'Téléphone'],
+      ['province', t('shop_checkout_field_province')],
+      ['postalCode', t('shop_checkout_field_postal_code')], ['phone', t('shop_checkout_field_phone')],
     ];
     const missing = required.filter(([k]) => !form[k].trim()).map(([, label]) => label);
     if (missing.length) {
-      Alert.alert('Champs manquants', missing.join(', '));
+      Alert.alert(t('shop_checkout_missing_fields_title'), missing.join(', '));
       return;
     }
     try {
@@ -104,7 +106,7 @@ export default function CheckoutScreen() {
       setSelectedId(created.id);
       setShowForm(false);
     } catch (e) {
-      Alert.alert('Erreur', e instanceof Error ? e.message : 'Adresse non enregistrée.');
+      Alert.alert(t('shop_checkout_error_title'), e instanceof Error ? e.message : t('shop_checkout_address_not_saved'));
     }
   }
 
@@ -114,7 +116,7 @@ export default function CheckoutScreen() {
     try {
       const res = await shopApi.checkout(accessToken, selectedId);
       if (!isHttpsUrl(res.checkoutUrl)) {
-        Alert.alert('Paiement indisponible', 'Le paiement n\'est pas encore configuré. Réessaie plus tard.');
+        Alert.alert(t('shop_checkout_payment_unavailable_title'), t('shop_checkout_payment_unavailable_body'));
         return;
       }
       await openExternalHttps(res.checkoutUrl);
@@ -122,7 +124,7 @@ export default function CheckoutScreen() {
       // que de laisser l'utilisateur sur un panier qui semble inchangé.
       router.replace('/shop/orders');
     } catch (e) {
-      Alert.alert('Commande impossible', e instanceof Error ? e.message : 'Réessaie dans un instant.');
+      Alert.alert(t('shop_checkout_order_failed_title'), e instanceof Error ? e.message : t('shop_checkout_retry_soon'));
     } finally {
       setPaying(false);
     }
@@ -138,12 +140,12 @@ export default function CheckoutScreen() {
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Text style={styles.back}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Commande</Text>
+        <Text style={styles.title}>{t('shop_checkout_title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 180 }} keyboardShouldPersistTaps="handled">
-        <Text style={styles.sectionTitle}>Adresse de livraison</Text>
+        <Text style={styles.sectionTitle}>{t('shop_checkout_shipping_address')}</Text>
 
         {addresses.map((a) => (
           <Pressable
@@ -160,25 +162,25 @@ export default function CheckoutScreen() {
               <Text style={styles.addressLine}>{a.postalCode} {a.city} · {a.countryCode}</Text>
               <Text style={styles.addressPhone}>{a.phone}</Text>
             </View>
-            <Pressable onPress={() => confirmDeleteAddress(a)} hitSlop={10} accessibilityLabel="Supprimer cette adresse">
-              <Text style={styles.addressDelete}>Supprimer</Text>
+            <Pressable onPress={() => confirmDeleteAddress(a)} hitSlop={10} accessibilityLabel={t('shop_checkout_delete_address_a11y')}>
+              <Text style={styles.addressDelete}>{t('shop_checkout_delete')}</Text>
             </Pressable>
           </Pressable>
         ))}
 
         {showForm ? (
           <View style={styles.form}>
-            <Text style={styles.formTitle}>Nouvelle adresse</Text>
+            <Text style={styles.formTitle}>{t('shop_checkout_new_address')}</Text>
             {([
               // « Prénom et nom » et non « Nom complet » : AliExpress refuse une
               // commande dont le destinataire tient en un seul mot.
-              ['fullName', 'Prénom et nom', 'default'],
-              ['line1', 'Adresse', 'default'],
-              ['line2', 'Complément (optionnel)', 'default'],
-              ['postalCode', 'Code postal', 'number-pad'],
-              ['city', 'Ville', 'default'],
-              ['province', 'Région / département', 'default'],
-              ['phone', 'Téléphone', 'phone-pad'],
+              ['fullName', t('shop_checkout_field_full_name'), 'default'],
+              ['line1', t('shop_checkout_field_line1'), 'default'],
+              ['line2', t('shop_checkout_field_line2'), 'default'],
+              ['postalCode', t('shop_checkout_field_postal_code'), 'number-pad'],
+              ['city', t('shop_checkout_field_city'), 'default'],
+              ['province', t('shop_checkout_field_province'), 'default'],
+              ['phone', t('shop_checkout_field_phone'), 'phone-pad'],
             ] as const).map(([key, placeholder, keyboard]) => (
               <TextInput
                 key={key}
@@ -193,23 +195,23 @@ export default function CheckoutScreen() {
             <View style={styles.formActions}>
               {addresses.length > 0 && (
                 <Pressable style={styles.cancelBtn} onPress={() => setShowForm(false)}>
-                  <Text style={styles.cancelTxt}>Annuler</Text>
+                  <Text style={styles.cancelTxt}>{t('cancel')}</Text>
                 </Pressable>
               )}
               <Pressable style={styles.saveBtn} onPress={saveAddress}>
-                <Text style={styles.saveTxt}>Enregistrer</Text>
+                <Text style={styles.saveTxt}>{t('shop_checkout_save')}</Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <Pressable style={styles.addAddressBtn} onPress={() => setShowForm(true)}>
-            <Text style={styles.addAddressTxt}>+ Ajouter une adresse</Text>
+            <Text style={styles.addAddressTxt}>{t('shop_checkout_add_address')}</Text>
           </Pressable>
         )}
 
         {cart && (
           <>
-            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Récapitulatif</Text>
+            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>{t('shop_checkout_summary')}</Text>
             <View style={styles.recap}>
               {cart.lines.filter((l) => l.available).map((l) => (
                 <View key={l.id} style={styles.recapRow}>
@@ -220,29 +222,35 @@ export default function CheckoutScreen() {
                 </View>
               ))}
               <View style={styles.recapRow}>
-                <Text style={styles.recapItem}>Livraison</Text>
+                <Text style={styles.recapItem}>{t('shop_checkout_shipping')}</Text>
                 <Text style={[styles.recapPrice, cart.shippingCents === 0 && styles.free]}>
-                  {cart.shippingCents === 0 ? 'Offerte' : formatPrice(cart.shippingCents, cart.currency)}
+                  {cart.shippingCents === 0 ? t('shop_checkout_shipping_free') : formatPrice(cart.shippingCents, cart.currency)}
                 </Text>
               </View>
             </View>
           </>
         )}
 
+        {/* Une seule phrase traduite, avec le marqueur {link} à l'endroit du
+            lien CGV : l'ordre des mots reste libre dans chaque langue. */}
         <Text style={styles.legal}>
-          En payant, tu acceptes nos{' '}
-          <Text style={styles.legalLink} onPress={() => void Linking.openURL(CGV_URL)}>
-            conditions générales de vente
-          </Text>
-          . Paiement sécurisé par Stripe. Tu disposes d'un droit de rétractation de 14 jours
-          et de la garantie légale de conformité de 2 ans.
+          {t('shop_checkout_legal').split('{link}').map((part, i, parts) => (
+            <Text key={i}>
+              {part}
+              {i < parts.length - 1 && (
+                <Text style={styles.legalLink} onPress={() => void Linking.openURL(CGV_URL)}>
+                  {t('shop_checkout_legal_cgv_link')}
+                </Text>
+              )}
+            </Text>
+          ))}
         </Text>
       </ScrollView>
 
       {cart && (
         <View style={[styles.payBar, { paddingBottom: insets.bottom + spacing.md }]}>
           <View>
-            <Text style={styles.payLabel}>Total</Text>
+            <Text style={styles.payLabel}>{t('shop_checkout_total')}</Text>
             <Text style={styles.payTotal}>{formatPrice(cart.totalCents, cart.currency)}</Text>
           </View>
           <Pressable
@@ -252,7 +260,7 @@ export default function CheckoutScreen() {
           >
             {paying
               ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.payTxt}>Payer</Text>}
+              : <Text style={styles.payTxt}>{t('shop_checkout_pay')}</Text>}
           </Pressable>
         </View>
       )}

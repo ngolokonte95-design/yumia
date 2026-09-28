@@ -27,29 +27,33 @@ import {
   type GiftSuggestions,
 } from '../../lib/shop-api';
 import { ProductCard } from '../../components/shop/ProductCard';
+import { useI18n } from '../../lib/useI18n';
 
 type Step = 'recipient' | 'occasion' | 'budget' | 'results';
 
 const STEP_ORDER: Step[] = ['recipient', 'occasion', 'budget'];
 
-const STEP_TITLE: Record<Exclude<Step, 'results'>, string> = {
-  recipient: 'À qui veux-tu faire plaisir ?',
-  occasion: "Pour quelle occasion ?",
-  budget: 'Quel budget ?',
-};
+type Translate = ReturnType<typeof useI18n>['t'];
 
 /** « Aujourd'hui ! », « Demain », « J-12 » — le compte à rebours d'une occasion proche. */
-function countdown(o: GiftOccasionOption): string | null {
+function countdown(o: GiftOccasionOption, t: Translate): string | null {
   if (!o.isNow || o.daysUntil === null) return null;
-  if (o.daysUntil === 0) return "Aujourd'hui !";
-  if (o.daysUntil === 1) return 'Demain';
-  return `J-${o.daysUntil}`;
+  if (o.daysUntil === 0) return t('shop_gift_today');
+  if (o.daysUntil === 1) return t('shop_gift_tomorrow');
+  return t('shop_gift_countdown').replace('{n}', String(o.daysUntil));
 }
 
 export default function GiftIdeasScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
+
+  const STEP_TITLE: Record<Exclude<Step, 'results'>, string> = {
+    recipient: t('shop_gift_step_recipient'),
+    occasion: t('shop_gift_step_occasion'),
+    budget: t('shop_gift_step_budget'),
+  };
 
   const [options, setOptions] = useState<GiftOptions | null>(null);
   const [step, setStep] = useState<Step>('recipient');
@@ -120,7 +124,7 @@ export default function GiftIdeasScreen() {
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Text style={styles.back}>←</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>🎁 Idées cadeaux</Text>
+        <Text style={styles.headerTitle}>🎁 {t('explorer_action_gifts_label')}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -130,7 +134,9 @@ export default function GiftIdeasScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.stepIndex}>
-            Étape {STEP_ORDER.indexOf(step as Exclude<Step, 'results'>) + 1} sur {STEP_ORDER.length}
+            {t('shop_gift_step_index')
+              .replace('{n}', String(STEP_ORDER.indexOf(step as Exclude<Step, 'results'>) + 1))
+              .replace('{total}', String(STEP_ORDER.length))}
           </Text>
           <Text style={styles.question}>{STEP_TITLE[step as Exclude<Step, 'results'>]}</Text>
 
@@ -148,7 +154,7 @@ export default function GiftIdeasScreen() {
           {step === 'occasion' && (
             <View style={styles.choiceGrid}>
               {options?.occasions.map((o) => {
-                const cd = countdown(o);
+                const cd = countdown(o, t);
                 return (
                   <Pressable
                     key={o.slug}
@@ -180,7 +186,7 @@ export default function GiftIdeasScreen() {
           )}
 
           <Pressable onPress={advance} hitSlop={8} style={styles.skip}>
-            <Text style={styles.skipTxt}>Passer cette question</Text>
+            <Text style={styles.skipTxt}>{t('shop_gift_skip')}</Text>
           </Pressable>
         </ScrollView>
       ) : (
@@ -193,13 +199,13 @@ export default function GiftIdeasScreen() {
               signaler qu'il y avait quelque chose à côté. */}
           <View style={styles.criteriaRow}>
             <Pressable style={styles.criteriaChip} onPress={() => setStep('recipient')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.recipients, recipient, 'Pour qui ?')}</Text>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.recipients, recipient, t('shop_gift_chip_recipient'))}</Text>
             </Pressable>
             <Pressable style={styles.criteriaChip} onPress={() => setStep('occasion')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.occasions, occasion, 'Occasion ?')}</Text>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.occasions, occasion, t('shop_gift_chip_occasion'))}</Text>
             </Pressable>
             <Pressable style={styles.criteriaChip} onPress={() => setStep('budget')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.budgets, budget, 'Budget ?')}</Text>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.budgets, budget, t('shop_gift_chip_budget'))}</Text>
             </Pressable>
           </View>
 
@@ -207,18 +213,16 @@ export default function GiftIdeasScreen() {
             <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
           ) : failed ? (
             <View style={styles.center}>
-              <Text style={styles.emptyTitle}>Impossible de charger les idées.</Text>
+              <Text style={styles.emptyTitle}>{t('shop_gift_error')}</Text>
               <Pressable style={styles.retry} onPress={() => void search()}>
-                <Text style={styles.retryTxt}>Réessayer</Text>
+                <Text style={styles.retryTxt}>{t('retry')}</Text>
               </Pressable>
             </View>
           ) : result && result.items.length === 0 ? (
             <View style={styles.center}>
               <Text style={styles.emptyEmoji}>🎁</Text>
-              <Text style={styles.emptyTitle}>Rien ne correspond à ces critères.</Text>
-              <Text style={styles.emptyText}>
-                Élargis le budget ou change d'occasion en appuyant sur une puce ci-dessus.
-              </Text>
+              <Text style={styles.emptyTitle}>{t('shop_gift_empty_title')}</Text>
+              <Text style={styles.emptyText}>{t('shop_gift_empty_text')}</Text>
             </View>
           ) : (
             <FlatList
@@ -231,7 +235,8 @@ export default function GiftIdeasScreen() {
               ListHeaderComponent={
                 result ? (
                   <Text style={styles.resultCount}>
-                    {result.total} idée{result.total > 1 ? 's' : ''} pour toi
+                    {t(result.total > 1 ? 'shop_gift_result_count_other' : 'shop_gift_result_count_one')
+                      .replace('{n}', String(result.total))}
                   </Text>
                 ) : null
               }

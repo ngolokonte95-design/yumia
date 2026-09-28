@@ -14,15 +14,7 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, type ProductListItem, type ProductQuery } from '../../lib/shop-api';
 import { ProductCard } from './ProductCard';
-
-const SORTS: { key: NonNullable<ProductQuery['sort']>; label: string }[] = [
-  { key: 'relevance', label: 'Pertinence' },
-  { key: 'bestsellers', label: 'Meilleures ventes' },
-  { key: 'price_asc', label: 'Prix croissant' },
-  { key: 'price_desc', label: 'Prix décroissant' },
-  { key: 'rating', label: 'Mieux notés' },
-  { key: 'newest', label: 'Nouveautés' },
-];
+import { useI18n } from '../../lib/useI18n';
 
 const PAGE_SIZE = 20;
 
@@ -58,6 +50,16 @@ export function ProductGridScreen({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken, user } = useAuth();
+  const { t } = useI18n();
+
+  const SORTS: { key: NonNullable<ProductQuery['sort']>; label: string }[] = [
+    { key: 'relevance', label: t('shop_grid_sort_relevance') },
+    { key: 'bestsellers', label: t('shop_grid_sort_bestsellers') },
+    { key: 'price_asc', label: t('shop_grid_sort_price_asc') },
+    { key: 'price_desc', label: t('shop_grid_sort_price_desc') },
+    { key: 'rating', label: t('shop_grid_sort_rating') },
+    { key: 'newest', label: t('shop_grid_sort_newest') },
+  ];
 
   const [items, setItems] = useState<ProductListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -144,7 +146,7 @@ export function ProductGridScreen({
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
           {/* Taille du catalogue : indicateur de pilotage, réservé à l'admin. */}
-          {!loading && user?.isAdmin && <Text style={styles.count}>{total} produit{total > 1 ? 's' : ''}</Text>}
+          {!loading && user?.isAdmin && <Text style={styles.count}>{t(total > 1 ? 'shop_grid_count_other' : 'shop_grid_count_one').replace('{n}', String(total))}</Text>}
         </View>
         {searchScopeLabel && !showSearchInput && (
           <Pressable
@@ -152,7 +154,7 @@ export function ProductGridScreen({
             hitSlop={8}
             style={[styles.headerBtn, searchOpen && styles.headerBtnActive]}
             accessibilityRole="button"
-            accessibilityLabel={searchOpen ? 'Fermer la recherche' : `Rechercher dans ${searchScopeLabel}`}
+            accessibilityLabel={searchOpen ? t('shop_grid_close_search') : t('shop_grid_search_in').replace('{scope}', searchScopeLabel)}
           >
             <Text style={styles.headerIcon}>🔍</Text>
           </Pressable>
@@ -162,7 +164,7 @@ export function ProductGridScreen({
           hitSlop={8}
           style={styles.headerBtn}
           accessibilityRole="button"
-          accessibilityLabel="Panier"
+          accessibilityLabel={t('shop_grid_cart_a11y')}
         >
           <Text style={styles.headerIcon}>🛒</Text>
         </Pressable>
@@ -173,7 +175,7 @@ export function ProductGridScreen({
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder={searchScopeLabel ? `Rechercher dans ${searchScopeLabel}` : 'Rechercher un produit'}
+            placeholder={searchScopeLabel ? t('shop_grid_search_in').replace('{scope}', searchScopeLabel) : t('shop_home_search_placeholder')}
             placeholderTextColor={colors.textMuted}
             value={searchInput}
             onChangeText={setSearchInput}
@@ -185,7 +187,7 @@ export function ProductGridScreen({
             clearButtonMode="never"
           />
           {searchInput.length > 0 && (
-            <Pressable onPress={() => { setSearchInput(''); setSearch(''); }} hitSlop={8} accessibilityLabel="Effacer">
+            <Pressable onPress={() => { setSearchInput(''); setSearch(''); }} hitSlop={8} accessibilityLabel={t('srch_clear')}>
               <Text style={styles.clearIcon}>✕</Text>
             </Pressable>
           )}
@@ -194,14 +196,14 @@ export function ProductGridScreen({
 
       {tabs && tabs.length > 0 && (
         <View style={styles.tabRow}>
-          {tabs.map((t) => (
+          {tabs.map((tab) => (
             <Pressable
-              key={t.key}
-              style={[styles.tab, activeTab === t.key && styles.tabActive]}
-              onPress={() => onTabChange?.(t.key)}
+              key={tab.key}
+              style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+              onPress={() => onTabChange?.(tab.key)}
             >
-              <Text style={[styles.tabTxt, activeTab === t.key && styles.tabTxtActive]}>
-                {t.label}
+              <Text style={[styles.tabTxt, activeTab === tab.key && styles.tabTxtActive]}>
+                {tab.label}
               </Text>
             </Pressable>
           ))}
@@ -222,7 +224,11 @@ export function ProductGridScreen({
           ))}
         </ScrollView>
         <Pressable style={styles.filterBtn} onPress={() => setFiltersOpen(true)}>
-          <Text style={styles.filterTxt}>Filtres{activeFilters ? ` (${activeFilters})` : ''}</Text>
+          <Text style={styles.filterTxt}>
+            {activeFilters
+              ? t('shop_grid_filters_count').replace('{n}', String(activeFilters))
+              : t('shop_grid_filters')}
+          </Text>
         </Pressable>
       </View>
 
@@ -231,22 +237,24 @@ export function ProductGridScreen({
       ) : items.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🔍</Text>
-          <Text style={styles.emptyTitle}>Aucun produit</Text>
+          <Text style={styles.emptyTitle}>{t('shop_grid_empty_title')}</Text>
           {searchScopeLabel && search.trim() ? (
             <>
               <Text style={styles.emptyText}>
-                Rien pour « {search.trim()} » dans {searchScopeLabel}.
+                {t('shop_grid_empty_in_scope')
+                  .replace('{q}', search.trim())
+                  .replace('{scope}', searchScopeLabel)}
               </Text>
               {/* Le produit existe peut-être, mais rangé dans un autre rayon. */}
               <Pressable
                 style={styles.widenBtn}
                 onPress={() => router.push(`/shop/search?q=${encodeURIComponent(search.trim())}` as never)}
               >
-                <Text style={styles.widenTxt}>Chercher dans toute la boutique</Text>
+                <Text style={styles.widenTxt}>{t('shop_grid_widen')}</Text>
               </Pressable>
             </>
           ) : (
-            <Text style={styles.emptyText}>Essaie d'élargir tes filtres ou de changer de recherche.</Text>
+            <Text style={styles.emptyText}>{t('shop_grid_empty_text')}</Text>
           )}
         </View>
       ) : (
@@ -273,13 +281,13 @@ export function ProductGridScreen({
       <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={() => setFiltersOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setFiltersOpen(false)}>
           <Pressable style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Filtres</Text>
+            <Text style={styles.modalTitle}>{t('shop_grid_filters')}</Text>
 
-            <Text style={styles.fieldLabel}>Prix (€)</Text>
+            <Text style={styles.fieldLabel}>{t('shop_grid_price_label')}</Text>
             <View style={styles.priceRow}>
               <TextInput
                 style={styles.priceInput}
-                placeholder="Min"
+                placeholder={t('shop_grid_price_min')}
                 placeholderTextColor={colors.textMuted}
                 keyboardType="decimal-pad"
                 value={minPrice}
@@ -288,7 +296,7 @@ export function ProductGridScreen({
               <Text style={styles.priceSep}>—</Text>
               <TextInput
                 style={styles.priceInput}
-                placeholder="Max"
+                placeholder={t('shop_grid_price_max')}
                 placeholderTextColor={colors.textMuted}
                 keyboardType="decimal-pad"
                 value={maxPrice}
@@ -296,7 +304,7 @@ export function ProductGridScreen({
               />
             </View>
 
-            <Text style={styles.fieldLabel}>Note minimum</Text>
+            <Text style={styles.fieldLabel}>{t('shop_grid_min_rating')}</Text>
             <View style={styles.ratingRow}>
               {[undefined, 3, 4, 4.5].map((r) => (
                 <Pressable
@@ -305,7 +313,7 @@ export function ProductGridScreen({
                   onPress={() => setMinRating(r)}
                 >
                   <Text style={[styles.ratingTxt, minRating === r && styles.ratingTxtActive]}>
-                    {r ? `★ ${r}+` : 'Toutes'}
+                    {r ? `★ ${r}+` : t('shop_grid_rating_all')}
                   </Text>
                 </Pressable>
               ))}
@@ -316,10 +324,10 @@ export function ProductGridScreen({
                 style={styles.resetBtn}
                 onPress={() => { setMinPrice(''); setMaxPrice(''); setMinRating(undefined); }}
               >
-                <Text style={styles.resetTxt}>Réinitialiser</Text>
+                <Text style={styles.resetTxt}>{t('shop_grid_reset')}</Text>
               </Pressable>
               <Pressable style={styles.applyBtn} onPress={() => setFiltersOpen(false)}>
-                <Text style={styles.applyTxt}>Voir les résultats</Text>
+                <Text style={styles.applyTxt}>{t('shop_grid_apply')}</Text>
               </Pressable>
             </View>
           </Pressable>

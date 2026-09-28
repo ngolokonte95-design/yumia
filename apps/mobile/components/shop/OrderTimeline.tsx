@@ -10,15 +10,18 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing } from '../../theme/tokens';
 import type { Order } from '../../lib/shop-api';
+import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 
 type StepKey = 'ordered' | 'paid' | 'preparing' | 'shipped' | 'delivered';
 
-const STEPS: { key: StepKey; label: string }[] = [
-  { key: 'ordered', label: 'Commandée' },
-  { key: 'paid', label: 'Paiement confirmé' },
-  { key: 'preparing', label: 'En préparation' },
-  { key: 'shipped', label: 'Expédiée' },
-  { key: 'delivered', label: 'Livrée' },
+/** Étapes et clés de libellé — traduites au rendu, dans la langue active. */
+const STEPS: { key: StepKey; labelKey: TranslationKey }[] = [
+  { key: 'ordered', labelKey: 'shop_timeline_step_ordered' },
+  { key: 'paid', labelKey: 'shop_timeline_step_paid' },
+  { key: 'preparing', labelKey: 'shop_timeline_step_preparing' },
+  { key: 'shipped', labelKey: 'shop_timeline_step_shipped' },
+  { key: 'delivered', labelKey: 'shop_timeline_step_delivered' },
 ];
 
 /** Étape atteinte, selon le statut de la commande. */
@@ -33,29 +36,30 @@ const REACHED: Record<Order['status'], number> = {
 };
 
 /** Précision affichée sous l'étape en cours. */
-const CURRENT_HINT: Partial<Record<StepKey, string>> = {
-  ordered: 'En attente de la confirmation du paiement.',
-  paid: 'Ta commande part chez notre fournisseur.',
-  preparing: 'Le vendeur prépare ton colis. Le numéro de suivi arrivera à l\'expédition.',
-  shipped: 'En cours d\'acheminement — 7 à 15 jours en général.',
+const CURRENT_HINT: Partial<Record<StepKey, TranslationKey>> = {
+  ordered: 'shop_timeline_hint_ordered',
+  paid: 'shop_timeline_hint_paid',
+  preparing: 'shop_timeline_hint_preparing',
+  shipped: 'shop_timeline_hint_shipped',
 };
 
-function fmt(iso?: string | null): string | null {
+function fmt(locale: string, iso?: string | null): string | null {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 export function OrderTimeline({ order }: { order: Order }) {
+  const { t, locale } = useI18n();
   const reached = REACHED[order.status];
   if (reached < 0) return null; // annulée / remboursée : le badge de statut suffit
 
   const dates: Partial<Record<StepKey, string | null>> = {
-    ordered: fmt(order.createdAt),
-    paid: fmt(order.paidAt),
-    shipped: fmt(order.shippedAt),
+    ordered: fmt(locale, order.createdAt),
+    paid: fmt(locale, order.paidAt),
+    shipped: fmt(locale, order.shippedAt),
     // Pas de date de livraison dédiée : la dernière mise à jour de la
     // commande livrée est celle où la synchro l'a passée en « Livrée ».
-    delivered: order.status === 'delivered' ? fmt(order.updatedAt) : null,
+    delivered: order.status === 'delivered' ? fmt(locale, order.updatedAt) : null,
   };
 
   return (
@@ -65,6 +69,7 @@ export function OrderTimeline({ order }: { order: Order }) {
         const current = i === reached && !done;
         const last = i === STEPS.length - 1;
         const date = dates[step.key];
+        const hintKey = CURRENT_HINT[step.key];
         return (
           <View key={step.key} style={styles.row}>
             <View style={styles.rail}>
@@ -75,10 +80,10 @@ export function OrderTimeline({ order }: { order: Order }) {
             </View>
             <View style={[styles.body, !last && styles.bodySpacing]}>
               <View style={styles.labelRow}>
-                <Text style={[styles.label, (done || current) && styles.labelActive]}>{step.label}</Text>
+                <Text style={[styles.label, (done || current) && styles.labelActive]}>{t(step.labelKey)}</Text>
                 {date && (done || current) ? <Text style={styles.date}>{date}</Text> : null}
               </View>
-              {current && CURRENT_HINT[step.key] ? <Text style={styles.hint}>{CURRENT_HINT[step.key]}</Text> : null}
+              {current && hintKey ? <Text style={styles.hint}>{t(hintKey)}</Text> : null}
             </View>
           </View>
         );

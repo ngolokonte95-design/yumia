@@ -9,22 +9,28 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, formatPrice, type Order } from '../../lib/shop-api';
 import { isHttpsUrl, openExternalHttps } from '../../lib/external-link';
 import { OrderTimeline } from '../../components/shop/OrderTimeline';
+import { useI18n } from '../../lib/useI18n';
+import type { TranslationKey } from '../../lib/translations';
 
-/** Libellé + couleur par statut — le client ne voit jamais l'énum brute. */
-const STATUS: Record<Order['status'], { label: string; color: string }> = {
-  pending:    { label: 'En attente de paiement', color: colors.warning },
-  paid:       { label: 'Paiement confirmé',      color: colors.success },
-  fulfilling: { label: 'En préparation',         color: colors.brandSoft },
-  shipped:    { label: 'Expédiée',               color: colors.brandSoft },
-  delivered:  { label: 'Livrée',                 color: colors.success },
-  cancelled:  { label: 'Annulée',                color: colors.textMuted },
-  refunded:   { label: 'Remboursée',             color: colors.textMuted },
+/**
+ * Clé de libellé + couleur par statut — le client ne voit jamais l'énum
+ * brute. Le libellé est traduit au rendu, dans la langue active.
+ */
+const STATUS: Record<Order['status'], { labelKey: TranslationKey; color: string }> = {
+  pending:    { labelKey: 'shop_orders_status_pending',    color: colors.warning },
+  paid:       { labelKey: 'shop_orders_status_paid',       color: colors.success },
+  fulfilling: { labelKey: 'shop_orders_status_fulfilling', color: colors.brandSoft },
+  shipped:    { labelKey: 'shop_orders_status_shipped',    color: colors.brandSoft },
+  delivered:  { labelKey: 'shop_orders_status_delivered',  color: colors.success },
+  cancelled:  { labelKey: 'shop_orders_status_cancelled',  color: colors.textMuted },
+  refunded:   { labelKey: 'shop_orders_status_refunded',   color: colors.textMuted },
 };
 
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { t, locale } = useI18n();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +60,7 @@ export default function OrdersScreen() {
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Text style={styles.back}>←</Text>
         </Pressable>
-        <Text style={styles.title}>Mes commandes</Text>
+        <Text style={styles.title}>{t('shop_orders_title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -63,10 +69,10 @@ export default function OrdersScreen() {
       ) : orders.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>📦</Text>
-          <Text style={styles.emptyTitle}>Aucune commande</Text>
-          <Text style={styles.emptyText}>Tes commandes apparaîtront ici une fois validées.</Text>
+          <Text style={styles.emptyTitle}>{t('shop_orders_empty_title')}</Text>
+          <Text style={styles.emptyText}>{t('shop_orders_empty_text')}</Text>
           <Pressable style={styles.shopBtn} onPress={() => router.replace('/shop' as never)}>
-            <Text style={styles.shopBtnTxt}>Aller à la boutique</Text>
+            <Text style={styles.shopBtnTxt}>{t('shop_orders_go_to_shop')}</Text>
           </Pressable>
         </View>
       ) : (
@@ -82,11 +88,11 @@ export default function OrdersScreen() {
                   <View>
                     <Text style={styles.reference}>{o.reference}</Text>
                     <Text style={styles.date}>
-                      {new Date(o.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {new Date(o.createdAt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}
                     </Text>
                   </View>
                   <View style={[styles.statusPill, { backgroundColor: `${status.color}22`, borderColor: status.color }]}>
-                    <Text style={[styles.statusTxt, { color: status.color }]}>{status.label}</Text>
+                    <Text style={[styles.statusTxt, { color: status.color }]}>{t(status.labelKey)}</Text>
                   </View>
                 </View>
 
@@ -112,14 +118,16 @@ export default function OrdersScreen() {
                 </View>
 
                 <View style={styles.cardFooter}>
-                  <Text style={styles.totalLabel}>Total</Text>
+                  <Text style={styles.totalLabel}>{t('shop_orders_total')}</Text>
                   <Text style={styles.totalValue}>{formatPrice(o.totalCents, o.currency)}</Text>
                 </View>
 
                 {isHttpsUrl(o.trackingUrl) && (
                   <Pressable style={styles.trackBtn} onPress={() => void openExternalHttps(o.trackingUrl).catch(() => {})}>
                     <Text style={styles.trackTxt}>
-                      Suivre mon colis{o.trackingNumber ? ` · ${o.trackingNumber}` : ''}
+                      {o.trackingNumber
+                        ? t('shop_orders_track_with_number').replace('{number}', o.trackingNumber)
+                        : t('shop_orders_track')}
                     </Text>
                   </Pressable>
                 )}

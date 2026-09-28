@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { formatPrice, type ProductListItem } from '../../lib/shop-api';
+import { useI18n } from '../../lib/useI18n';
 
 interface Props {
   product: ProductListItem;
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function ProductCard({ product, onPress, variant = 'row' }: Props) {
+  const { t } = useI18n();
   const image = product.images[0];
   // Une remise n'est affichée que si le prix barré est réellement supérieur —
   // sinon le pourcentage serait nul ou négatif, donc mensonger.
@@ -65,13 +67,14 @@ export function ProductCard({ product, onPress, variant = 'row' }: Props) {
       {product.adminMargin && (
         <View style={styles.marginBox}>
           <Text style={styles.marginTxt}>
-            Marge {formatPrice(product.adminMargin.marginCents, product.currency)}
-            {'  ·  '}
-            {product.adminMargin.marginPercent}%
+            {t('shop_card_admin_margin')
+              .replace('{amount}', formatPrice(product.adminMargin.marginCents, product.currency))
+              .replace('{percent}', String(product.adminMargin.marginPercent))}
           </Text>
           <Text style={styles.marginCost}>
-            Achat {formatPrice(product.adminMargin.costCents, product.currency)} · ×
-            {product.adminMargin.multiplier}
+            {t('shop_card_admin_cost')
+              .replace('{amount}', formatPrice(product.adminMargin.costCents, product.currency))
+              .replace('{multiplier}', String(product.adminMargin.multiplier))}
           </Text>
         </View>
       )}

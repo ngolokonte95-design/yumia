@@ -4,10 +4,13 @@ import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../../lib/auth-context';
 import { shopApi, type ShopCategory } from '../../../lib/shop-api';
 import { ProductGridScreen } from '../../../components/shop/ProductGridScreen';
+import { useI18n } from '../../../lib/useI18n';
+import { shopCategoryName } from '../../../lib/shop-category-name';
 
 export default function ShopCategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { accessToken } = useAuth();
+  const { t } = useI18n();
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   // Sous-rayon sélectionné. `null` = « Tout », qui interroge le rayon parent
   // et remonte donc les produits de tous ses enfants.
@@ -25,23 +28,23 @@ export default function ShopCategoryScreen() {
   useEffect(() => setSubSlug(null), [slug]);
 
   const current = categories.find((c) => c.slug === slug);
-  const title = current ? `${current.emoji} ${current.nameFr}` : 'Rayon';
+  const title = current ? `${current.emoji} ${shopCategoryName(t, current.slug, current.nameFr)}` : t('shop_cat_fallback_title');
 
   const tabs = useMemo(() => {
     const children = categories
       .filter((c) => c.parentSlug === slug)
-      .sort((a, b) => a.nameFr.localeCompare(b.nameFr));
+      .sort((a, b) => shopCategoryName(t, a.slug, a.nameFr).localeCompare(shopCategoryName(t, b.slug, b.nameFr)));
     if (children.length === 0) return undefined;
     return [
-      { key: '', label: 'Tout' },
-      ...children.map((c) => ({ key: c.slug, label: `${c.emoji} ${c.nameFr}` })),
+      { key: '', label: t('shop_cat_all') },
+      ...children.map((c) => ({ key: c.slug, label: `${c.emoji} ${shopCategoryName(t, c.slug, c.nameFr)}` })),
     ];
-  }, [categories, slug]);
+  }, [categories, slug, t]);
 
   return (
     <ProductGridScreen
       title={title}
-      searchScopeLabel={current?.nameFr ?? 'ce rayon'}
+      searchScopeLabel={current ? shopCategoryName(t, current.slug, current.nameFr) : t('shop_cat_this_category')}
       baseQuery={{ category: subSlug ?? slug }}
       tabs={tabs}
       activeTab={subSlug ?? ''}
