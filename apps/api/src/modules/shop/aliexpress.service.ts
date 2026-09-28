@@ -745,18 +745,19 @@ export class AliExpressService {
   }
 
   /**
-   * Le transporteur le plus RAPIDE, même payant (choix de l'utilisateur,
-   * 28/09/2026 — AliExpress prenait sinon son mode par défaut, souvent le moins
-   * cher et le plus lent). Départage : suivi disponible, puis prix.
+   * Transporteur retenu pour un article : le plus RAPIDE parmi ceux dont les
+   * frais ne dépassent pas {@link MAX_SHIPPING_FEE_CENTS} (3 €) — en pratique
+   * AliExpress Standard Shipping, 7 à 15 jours, ou mieux au même prix. Sans
+   * option sous ce plafond : la MOINS CHÈRE, jamais un express payé par défaut.
+   *
+   * Choix de l'utilisateur (28/09/2026) : le « plus rapide même payant »
+   * tombait sur des express à 15-40 €, que la marge d'un article ne couvre
+   * pas ; AliExpress prenait sinon son mode par défaut, souvent le plus lent.
+   * Départage à délai égal : suivi disponible, puis prix.
    */
-  async fastestShipping(productId: string, countryCode: string, quantity: number): Promise<ShippingOption | null> {
+  async chooseShipping(productId: string, countryCode: string, quantity: number): Promise<ShippingOption | null> {
     const options = await this.shippingOptions(productId, countryCode, quantity);
-    if (!options.length) return null;
-    return [...options].sort((a, b) =>
-      a.maxDays - b.maxDays
-      || Number(b.tracking) - Number(a.tracking)
-      || (a.feeCents ?? Infinity) - (b.feeCents ?? Infinity),
-    )[0];
+    return pickShipping(options);
   }
 
   // ── Commande ──────────────────────────────────────────────────────────────
@@ -786,12 +787,12 @@ export class AliExpressService {
   }): Promise<{ accepted: boolean; orderIds: string[] }> {
     if (!params.items.length) return { accepted: false, orderIds: [] };
 
-    // Transporteur le plus rapide, article par article (chacun peut venir
-    // d'un vendeur différent). Faute de réponse, on laisse AliExpress choisir
+    // Transporteur choisi article par article (chacun peut venir d'un vendeur
+    // différent) : le plus rapide à 3 € maximum, voir chooseShipping. Faute de réponse, on laisse AliExpress choisir
     // plutôt que de bloquer la commande.
     const shipping = await Promise.all(
       params.items.map((i) =>
-        this.fastestShipping(i.aliexpressProductId, params.address.countryCode, i.quantity).catch(() => null),
+        this.chooseShipping(i.aliexpressProductId, params.address.countryCode, i.quantity).catch(() => null),
       ),
     );
     shipping.forEach((opt, k) => {
@@ -854,6 +855,25 @@ export interface ShippingOption {
   /** Frais de port en centimes (devise demandée : EUR), `null` si inconnus. */
   feeCents: number | null;
   tracking: boolean;
+}
+
+/** Frais de port maximum qu'on accepte de payer par article, en centimes. */
+export const MAX_SHIPPING_FEE_CENTS = 300;
+
+/**
+ * Le plus rapide sous le plafond de frais ; à défaut, le moins cher.
+ * Des frais inconnus comptent comme au-dessus du plafond.
+ */
+export function pickShipping(options: ShippingOption[]): ShippingOption | null {
+  if (!options.length) return null;
+  const fee = (o: ShippingOption) => o.feeCents ?? Infinity;
+  const affordable = options.filter((o) => fee(o) <= MAX_SHIPPING_FEE_CENTS);
+  if (affordable.length) {
+    return [...affordable].sort((a, b) =>
+      a.maxDays - b.maxDays || Number(b.tracking) - Number(a.tracking) || fee(a) - fee(b),
+    )[0];
+  }
+  return [...options].sort((a, b) => fee(a) - fee(b) || a.maxDays - b.maxDays)[0];
 }
 
 /**

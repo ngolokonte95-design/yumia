@@ -1,6 +1,6 @@
 /**
  * Affiche les modes de livraison qu'AliExpress propose pour un produit, et
- * celui que YUMIA choisira (le plus rapide, même payant).
+ * celui que YUMIA choisira (le plus rapide à 3 € maximum).
  *
  * Lecture seule : aucune commande n'est passée. Sert à vérifier, avant la
  * première vraie commande, que l'API renvoie bien délais et transporteurs.
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
       'frais (€)': o.feeCents !== null ? (o.feeCents / 100).toFixed(2) : '?',
       suivi: o.tracking ? 'oui' : 'non',
     })));
-    const choisi = await ae.fastestShipping(productId, pays.toUpperCase(), Number(quantite));
+    const choisi = await ae.chooseShipping(productId, pays.toUpperCase(), Number(quantite));
     console.log(`Choix YUMIA : ${choisi?.serviceName ?? 'défaut AliExpress'}`);
   } finally {
     await app.close();
