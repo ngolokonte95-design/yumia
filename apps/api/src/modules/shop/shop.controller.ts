@@ -22,6 +22,8 @@ import { CatalogService, type ProductSort } from './catalog.service';
 import { GiftService } from './gift.service';
 import { OrdersService } from './orders.service';
 import { OrderSyncService, type AdminOrdersTab } from './order-sync.service';
+import { normalizeShopLocale, translationTarget } from './product-locales';
+import { ProductTranslationService } from './product-translation.service';
 import { ShopImportService } from './shop-import.service';
 
 /** `?featured=true` arrive en chaîne — on ne veut pas que "false" soit vrai. */
@@ -42,9 +44,17 @@ export class ShopController {
     private readonly imports: ShopImportService,
     private readonly aliexpress: AliExpressService,
     private readonly orderSync: OrderSyncService,
+    private readonly translations: ProductTranslationService,
   ) {}
 
   // ── Catalogue ─────────────────────────────────────────────────────────────
+  //
+  // Les routes qui renvoient des produits acceptent `?locale=xx` (une des 13
+  // langues de l'app, sinon français) : titres et descriptions sont alors
+  // remplacés par leur traduction AliExpress en cache — voir
+  // ProductTranslationService. Pas de cache Redis sur ces routes : la
+  // localisation s'applique à chaque réponse. Les commandes, elles, gardent
+  // leur `titleSnapshot` d'origine : une facture ne change pas de langue.
 
   @Get('categories')
   @UseGuards(JwtAuthGuard)
@@ -54,7 +64,7 @@ export class ShopController {
 
   @Get('products')
   @UseGuards(JwtAuthGuard)
-  products(
+  async products(
     @CurrentUser() user: JwtPayload,
     @Query('category') categorySlug?: string,
     @Query('q') q?: string,
@@ -66,10 +76,13 @@ export class ShopController {
     @Query('sort') sort?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('locale') locale?: string,
   ) {
-    return this.catalog.listProducts({
+    const lang = normalizeShopLocale(locale);
+    const result = await this.catalog.listProducts({
       categorySlug,
       q,
+      searchLocale: translationTarget(lang)?.storeLocale,
       minPriceCents: asInt(minPrice),
       maxPriceCents: asInt(maxPrice),
       minRating: asInt(minRating),
@@ -79,6 +92,7 @@ export class ShopController {
       page: asInt(page),
       pageSize: asInt(pageSize),
     }, isAdminEmail(user.email));
+    return { ...result, items: await this.translations.localize(result.items, lang) };
   }
 
   // ── Assistant Idées cadeaux ───────────────────────────────────────────────
@@ -93,18 +107,20 @@ export class ShopController {
   /** GET /api/shop/gift-ideas?recipient=&occasion=&budget= — la sélection correspondante. */
   @Get('gift-ideas')
   @UseGuards(JwtAuthGuard)
-  giftIdeas(
+  async giftIdeas(
     @CurrentUser() user: JwtPayload,
     @Query('recipient') recipient?: string,
     @Query('occasion') occasion?: string,
     @Query('budget') budget?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
+    @Query('locale') locale?: string,
   ) {
-    return this.gifts.suggest(
+    const result = await this.gifts.suggest(
       { recipient, occasion, budget, page: asInt(page), pageSize: asInt(pageSize) },
       isAdminEmail(user.email),
     );
+    return { ...result, items: await this.translations.localize(result.items, normalizeShopLocale(locale)) };
   }
 
   /** Rayon lié à un univers YUMIA — produits proposés en contexte sur une fiche lieu. */
@@ -116,16 +132,17 @@ export class ShopController {
 
   @Get('products/:slug')
   @UseGuards(JwtAuthGuard)
-  product(@CurrentUser() user: JwtPayload, @Param('slug') slug: string) {
-    return this.catalog.getProduct(slug, user.sub, isAdminEmail(user.email));
+  async product(@CurrentUser() user: JwtPayload, @Param('slug') slug: string, @Query('locale') locale?: string) {
+    const product = await this.catalog.getProduct(slug, user.sub, isAdminEmail(user.email));
+    return this.translations.localizeDetail(product, normalizeShopLocale(locale));
   }
 
   // ── Wishlist & avis ───────────────────────────────────────────────────────
 
   @Get('wishlist')
   @UseGuards(JwtAuthGuard)
-  wishlist(@CurrentUser() user: JwtPayload) {
-    return this.catalog.listWishlist(user.sub);
+  async wishlist(@CurrentUser() user: JwtPayload, @Query('locale') locale?: string) {
+    return this.translations.localize(await this.catalog.listWishlist(user.sub), normalizeShopLocale(locale));
   }
 
   @Post('wishlist/:productId')
@@ -149,35 +166,43 @@ export class ShopController {
 
   @Get('cart')
   @UseGuards(JwtAuthGuard)
-  getCart(@CurrentUser() user: JwtPayload) {
-    return this.cart.getCart(user.sub);
+  async getCart(@CurrentUser() user: JwtPayload, @Query('locale') locale?: string) {
+    return this.translations.localizeCart(await this.cart.getCart(user.sub), normalizeShopLocale(locale));
   }
 
   @Post('cart/items')
   @UseGuards(JwtAuthGuard)
-  addToCart(
+  async addToCart(
     @CurrentUser() user: JwtPayload,
     @Body() body: { productId: string; variantId?: string; quantity?: number },
+    @Query('locale') locale?: string,
   ) {
     if (!body?.productId) throw new BadRequestException('productId manquant');
-    return this.cart.addItem(user.sub, body.productId, body.variantId, body.quantity);
+    const cart = await this.cart.addItem(user.sub, body.productId, body.variantId, body.quantity);
+    return this.translations.localizeCart(cart, normalizeShopLocale(locale));
   }
 
   @Patch('cart/items/:itemId')
   @UseGuards(JwtAuthGuard)
-  updateCartItem(
+  async updateCartItem(
     @CurrentUser() user: JwtPayload,
     @Param('itemId', ParseUUIDPipe) itemId: string,
     @Body() body: { quantity: number },
+    @Query('locale') locale?: string,
   ) {
     if (typeof body?.quantity !== 'number') throw new BadRequestException('quantity manquante');
-    return this.cart.updateQuantity(user.sub, itemId, body.quantity);
+    const cart = await this.cart.updateQuantity(user.sub, itemId, body.quantity);
+    return this.translations.localizeCart(cart, normalizeShopLocale(locale));
   }
 
   @Delete('cart/items/:itemId')
   @UseGuards(JwtAuthGuard)
-  removeCartItem(@CurrentUser() user: JwtPayload, @Param('itemId', ParseUUIDPipe) itemId: string) {
-    return this.cart.removeItem(user.sub, itemId);
+  async removeCartItem(
+    @CurrentUser() user: JwtPayload,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.translations.localizeCart(await this.cart.removeItem(user.sub, itemId), normalizeShopLocale(locale));
   }
 
   // ── Adresses ──────────────────────────────────────────────────────────────

@@ -20,6 +20,12 @@ export interface ProductListQuery {
   categorySlugs?: string[];
   /** Recherche plein texte sur le titre. */
   q?: string;
+  /**
+   * Locale de stockage des traductions (cf. `translationTarget`) : la
+   * recherche porte alors aussi sur les titres déjà traduits, pour qu'un
+   * utilisateur anglophone retrouve « phone case » et pas seulement « coque ».
+   */
+  searchLocale?: string;
   minPriceCents?: number;
   maxPriceCents?: number;
   minRating?: number;
@@ -161,7 +167,16 @@ export class CatalogService {
           : {}),
       // Chaque mot doit figurer dans le titre, dans n'importe quel ordre.
       ...(words.length
-        ? { AND: words.map((w) => ({ title: { contains: w, mode: 'insensitive' as const } })) }
+        ? {
+            AND: words.map((w) => query.searchLocale
+              ? {
+                  OR: [
+                    { title: { contains: w, mode: 'insensitive' as const } },
+                    { translations: { some: { locale: query.searchLocale, title: { contains: w, mode: 'insensitive' as const } } } },
+                  ],
+                }
+              : { title: { contains: w, mode: 'insensitive' as const } }),
+          }
         : {}),
       ...(query.featuredOnly ? { featured: true } : {}),
       ...(query.minPriceCents != null || query.maxPriceCents != null

@@ -7,13 +7,14 @@ import { CatalogService } from './catalog.service';
 import { GiftService } from './gift.service';
 import { OrdersService } from './orders.service';
 import { OrderSyncService } from './order-sync.service';
+import { ProductTranslationService } from './product-translation.service';
 import { ShopController } from './shop.controller';
 import { ShopImportService } from './shop-import.service';
 
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [ShopController],
-  providers: [AliExpressService, CatalogService, CartService, GiftService, OrdersService, OrderSyncService, ShopImportService],
+  providers: [AliExpressService, CatalogService, CartService, GiftService, OrdersService, OrderSyncService, ProductTranslationService, ShopImportService],
   exports: [CatalogService],
 })
 export class ShopModule {}

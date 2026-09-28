@@ -583,11 +583,16 @@ export class AliExpressService {
       .filter((p) => p.productId && p.title && p.priceCents > 0);
   }
 
-  private async getRawDetail(productId: string): Promise<Record<string, any>> {
+  /**
+   * `language` : code langue AliExpress ('FR', 'EN', 'ES'…). Le français reste
+   * la valeur par défaut — c'est la langue d'import du catalogue ; les autres
+   * ne servent qu'à traduire titre et description (ProductTranslationService).
+   */
+  private async getRawDetail(productId: string, language = 'FR'): Promise<Record<string, any>> {
     const data = await this.call('aliexpress.ds.product.get', {
       product_id: productId,
       target_currency: 'EUR',
-      target_language: 'FR',
+      target_language: language,
       ship_to_country: 'FR',
     });
     const response = data['aliexpress_ds_product_get_response'] as Record<string, any> | undefined;
@@ -636,6 +641,23 @@ export class AliExpressService {
       variants: this.extractVariants(detail),
       categoryId: num(base['category_id']),
     };
+  }
+
+  /**
+   * Titre et description d'un produit dans une autre langue, tels
+   * qu'AliExpress les rend avec `target_language`. Même extraction de la
+   * description qu'à l'import (`extractDescription`) pour que la fiche
+   * traduite ait la même forme que la fiche française.
+   *
+   * `null` si AliExpress ne renvoie pas de titre (erreur, jeton absent,
+   * produit retiré) : l'appelant garde alors le français.
+   */
+  async getProductText(productId: string, language: string): Promise<{ title: string; description?: string } | null> {
+    const detail = await this.getRawDetail(productId, language);
+    const base = detail['ae_item_base_info_dto'] ?? {};
+    const title = String(base['subject'] ?? '').trim();
+    if (!title) return null;
+    return { title, description: this.extractDescription(base['mobile_detail']) };
   }
 
   /**

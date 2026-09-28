@@ -222,23 +222,33 @@ function qs(params: Record<string, string | number | boolean | undefined>): stri
   return s ? `?${s}` : '';
 }
 
+/**
+ * `?locale=` des routes qui renvoient des produits : le serveur y substitue
+ * titres et descriptions traduits par AliExpress (le catalogue est importé en
+ * français). Lue au moment de l'appel pour suivre un changement de langue
+ * sans toucher aux écrans.
+ */
+function withLocale(path: string): string {
+  return `${path}${path.includes('?') ? '&' : '?'}locale=${encodeURIComponent(getRuntimeLocale())}`;
+}
+
 export const shopApi = {
   categories: (token: string) => request<ShopCategory[]>('/shop/categories', { token }),
 
   products: (token: string, query: ProductQuery = {}) =>
     request<{ items: ProductListItem[]; total: number; page: number; pageSize: number; hasMore: boolean }>(
-      `/shop/products${qs(query)}`,
+      withLocale(`/shop/products${qs(query)}`),
       { token },
     ),
 
   product: (token: string, slug: string) =>
-    request<ProductDetail>(`/shop/products/${encodeURIComponent(slug)}`, { token }),
+    request<ProductDetail>(withLocale(`/shop/products/${encodeURIComponent(slug)}`), { token }),
 
   categoryForUniverse: (token: string, universe: string) =>
     request<ShopCategory | null>(`/shop/categories/by-universe/${encodeURIComponent(universe)}`, { token }),
 
   // Wishlist
-  wishlist: (token: string) => request<ProductListItem[]>('/shop/wishlist', { token }),
+  wishlist: (token: string) => request<ProductListItem[]>(withLocale('/shop/wishlist'), { token }),
   toggleWishlist: (token: string, productId: string) =>
     request<{ wishlisted: boolean }>(`/shop/wishlist/${productId}`, { token, method: 'POST' }),
 
@@ -248,13 +258,13 @@ export const shopApi = {
     }),
 
   // Panier
-  cart: (token: string) => request<CartSummary>('/shop/cart', { token }),
+  cart: (token: string) => request<CartSummary>(withLocale('/shop/cart'), { token }),
   addToCart: (token: string, productId: string, variantId?: string, quantity = 1) =>
-    request<CartSummary>('/shop/cart/items', { token, method: 'POST', body: { productId, variantId, quantity } }),
+    request<CartSummary>(withLocale('/shop/cart/items'), { token, method: 'POST', body: { productId, variantId, quantity } }),
   updateCartItem: (token: string, itemId: string, quantity: number) =>
-    request<CartSummary>(`/shop/cart/items/${itemId}`, { token, method: 'PATCH', body: { quantity } }),
+    request<CartSummary>(withLocale(`/shop/cart/items/${itemId}`), { token, method: 'PATCH', body: { quantity } }),
   removeCartItem: (token: string, itemId: string) =>
-    request<CartSummary>(`/shop/cart/items/${itemId}`, { token, method: 'DELETE' }),
+    request<CartSummary>(withLocale(`/shop/cart/items/${itemId}`), { token, method: 'DELETE' }),
 
   // Adresses
   addresses: (token: string) => request<ShippingAddress[]>('/shop/addresses', { token }),
@@ -271,6 +281,7 @@ export const shopApi = {
     if (params.occasion) q.set('occasion', params.occasion);
     if (params.budget) q.set('budget', params.budget);
     if (params.page) q.set('page', String(params.page));
+    q.set('locale', getRuntimeLocale());
     return request<GiftSuggestions>(`/shop/gift-ideas?${q.toString()}`, { token });
   },
 

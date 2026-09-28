@@ -1354,11 +1354,12 @@ model Product {
   aliexpressPriceCents Int?
   aliexpressCategoryId Int?
 
-  variants   ProductVariant[]
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-  wishlisted WishlistItem[]
-  reviews    ProductReview[]
+  variants     ProductVariant[]
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  wishlisted   WishlistItem[]
+  reviews      ProductReview[]
+  translations ProductTranslation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1366,6 +1367,24 @@ model Product {
   @@index([categoryId, status])
   @@index([status, featured])
   @@index([status, salesCount])
+}
+
+/// Titre/description d'un produit dans une autre langue que le français,
+/// fournis par AliExpress (`target_language`) à la première demande puis
+/// gardés ici : AliExpress n'est interrogé qu'une fois par produit et par
+/// langue. Le français reste sur `Product` (langue d'import).
+model ProductTranslation {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Locale de l'app ('en', 'es'…) — jamais 'fr'.
+  locale      String
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@unique([productId, locale])
+  @@index([productId])
 }
 
 /// Déclinaison achetable (taille, couleur…). `skuAttr` est l'identifiant exact
