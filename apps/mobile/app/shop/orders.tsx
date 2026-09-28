@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/auth-context';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { shopApi, formatPrice, type Order } from '../../lib/shop-api';
 import { isHttpsUrl, openExternalHttps } from '../../lib/external-link';
+import { OrderTimeline } from '../../components/shop/OrderTimeline';
 
 /** Libellé + couleur par statut — le client ne voit jamais l'énum brute. */
 const STATUS: Record<Order['status'], { label: string; color: string }> = {
@@ -88,6 +89,8 @@ export default function OrdersScreen() {
                     <Text style={[styles.statusTxt, { color: status.color }]}>{status.label}</Text>
                   </View>
                 </View>
+
+                <OrderTimeline order={o} />
 
                 <View style={styles.items}>
                   {o.items.map((item) => (

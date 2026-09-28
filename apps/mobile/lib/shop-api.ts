@@ -176,6 +176,10 @@ export interface Order {
   trackingNumber: string | null;
   trackingUrl: string | null;
   createdAt: string;
+  /** Dates d'avancement, pour la frise de « Mes commandes ». */
+  paidAt?: string | null;
+  shippedAt?: string | null;
+  updatedAt?: string;
   items: OrderItem[];
 }
 
