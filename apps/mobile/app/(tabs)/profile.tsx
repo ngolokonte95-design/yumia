@@ -305,6 +305,9 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         {[
           { key: 'saved', label: t('profile_setting_saved'), onPress: () => router.push('/favorites' as never) },
+          // Seul accès durable aux commandes : l'écran n'était atteint qu'une
+          // fois, juste après le paiement.
+          { key: 'orders', label: t('profile_setting_orders'), onPress: () => router.push('/shop/orders' as never) },
           { key: 'locale', label: t('profile_setting_locale'), onPress: () => setShowLocalePicker(true) },
           { key: 'notifs', label: t('profile_setting_notifs'), onPress: () => router.push('/notifications') },
           { key: 'privacy', label: t('profile_setting_privacy'), onPress: () => router.push('/settings') },

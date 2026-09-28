@@ -92,6 +92,14 @@ export default function ShopHomeScreen() {
             returnKeyType="search"
           />
         </View>
+        <Pressable
+          onPress={() => router.push('/shop/orders' as never)}
+          hitSlop={8}
+          style={styles.cartBtn}
+          accessibilityLabel="Mes commandes"
+        >
+          <Text style={styles.cartIcon}>📦</Text>
+        </Pressable>
         <Pressable onPress={() => router.push('/shop/cart' as never)} hitSlop={8} style={styles.cartBtn}>
           <Text style={styles.cartIcon}>🛒</Text>
           {cartCount > 0 && (
