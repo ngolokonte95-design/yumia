@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -16,7 +17,9 @@
         "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_VHOTllmSiXfOoGbizBuqHDAgoGy",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP"
       },
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -30,7 +33,9 @@
         "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_VHOTllmSiXfOoGbizBuqHDAgoGy",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP"
       },
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -45,7 +50,9 @@
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
