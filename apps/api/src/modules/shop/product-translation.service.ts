@@ -41,16 +41,18 @@ export class ProductTranslationService {
   private readonly logger = new Logger(ProductTranslationService.name);
 
   /**
-   * Produits mis en file par affichage de liste. Une page de rayon en montre
-   * 20 à 40 : on n'en demande que 10, les suivants viendront aux affichages
-   * d'après. Sans ce plafond, un défilement rapide dans un rayon enverrait des
-   * centaines d'appels d'un coup sur un jeton AliExpress partagé avec SPORTIA.
+   * Produits mis en file par affichage de liste : toute la page affichée
+   * (jusqu'à 50). C'était 10 : sur un rayon de 300 produits, il fallait
+   * rouvrir la liste des dizaines de fois pour la voir traduite (constaté en
+   * russe le 28/09/2026 : 41 produits traduits, le reste en français). La
+   * file (MAX_QUEUE) et la concurrence bornent toujours la charge sur le jeton
+   * AliExpress partagé avec SPORTIA.
    */
-  static readonly MAX_ENQUEUE_PER_CALL = 10;
+  static readonly MAX_ENQUEUE_PER_CALL = 50;
   /** Au-delà, les nouveaux travaux sont ignorés — ils reviendront au prochain affichage. */
-  static readonly MAX_QUEUE = 200;
-  /** Appels AliExpress simultanés depuis la file : faible, c'est du confort, pas de l'urgent. */
-  static readonly CONCURRENCY = 2;
+  static readonly MAX_QUEUE = 400;
+  /** Appels AliExpress simultanés depuis la file. */
+  static readonly CONCURRENCY = 4;
   /** Délai max d'attente de la traduction sur une fiche produit. */
   static readonly DETAIL_TIMEOUT_MS = 4000;
   /**

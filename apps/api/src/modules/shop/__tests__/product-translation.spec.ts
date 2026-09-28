@@ -75,10 +75,10 @@ describe('ProductTranslationService.localize', () => {
     expect(enqueue).toHaveBeenCalledWith({ productId: 'p1', target: { storeLocale: 'en', aliexpressLanguage: 'EN' } });
   });
 
-  it('ne met en file que 10 produits par affichage', async () => {
+  it('plafonne les produits mis en file par affichage', async () => {
     const { service } = makeDeps([]);
     const enqueue = jest.spyOn(service as unknown as { enqueue: (j: unknown) => void }, 'enqueue').mockImplementation(() => undefined);
-    const products = Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, title: 'Coque' }));
+    const products = Array.from({ length: ProductTranslationService.MAX_ENQUEUE_PER_CALL + 20 }, (_, i) => ({ id: `p${i}`, title: 'Coque' }));
     await service.localize(products, 'es');
     expect(enqueue).toHaveBeenCalledTimes(ProductTranslationService.MAX_ENQUEUE_PER_CALL);
   });
