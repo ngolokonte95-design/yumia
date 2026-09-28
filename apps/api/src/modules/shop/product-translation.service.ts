@@ -138,6 +138,18 @@ export class ProductTranslationService {
     return localized;
   }
 
+  /**
+   * Traduit un produit tout de suite (script de pré-traduction). `'done'` :
+   * traduit maintenant ; `'cached'` : l'était déjà ; `'failed'` : AliExpress
+   * n'a rien fourni (ou verrou tenu ailleurs).
+   */
+  async translateNow(productId: string, locale: string): Promise<'done' | 'cached' | 'failed'> {
+    const target = translationTarget(locale);
+    if (!target) return 'cached';
+    if ((await this.cached([productId], target)).has(productId)) return 'cached';
+    return (await this.translate(productId, target)) ? 'done' : 'failed';
+  }
+
   // ── Interne ───────────────────────────────────────────────────────────────
 
   private apply<T extends Localizable>(product: T, tr: CachedText | undefined): T {
