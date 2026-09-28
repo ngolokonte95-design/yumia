@@ -701,6 +701,64 @@ export class AliExpressService {
     return [...byLabel.values()];
   }
 
+  // ── Livraison ─────────────────────────────────────────────────────────────
+
+  /**
+   * Modes de livraison proposés pour un produit vers un pays : transporteur,
+   * délai estimé (jours), prix et suivi. `[]` si l'API ne répond pas — la
+   * commande part alors avec le transporteur par défaut d'AliExpress.
+   */
+  async shippingOptions(productId: string, countryCode: string, quantity: number): Promise<ShippingOption[]> {
+    const data = await this.call('aliexpress.logistics.buyer.freight.calculate', {
+      param_aeop_freight_calculate_for_buyer_d_t_o: JSON.stringify({
+        country_code: countryCode,
+        product_id: Number(productId),
+        product_num: quantity,
+        send_goods_country_code: 'CN',
+        price_currency: 'EUR',
+      }),
+    });
+    const result = (data['aliexpress_logistics_buyer_freight_calculate_response'] as Record<string, any> | undefined)?.['result'];
+    const raw = result?.['aeop_freight_calculate_result_for_buyer_d_t_o_list'];
+    const list: any[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.['aeop_freight_calculate_result_for_buyer_dto'])
+        ? raw['aeop_freight_calculate_result_for_buyer_dto']
+        : [];
+    if (!list.length) {
+      this.logger.warn(`Modes de livraison indisponibles pour ${productId} → ${countryCode} : ${JSON.stringify(data).slice(0, 400)}`);
+    }
+    return list
+      .map((o): ShippingOption | null => {
+        const serviceName = typeof o?.['service_name'] === 'string' ? o['service_name'] : '';
+        const maxDays = maxDeliveryDays(o?.['estimated_delivery_time']);
+        if (!serviceName || maxDays === null) return null;
+        const cent = Number(o?.['freight']?.['cent'] ?? o?.['freight']?.['amount'] * 100);
+        return {
+          serviceName,
+          maxDays,
+          feeCents: Number.isFinite(cent) ? cent : null,
+          tracking: String(o?.['tracking_available']) === 'true',
+        };
+      })
+      .filter((o): o is ShippingOption => o !== null);
+  }
+
+  /**
+   * Le transporteur le plus RAPIDE, même payant (choix de l'utilisateur,
+   * 28/09/2026 — AliExpress prenait sinon son mode par défaut, souvent le moins
+   * cher et le plus lent). Départage : suivi disponible, puis prix.
+   */
+  async fastestShipping(productId: string, countryCode: string, quantity: number): Promise<ShippingOption | null> {
+    const options = await this.shippingOptions(productId, countryCode, quantity);
+    if (!options.length) return null;
+    return [...options].sort((a, b) =>
+      a.maxDays - b.maxDays
+      || Number(b.tracking) - Number(a.tracking)
+      || (a.feeCents ?? Infinity) - (b.feeCents ?? Infinity),
+    )[0];
+  }
+
   // ── Commande ──────────────────────────────────────────────────────────────
 
   /**
@@ -728,6 +786,24 @@ export class AliExpressService {
   }): Promise<{ accepted: boolean; orderIds: string[] }> {
     if (!params.items.length) return { accepted: false, orderIds: [] };
 
+    // Transporteur le plus rapide, article par article (chacun peut venir
+    // d'un vendeur différent). Faute de réponse, on laisse AliExpress choisir
+    // plutôt que de bloquer la commande.
+    const shipping = await Promise.all(
+      params.items.map((i) =>
+        this.fastestShipping(i.aliexpressProductId, params.address.countryCode, i.quantity).catch(() => null),
+      ),
+    );
+    shipping.forEach((opt, k) => {
+      const id = params.items[k].aliexpressProductId;
+      this.logger.log(
+        opt
+          ? `Livraison ${params.outOrderId} / ${id} : ${opt.serviceName}, ≤ ${opt.maxDays} j, ` +
+            `${opt.feeCents !== null ? (opt.feeCents / 100).toFixed(2) + ' €' : 'prix inconnu'}${opt.tracking ? ', suivi' : ''}`
+          : `Livraison ${params.outOrderId} / ${id} : transporteur par défaut d'AliExpress (options indisponibles)`,
+      );
+    });
+
     const data = await this.call('aliexpress.ds.order.create', {
       param_place_order_request4_open_api_d_t_o: JSON.stringify({
         out_order_id: params.outOrderId,
@@ -743,10 +819,11 @@ export class AliExpressService {
           ...(params.address.phoneCountry ? { phone_country: params.address.phoneCountry } : {}),
           contact_person: params.address.fullName,
         },
-        product_items: params.items.map((i) => ({
+        product_items: params.items.map((i, k) => ({
           product_id: i.aliexpressProductId,
           product_count: i.quantity,
           sku_attr: i.skuAttr ?? '',
+          ...(shipping[k] ? { logistics_service_name: shipping[k]!.serviceName } : {}),
         })),
       }),
     });
@@ -767,6 +844,25 @@ export class AliExpressService {
     this.logger.error(`Commande AliExpress refusée pour ${params.outOrderId} : ${JSON.stringify(result ?? data)}`);
     return { accepted: false, orderIds: [] };
   }
+}
+
+export interface ShippingOption {
+  /** Identifiant du transporteur, à renvoyer tel quel dans `logistics_service_name`. */
+  serviceName: string;
+  /** Délai maximal estimé, en jours. */
+  maxDays: number;
+  /** Frais de port en centimes (devise demandée : EUR), `null` si inconnus. */
+  feeCents: number | null;
+  tracking: boolean;
+}
+
+/**
+ * Délai maximal d'une estimation AliExpress : « 7-15 » → 15, « 12 » → 12.
+ * `null` si illisible (l'option est alors écartée plutôt que classée au hasard).
+ */
+export function maxDeliveryDays(estimate: unknown): number | null {
+  const nums = String(estimate ?? '').match(/\d+/g)?.map(Number) ?? [];
+  return nums.length ? Math.max(...nums) : null;
 }
 
 /**
