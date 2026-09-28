@@ -212,14 +212,18 @@ function AuthGate() {
   );
 }
 
+/**
+ * Mise à jour à distance (EAS Update) : téléchargée en arrière-plan, appliquée
+ * au PROCHAIN lancement. Pas de `reloadAsync()` : redémarrer l'app dès qu'une
+ * mise à jour arrive la relançait sous les doigts de l'utilisateur au retour
+ * au premier plan — au milieu d'un paiement ou d'un message.
+ * `fallbackToCacheTimeout: 0` (app.json) : le lancement n'attend jamais le réseau.
+ */
 async function checkOtaUpdate() {
   if (!Updates.isEnabled) return;
   try {
     const { isAvailable } = await Updates.checkForUpdateAsync();
-    if (isAvailable) {
-      await Updates.fetchUpdateAsync();
-      await Updates.reloadAsync();
-    }
+    if (isAvailable) await Updates.fetchUpdateAsync();
   } catch {
     // best-effort — ignorer en cas d'erreur réseau ou env dev
   }
