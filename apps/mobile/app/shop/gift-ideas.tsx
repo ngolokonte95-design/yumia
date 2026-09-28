@@ -28,6 +28,7 @@ import {
 } from '../../lib/shop-api';
 import { ProductCard } from '../../components/shop/ProductCard';
 import { useI18n } from '../../lib/useI18n';
+import { giftChoiceLabel, type GiftChoiceKind } from '../../lib/gift-guide-label';
 
 type Step = 'recipient' | 'occasion' | 'budget' | 'results';
 
@@ -105,9 +106,9 @@ export default function GiftIdeasScreen() {
     setStep(i === -1 || i === STEP_ORDER.length - 1 ? 'results' : STEP_ORDER[i + 1]);
   }
 
-  const labelOf = (list: GiftChoice[] | undefined, slug: string | undefined, fallback: string) => {
+  const labelOf = (list: GiftChoice[] | undefined, kind: GiftChoiceKind, slug: string | undefined, fallback: string) => {
     const found = list?.find((x) => x.slug === slug);
-    return found ? `${found.emoji ?? ''} ${found.label}`.trim() : fallback;
+    return found ? `${found.emoji ?? ''} ${giftChoiceLabel(t, kind, found.slug, found.label)}`.trim() : fallback;
   };
 
   if (!options && !failed) {
@@ -145,7 +146,7 @@ export default function GiftIdeasScreen() {
               {options?.recipients.map((r) => (
                 <Pressable key={r.slug} style={styles.choiceTile} onPress={() => choose(r.slug)}>
                   <Text style={styles.choiceEmoji}>{r.emoji}</Text>
-                  <Text style={styles.choiceLabel} numberOfLines={2}>{r.label}</Text>
+                  <Text style={styles.choiceLabel} numberOfLines={2}>{giftChoiceLabel(t, 'recipient', r.slug, r.label)}</Text>
                 </Pressable>
               ))}
             </View>
@@ -167,7 +168,7 @@ export default function GiftIdeasScreen() {
                       </View>
                     )}
                     <Text style={styles.choiceEmoji}>{o.emoji}</Text>
-                    <Text style={styles.choiceLabel} numberOfLines={2}>{o.label}</Text>
+                    <Text style={styles.choiceLabel} numberOfLines={2}>{giftChoiceLabel(t, 'occasion', o.slug, o.label)}</Text>
                   </Pressable>
                 );
               })}
@@ -178,7 +179,7 @@ export default function GiftIdeasScreen() {
             <View style={styles.budgetList}>
               {options?.budgets.map((b) => (
                 <Pressable key={b.slug} style={styles.budgetRow} onPress={() => choose(b.slug)}>
-                  <Text style={styles.budgetLabel}>{b.label}</Text>
+                  <Text style={styles.budgetLabel}>{giftChoiceLabel(t, 'budget', b.slug, b.label)}</Text>
                   <Text style={styles.budgetChevron}>›</Text>
                 </Pressable>
               ))}
@@ -199,13 +200,13 @@ export default function GiftIdeasScreen() {
               signaler qu'il y avait quelque chose à côté. */}
           <View style={styles.criteriaRow}>
             <Pressable style={styles.criteriaChip} onPress={() => setStep('recipient')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.recipients, recipient, t('shop_gift_chip_recipient'))}</Text>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.recipients, 'recipient', recipient, t('shop_gift_chip_recipient'))}</Text>
             </Pressable>
             <Pressable style={styles.criteriaChip} onPress={() => setStep('occasion')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.occasions, occasion, t('shop_gift_chip_occasion'))}</Text>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.occasions, 'occasion', occasion, t('shop_gift_chip_occasion'))}</Text>
             </Pressable>
             <Pressable style={styles.criteriaChip} onPress={() => setStep('budget')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.budgets, budget, t('shop_gift_chip_budget'))}</Text>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.budgets, 'budget', budget, t('shop_gift_chip_budget'))}</Text>
             </Pressable>
           </View>
 
