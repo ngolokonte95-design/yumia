@@ -12,8 +12,12 @@ export const FREE_LIMITS = {
   desirePerDay: 6,           // réponses de « Dis-moi ton envie »
   itineraryPerModePerDay: 3, // COMPTÉ PAR MODE (date, amis, voyage…)
   surprisePerDay: 5,         // lancers de dé
-  universeLoadsPerDay: 5,    // COMPTÉ PAR UNIVERS
-  mapLoadsPerDay: 5,         // COMPTÉ PAR UNIVERS, « tous » compris
+  // UN SEUL compteur pour tous les chargements de lieux : écrans univers ET
+  // carte, tous univers confondus. Remplace « 5 par univers » (27/09/2026) :
+  // presque personne ne rouvrait cinq fois le même univers, si bien que le
+  // gratuit n'atteignait jamais la limite ni la proposition d'abonnement. Le
+  // coût Google, lui, est tenu côté serveur (budget d'appels par compte).
+  placeLoadsPerDay: 20,
   // Pas d'entrée « météo » : les cartes « À faire maintenant » ouvrent
   // l'écran univers, qui applique déjà ses chargements et ses lieux. Un
   // compteur séparé doublerait le quota pour qui passe par la météo.
@@ -43,8 +47,7 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     desirePerDay: 20,
     itineraryPerModePerDay: 6,
     surprisePerDay: 12,
-    universeLoadsPerDay: 12,
-    mapLoadsPerDay: 10,
+    placeLoadsPerDay: 30,
     suggestionsPerDay: 40,
     peopleSuggestionsPerDay: 30,
     eventsPerDay: 10,
@@ -57,8 +60,7 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     desirePerDay: 20,
     itineraryPerModePerDay: 10,
     surprisePerDay: 20,
-    universeLoadsPerDay: 10,
-    mapLoadsPerDay: 10,
+    placeLoadsPerDay: 40,
     suggestionsPerDay: 40,
     // Ce qui ne coûte qu'à notre propre serveur s'ouvre dès Gold : le saut de
     // palier se sent, sans nous exposer.
@@ -80,8 +82,7 @@ export const LIMITS_BY_PLAN: Record<Plan, Record<LimitedFeature, number>> = {
     desirePerDay: 40,
     itineraryPerModePerDay: 15,
     surprisePerDay: 40,
-    universeLoadsPerDay: 15,
-    mapLoadsPerDay: 15,
+    placeLoadsPerDay: 60,
     suggestionsPerDay: 80,
     peopleSuggestionsPerDay: Infinity,
     eventsPerDay: Infinity,

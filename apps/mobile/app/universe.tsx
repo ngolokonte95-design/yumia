@@ -47,28 +47,26 @@ export default function UniverseScreen() {
   const universe = (isUniverse(u) ? u : null) as Universe | null;
   const meta = universe ? UNIVERSE_META[universe] : null;
 
-  const { checkLimit, recordUsage, displayCap, quotaMessage } = usePlanLimits();
+  const { consumePlaceLoad, displayCap } = usePlanLimits();
   const [upsell, setUpsell] = useState<string | null>(null);
   // `null` tant que le quota n'a pas été consulté : on ne lance aucune
   // requête avant d'avoir la réponse, sinon le chargement partirait quand
   // même et la limite ne servirait à rien.
   const [quotaOk, setQuotaOk] = useState<boolean | null>(null);
 
-  // Le quota se compte PAR UNIVERS : trois chargements en Restaurant
-  // n'entament pas ceux de Musée.
+  // Un seul compteur de chargements de lieux, partagé par tous les univers
+  // et la carte (plan-quotas.ts, placeLoadsPerDay).
   useEffect(() => {
     if (!universe) return;
     let active = true;
     void (async () => {
-      const { allowed } = await checkLimit('universeLoadsPerDay', undefined, universe);
+      const { allowed, message } = await consumePlaceLoad();
       if (!active) return;
-      // Le message nomme le rayon concerné : la limite ne ferme que celui-ci.
-      if (!allowed) { setQuotaOk(false); setUpsell(quotaMessage('universeLoadsPerDay', universeLabel(t, universe), true)); return; }
-      await recordUsage('universeLoadsPerDay', universe);
-      if (active) setQuotaOk(true);
+      if (!allowed) { setQuotaOk(false); setUpsell(message); return; }
+      setQuotaOk(true);
     })();
     return () => { active = false; };
-  }, [universe, checkLimit, recordUsage, quotaMessage, t]);
+  }, [universe, consumePlaceLoad]);
 
   const { places: allPlaces, loading, error, reload } = useNearbyUniverse({
     lat: coords.lat,
@@ -87,9 +85,8 @@ export default function UniverseScreen() {
   /** Rafraîchir consomme un chargement de plus — c'en est un. */
   const reloadWithQuota = async () => {
     if (!universe) return;
-    const { allowed } = await checkLimit('universeLoadsPerDay', undefined, universe);
-    if (!allowed) { setUpsell(quotaMessage('universeLoadsPerDay', universeLabel(t, universe), true)); return; }
-    await recordUsage('universeLoadsPerDay', universe);
+    const { allowed, message } = await consumePlaceLoad();
+    if (!allowed) { setUpsell(message); return; }
     reload();
   };
 

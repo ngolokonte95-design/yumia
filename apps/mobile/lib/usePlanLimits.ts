@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Plan } from '@yumia/shared';
 import { useAuth } from './auth-context';
 import { useI18n } from './useI18n';
+import { showQuotaNotice } from './quota-notice';
 import {
   DISPLAY_CAPS_BY_PLAN,
   LIMITS_BY_PLAN,
@@ -35,6 +36,9 @@ import {
   type PremiumOnlyFeature,
 } from './constants/plan-limits';
 import { PLAN_LIMITS, PLAN_PRICE_EUR } from '@yumia/shared';
+
+/** Chargements de lieux restants à partir desquels on prévient. */
+const PLACE_LOADS_WARN_AT = 5;
 
 export interface LimitCheck {
   allowed: boolean;
@@ -175,7 +179,11 @@ export function usePlanLimits() {
   const quotaMessage = useCallback(
     (feature: LimitedFeature, scopeLabel: string, othersOpen = false): string => {
       const unitKey = LIMIT_UNIT_KEYS[feature];
-      const head = t(othersOpen ? 'limit_quota_scoped' : 'limit_quota_global')
+      // Chargements de lieux : un compteur commun à tous les univers et à la
+      // carte, donc pas de « pour {univers} » dans le message.
+      const head = feature === 'placeLoadsPerDay'
+        ? t('limit_quota_places').replace('{n}', String(getLimit(feature)))
+        : t(othersOpen ? 'limit_quota_scoped' : 'limit_quota_global')
         .replace('{n}', String(getLimit(feature)))
         .replace('{unit}', unitKey ? t(unitKey) : '')
         .replace(/\{scope\}/g, scopeLabel);
@@ -187,6 +195,30 @@ export function usePlanLimits() {
     },
     [getLimit, t, upgradeTo, upgradePrice],
   );
+
+  /**
+   * Un chargement de lieux (écran univers, carte : choix d'univers, de rayon,
+   * tap sur un point). Vérifie, décompte, et prévient quand il n'en reste
+   * plus que {@link PLACE_LOADS_WARN_AT} — la proposition d'abonnement
+   * arrive avant le blocage, pas seulement au moment où il tombe.
+   * `message` : le texte à afficher si `allowed` est faux.
+   */
+  const consumePlaceLoad = useCallback(async (): Promise<LimitCheck> => {
+    const feature: LimitedFeature = 'placeLoadsPerDay';
+    const { allowed } = await checkLimit(feature);
+    if (!allowed) return { allowed, message: quotaMessage(feature, '') };
+    await recordUsage(feature);
+    const left = await remaining(feature);
+    if (upgradeTo && left > 0 && left <= PLACE_LOADS_WARN_AT) {
+      showQuotaNotice(
+        t('limit_loads_left')
+          .replace('{n}', String(left))
+          .replace('{plan}', upgradeTo === 'gold' ? 'Gold' : 'Diamond')
+          .replace('{limit}', String(LIMITS_BY_PLAN[upgradeTo][feature])),
+      );
+    }
+    return { allowed: true, message: '' };
+  }, [checkLimit, recordUsage, remaining, quotaMessage, upgradeTo, t]);
 
   /** Fonctionnalité fermée au forfait Gratuit (carte sociale). */
   const isFeatureLocked = useCallback(
@@ -211,7 +243,7 @@ export function usePlanLimits() {
   }, [t, upgradeTo, upgradePrice]);
 
   return {
-    planTier, upgradeTo, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining,
+    planTier, upgradeTo, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining, consumePlaceLoad,
     displayCap, isFeatureLocked, lockedMessage, quotaMessage, savedLimitMessage,
   };
 }

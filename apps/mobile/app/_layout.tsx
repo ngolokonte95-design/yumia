@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { colors } from '../theme/tokens';
 import { AuthProvider, useAuth } from '../lib/auth-context';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { QuotaNoticeBanner } from '../components/QuotaNoticeBanner';
 import { ReportReasonSheet } from '../components/ReportReasonSheet';
 import { AiConsentSheet } from '../components/AiConsentSheet';
 import { usePushNotifications } from '../lib/usePushNotifications';
@@ -245,6 +246,7 @@ export default function RootLayout() {
               <AuthGate />
             </ThemeProvider>
             <OfflineBanner />
+            <QuotaNoticeBanner />
             {/* Motifs de signalement sur Android (Alert.alert n'y montre que 3 boutons). */}
             <ReportReasonSheet />
             {/* Consentement à l'envoi de données à Anthropic (règle Apple 5.1.2(i)). */}
