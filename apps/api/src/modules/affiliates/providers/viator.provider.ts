@@ -6,6 +6,8 @@ import { normalizeTitle, titleMatchesPlace } from './title-match.util';
 /** Une visite réelle, telle que Viator la vend — affichée par l'écran Visites guidées. */
 export interface TourListing {
   provider: 'viator';
+  /** Code produit Viator : permet de retrouver la même offre dans une autre langue. */
+  code: string | null;
   title: string;
   imageUrl: string | null;
   /** Note des voyageurs sur Viator — réelle, et affichée comme telle. */
@@ -31,6 +33,7 @@ interface ViatorDestination {
 }
 
 interface ViatorProduct {
+  productCode?: string;
   title?: string;
   flags?: string[];
   productUrl?: string;
@@ -182,6 +185,13 @@ export class ViatorProvider implements AffiliateProvider {
     searchTerm?: string,
     limit = 20,
     start = 1,
+    /**
+     * Langue des titres (en-tête Accept-Language). Français par défaut : la
+     * recherche et le filtre de pertinence (tour-relevance.ts) travaillent sur
+     * les titres français. Une langue non activée pour la clé API fait
+     * échouer la requête : l'appelant retombe alors sur le français.
+     */
+    language = 'fr-FR',
   ): Promise<TourListing[] | null> {
     if (!this.apiKey || !this.partnerId) return null;
     try {
@@ -192,7 +202,7 @@ export class ViatorProvider implements AffiliateProvider {
       const headers = {
         'Content-Type': 'application/json',
         Accept: 'application/json;version=2.0',
-        'Accept-Language': 'fr-FR',
+        'Accept-Language': language,
         'exp-api-key': this.apiKey,
       };
       // Sans thème : le meilleur de la ville, trié par note des voyageurs.
@@ -241,6 +251,7 @@ export class ViatorProvider implements AffiliateProvider {
         const reviewCount = p.reviews?.totalReviews ?? 0;
         return [{
           provider: 'viator' as const,
+          code: p.productCode ?? null,
           title: p.title,
           imageUrl: variant?.url ?? null,
           rating: reviewCount > 0 ? p.reviews?.combinedAverageRating ?? null : null,

@@ -97,6 +97,7 @@ export class AffiliatesController {
     @Query('q') q?: string,
     @Query('page') page?: string,
     @Query('alt') alt?: string,
+    @Query('locale') locale?: string,
   ) {
     const c = (city ?? '').trim();
     if (!c) throw new BadRequestException('Ville manquante.');
@@ -108,7 +109,7 @@ export class AffiliatesController {
     const p = Math.min(10, Math.max(1, parseInt(page ?? '1', 10) || 1));
     return this.affiliates.guidedTours(
       c.slice(0, 80), user.sub, t, facet, quickList as QuickFilter[],
-      q?.trim().slice(0, 60) || undefined, p, alt === '1',
+      q?.trim().slice(0, 60) || undefined, p, alt === '1', (locale ?? 'fr').slice(0, 5),
     );
   }
 

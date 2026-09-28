@@ -7,7 +7,7 @@ import { PlacesService } from '../places/places.service';
 import type { AffiliateProvider, AffiliateProviderKey } from './providers/affiliate-provider.interface';
 import { BookingProvider } from './providers/booking.provider';
 import { GetYourGuideProvider } from './providers/getyourguide.provider';
-import { ViatorProvider } from './providers/viator.provider';
+import { ViatorProvider, type TourListing } from './providers/viator.provider';
 import { DiscoverCarsProvider } from './providers/discovercars.provider';
 import { isRelevant, passesQuickFilters, queryWords, titleMatches, type QuickFilter } from './tour-relevance';
 import { providersForUniverse, UNIVERSE_AFFILIATE_PROVIDERS } from './universe-provider-map';
@@ -357,6 +357,7 @@ export class AffiliatesService {
     q?: string,
     page = 1,
     alt = false,
+    locale = 'fr',
   ) {
     const PAGE_SIZE = 50;
     const trackingId = randomUUID();
@@ -384,7 +385,9 @@ export class AffiliatesService {
       usedAlt = true;
       result = await fetchPage(terms[1]);
     }
-    const tours = result.tours;
+    const tours = await this.localizeTours(
+      result.tours, locale, city, trackingId, usedAlt ? terms?.[1] : terms?.[0], PAGE_SIZE, (page - 1) * PAGE_SIZE + 1,
+    );
     const searchTerm = terms ? `${terms[0]} ${city}` : city;
     const links = (['getyourguide', 'viator'] as const).flatMap((key) => {
       const url = this.providers.get(key)?.generateGenericLink(trackingId, searchTerm);
@@ -398,6 +401,38 @@ export class AffiliatesService {
         .catch(() => undefined);
     }
     return { city, tours, links, hasMore: result.hasMore, alt: usedAlt };
+  }
+
+  /**
+   * Titres des visites dans la langue de l'utilisateur.
+   *
+   * La recherche et le filtre de pertinence restent en français (leurs
+   * mots-clés sont français et anglais) ; on redemande ensuite la MÊME page à
+   * Viator dans la langue voulue et on remplace les titres, offre par offre,
+   * par code produit. Viator n'accepte que les langues activées pour la clé :
+   * refus → anglais, refus encore → titres français, jamais d'erreur.
+   */
+  private async localizeTours(
+    tours: TourListing[],
+    locale: string,
+    city: string,
+    trackingId: string,
+    term: string | undefined,
+    limit: number,
+    start: number,
+  ): Promise<TourListing[]> {
+    const wanted = viatorLanguage(locale);
+    if (!wanted || tours.length === 0) return tours;
+    for (const language of wanted === 'en-US' ? ['en-US'] : [wanted, 'en-US']) {
+      const translated = await this.viator.searchTours(city, trackingId, term, limit, start, language).catch(() => null);
+      if (!translated?.length) continue;
+      const byCode = new Map(translated.filter((t) => t.code).map((t) => [t.code!, t]));
+      return tours.map((t) => {
+        const other = t.code ? byCode.get(t.code) : undefined;
+        return other ? { ...t, title: other.title } : t;
+      });
+    }
+    return tours;
   }
 
   /**
@@ -532,4 +567,17 @@ export class AffiliatesService {
     `;
     return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
   }
+}
+
+/**
+ * En-tête Accept-Language Viator pour une langue de l'app ; `null` pour le
+ * français (rien à faire). Les langues que Viator ne propose pas (arabe,
+ * polonais, russe, hindi) passent par l'anglais.
+ */
+export function viatorLanguage(locale: string): string | null {
+  const map: Record<string, string> = {
+    en: 'en-US', es: 'es-ES', pt: 'pt-BR', it: 'it-IT', de: 'de-DE', nl: 'nl-NL', sv: 'sv-SE', zh: 'zh-CN',
+    ar: 'en-US', pl: 'en-US', ru: 'en-US', hi: 'en-US',
+  };
+  return map[locale] ?? null;
 }

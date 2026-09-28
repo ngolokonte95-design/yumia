@@ -3,6 +3,7 @@
  */
 import type { Universe } from '@yumia/shared';
 import { request } from './api';
+import { getRuntimeLocale } from './i18n-runtime';
 
 export interface AffiliateProviderAvailability {
   key: string;
@@ -125,5 +126,8 @@ export function fetchGuidedTours(
   if (theme) q.set('theme', theme);
   if (facet) q.set('facet', facet);
   if (quick.length) q.set('quick', quick.join(','));
+  // Titres des activités dans la langue de l'app (le serveur les traduit
+  // chez Viator, voir AffiliatesService.localizeTours).
+  q.set('locale', getRuntimeLocale());
   return request<GuidedTours>(`/affiliates/tours?${q.toString()}`, { token: accessToken });
 }
