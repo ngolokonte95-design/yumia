@@ -20,7 +20,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
-import { AliExpressService } from './aliexpress.service';
+import { AliExpressApiError, AliExpressService } from './aliexpress.service';
 import { translationTarget, type TranslationTarget } from './product-locales';
 
 interface CachedText {
@@ -62,6 +62,14 @@ export class ProductTranslationService {
    * redemandé à chaque affichage.
    */
   static readonly LOCK_TTL_SECONDS = 10 * 60;
+  /** Produit sans version dans une langue chez AliExpress : redemandé après ce délai. */
+  static readonly UNAVAILABLE_TTL_SECONDS = 24 * 3600;
+  /** Pause de la file quand AliExpress signale une limite d'appels. */
+  static readonly RATE_LIMIT_PAUSE_MS = 60_000;
+
+  /** File suspendue jusqu'à cet instant (limite d'appels AliExpress). */
+  private pausedUntil = 0;
+  private resumeTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly queue: Job[] = [];
   /** Clés déjà en file dans ce processus — le verrou Redis couvre le reste. */
@@ -143,11 +151,15 @@ export class ProductTranslationService {
    * traduit maintenant ; `'cached'` : l'était déjà ; `'failed'` : AliExpress
    * n'a rien fourni (ou verrou tenu ailleurs).
    */
-  async translateNow(productId: string, locale: string): Promise<'done' | 'cached' | 'failed'> {
+  async translateNow(productId: string, locale: string): Promise<'done' | 'cached' | 'failed' | 'rate_limited'> {
     const target = translationTarget(locale);
     if (!target) return 'cached';
     if ((await this.cached([productId], target)).has(productId)) return 'cached';
-    return (await this.translate(productId, target)) ? 'done' : 'failed';
+    try {
+      return (await this.translate(productId, target, true)) ? 'done' : 'failed';
+    } catch (e) {
+      return e instanceof AliExpressApiError && e.isRateLimit ? 'rate_limited' : 'failed';
+    }
   }
 
   // ── Interne ───────────────────────────────────────────────────────────────
@@ -193,14 +205,32 @@ export class ProductTranslationService {
   }
 
   private pump(): void {
+    const wait = this.pausedUntil - Date.now();
+    if (wait > 0) {
+      // Limite d'appels : on reprend après la pause, sans rien perdre de la file.
+      if (!this.resumeTimer) {
+        this.resumeTimer = setTimeout(() => { this.resumeTimer = null; this.pump(); }, wait);
+        this.resumeTimer.unref?.();
+      }
+      return;
+    }
     while (this.running < ProductTranslationService.CONCURRENCY && this.queue.length > 0) {
       const job = this.queue.shift()!;
+      const key = this.key(job.productId, job.target);
       this.running++;
-      this.translate(job.productId, job.target)
-        .catch(() => null)
+      this.translate(job.productId, job.target, true)
+        .then(() => this.pending.delete(key))
+        .catch((e) => {
+          if (e instanceof AliExpressApiError && e.isRateLimit) {
+            this.pausedUntil = Date.now() + ProductTranslationService.RATE_LIMIT_PAUSE_MS;
+            this.logger.warn(`Limite d'appels AliExpress (${e.message}) : file en pause 1 min`);
+            this.queue.push(job); // réessayé après la pause, reste dans `pending`
+            return;
+          }
+          this.pending.delete(key);
+        })
         .finally(() => {
           this.running--;
-          this.pending.delete(this.key(job.productId, job.target));
           this.pump();
         });
     }
@@ -211,14 +241,25 @@ export class ProductTranslationService {
    * pu être obtenue (verrou tenu ailleurs, produit sans identifiant
    * AliExpress, erreur) — jamais d'exception.
    */
-  private async translate(productId: string, target: TranslationTarget): Promise<CachedText | null> {
+  /**
+   * @param rethrowRateLimit `true` : une limite d'appels AliExpress remonte en
+   *   exception (la file se met en pause, le script attend) au lieu de valoir
+   *   « pas de traduction ».
+   */
+  private async translate(productId: string, target: TranslationTarget, rethrowRateLimit = false): Promise<CachedText | null> {
+    const lockKey = `shop:tr:${this.key(productId, target)}`;
+    const noneKey = `shop:tr-none:${this.key(productId, target)}`;
     try {
       if (!this.aliexpress.isConfigured()) return null;
+
+      // AliExpress n'avait pas cette langue il y a moins de 24 h : inutile
+      // de la redemander à chaque affichage.
+      if (await this.redis.raw.get(noneKey).catch(() => null)) return null;
 
       // Redis indisponible : on traduit quand même plutôt que de bloquer la
       // fonction entière (même choix que les rappels de paiement).
       const locked = await this.redis.raw
-        .set(`shop:tr:${this.key(productId, target)}`, '1', 'EX', ProductTranslationService.LOCK_TTL_SECONDS, 'NX')
+        .set(lockKey, '1', 'EX', ProductTranslationService.LOCK_TTL_SECONDS, 'NX')
         .catch(() => 'OK');
       if (locked !== 'OK') return null;
 
@@ -238,6 +279,8 @@ export class ProductTranslationService {
       const text = await this.aliexpress.getProductText(product.aliexpressProductId, target.aliexpressLanguage);
       if (!text) {
         this.logger.warn(`Traduction ${target.aliexpressLanguage} indisponible pour le produit ${productId}`);
+        await this.redis.raw.set(noneKey, '1', 'EX', ProductTranslationService.UNAVAILABLE_TTL_SECONDS).catch(() => undefined);
+        await this.redis.raw.del(lockKey).catch(() => undefined);
         return null;
       }
 
@@ -249,6 +292,9 @@ export class ProductTranslationService {
       });
       return saved;
     } catch (e) {
+      // Échec passager : le verrou saute, le produit pourra être redemandé.
+      await this.redis.raw.del(lockKey).catch(() => undefined);
+      if (e instanceof AliExpressApiError && e.isRateLimit && rethrowRateLimit) throw e;
       this.logger.warn(`Traduction du produit ${productId} (${target.storeLocale}) échouée : ${(e as Error).message}`);
       return null;
     }

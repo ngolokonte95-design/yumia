@@ -22,8 +22,12 @@ import { ProductTranslationService } from '../modules/shop/product-translation.s
 
 /** Une langue par traduction stockée : sv, zh et hi utilisent celle de 'en'. */
 const DEFAULT_LANGS = ['en', 'es', 'pt', 'ar', 'nl', 'it', 'de', 'pl', 'ru'];
-/** Appels AliExpress simultanés : jeton partagé avec SPORTIA, on reste sobre. */
-const CONCURRENCY = 3;
+/**
+ * Un seul appel à la fois, espacés : trois en parallèle déclenchaient la
+ * limite d'appels AliExpress par rafales (jeton partagé avec SPORTIA).
+ */
+const CONCURRENCY = 1;
+const PAUSE_BETWEEN_CALLS_MS = 400;
 
 async function main(): Promise<void> {
   const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
@@ -44,11 +48,23 @@ async function main(): Promise<void> {
 
     const counts = { done: 0, cached: 0, failed: 0 };
     let next = 0;
+    let pauses = 0;
     const started = Date.now();
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const worker = async () => {
       while (next < jobs.length) {
         const job = jobs[next++];
-        counts[await translator.translateNow(job.id, job.locale)]++;
+        let result = await translator.translateNow(job.id, job.locale);
+        // Limite d'appels AliExpress : on attend et on réessaie le même
+        // produit, au lieu de le compter comme indisponible.
+        for (let attempt = 0; result === 'rate_limited' && attempt < 10; attempt++) {
+          pauses++;
+          console.log(`Limite d'appels AliExpress atteinte : pause d'une minute (${pauses})`);
+          await sleep(60_000);
+          result = await translator.translateNow(job.id, job.locale);
+        }
+        counts[result === 'rate_limited' ? 'failed' : result]++;
+        await sleep(PAUSE_BETWEEN_CALLS_MS);
         const n = counts.done + counts.cached + counts.failed;
         if (n % 100 === 0 || n === jobs.length) {
           const min = ((Date.now() - started) / 60000).toFixed(1);

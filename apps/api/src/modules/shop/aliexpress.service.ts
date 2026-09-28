@@ -653,7 +653,19 @@ export class AliExpressService {
    * produit retiré) : l'appelant garde alors le français.
    */
   async getProductText(productId: string, language: string): Promise<{ title: string; description?: string } | null> {
-    const detail = await this.getRawDetail(productId, language);
+    const data = await this.call('aliexpress.ds.product.get', {
+      product_id: productId,
+      target_currency: 'EUR',
+      target_language: language,
+      ship_to_country: 'FR',
+    });
+    // Une réponse d'erreur (limite d'appels, jeton…) n'est PAS « pas de
+    // traduction » : la confondre marquait des centaines de produits
+    // indisponibles pendant une rafale (pré-traduction du 28/09/2026 :
+    // 344 réussies, 2 340 « indisponibles » par séries).
+    const err = data['error_response'] as { code?: string; sub_code?: string; msg?: string; sub_msg?: string } | undefined;
+    if (err) throw new AliExpressApiError(err.code ?? err.sub_code ?? 'unknown', err.msg ?? err.sub_msg ?? '');
+    const detail = (data['aliexpress_ds_product_get_response'] as Record<string, any> | undefined)?.['result'] ?? {};
     const base = detail['ae_item_base_info_dto'] ?? {};
     const title = String(base['subject'] ?? '').trim();
     if (!title) return null;
@@ -897,6 +909,18 @@ export class AliExpressService {
     }
     this.logger.error(`Commande AliExpress refusée pour ${params.outOrderId} : ${JSON.stringify(result ?? data)}`);
     return { accepted: false, orderIds: [] };
+  }
+}
+
+/** Erreur renvoyée par l'API AliExpress (`error_response`). */
+export class AliExpressApiError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message ? `${code} — ${message}` : code);
+  }
+
+  /** Limite d'appels atteinte : réessayer plus tard, rien d'autre à conclure. */
+  get isRateLimit(): boolean {
+    return /limit|frequen|flow|throttl|too.?many/i.test(this.message);
   }
 }
 
