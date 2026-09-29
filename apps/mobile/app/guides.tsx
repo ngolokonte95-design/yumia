@@ -9,7 +9,7 @@
  * de démonstration, avec note et label « certifié » inventés, et une
  * réservation qui n'était transmise à personne.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator,
 } from 'react-native';
@@ -94,22 +94,33 @@ export default function GuidesScreen() {
     void load(city);
   };
 
+  /** Numéro de la dernière recherche : une réponse plus ancienne, arrivée en
+   *  retard, ne doit pas écraser celle de la catégorie choisie ensuite. */
+  const requestSeq = useRef(0);
+
+  /**
+   * `f` : `null` = « Tous ». Surtout pas `undefined` : un paramètre par défaut
+   * s'applique quand on passe `undefined`, et « Tous » rechargeait alors la
+   * catégorie précédente (Vélo restait affiché).
+   */
   const load = useCallback(async (
     city: string,
-    f: string | undefined = facet,
+    f: string | null = facet ?? null,
     q: string[] = quick,
     w: string = what,
   ) => {
     const c = city.trim();
     if (!c || !accessToken) return;
+    const seq = ++requestSeq.current;
     setLoading(true);
     setPage(1);
     try {
-      setResult(await fetchGuidedTours(c, accessToken, theme, f, q, { q: w.trim() || undefined }));
+      const next = await fetchGuidedTours(c, accessToken, theme, f ?? undefined, q, { q: w.trim() || undefined });
+      if (seq === requestSeq.current) setResult(next);
     } catch {
-      setResult({ city: c, tours: [], links: [], hasMore: false, alt: false });
+      if (seq === requestSeq.current) setResult({ city: c, tours: [], links: [], hasMore: false, alt: false });
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [accessToken, theme, facet, quick, what]);
 
@@ -135,7 +146,7 @@ export default function GuidesScreen() {
   const searchWhat = (w: string) => {
     setWhat(w);
     setFacet(undefined);
-    void load(query, undefined, quick, w);
+    void load(query, null, quick, w);
   };
 
   useEffect(() => { void load(query); /* chargement initial */ }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -222,7 +233,7 @@ export default function GuidesScreen() {
               <Pressable
                 key={f.key ?? 'all'}
                 style={[styles.facetChip, active && styles.facetChipActive]}
-                onPress={() => { setFacet(f.key); setWhat(''); void load(query, f.key, quick, ''); }}
+                onPress={() => { setFacet(f.key); setWhat(''); void load(query, f.key ?? null, quick, ''); }}
               >
                 <Text style={[styles.facetTxt, active && styles.facetTxtActive]}>{f.label}</Text>
               </Pressable>
