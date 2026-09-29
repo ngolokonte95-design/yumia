@@ -292,4 +292,7 @@ export const shopApi = {
     ),
   orders: (token: string) => request<Order[]>('/shop/orders', { token }),
   order: (token: string, id: string) => request<Order>(`/shop/orders/${id}`, { token }),
+  /** Retire une commande terminée de la liste (elle reste en base côté serveur). */
+  hideOrder: (token: string, id: string) =>
+    request<{ ok: boolean }>(`/shop/orders/${id}`, { token, method: 'DELETE' }),
 };

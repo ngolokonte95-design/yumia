@@ -361,7 +361,7 @@ export class OrdersService {
 
   async listOrders(userId: string) {
     return this.prisma.order.findMany({
-      where: { userId, status: { not: 'pending' } },
+      where: { userId, status: { not: 'pending' }, hiddenByUserAt: null },
       orderBy: { createdAt: 'desc' },
       include: { items: true },
     });
@@ -375,4 +375,21 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Commande introuvable');
     return order;
   }
+
+  /**
+   * Retire une commande de « Mes commandes ». Seulement une fois terminée :
+   * une commande en cours doit rester sous les yeux du client (suivi du colis).
+   * Rien n'est effacé — c'est une pièce comptable, gardée dix ans.
+   */
+  async hideOrder(userId: string, orderId: string) {
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, userId }, select: { id: true, status: true } });
+    if (!order) throw new NotFoundException('Commande introuvable');
+    if (!OrdersService.HIDEABLE_STATUSES.includes(order.status)) {
+      throw new BadRequestException('Une commande en cours ne peut pas être supprimée.');
+    }
+    await this.prisma.order.update({ where: { id: order.id }, data: { hiddenByUserAt: new Date() } });
+    return { ok: true };
+  }
+
+  static readonly HIDEABLE_STATUSES: readonly string[] = ['delivered', 'cancelled', 'refunded'];
 }

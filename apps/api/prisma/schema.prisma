@@ -1508,6 +1508,9 @@ model Order {
   items     OrderItem[]
   paidAt    DateTime?
   shippedAt DateTime?
+  /// Retirée de « Mes commandes » par le client. La commande reste en base
+  /// (pièce comptable) et visible de l'administration.
+  hiddenByUserAt DateTime?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 

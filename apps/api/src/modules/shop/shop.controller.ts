@@ -256,6 +256,13 @@ export class ShopController {
     return this.orders.getOrder(user.sub, id);
   }
 
+  /** Retire une commande terminée de « Mes commandes » (elle reste en base). */
+  @Delete('orders/:id')
+  @UseGuards(JwtAuthGuard)
+  hideOrder(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orders.hideOrder(user.sub, id);
+  }
+
   /**
    * Webhook de paiement Stripe. Volontairement SANS JwtAuthGuard : Stripe ne
    * peut pas présenter de jeton utilisateur. L'authenticité est garantie par

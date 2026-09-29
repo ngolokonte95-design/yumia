@@ -1,6 +1,6 @@
 /** Mes commandes — statut, articles et suivi du colis. */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +26,9 @@ const STATUS: Record<Order['status'], { labelKey: TranslationKey; color: string 
   refunded:   { labelKey: 'shop_orders_status_refunded',   color: colors.textMuted },
 };
 
+/** Commandes terminées : les seules que le client peut retirer de sa liste. */
+const HIDEABLE: ReadonlySet<Order['status']> = new Set(['delivered', 'cancelled', 'refunded']);
+
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -49,6 +52,25 @@ export default function OrdersScreen() {
   }, [accessToken]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const confirmHide = (order: Order) => {
+    if (!accessToken) return;
+    Alert.alert(t('shop_orders_delete_title'), t('shop_orders_delete_body'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('shop_orders_delete_confirm'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await shopApi.hideOrder(accessToken, order.id);
+            setOrders((prev) => prev.filter((o) => o.id !== order.id));
+          } catch {
+            Alert.alert(t('error_generic'));
+          }
+        },
+      },
+    ]);
+  };
 
   // Le paiement se termine dans le navigateur : au retour dans l'app, le
   // statut a pu changer entre-temps (webhook Stripe).
@@ -131,6 +153,12 @@ export default function OrdersScreen() {
                     </Text>
                   </Pressable>
                 )}
+
+                {HIDEABLE.has(o.status) && (
+                  <Pressable style={styles.deleteBtn} onPress={() => confirmHide(o)} hitSlop={6}>
+                    <Text style={styles.deleteTxt}>{t('shop_orders_delete')}</Text>
+                  </Pressable>
+                )}
               </View>
             );
           })}
@@ -174,4 +202,6 @@ const styles = StyleSheet.create({
 
   trackBtn: { backgroundColor: colors.surfaceElevated, borderRadius: radius.pill, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   trackTxt: { color: colors.brandSoft, fontWeight: '700', fontSize: 13 },
+  deleteBtn: { alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 12 },
+  deleteTxt: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
 });
