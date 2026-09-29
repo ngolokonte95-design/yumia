@@ -231,6 +231,11 @@ export class OrdersService {
       throw new BadRequestException(`Signature Stripe invalide : ${(e as Error).message}`);
     }
 
+    if (event.type === 'charge.refunded') {
+      await this.markRefunded(event.data.object as Stripe.Charge);
+      return;
+    }
+
     // On accepte les deux événements : `checkout.session.completed` (parcours
     // page hébergée, utilisé par l'app) et `payment_intent.succeeded` (filet
     // de sécurité, et parcours natif si la Payment Sheet est ajoutée un jour).
@@ -262,6 +267,37 @@ export class OrdersService {
     if (order.userId) await this.cart.clear(order.userId);
 
     await this.fulfill(order.id);
+  }
+
+  /**
+   * Remboursement fait dans Stripe → commande « Remboursée » dans YUMIA.
+   * Sans ça, une commande remboursée restait « Payée » pour toujours, chez le
+   * client comme dans l'admin. Seulement pour un remboursement TOTAL : un
+   * geste partiel (un article manquant, un dédommagement) ne clôt pas la
+   * commande.
+   */
+  private async markRefunded(charge: Stripe.Charge): Promise<void> {
+    if (!charge.refunded) {
+      this.logger.log(`Remboursement partiel sur ${charge.id} — commande inchangée`);
+      return;
+    }
+    let orderId = charge.metadata?.['orderId'];
+    // Stripe ne recopie pas toujours les metadata du PaymentIntent sur la
+    // charge : on remonte au PaymentIntent, qui les porte (payment_intent_data).
+    if (!orderId && charge.payment_intent) {
+      const piId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent.id;
+      const pi = await this.stripe.paymentIntents.retrieve(piId);
+      orderId = pi.metadata?.['orderId'];
+    }
+    if (!orderId) {
+      this.logger.warn(`Remboursement ${charge.id} sans orderId — ignoré`);
+      return;
+    }
+    const { count } = await this.prisma.order.updateMany({
+      where: { id: orderId, status: { in: ['paid', 'fulfilling', 'shipped', 'delivered'] } },
+      data: { status: 'refunded' },
+    });
+    if (count) this.logger.log(`Commande ${orderId} passée en « Remboursée » (charge ${charge.id})`);
   }
 
   /** Transmet la commande payée à AliExpress. */
