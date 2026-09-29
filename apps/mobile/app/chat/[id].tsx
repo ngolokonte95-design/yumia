@@ -141,10 +141,12 @@ function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => 
     <View style={styles.callEvent}>
       <View style={styles.callEventRow}>
         <View style={[styles.callIconBox, isMissed && styles.callIconBoxMissed]}>
-          <Text style={{ fontSize: 22 }}>{icon}</Text>
+          <Text style={{ fontSize: 18 }}>{icon}</Text>
           {isMissed && <View style={styles.missedArrow}><Text style={{ color: '#E5484D', fontSize: 14 }}>↙</Text></View>}
         </View>
-        <View style={{ flex: 1 }}>
+        {/* flexShrink et non flex: 1 — la bulle n'a pas de largeur fixe, un
+            flex: 1 y réduisait le texte à zéro (une lettre par ligne). */}
+        <View style={{ flexShrink: 1 }}>
           <Text style={[styles.callEventLabel, isMissed && styles.callEventLabelMissed]}>{label}</Text>
           <Text style={styles.callEventTime}>{formatTime(msg.createdAt, locale)}</Text>
         </View>
@@ -1175,8 +1177,8 @@ const styles = StyleSheet.create({
 
   // Call event
   callEvent: { maxWidth: '85%', borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 4 },
-  callEventRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  callIconBox: { width: 48, height: 48, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  callEventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  callIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
   callIconBoxMissed: { backgroundColor: 'rgba(229,72,77,0.12)' },
   missedArrow: { position: 'absolute', bottom: 2, right: 2 },
   callEventLabel: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
