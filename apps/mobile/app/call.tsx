@@ -379,14 +379,19 @@ export default function CallScreen() {
       {/* Avatar & infos (mode vocal ou en attente) */}
       {!showVideo && (
         <View style={styles.callerSection}>
-          {partnerPhoto ? (
-            <Image source={{ uri: partnerPhoto }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            </View>
-          )}
-          {(callState === 'calling' || callState === 'ringing') && <View style={styles.avatarRing} />}
+          {/* L'anneau est centré sur l'avatar, dans son propre cadre : posé en
+              absolu dans la section entière, il se centrait sur avatar + nom +
+              statut et coupait le texte. */}
+          <View style={styles.avatarFrame}>
+            {(callState === 'calling' || callState === 'ringing') && <View style={styles.avatarRing} />}
+            {partnerPhoto ? (
+              <Image source={{ uri: partnerPhoto }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.partnerName}>{partnerName ?? t('call_user_fallback')}</Text>
           <Text style={styles.callStatus}>{statusLabel()}</Text>
           {callState === 'calling' && <ActivityIndicator color="rgba(255,255,255,0.6)" size="small" style={{ marginTop: 8 }} />}
@@ -465,6 +470,7 @@ const styles = StyleSheet.create({
   avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: 'rgba(255,255,255,0.2)' },
   avatarFallback: { width: 120, height: 120, borderRadius: 60, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
   avatarInitials: { fontSize: 42, fontWeight: '800', color: '#fff' },
+  avatarFrame: { width: 148, height: 148, alignItems: 'center', justifyContent: 'center' },
   avatarRing: { position: 'absolute', width: 148, height: 148, borderRadius: 74, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
   partnerName: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
   callStatus: { fontSize: 16, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },

@@ -1370,7 +1370,9 @@ const styles = StyleSheet.create({
   // Marges latérales réduites (sm) : c'est ce qui donne à « Abonnements »
   // la place de s'afficher à la même taille que les autres, sans
   // resserrement — un libellé réduit paraissait plus petit et plus bas.
-  tabs: { flexDirection: 'row', marginHorizontal: spacing.sm, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 3 },
+  // Pas de marge sous les onglets : le fond noir s'arrête au bord du bloc
+  // gris, la première publication commence juste en dessous (voulu).
+  tabs: { flexDirection: 'row', marginHorizontal: spacing.sm, marginBottom: 0, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 3 },
   tabBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 1, alignItems: 'center', gap: 2, borderRadius: radius.md },
   tabBtnActive: { backgroundColor: colors.background },
   tabBtnIcon: { fontSize: 18, lineHeight: 22, textAlign: 'center' },
