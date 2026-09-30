@@ -50,7 +50,7 @@
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-maps": "1.27.2",
+    "react-native-maps": "1.29.11",
     "react-native-purchases": "^10.10.2",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -65,5 +65,12 @@
     "@types/react": "~19.2.4",
     "ts-jest": "^29.4.11",
     "typescript": "~6.0.3"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-maps"
+      ]
+    }
   }
 }
