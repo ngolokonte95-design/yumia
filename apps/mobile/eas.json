@@ -15,7 +15,8 @@
         "EXPO_PUBLIC_TURN_USERNAME": "yumia",
         "EXPO_PUBLIC_TURN_CREDENTIAL": "8b7329f57f7e19fb057ecff56ce6963057a02dcdfe8fc3b9",
         "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_VHOTllmSiXfOoGbizBuqHDAgoGy",
-        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP"
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "android": {
         "buildType": "apk"
@@ -31,7 +32,8 @@
         "EXPO_PUBLIC_TURN_USERNAME": "yumia",
         "EXPO_PUBLIC_TURN_CREDENTIAL": "8b7329f57f7e19fb057ecff56ce6963057a02dcdfe8fc3b9",
         "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_VHOTllmSiXfOoGbizBuqHDAgoGy",
-        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP"
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       },
       "android": {
         "buildType": "apk"
