@@ -37,6 +37,10 @@ import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { universeIcon } from '../../components/icons/universeIcons';
 import { ratingSuffix } from '../../lib/place-rating';
 import { FeatureTip } from '../../components/FeatureTip';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+/** Mémorise que l'utilisateur a déjà touché la carte : l'indication disparaît alors. */
+const MAP_TAP_HINT_KEY = 'yumia.map_tap_hint_seen';
 
 const MAP_DELTA = 0.025;
 // Android uniquement : react-native-maps doit convertir chaque marqueur
@@ -369,6 +373,13 @@ export default function MapScreen() {
     reload(universe, km);
   }, [reload, universe, setRadiusKm, consumePlaceLoad]);
 
+  // Indication « Touche la carte… » : on ne devinait pas qu'un tap sur la
+  // carte cherche les lieux de cet endroit. Affichée jusqu'au premier tap.
+  const [showTapHint, setShowTapHint] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(MAP_TAP_HINT_KEY).then((v) => setShowTapHint(v !== '1')).catch(() => {});
+  }, []);
+
   const handleMapTap = useCallback(async (e: MapPressEvent) => {
     // L'événement est lu AVANT toute attente : React recycle les événements
     // synthétiques dès que la main lui revient, et `e.nativeEvent` serait nul
@@ -393,6 +404,8 @@ export default function MapScreen() {
     if (!allowed) { setUpsell(message); return; }
 
     setTapPoint(position);
+    setShowTapHint(false);
+    AsyncStorage.setItem(MAP_TAP_HINT_KEY, '1').catch(() => {});
     setTapCoord({ lat: latitude, lng: longitude });
     setTapLoading(true);
     setCityResults(null);
@@ -775,6 +788,13 @@ export default function MapScreen() {
         </View>
       ) : null}
 
+      {showTapHint && !loading && !tapLoading && !resolving ? (
+        // pointerEvents none : la bulle ne doit pas intercepter le tap qu'elle suggère.
+        <View pointerEvents="none" style={styles.tapHint}>
+          <Text style={styles.tapHintText}>{t('map_tap_hint')}</Text>
+        </View>
+      ) : null}
+
       {/* Bottom sheet swipeable — hauteur fixe, on l'anime en transform pour rester fluide (driver natif) */}
       <Animated.View
         style={[
@@ -1149,6 +1169,25 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   markerEmoji: { fontSize: 20 },
+
+  tapHint: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: DRAWER_COLLAPSED + spacing.md,
+    alignItems: 'center',
+  },
+  tapHintText: {
+    ...typography.caption,
+    color: '#fff',
+    fontWeight: '600',
+    backgroundColor: 'rgba(14,14,18,0.82)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    textAlign: 'center',
+  },
 
   // Bottom sheet — hauteur fixe, positionné en absolu et animé en transform (voir plus haut)
   drawer: {
