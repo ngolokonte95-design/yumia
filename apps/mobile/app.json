@@ -341,9 +341,13 @@
       "googleClientIdWeb": "672961628501-f5kg3cucbk0mnpnkphr0mmfefap8417g.apps.googleusercontent.com",
       "googleClientIdIos": "672961628501-q02t5aeaao351k8dtm7h0tg13l3fjbso.apps.googleusercontent.com",
       "googleClientIdAndroid": "672961628501-qanruog1ac2r2u5hkn5kqgc5f0rgkqeo.apps.googleusercontent.com",
-      "revenueCatIosKey": "",
-      "revenueCatAndroidKey": "",
-      "router": {}
+      "revenueCatIosKey": "appl_VHOTllmSiXfOoGbizBuqHDAgoGy",
+      "revenueCatAndroidKey": "goog_fmTsEJuUMvoaOdbZBJIOiNyKbMP",
+      "router": {},
+      "turnUrl": "turn:207.154.198.77:3478",
+      "turnUsername": "yumia",
+      "turnCredential": "8b7329f57f7e19fb057ecff56ce6963057a02dcdfe8fc3b9",
+      "sentryDsn": "https://d666c58f404295450c5e26606c37ad78@o4511906844901376.ingest.de.sentry.io/4511906894774352"
     },
     "owner": "medou95"
   }

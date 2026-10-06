@@ -9,6 +9,7 @@
  *   # Then add the Expo plugin in app.json:
  *   #   "plugins": [..., "@sentry/react-native/expo"]
  */
+import Constants from 'expo-constants';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SentryInstance = Record<string, any>;
@@ -31,7 +32,9 @@ function getSentry(): SentryInstance | null {
  * Safe to call when DSN is not configured — returns immediately.
  */
 export function initSentry(): void {
-  const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+  // Repli app.json > extra hors dev : un EAS Update ne reçoit pas l'env d'eas.json.
+  const extraDsn = (Constants.expoConfig?.extra as { sentryDsn?: string } | undefined)?.sentryDsn;
+  const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN || (__DEV__ ? undefined : extraDsn);
   if (!dsn) return;
 
   const Sentry = getSentry();

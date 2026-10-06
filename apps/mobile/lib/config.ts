@@ -12,6 +12,9 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
   googleClientIdWeb?: string;
   googleClientIdIos?: string;
   googleClientIdAndroid?: string;
+  turnUrl?: string;
+  turnUsername?: string;
+  turnCredential?: string;
 };
 
 // EXPO_PUBLIC_API_BASE_URL is inlined by Metro at EAS build time (takes priority).
@@ -45,8 +48,11 @@ export const DEFAULT_LOCATION = { lat: 48.8566, lng: 2.3522 } as const;
  * appels vocaux/vidéo fonctionnent derrière un NAT symétrique (fréquent en 4G/5G).
  * Auto-hébergé (coturn) sur le VPS de production.
  */
+// Repli sur app.json > extra : une mise à jour EAS Update ne reçoit PAS les
+// variables `env` des profils de build d'eas.json — sans ce repli, un update
+// partait sans TURN (appels coupés en 4G) ni clés RevenueCat.
 export const TURN_SERVER = {
-  url: (process.env.EXPO_PUBLIC_TURN_URL as string | undefined) ?? '',
-  username: (process.env.EXPO_PUBLIC_TURN_USERNAME as string | undefined) ?? '',
-  credential: (process.env.EXPO_PUBLIC_TURN_CREDENTIAL as string | undefined) ?? '',
+  url: (process.env.EXPO_PUBLIC_TURN_URL as string | undefined) || extra.turnUrl || '',
+  username: (process.env.EXPO_PUBLIC_TURN_USERNAME as string | undefined) || extra.turnUsername || '',
+  credential: (process.env.EXPO_PUBLIC_TURN_CREDENTIAL as string | undefined) || extra.turnCredential || '',
 } as const;
