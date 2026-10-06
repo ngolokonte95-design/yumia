@@ -12,6 +12,7 @@ import { API_BASE_URL, TURN_SERVER } from '../lib/config';
 import { isE2EAvailable } from '../lib/e2e-crypto';
 import { useI18n } from '../lib/useI18n';
 import { haptics } from '../lib/useHaptics';
+import { startCallSound, stopCallSound } from '../lib/call-sounds';
 import { restorePlaybackAudio } from '../lib/audio-session';
 import { consumeOutgoingCall } from '../lib/outgoing-call';
 
@@ -120,20 +121,24 @@ export default function CallScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [callState]);
 
-  // ── Vibration d'appel (pas de fichier son dédié — voir useHaptics.startRing) ─
-  // Sonne tant que l'appel n'est ni décroché ni terminé ; s'arrête immédiatement
-  // sur 'connected'/'ended' et au démontage de l'écran (voir cleanup ci-dessous).
+  // ── Sonnerie + vibration ────────────────────────────────────────────────────
+  // Appel reçu : sonnerie et vibration. Appel émis : tonalité de retour
+  // (« tuut… tuut ») et vibration. Tout s'arrête sur 'connected'/'ended' et au
+  // démontage de l'écran (voir cleanup ci-dessous).
   useEffect(() => {
     if (callState === 'calling' || callState === 'ringing') {
       haptics.startRing();
+      startCallSound(callState === 'ringing' ? 'incoming' : 'outgoing');
     } else {
       haptics.stopRing();
+      stopCallSound();
     }
   }, [callState]);
 
   // ── Nettoyage ──────────────────────────────────────────────────────────────
   const cleanup = useCallback(() => {
     haptics.stopRing();
+    stopCallSound();
     if (pollRef.current)    clearInterval(pollRef.current);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (timerRef.current)   clearInterval(timerRef.current);
