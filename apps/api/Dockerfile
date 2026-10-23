@@ -1,5 +1,5 @@
 # ── Stage 1 : builder ────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -35,7 +35,7 @@ COPY apps/api ./apps/api
 RUN NODE_OPTIONS="--max-old-space-size=1024" npm run build --workspace=apps/api
 
 # ── Stage 2 : runner ─────────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 # OpenSSL requis par les binaires du moteur Prisma. ffmpeg pour le
 # transcodage vidéo à l'upload (voir video-transcode.service.ts).
