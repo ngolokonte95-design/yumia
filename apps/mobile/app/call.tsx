@@ -8,7 +8,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing } from '../theme/tokens';
-import { API_BASE_URL, TURN_SERVER } from '../lib/config';
+import { API_BASE_URL } from '../lib/config';
+import { fetchIceServers } from '../lib/turn';
 import { isE2EAvailable } from '../lib/e2e-crypto';
 import { useI18n } from '../lib/useI18n';
 import { haptics } from '../lib/useHaptics';
@@ -25,15 +26,7 @@ try {
 } catch { /* Expo Go — module natif absent */ }
 
 const API = API_BASE_URL;
-// STUN seul échoue souvent en 4G/5G (NAT opérateur symétrique) — le TURN relaie
-// le flux dans ce cas. Ajouté seulement s'il est configuré (build EAS).
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  ...(TURN_SERVER.url
-    ? [{ urls: TURN_SERVER.url, username: TURN_SERVER.username, credential: TURN_SERVER.credential }]
-    : []),
-];
+// Serveurs ICE (STUN + TURN temporaire) : voir lib/turn.ts.
 
 type CallState = 'calling' | 'ringing' | 'connected' | 'ended';
 type CallType  = 'voice' | 'video';
@@ -152,8 +145,9 @@ export default function CallScreen() {
   }, [localStream]);
 
   // ── PeerConnection ─────────────────────────────────────────────────────────
-  const createPC = useCallback((callId: string) => {
-    const pc = new WebRTC.RTCPeerConnection({ iceServers: ICE_SERVERS });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const createPC = useCallback((callId: string, iceServers: any[]) => {
+    const pc = new WebRTC.RTCPeerConnection({ iceServers });
     pcRef.current = pc;
 
     pc.onicecandidate = (event: { candidate: { candidate: string; sdpMid?: string; sdpMLineIndex?: number } | null }) => {
@@ -210,8 +204,8 @@ export default function CallScreen() {
       const callId = data.id;
       setCallIdState(callId);
 
-      const stream = await getLocalMedia();
-      const pc = createPC(callId);
+      const [stream, iceServers] = await Promise.all([getLocalMedia(), fetchIceServers(accessToken)]);
+      const pc = createPC(callId, iceServers);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
 
@@ -239,8 +233,8 @@ export default function CallScreen() {
       }
       if (!offerSdp) return;
 
-      const stream = await getLocalMedia();
-      const pc = createPC(callId);
+      const [stream, iceServers] = await Promise.all([getLocalMedia(), fetchIceServers(accessToken)]);
+      const pc = createPC(callId, iceServers);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
 

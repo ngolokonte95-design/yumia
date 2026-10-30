@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CallsService, CallType } from './calls.service';
+import { turnCredentials } from './turn-credentials';
 
 interface AuthRequest extends Request {
   user: { sub: string };
@@ -19,6 +20,19 @@ export class CallsController {
   ) {
     const type: CallType = body.type === 'video' ? 'video' : 'voice';
     return this.calls.initiate(req.user.sub, body.recipientId, type, body.conversationId, body.senderPublicKey);
+  }
+
+  /**
+   * Serveurs ICE de l'appel : relais TURN avec identifiant temporaire.
+   * Déclaré AVANT `:id`, sinon Nest y verrait un identifiant d'appel.
+   * Sans TURN_SECRET configuré : liste vide, l'app garde son repli.
+   */
+  @Get('turn-credentials')
+  turn(@Req() req: AuthRequest) {
+    const secret = process.env.TURN_SECRET || '';
+    const urls = (process.env.TURN_URLS || '').split(',').map((u) => u.trim()).filter(Boolean);
+    if (!secret || !urls.length) return { iceServers: [] };
+    return { iceServers: [turnCredentials(secret, urls, req.user.sub)] };
   }
 
   /** Polling léger : statut + SDP answer + candidats ICE partenaire */

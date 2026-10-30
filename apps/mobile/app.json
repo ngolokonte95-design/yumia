@@ -3,9 +3,9 @@
     "name": "YUMIA",
     "slug": "yumia",
     "scheme": "yumia",
-    "version": "1.0",
+    "version": "1.0.1",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "enabled": true,
@@ -327,6 +327,16 @@
           "savePhotosPermission": "YUMIA enregistre dans ta galerie les photos et vidéos que tu choisis de télécharger.",
           "isAccessMediaLocationEnabled": false,
           "granularPermissions": []
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
+          }
         }
       ]
     ],
