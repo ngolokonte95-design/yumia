@@ -4,6 +4,7 @@
  * sécurisé, avec rafraîchissement automatique du jeton si l'accès a expiré.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 import { ApiError, refreshAccessTokenOnce, registerTokenRefresher, setCurrentAccessToken, unregisterTokenRefresher } from './api';
 import { clearSentryUser, setSentryUser } from './sentry';
 import { loginPurchases, logoutPurchases } from './purchases';
@@ -161,15 +162,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Bootstrap : restaure la session depuis le stockage sécurisé.
   useEffect(() => {
     let active = true;
-    (async () => {
+    let retry: { remove: () => void } | null = null;
+    const restore = async () => {
       // Keychain/Keystore illisible (appareil verrouillé au boot, stockage
       // corrompu…) : sans ce garde-fou l'app restait bloquée sur le splash
-      // en 'loading'. On repart déconnecté.
+      // en 'loading'. On repart déconnecté, et on relit la session au retour
+      // au premier plan — cas d'un appel qui réveille l'app iPhone verrouillé
+      // avant tout premier déverrouillage : sans ce second essai, l'app
+      // restait sur l'écran de connexion une fois le téléphone déverrouillé.
       let stored: Awaited<ReturnType<typeof loadTokens>> = null;
       try {
         stored = await loadTokens();
       } catch {
         stored = null;
+        if (active && !retry) {
+          retry = AppState.addEventListener('change', (state) => {
+            if (state !== 'active') return;
+            retry?.remove();
+            retry = null;
+            void restore();
+          });
+        }
       }
       if (!stored) {
         if (active) setStatus('unauthenticated');
@@ -205,9 +218,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setStatus('unauthenticated');
         }
       }
-    })();
+    };
+    void restore();
     return () => {
       active = false;
+      retry?.remove();
     };
   }, [applySession, clearSession]);
 

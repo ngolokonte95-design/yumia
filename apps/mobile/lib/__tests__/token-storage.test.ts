@@ -3,8 +3,10 @@ import { saveTokens, loadTokens, clearTokens } from '../token-storage';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const SecureStore = require('../../test/mocks/secure-store') as {
   __reset: () => void;
-  getItemAsync: (k: string) => Promise<string | null>;
+  getItemAsync: (k: string, opts?: object) => Promise<string | null>;
+  setItemAsync: (k: string, v: string, opts?: object) => Promise<void>;
 };
+const SESSION = { keychainService: 'yumia.session' };
 
 const tokens = {
   accessToken: 'access-abc',
@@ -19,8 +21,8 @@ describe('token-storage', () => {
     it('persiste les deux jetons dans SecureStore', async () => {
       await saveTokens(tokens);
 
-      expect(await SecureStore.getItemAsync('yumia.accessToken')).toBe('access-abc');
-      expect(await SecureStore.getItemAsync('yumia.refreshToken')).toBe('refresh-xyz');
+      expect(await SecureStore.getItemAsync('yumia.accessToken', SESSION)).toBe('access-abc');
+      expect(await SecureStore.getItemAsync('yumia.refreshToken', SESSION)).toBe('refresh-xyz');
     });
   });
 
@@ -29,6 +31,15 @@ describe('token-storage', () => {
       await saveTokens(tokens);
 
       expect(await loadTokens()).toEqual({ accessToken: 'access-abc', refreshToken: 'refresh-xyz' });
+    });
+
+    it('reprend la session d\'une version précédente et la déplace', async () => {
+      await SecureStore.setItemAsync('yumia.accessToken', 'old-access');
+      await SecureStore.setItemAsync('yumia.refreshToken', 'old-refresh');
+
+      expect(await loadTokens()).toEqual({ accessToken: 'old-access', refreshToken: 'old-refresh' });
+      expect(await SecureStore.getItemAsync('yumia.accessToken', SESSION)).toBe('old-access');
+      expect(await SecureStore.getItemAsync('yumia.accessToken')).toBeNull();
     });
 
     it('retourne null quand rien n\'est stocké', async () => {
@@ -56,8 +67,8 @@ describe('token-storage', () => {
       await clearTokens();
 
       expect(await loadTokens()).toBeNull();
-      expect(await SecureStore.getItemAsync('yumia.accessToken')).toBeNull();
-      expect(await SecureStore.getItemAsync('yumia.refreshToken')).toBeNull();
+      expect(await SecureStore.getItemAsync('yumia.accessToken', SESSION)).toBeNull();
+      expect(await SecureStore.getItemAsync('yumia.refreshToken', SESSION)).toBeNull();
     });
   });
 });
