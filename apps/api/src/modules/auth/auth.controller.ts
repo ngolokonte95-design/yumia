@@ -207,7 +207,10 @@ export class AuthController {
     @CurrentUser() user: JwtPayload,
     @Body() dto: PushTokenDto,
   ): Promise<void> {
-    await this.notifications.registerToken(user.sub, dto.token);
+    await this.notifications.registerToken(user.sub, dto.token, {
+      voipToken: dto.voipToken,
+      nativeCalls: dto.nativeCalls,
+    });
   }
 
   /** DELETE /api/auth/me — supprime définitivement le compte et toutes les données. */

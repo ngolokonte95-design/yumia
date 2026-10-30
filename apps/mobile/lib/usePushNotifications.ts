@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { API_BASE_URL } from './config';
 import { pushUnsupported, loadNotifications } from './pushAvailability';
+import { getVoipToken, nativeCallPush, onVoipToken } from './call-ui';
 
 if (!pushUnsupported) {
   void (async () => {
@@ -56,13 +57,21 @@ async function registerPushToken(accessToken: string): Promise<void> {
     return;
   }
 
+  // Sonnerie d'appel native (lib/call-ui.ts) : jeton VoIP sur iPhone,
+  // notification d'appel maison sur Android. Une app 1.0 n'envoie ni l'un
+  // ni l'autre et garde la notification d'appel classique.
+  const voipToken = await getVoipToken();
   await fetch(`${API_BASE_URL}/auth/me/push-token`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ token }),
+    body: JSON.stringify({
+      token,
+      nativeCalls: nativeCallPush,
+      ...(voipToken ? { voipToken } : {}),
+    }),
   });
 }
 
@@ -89,6 +98,14 @@ export function usePushNotifications(accessToken: string | null) {
     registerPushToken(accessToken).catch(() => {
       // best-effort — ne jamais bloquer l'utilisateur
       registered.current = false;
+    });
+  }, [accessToken]);
+
+  // iPhone : le jeton VoIP peut arriver après le premier enregistrement.
+  useEffect(() => {
+    if (!accessToken) return;
+    return onVoipToken(() => {
+      registerPushToken(accessToken).catch(() => undefined);
     });
   }, [accessToken]);
 }

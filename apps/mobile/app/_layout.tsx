@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppState, View, ActivityIndicator, StyleSheet } from 'react-native';
 import { DarkTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -18,6 +18,7 @@ import { refreshUnreadCount } from '../lib/useNotifications';
 import { useDailyDigest } from '../lib/useDailyDigest';
 import { initPurchases } from '../lib/purchases';
 import { useDeepLinks } from '../lib/useDeepLinks';
+import { useNativeCallActions } from '../lib/call-ui';
 import { useEncounterBeacon } from '../lib/useEncounterBeacon';
 import { initSentry } from '../lib/sentry';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -77,6 +78,10 @@ function AuthGate() {
   useEffect(() => { void refreshUnreadCount(accessToken); }, [accessToken]);
   useEffect(() => startNotificationListener(accessToken), [accessToken]);
   useEffect(() => startNotificationResponseListener((path) => router.push(path as never)), [router]);
+  // Appel décroché (ou ouvert) depuis la sonnerie native — attend que la
+  // route de démarrage soit posée, sinon AuthGate la remplacerait aussitôt.
+  const openCall = useCallback((path: string) => router.push(path as never), [router]);
+  useNativeCallActions(status === 'authenticated' && routeReady, openCall);
 
   useEffect(() => {
     if (status === 'loading' || deviceLocale === undefined) return;

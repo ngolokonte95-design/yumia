@@ -194,7 +194,8 @@ export class AuthService {
     if (record) {
       await this.prisma.user.updateMany({
         where: { id: record.userId, ...(pushToken ? { expoPushToken: pushToken } : {}) },
-        data: { expoPushToken: null },
+        // Le jeton VoIP part avec : un iPhone déconnecté ne doit plus sonner.
+        data: { expoPushToken: null, voipToken: null, nativeCallPush: false },
       });
     }
   }
@@ -206,7 +207,10 @@ export class AuthService {
         where: { userId, revokedAt: null },
         data: { revokedAt: new Date() },
       }),
-      this.prisma.user.updateMany({ where: { id: userId }, data: { expoPushToken: null } }),
+      this.prisma.user.updateMany({
+        where: { id: userId },
+        data: { expoPushToken: null, voipToken: null, nativeCallPush: false },
+      }),
     ]);
   }
 

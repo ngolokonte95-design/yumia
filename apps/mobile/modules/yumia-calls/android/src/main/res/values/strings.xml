@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="yumia_calls_channel">Calls</string>
+  <string name="yumia_calls_voice">Incoming voice call</string>
+  <string name="yumia_calls_video">Incoming video call</string>
+  <string name="yumia_calls_answer">Answer</string>
+  <string name="yumia_calls_decline">Decline</string>
+</resources>

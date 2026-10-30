@@ -141,6 +141,11 @@ services:
       # Relais TURN (coturn « use-auth-secret ») : identifiants temporaires par appel.
       TURN_URLS: ${TURN_URLS:-}
       TURN_SECRET: ${TURN_SECRET:-}
+      # Appels iOS app fermée (PushKit/CallKit) : clé APNs .p8 (Apple Developer → Keys).
+      # Vides → les iPhone reçoivent la notification d'appel classique.
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      APNS_KEY: ${APNS_KEY:-}
     volumes:
       - yumia_uploads:/app/apps/api/uploads
     ports:

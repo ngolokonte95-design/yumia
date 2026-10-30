@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["YumiaCallsModule"],
+    "appDelegateSubscribers": ["YumiaCallsAppDelegate"]
+  },
+  "android": {
+    "modules": ["expo.modules.yumiacalls.YumiaCallsModule"]
+  }
+}

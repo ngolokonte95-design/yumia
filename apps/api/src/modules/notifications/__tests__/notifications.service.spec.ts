@@ -58,7 +58,7 @@ describe('NotificationsService', () => {
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { expoPushToken: 'ExponentPushToken[abc123]' },
+        data: { expoPushToken: 'ExponentPushToken[abc123]', nativeCallPush: false },
       });
     });
 
@@ -68,7 +68,7 @@ describe('NotificationsService', () => {
 
       expect(prisma.user.updateMany).toHaveBeenCalledWith({
         where: { expoPushToken: 'ExponentPushToken[shared]', id: { not: 'user-2' } },
-        data: { expoPushToken: null },
+        data: { expoPushToken: null, nativeCallPush: false },
       });
       const cleared = prisma.user.updateMany.mock.invocationCallOrder[0];
       const assigned = prisma.user.update.mock.invocationCallOrder[0];
@@ -217,7 +217,7 @@ describe('NotificationsService', () => {
 
       expect(prisma.user.updateMany).toHaveBeenCalledWith({
         where: { expoPushToken: { in: [token] } },
-        data: { expoPushToken: null },
+        data: { expoPushToken: null, nativeCallPush: false },
       });
     });
 

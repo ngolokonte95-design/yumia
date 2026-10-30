@@ -1,0 +1,23 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Écran d'appel par-dessus l'écran verrouillé (Android 14+ : réservé aux
+       apps d'appel, à déclarer dans la Play Console). -->
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+    <!-- Priorité au-dessus de celle d'expo-notifications (-1) : ce service
+         reçoit tous les push, garde les appels et rend le reste à Expo. -->
+    <service
+      android:name="expo.modules.yumiacalls.CallMessagingService"
+      android:exported="false">
+      <intent-filter android:priority="10">
+        <action android:name="com.google.firebase.MESSAGING_EVENT" />
+      </intent-filter>
+    </service>
+
+    <receiver
+      android:name="expo.modules.yumiacalls.CallActionReceiver"
+      android:exported="false" />
+  </application>
+</manifest>

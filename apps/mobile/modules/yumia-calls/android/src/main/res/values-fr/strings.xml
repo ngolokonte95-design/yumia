@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="yumia_calls_channel">Appels</string>
+  <string name="yumia_calls_voice">Appel vocal entrant</string>
+  <string name="yumia_calls_video">Appel vidéo entrant</string>
+  <string name="yumia_calls_answer">Répondre</string>
+  <string name="yumia_calls_decline">Refuser</string>
+</resources>

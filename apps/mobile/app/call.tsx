@@ -16,6 +16,7 @@ import { haptics } from '../lib/useHaptics';
 import { startCallSound, stopCallSound } from '../lib/call-sounds';
 import { restorePlaybackAudio } from '../lib/audio-session';
 import { consumeOutgoingCall } from '../lib/outgoing-call';
+import { dismissIncomingCall, endNativeCall, onNativeCallEvents, setShowWhenLocked } from '../lib/call-ui';
 
 // Import lazy — react-native-webrtc nécessite un build natif (pas Expo Go)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,10 +64,10 @@ const noStyles = StyleSheet.create({
 export default function CallScreen() {
   const {
     convId, partnerId, partnerName, partnerPhoto,
-    type: callTypeParam, incoming, callId: existingCallId,
+    type: callTypeParam, incoming, callId: existingCallId, answered,
   } = useLocalSearchParams<{
     convId?: string; partnerId?: string; partnerName?: string; partnerPhoto?: string;
-    type?: string; incoming?: string; callId?: string;
+    type?: string; incoming?: string; callId?: string; answered?: string;
   }>();
 
   const { accessToken } = useAuth();
@@ -76,6 +77,9 @@ export default function CallScreen() {
 
   const callType: CallType  = callTypeParam === 'video' ? 'video' : 'voice';
   const isIncoming           = incoming === 'true';
+  // Déjà décroché sur la sonnerie native (CallKit, notification Android) :
+  // pas de second « Répondre » à l'écran.
+  const autoAnswer           = isIncoming && answered === '1';
 
   const [callState, setCallState]     = useState<CallState>(isIncoming ? 'ringing' : 'calling');
   const [isMuted, setIsMuted]         = useState(false);
@@ -96,6 +100,9 @@ export default function CallScreen() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iceSentRef = useRef<Set<string>>(new Set());
   const iceRecvRef = useRef<Set<string>>(new Set());
+  const callIdRef  = useRef<string | null>(existingCallId ?? null);
+  callIdRef.current = callIdState;
+  const autoAnsweredRef = useRef(false);
 
   const h = { Authorization: `Bearer ${accessToken ?? ''}`, 'Content-Type': 'application/json' };
 
@@ -119,6 +126,7 @@ export default function CallScreen() {
   // (« tuut… tuut ») et vibration. Tout s'arrête sur 'connected'/'ended' et au
   // démontage de l'écran (voir cleanup ci-dessous).
   useEffect(() => {
+    if (callState === 'ringing' && autoAnswer) return;
     if (callState === 'calling' || callState === 'ringing') {
       haptics.startRing();
       startCallSound(callState === 'ringing' ? 'incoming' : 'outgoing');
@@ -139,6 +147,10 @@ export default function CallScreen() {
     localStream?.getTracks().forEach((t: any) => t.stop());
     pcRef.current?.close();
     pcRef.current = null;
+    // Fin côté système : sans ça, l'iPhone garde l'appel CallKit ouvert
+    // (bandeau vert), et Android l'écran d'appel devant le verrouillage.
+    endNativeCall(callIdRef.current);
+    setShowWhenLocked(false);
     // Un appel met la sortie audio en mode micro (WebRTC) : sans ce retour,
     // les vidéos de l'app restaient inaudibles après l'appel.
     restorePlaybackAudio();
@@ -285,6 +297,8 @@ export default function CallScreen() {
 
   // ── Démarrage ──────────────────────────────────────────────────────────────
   useEffect(() => {
+    // La sonnerie native s'arrête : l'écran d'appel prend le relais.
+    if (isIncoming) dismissIncomingCall(existingCallId);
     if (!isIncoming) {
       // Appel sortant : uniquement depuis le bouton d'une conversation, jamais
       // depuis un lien (cf. lib/outgoing-call.ts).
@@ -306,6 +320,25 @@ export default function CallScreen() {
     pollRef.current = setInterval(() => void poll(), 800);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [callIdState, poll]);
+
+  // Décroché sur la sonnerie native : on connecte tout de suite.
+  useEffect(() => {
+    if (!autoAnswer || autoAnsweredRef.current || !accessToken || !callIdState) return;
+    autoAnsweredRef.current = true;
+    void acceptCall();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAnswer, accessToken, callIdState]);
+
+  // Raccroché ou micro coupé depuis l'écran d'appel de l'iPhone (CallKit).
+  useEffect(() => onNativeCallEvents(callIdState, {
+    onEnd: () => { void endCall(); },
+    onMute: (muted) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      localStream?.getAudioTracks().forEach((t: any) => { t.enabled = !muted; });
+      setIsMuted(muted);
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [callIdState, localStream]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
   const acceptCall = async () => {

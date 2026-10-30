@@ -56,6 +56,10 @@ model User {
   // Préférences (restrictions, univers favoris) — flexibles, donc JSON.
   preferences   Json    @default("{}")
   expoPushToken String?
+  // Appels app fermée (1.0.1+) : jeton PushKit (iOS, CallKit) et capacité de
+  // l'app Android à afficher sa propre notification d'appel plein écran.
+  voipToken      String?
+  nativeCallPush Boolean @default(false)
 
   // Profil social
   gender       String? // 'male' | 'female' | 'other'
@@ -107,6 +111,7 @@ model User {
 
   @@index([countryCode])
   @@index([expoPushToken])
+  @@index([voipToken])
   @@index([gender])
   @@index([interestedIn])
 }

@@ -2,6 +2,8 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { randomUUID } from 'crypto';
+import { ApnsVoip } from './apns-voip';
+import { declineToken, verifyDeclineToken } from './call-token';
 
 export type CallStatus = 'pending' | 'accepted' | 'rejected' | 'ended' | 'missed';
 export type CallType   = 'voice' | 'video';
@@ -33,6 +35,7 @@ export interface CallRecord {
 export class CallsService {
   // In-memory store — les appels sont éphémères (TTL 2h max)
   private readonly calls = new Map<string, CallRecord>();
+  private readonly voip = new ApnsVoip();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -99,25 +102,105 @@ export class CallsService {
         c.status = 'missed';
         c.endedAt = new Date();
         void this.recordCallEvent(c, 'missed');
+        void this.pushCancel(c);
       }
     }, 60_000);
 
-    // Push notification à l'appelé avec deep link vers l'écran d'appel entrant
-    const icon = type === 'video' ? '📹' : '📞';
-    const callerName = caller?.displayName ?? 'Quelqu\'un';
-
-    await this.notifications.sendToUser(
-      recipientId,
-      `${icon} ${type === 'video' ? 'Appel vidéo' : 'Appel vocal'} de ${callerName}`,
-      'Appuyez pour répondre',
-      {
-        path: `/call?callId=${call.id}&convId=${conversationId ?? ''}&partnerId=${callerId}&partnerName=${encodeURIComponent(callerName)}&partnerPhoto=${encodeURIComponent(caller?.photoUrl ?? '')}&type=${type}&incoming=true`,
-        callId: call.id,
-        type: 'incoming_call',
-      },
-    );
+    await this.pushIncoming(call, caller?.displayName ?? 'Quelqu\'un', caller?.photoUrl ?? '');
 
     return call;
+  }
+
+  /**
+   * Fait sonner l'appelé, par le meilleur canal que son app sait gérer :
+   * - iPhone 1.0.1+ : push VoIP → écran d'appel CallKit, même app fermée ;
+   * - Android 1.0.1+ : push de données → notification d'appel plein écran
+   *   avec sonnerie en boucle (module natif yumia-calls de l'app) ;
+   * - versions plus anciennes : notification classique (son court).
+   * La ligne du centre de notifications est écrite dans tous les cas.
+   */
+  private async pushIncoming(call: CallRecord, callerName: string, callerPhoto: string): Promise<void> {
+    const { id, callerId, recipientId, conversationId, type } = call;
+    const icon = type === 'video' ? '📹' : '📞';
+    const title = `${icon} ${type === 'video' ? 'Appel vidéo' : 'Appel vocal'} de ${callerName}`;
+    const body = 'Appuyez pour répondre';
+    const data = {
+      path: `/call?callId=${id}&convId=${conversationId ?? ''}&partnerId=${callerId}&partnerName=${encodeURIComponent(callerName)}&partnerPhoto=${encodeURIComponent(callerPhoto)}&type=${type}&incoming=true`,
+      callId: id,
+      type: 'incoming_call',
+    };
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: recipientId },
+      select: { expoPushToken: true, voipToken: true, nativeCallPush: true },
+    });
+    const callPayload = {
+      type: 'incoming_call',
+      callId: id,
+      callType: type,
+      callerId,
+      callerName,
+      callerPhoto,
+      conversationId: conversationId ?? '',
+      declineToken: declineToken(id, recipientId),
+    };
+
+    if (user?.voipToken && this.voip.enabled) {
+      const res = await this.voip.send(user.voipToken, callPayload);
+      if (res === 'ok') {
+        await this.notifications.record(recipientId, title, body, data);
+        return;
+      }
+      if (res === 'invalid-token') {
+        await this.prisma.user.update({ where: { id: recipientId }, data: { voipToken: null } }).catch(() => undefined);
+      }
+    }
+
+    if (user?.nativeCallPush && user.expoPushToken) {
+      await this.notifications.record(recipientId, title, body, data);
+      await this.notifications.sendData(user.expoPushToken, callPayload);
+      return;
+    }
+
+    await this.notifications.sendToUser(recipientId, title, body, data);
+  }
+
+  /**
+   * L'appelant a raccroché, ou personne n'a répondu : on arrête la sonnerie
+   * native de l'appelé. Les anciennes versions n'ont pas de sonnerie native,
+   * rien à arrêter.
+   */
+  private async pushCancel(call: CallRecord): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: call.recipientId },
+        select: { expoPushToken: true, voipToken: true, nativeCallPush: true },
+      });
+      const payload = { type: 'call_cancel', callId: call.id, callerName: '', callType: call.type };
+      if (user?.voipToken && this.voip.enabled) {
+        const res = await this.voip.send(user.voipToken, payload);
+        if (res === 'ok') return;
+      }
+      if (user?.nativeCallPush && user.expoPushToken) {
+        await this.notifications.sendData(user.expoPushToken, payload);
+      }
+    } catch {
+      // best-effort : au pire, la sonnerie native s'arrête seule au bout d'une minute
+    }
+  }
+
+  /**
+   * Refus depuis la sonnerie native (écran verrouillé, notification Android),
+   * authentifié par le jeton de refus du push et non par une session.
+   * Idempotent : un appel déjà fini ou inconnu ne renvoie pas d'erreur.
+   */
+  declineWithToken(callId: string, token: string): void {
+    const call = this.calls.get(callId);
+    if (!call || call.status !== 'pending') return;
+    if (!verifyDeclineToken(callId, call.recipientId, token)) {
+      throw new ForbiddenException('Jeton invalide');
+    }
+    this.reject(callId, call.recipientId);
   }
 
   /** Un appel n'est lisible (SDP, candidats ICE → adresses IP) que par ses deux participants. */
@@ -204,6 +287,8 @@ export class CallsService {
     call.status = 'ended';
     call.endedAt = new Date();
     void this.recordCallEvent(call, wasNeverAnswered ? 'missed' : 'answered');
+    // Seul l'appelant qui raccroche doit couper la sonnerie de l'autre.
+    if (wasNeverAnswered && userId === call.callerId) void this.pushCancel(call);
     return call;
   }
 

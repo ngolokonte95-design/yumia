@@ -27,7 +27,8 @@
         "NSCameraUsageDescription": "YUMIA utilise ta caméra pour prendre des photos et des vidéos (publications, stories, reels) et pour les appels vidéo.",
         "NSMicrophoneUsageDescription": "YUMIA utilise ton microphone pour les messages vocaux, le son de tes vidéos, les voix off et les appels vocaux et vidéo.",
         "NSPhotoLibraryUsageDescription": "YUMIA accède aux photos et vidéos que tu choisis pour les partager : photo de profil, publications, stories, messages et photos de lieux.",
-        "NSPhotoLibraryAddUsageDescription": "YUMIA enregistre dans ta galerie les photos et vidéos que tu choisis de télécharger."
+        "NSPhotoLibraryAddUsageDescription": "YUMIA enregistre dans ta galerie les photos et vidéos que tu choisis de télécharger.",
+        "UIBackgroundModes": ["voip", "audio"]
       },
       "bitcode": false,
       "privacyManifests": {

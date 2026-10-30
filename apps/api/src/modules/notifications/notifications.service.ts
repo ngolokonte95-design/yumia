@@ -4,11 +4,13 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 
 interface ExpoPushMessage {
   to: string;
-  title: string;
-  body: string;
+  title?: string;
+  body?: string;
   data?: Record<string, unknown>;
   sound?: 'default' | null;
   badge?: number;
+  priority?: 'default' | 'normal' | 'high';
+  ttl?: number;
   /**
    * Propriétaire de la notification — sert uniquement à la persistance côté
    * serveur (voir `sendBatch`), jamais envoyé à Expo. Absent pour un envoi
@@ -38,14 +40,31 @@ export class NotificationsService {
    * compte continuait de recevoir ses notifications, messages compris, sur le
    * téléphone de quelqu'un d'autre.
    */
-  async registerToken(userId: string, token: string): Promise<void> {
+  async registerToken(
+    userId: string,
+    token: string,
+    calls: { voipToken?: string; nativeCalls?: boolean } = {},
+  ): Promise<void> {
     await this.prisma.user.updateMany({
       where: { expoPushToken: token, id: { not: userId } },
-      data: { expoPushToken: null },
+      data: { expoPushToken: null, nativeCallPush: false },
     });
+    if (calls.voipToken) {
+      // Même règle pour le jeton VoIP : il désigne l'iPhone, pas le compte.
+      await this.prisma.user.updateMany({
+        where: { voipToken: calls.voipToken, id: { not: userId } },
+        data: { voipToken: null },
+      });
+    }
     await this.prisma.user.update({
       where: { id: userId },
-      data: { expoPushToken: token },
+      data: {
+        expoPushToken: token,
+        // Une app 1.0 ne l'envoie pas : elle n'a ni CallKit ni notification
+        // d'appel native, on lui garde la notification classique.
+        nativeCallPush: calls.nativeCalls === true,
+        ...(calls.voipToken ? { voipToken: calls.voipToken } : {}),
+      },
     });
   }
 
@@ -56,6 +75,21 @@ export class NotificationsService {
    * notifications (`list`/`unreadCount` ci-dessous) : avant, un push manqué
    * hors-ligne était perdu pour de bon, rien n'en gardait la trace.
    */
+  /** Ligne du centre de notifications seule, quand le push part par un autre canal (appels). */
+  async record(userId: string, title: string, body: string, data?: Record<string, unknown>): Promise<void> {
+    await this.persist(userId, title, body, data);
+  }
+
+  /**
+   * Push de données seules (sans titre ni texte), prioritaire et périssable :
+   * sur Android, Expo ne l'affiche pas, il réveille l'app — c'est le module
+   * d'appel natif qui l'intercepte et affiche la sonnerie.
+   */
+  async sendData(token: string, data: Record<string, unknown>): Promise<void> {
+    if (!token.startsWith('ExponentPushToken[')) return;
+    await this.send([{ to: token, data, priority: 'high', ttl: 60 }]);
+  }
+
   async sendToUser(
     userId: string,
     title: string,
@@ -84,7 +118,7 @@ export class NotificationsService {
     await Promise.all(
       messages
         .filter((m) => m.userId)
-        .map((m) => this.persist(m.userId!, m.title, m.body, m.data)),
+        .map((m) => this.persist(m.userId!, m.title ?? '', m.body ?? '', m.data)),
     );
 
     // `userId` ne fait pas partie du contrat Expo — on ne l'envoie pas.
@@ -167,7 +201,7 @@ export class NotificationsService {
       if (staleTokens.length > 0) {
         await this.prisma.user.updateMany({
           where: { expoPushToken: { in: staleTokens } },
-          data: { expoPushToken: null },
+          data: { expoPushToken: null, nativeCallPush: false },
         });
         this.logger.log(`${staleTokens.length} token(s) push invalide(s) supprimés`);
       }

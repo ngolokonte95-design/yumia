@@ -432,7 +432,7 @@ describe('AuthService', () => {
 
       expect(prismaMock.user.updateMany).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { expoPushToken: null },
+        data: { expoPushToken: null, voipToken: null, nativeCallPush: false },
       });
     });
 
@@ -443,7 +443,7 @@ describe('AuthService', () => {
 
       expect(prismaMock.user.updateMany).toHaveBeenCalledWith({
         where: { id: 'user-1', expoPushToken: 'ExponentPushToken[device-a]' },
-        data: { expoPushToken: null },
+        data: { expoPushToken: null, voipToken: null, nativeCallPush: false },
       });
     });
 

@@ -9,9 +9,10 @@
  * comme un vrai téléphone ; la tonalité de retour, elle, s'entend toujours :
  * c'est l'appelant qui l'a déclenchée en lançant l'appel.
  *
- * Ne joue que pendant que l'écran d'appel est ouvert. Un appel reçu app
- * fermée passe par la notification push (son système court) — une vraie
- * sonnerie en arrière-plan demanderait CallKit / ConnectionService.
+ * Ne joue que pendant que l'écran d'appel est ouvert. App fermée ou en
+ * arrière-plan, c'est la sonnerie native qui sonne (CallKit sur iPhone,
+ * notification d'appel sur Android — voir call-ui.ts), puis l'écran d'appel
+ * prend le relais.
  */
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
