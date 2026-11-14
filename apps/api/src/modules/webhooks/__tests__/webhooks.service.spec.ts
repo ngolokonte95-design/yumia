@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { WebhooksService } from '../webhooks.service';
 import { PrismaService } from '../../../infra/prisma/prisma.service';
+import { ConversionService } from '../../conversion/conversion.service';
 
 // ── Mock factory ──────────────────────────────────────────────────────────────
 
@@ -23,14 +24,17 @@ const makePayload = (type: string, userId = 'user-1', extra: Record<string, unkn
 describe('WebhooksService', () => {
   let service: WebhooksService;
   let prisma: ReturnType<typeof makePrisma>;
+  let conversion: { recordSubscribed: jest.Mock };
 
   beforeEach(async () => {
     prisma = makePrisma();
+    conversion = { recordSubscribed: jest.fn().mockResolvedValue(undefined) };
 
     const module = await Test.createTestingModule({
       providers: [
         WebhooksService,
         { provide: PrismaService, useValue: prisma },
+        { provide: ConversionService, useValue: conversion },
       ],
     }).compile();
 
@@ -38,6 +42,20 @@ describe('WebhooksService', () => {
   });
 
   afterEach(() => jest.clearAllMocks());
+
+  describe('suivi de conversion', () => {
+    it('compte un nouvel abonné (gratuit → payant)', async () => {
+      prisma.user.findUnique.mockResolvedValue({ plan: 'free' });
+      await service.handleRevenueCat(makePayload('INITIAL_PURCHASE', 'user-1', { entitlement_ids: ['gold'] }));
+      expect(conversion.recordSubscribed).toHaveBeenCalledWith('user-1', 'gold');
+    });
+
+    it('ne compte pas un renouvellement', async () => {
+      prisma.user.findUnique.mockResolvedValue({ plan: 'gold' });
+      await service.handleRevenueCat(makePayload('RENEWAL', 'user-1', { entitlement_ids: ['gold'] }));
+      expect(conversion.recordSubscribed).not.toHaveBeenCalled();
+    });
+  });
 
   // ── Upgrade events ────────────────────────────────────────────────────────
 

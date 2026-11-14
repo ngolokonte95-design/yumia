@@ -46,6 +46,12 @@ model User {
   timezone    String?
 
   plan         Plan      @default(free)
+  // Essai inversé (1.0.1) : Gold offert à l'inscription jusqu'à cette date
+  // (packages/shared/src/trial.ts). `plan` reste le forfait PAYÉ.
+  trialEndsAt        DateTime?
+  /// Dernier rappel « ton essai se termine » (un par jour, 3 derniers jours).
+  trialRemindedAt    DateTime?
+  trialEndNotifiedAt DateTime?
   // Abonnement Premium (RevenueCat). `plan` reste synchro (plus = premium).
   isPremium    Boolean   @default(false)
   premiumSince DateTime?
@@ -101,6 +107,7 @@ model User {
   notifications       Notification[]
   affiliateClicks     AffiliateClick[]
   savedItineraries    SavedItinerary[]
+  conversionEvents    ConversionEvent[]
 
   // Boutique
   cart              Cart?
@@ -1566,4 +1573,22 @@ model AliExpressToken {
   expiresAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+/// Ce qui mène (ou non) à l'abonnement : limite atteinte, page des forfaits
+/// ouverte, abonnement pris. Lu par le tableau de bord admin (conversion).
+model ConversionEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// limit_hit | paywall_view | subscribed
+  type      String
+  /// Fonctionnalité limitée, écran d'origine ou forfait pris.
+  detail    String?
+  /// L'utilisateur était-il en essai Gold à ce moment-là ?
+  onTrial   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId])
 }

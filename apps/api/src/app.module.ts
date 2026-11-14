@@ -45,6 +45,7 @@ import { MeetupModule } from './modules/meetup/meetup.module';
 import { DiscoverModule } from './modules/discover/discover.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CallsModule } from './modules/calls/calls.module';
+import { ConversionModule } from './modules/conversion/conversion.module';
 import { ShopModule } from './modules/shop/shop.module';
 
 @Module({
@@ -119,6 +120,7 @@ import { ShopModule } from './modules/shop/shop.module';
     DiscoverModule,
     AdminModule,
     CallsModule,
+    ConversionModule,
     ShopModule,
   ],
   providers: [

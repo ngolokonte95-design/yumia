@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../theme/tokens';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
 import { useI18n } from '../../lib/useI18n';
+import { TrialNotice } from '../../components/TrialNotice';
 
 const SOCIAL_TAB_ICON = require('../../assets/social-tab-icon.png');
 
@@ -63,6 +64,7 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
 
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -129,5 +131,8 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    {/* Essai Gold offert : accueil, rappels des derniers jours, fin. */}
+    <TrialNotice />
+    </>
   );
 }

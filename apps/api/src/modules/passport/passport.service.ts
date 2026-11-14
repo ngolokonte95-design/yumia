@@ -9,6 +9,7 @@ import type { Prisma, VisitFeedback } from '@prisma/client';
 import {
   BADGES,
   PLAN_LIMITS,
+  effectivePlan,
   levelForXp,
   type Badge,
 } from '@yumia/shared';
@@ -293,7 +294,7 @@ export class PassportService {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     // Tout forfait payant, et non `plus` seul : Plus n'est plus vendu, et Gold
     // et Diamond se voyaient refuser un avantage que l'app leur affiche.
-    if (user.plan === 'free') {
+    if (effectivePlan(user.plan, user.trialEndsAt) === 'free') {
       throw new ForbiddenException('Les freezes de streak sont réservés aux forfaits payants.');
     }
 
@@ -332,7 +333,7 @@ export class PassportService {
       throw new NotFoundException('Lieu introuvable.');
     }
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    const max = PLAN_LIMITS[user.plan].savedPlacesMax;
+    const max = PLAN_LIMITS[effectivePlan(user.plan, user.trialEndsAt)].savedPlacesMax;
     if (Number.isFinite(max)) {
       const count = await this.prisma.savedPlace.count({ where: { userId } });
       if (count >= max) {

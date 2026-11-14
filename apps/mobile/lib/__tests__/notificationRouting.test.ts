@@ -44,6 +44,11 @@ describe('notificationTarget', () => {
     expect(notificationTarget({ type: 'daily_digest' })).toBe('/');
   });
 
+  it("ouvre les forfaits pour les rappels et la fin de l'essai Gold", () => {
+    expect(notificationTarget({ type: 'trial_reminder', data: { path: '/plus' } })).toBe('/plus');
+    expect(notificationTarget({ type: 'trial_ended' })).toBe('/plus');
+  });
+
   it('retombe sur le centre de notifications pour un type inconnu', () => {
     expect(notificationTarget({ type: 'mystere' })).toBe('/notifications');
   });

@@ -11,6 +11,7 @@ import { affiliateProviderLabel } from '../lib/affiliate-labels';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
+import { FEATURE_LABEL_KEYS, type LimitedFeature } from '../lib/constants/plan-limits';
 
 const API = API_BASE_URL;
 
@@ -30,6 +31,14 @@ interface AffiliateStats {
   clicksByUniverse: { universe: string; count: number }[];
 }
 interface TrendRow { date: string; count: number }
+/** GET /admin/conversion : essai Gold, limites atteintes, forfaits, abonnements (7 jours). */
+interface ConversionStats {
+  days: number;
+  trial: { active: number; started: number; ended: number; converted: number };
+  subscriptions: { total: number; duringTrial: number };
+  paywall: { views: number; users: number };
+  limits: { users: number; byFeature: Array<{ feature: string; hits: number; users: number }> };
+}
 
 /** Noms affichés des paliers — identiques dans toutes les langues. */
 const PLAN_LABEL: Record<Plan, string> = {
@@ -82,6 +91,7 @@ export default function AdminScreen() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [affiliateStats, setAffiliateStats] = useState<AffiliateStats | null>(null);
   const [affiliateTrend, setAffiliateTrend] = useState<TrendRow[]>([]);
+  const [conversion, setConversion] = useState<ConversionStats | null>(null);
   const [pendingReports, setPendingReports] = useState<number | null>(null);
   /** Commandes qui demandent une action : en cours (à payer chez AliExpress) + à transmettre. */
   const [ordersToHandle, setOrdersToHandle] = useState<{ inProgress: number; toTransmit: number } | null>(null);
@@ -148,6 +158,10 @@ export default function AdminScreen() {
 
       // Compteur de signalements : indépendant du reste, un échec ici ne doit
       // pas priver l'écran de ses statistiques.
+      void fetch(`${API}/admin/conversion?days=7`, { headers: h })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: ConversionStats | null) => setConversion(d))
+        .catch(() => setConversion(null));
       void fetch(`${API}/admin/reports/pending-count`, { headers: h })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { count: number } | null) => setPendingReports(d?.count ?? null))
@@ -306,6 +320,48 @@ export default function AdminScreen() {
           <View style={styles.statsGrid}>
             <StatCard label={t('adm_places')} value={overview.content.places} />
             <StatCard label={t('adm_visits')} value={overview.content.visits} />
+          </View>
+        </>
+      )}
+
+      {/* ── Conversion (7 jours) : de quoi régler les limites du Gratuit ── */}
+      {conversion && (
+        <>
+          <Text style={styles.sectionTitle}>{t('adm_conversion_title')}</Text>
+          <View style={styles.statsGrid}>
+            <StatCard label={t('adm_conv_trials_active')} value={conversion.trial.active} accent />
+            <StatCard label={t('adm_conv_trials_started')} value={conversion.trial.started} />
+            <StatCard
+              label={t('adm_conv_trials_ended')}
+              value={conversion.trial.ended}
+              sub={`${conversion.trial.converted} ${t('adm_conv_trials_converted')}`}
+            />
+            <StatCard
+              label={t('adm_conv_subscriptions')}
+              value={conversion.subscriptions.total}
+              sub={`${conversion.subscriptions.duringTrial} ${t('adm_conv_during_trial')}`}
+            />
+            <StatCard label={t('adm_conv_paywall')} value={conversion.paywall.users} sub={`${conversion.paywall.views} ${t('adm_conv_views')}`} />
+            <StatCard label={t('adm_conv_limit_users')} value={conversion.limits.users} />
+          </View>
+          <View style={styles.card}>
+            {conversion.limits.byFeature.length === 0 ? (
+              <Text style={styles.statLabel}>{t('adm_conv_no_limits')}</Text>
+            ) : conversion.limits.byFeature.map((row) => {
+              const max = Math.max(...conversion.limits.byFeature.map((r) => r.users), 1);
+              const labelKey = FEATURE_LABEL_KEYS[row.feature as LimitedFeature];
+              return (
+                <View key={row.feature} style={styles.univRow}>
+                  <Text style={[styles.univName, { width: 140 }]} numberOfLines={1}>
+                    {labelKey ? t(labelKey) : row.feature}
+                  </Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFillGreen, { width: `${(row.users / max) * 100}%` }]} />
+                  </View>
+                  <Text style={styles.univCount}>{row.users}</Text>
+                </View>
+              );
+            })}
           </View>
         </>
       )}

@@ -30,13 +30,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { PurchasesOfferings, PurchasesPackage } from 'react-native-purchases';
-import { PLAN_PRICE_EUR, PLANS, SOLD_PLANS, type Plan } from '@yumia/shared';
+import { PLAN_PRICE_EUR, PLANS, SOLD_PLANS, isOnTrial, trialDaysLeft, type Plan } from '@yumia/shared';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { buyPackage, fetchOfferings, packageForTier, restorePurchases } from '../lib/purchases';
 import { PlanBadgeIcon } from '../components/Avatar';
 import { PRIVACY_URL, TERMS_URL } from '../lib/legal';
 import { useI18n } from '../lib/useI18n';
+import { trackConversion } from '../lib/conversion';
 import type { TranslationKey } from '../lib/translations';
 import {
   DISPLAY_CAPS_BY_PLAN,
@@ -118,6 +119,10 @@ export default function PlusScreen() {
   const [compareOpen, setCompareOpen] = useState(false);
 
   const currentPlan = (user?.plan ?? 'free') as Plan;
+  // Essai Gold offert en cours : rappelé en tête, l'offre reste celle d'un compte gratuit.
+  const trialLeft = isOnTrial(currentPlan, user?.trialEndsAt) ? trialDaysLeft(user?.trialEndsAt) : 0;
+
+  useEffect(() => { trackConversion('paywall_view', 'plus'); }, []);
   const upgrades = useMemo(() => {
     const next = nextPaidPlan(currentPlan);
     return next ? PAID_TIERS.slice(PAID_TIERS.indexOf(next)) : [];
@@ -258,6 +263,15 @@ export default function PlusScreen() {
         <Text style={styles.currentName}>{PLAN_NAME[currentPlan]}</Text>
         <Text style={styles.currentTag}>{t('plus_current_plan')}</Text>
       </View>
+
+      {trialLeft > 0 ? (
+        <View style={styles.trialBanner}>
+          <PlanBadgeIcon plan="gold" size={20} />
+          <Text style={styles.trialText}>
+            {(trialLeft <= 1 ? t('plus_trial_banner_last') : t('plus_trial_banner')).replace('{n}', String(trialLeft))}
+          </Text>
+        </View>
+      ) : null}
 
       {upgrades.length === 0 ? (
         <Text style={styles.topTier}>{t('plus_top_tier')}</Text>
@@ -422,6 +436,19 @@ const styles = StyleSheet.create({
   },
   currentName: { ...typography.label, color: colors.textPrimary, flex: 1 },
   currentTag: { ...typography.caption, color: colors.textMuted },
+  trialBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: '#E3B34155',
+    backgroundColor: '#E3B34114',
+  },
+  trialText: { ...typography.body, color: colors.textPrimary, flex: 1, lineHeight: 21 },
 
   sectionTitle: {
     ...typography.label, color: colors.textSecondary,

@@ -13,7 +13,7 @@ import * as bcrypt from 'bcryptjs';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { OAuth2Client } from 'google-auth-library';
 import type { Prisma, User } from '@prisma/client';
-import type { UserPreferences } from '@yumia/shared';
+import { trialEndFrom, type UserPreferences } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import { StorageService } from '../../infra/storage/storage.service';
@@ -214,7 +214,29 @@ export class AuthService {
     ]);
   }
 
-  /** Profil de l'utilisateur courant (depuis l'ID du JWT). */
+  /**
+   * Démarre l'essai Gold offert (packages/shared/src/trial.ts).
+   *
+   * Demandé par l'app 1.0.1+ et non posé à l'inscription : un compte créé
+   * depuis l'app 1.0, qui ignore tout de l'essai, recevrait sinon des rappels
+   * « Gold offert » sans jamais voir Gold. Réservé aux comptes de moins de
+   * 24 h, une seule fois (un compte ancien ne se l'offre pas en mettant à jour).
+   */
+  async startTrial(userId: string): Promise<PublicUser> {
+    const now = new Date();
+    await this.prisma.user.updateMany({
+      where: {
+        id: userId,
+        plan: 'free',
+        trialEndsAt: null,
+        createdAt: { gt: new Date(now.getTime() - 24 * 3600 * 1000) },
+      },
+      data: { trialEndsAt: trialEndFrom(now) },
+    });
+    return this.me(userId);
+  }
+
+    /** Profil de l'utilisateur courant (depuis l'ID du JWT). */
   async me(userId: string): Promise<PublicUser> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -1001,6 +1023,7 @@ function toPublicUser(user: User): PublicUser {
     countryCode: user.countryCode,
     plan: user.plan,
     isPremium: user.isPremium,
+    trialEndsAt: user.trialEndsAt,
     premiumPlan: user.premiumPlan,
     totalXp: user.totalXp,
     level: user.level,

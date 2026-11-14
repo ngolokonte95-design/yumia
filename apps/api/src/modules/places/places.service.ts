@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, type Place } from '@prisma/client';
-import type { Plan, Universe } from '@yumia/shared';
+import { effectivePlan, type Plan, type Universe } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { ElasticsearchService } from '../../infra/elasticsearch/elasticsearch.service';
 import { RedisService } from '../../infra/redis/redis.service';
@@ -578,9 +578,10 @@ export class PlacesService {
       let limit = HYDRATION_CALLS_PER_DAY.anonymous;
       if (requester.userId) {
         const user = await this.prisma.user
-          .findUnique({ where: { id: requester.userId }, select: { plan: true } })
+          .findUnique({ where: { id: requester.userId }, select: { plan: true, trialEndsAt: true } })
           .catch(() => null);
-        limit = HYDRATION_CALLS_PER_DAY[(user?.plan ?? 'free') as Plan] ?? HYDRATION_CALLS_PER_DAY.free;
+        const plan = effectivePlan((user?.plan ?? 'free') as Plan, user?.trialEndsAt);
+        limit = HYDRATION_CALLS_PER_DAY[plan] ?? HYDRATION_CALLS_PER_DAY.free;
       }
       const used = Number((await this.redis.raw.get(key)) ?? 0);
       if (used + cost > limit) {

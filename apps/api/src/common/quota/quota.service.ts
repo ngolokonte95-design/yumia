@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { LIMITS_BY_PLAN, type LimitedFeature, type Plan } from '@yumia/shared';
+import { LIMITS_BY_PLAN, effectivePlan, type LimitedFeature, type Plan } from '@yumia/shared';
 import type { Request } from 'express';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
@@ -104,9 +104,10 @@ export class QuotaService {
   private async limitFor(rule: QuotaRule, userId: string): Promise<number> {
     if (!rule.feature && !rule.perDayByPlan) return rule.anonymousPerDay ?? Infinity;
     const user = await this.prisma.user
-      .findUnique({ where: { id: userId }, select: { plan: true } })
+      .findUnique({ where: { id: userId }, select: { plan: true, trialEndsAt: true } })
       .catch(() => null);
-    const plan = (user?.plan ?? 'free') as Plan;
+    // Essai Gold en cours : limites de Gold (packages/shared/src/trial.ts).
+    const plan = effectivePlan((user?.plan ?? 'free') as Plan, user?.trialEndsAt);
     if (!rule.feature && rule.perDayByPlan) {
       return rule.perDayByPlan[plan] ?? rule.perDayByPlan.free;
     }

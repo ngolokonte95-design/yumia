@@ -51,6 +51,10 @@ export function notificationTarget(n: NotificationLike): string {
       return '/favorites';
     case 'daily_digest':
       return '/';
+    case 'trial_reminder':
+    case 'trial_ended':
+      // Fin de l'essai Gold : la page des forfaits, où l'on peut le garder.
+      return '/plus';
     default:
       return '/notifications';
   }

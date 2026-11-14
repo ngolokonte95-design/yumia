@@ -197,7 +197,17 @@ export class AuthController {
     return { message: 'Mot de passe mis à jour. Connectez-vous avec votre nouveau mot de passe.' };
   }
 
-  /** PATCH /api/auth/me/push-token — enregistre ou renouvelle le push token Expo. */
+  /** POST /api/auth/me/trial — démarre l'essai Gold offert d'un compte neuf (idempotent). */
+  @ApiOperation({ summary: "Démarrer l'essai Gold offert" })
+  @ApiBearerAuth('access-token')
+  @Post('me/trial')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async startTrial(@CurrentUser() user: JwtPayload): Promise<PublicUser> {
+    return this.auth.startTrial(user.sub);
+  }
+
+    /** PATCH /api/auth/me/push-token — enregistre ou renouvelle le push token Expo. */
   @ApiOperation({ summary: 'Enregistrer le push token Expo' })
   @ApiBearerAuth('access-token')
   @Patch('me/push-token')

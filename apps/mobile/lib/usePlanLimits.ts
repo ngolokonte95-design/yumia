@@ -35,7 +35,8 @@ import {
   type LimitedFeature,
   type PremiumOnlyFeature,
 } from './constants/plan-limits';
-import { PLAN_LIMITS, PLAN_PRICE_EUR } from '@yumia/shared';
+import { PLAN_LIMITS, PLAN_PRICE_EUR, TRIAL_PLAN, isOnTrial, trialDaysLeft } from '@yumia/shared';
+import { trackConversion } from './conversion';
 
 /** Chargements de lieux restants à partir desquels on prévient. */
 const PLACE_LOADS_WARN_AT = 5;
@@ -97,8 +98,13 @@ export function usePlanLimits() {
   // `isPremium` legacy conservé en repli tant que tous les comptes n'ont pas
   // encore de `plan` explicite (anciens utilisateurs Plus déjà marqués
   // isPremium avant l'ajout des paliers) — mappé sur 'plus' dans ce cas.
-  const planTier: Plan = (user?.plan as Plan | undefined)
+  const paidPlan: Plan = (user?.plan as Plan | undefined)
     ?? (user?.isPremium ? 'plus' : 'free');
+  // Essai Gold offert à l'inscription : les limites de Gold, sans changer le
+  // forfait payé (packages/shared/src/trial.ts).
+  const onTrial = isOnTrial(paidPlan, user?.trialEndsAt);
+  const trialDays = onTrial ? trialDaysLeft(user?.trialEndsAt) : 0;
+  const planTier: Plan = onTrial ? TRIAL_PLAN : paidPlan;
   const isPremium = planTier !== 'free';
   const isAdmin = user?.isAdmin === true;
   /** Le palier à proposer : celui juste au-dessus de l'actuel. */
@@ -178,6 +184,7 @@ export function usePlanLimits() {
    */
   const quotaMessage = useCallback(
     (feature: LimitedFeature, scopeLabel: string, othersOpen = false): string => {
+      trackConversion('limit_hit', feature);
       const unitKey = LIMIT_UNIT_KEYS[feature];
       // Chargements de lieux : un compteur commun à tous les univers et à la
       // carte, donc pas de « pour {univers} » dans le message.
@@ -191,7 +198,14 @@ export function usePlanLimits() {
       // devrait pas se présenter — Diamond n'a aucune limite — mais un
       // message qui vend du vide serait pire qu'un message court.
       if (!upgradeTo) return head;
-      return `${head} ${t('limit_quota_upsell').replace('{price}', upgradePrice)}`;
+      // Ce que le palier au-dessus donne, en chiffres : « Avec Gold : 30 par
+      // jour » parle plus qu'un prix seul.
+      const next = LIMITS_BY_PLAN[upgradeTo][feature];
+      const upsell = (next === Infinity ? t('limit_quota_upsell_open') : t('limit_quota_upsell_n'))
+        .replace('{plan}', upgradeTo === 'gold' ? 'Gold' : 'Diamond')
+        .replace('{n}', String(next))
+        .replace('{price}', upgradePrice);
+      return `${head} ${upsell}`;
     },
     [getLimit, t, upgradeTo, upgradePrice],
   );
@@ -227,7 +241,10 @@ export function usePlanLimits() {
   );
 
   const lockedMessage = useCallback(
-    (): string => t('limit_premium_only').replace('{price}', upgradePrice),
+    (): string => {
+      trackConversion('limit_hit', 'socialMap');
+      return t('limit_premium_only').replace('{price}', upgradePrice);
+    },
     [t, upgradePrice],
   );
 
@@ -237,13 +254,14 @@ export function usePlanLimits() {
    * (PLAN_LIMITS), les paliers payants n'ayant pas de plafond.
    */
   const savedLimitMessage = useCallback((): string => {
+    trackConversion('limit_hit', 'savedPlaces');
     const head = t('limit_saved_places').replace('{n}', String(PLAN_LIMITS.free.savedPlacesMax));
     if (!upgradeTo) return head;
     return `${head} ${t('limit_saved_places_upsell').replace('{price}', upgradePrice)}`;
   }, [t, upgradeTo, upgradePrice]);
 
   return {
-    planTier, upgradeTo, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining, consumePlaceLoad,
+    planTier, paidPlan, onTrial, trialDays, upgradeTo, isPremium, isAdmin, getLimit, checkLimit, recordUsage, remaining, consumePlaceLoad,
     displayCap, isFeatureLocked, lockedMessage, quotaMessage, savedLimitMessage,
   };
 }

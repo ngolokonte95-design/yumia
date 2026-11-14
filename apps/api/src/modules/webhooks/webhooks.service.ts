@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Plan } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { ConversionService } from '../conversion/conversion.service';
 
 /**
  * Événements RevenueCat qui donnent ou prolongent l'accès à un plan payant.
@@ -52,7 +53,10 @@ const ENTITLEMENT_TO_PLAN: Array<[string, Plan]> = [
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly conversion: ConversionService,
+  ) {}
 
   /**
    * Traite un événement RevenueCat et met à jour le plan utilisateur.
@@ -234,6 +238,7 @@ export class WebhooksService {
 
   private async setPlan(userId: string, plan: Plan, type: string): Promise<void> {
     try {
+      const before = await this.currentPlan(userId);
       await this.prisma.user.update({
         where: { id: userId },
         // `isPremium` reste synchro avec `plan` (tout sauf free = premium) —
@@ -241,6 +246,9 @@ export class WebhooksService {
         data: { plan, isPremium: plan !== 'free' },
       });
       this.logger.log(`Utilisateur ${userId} → plan "${plan}" (événement ${type})`);
+      // Nouvel abonné (et non un renouvellement ou un changement de palier) :
+      // compté pour le tableau de conversion de l'admin.
+      if (before === 'free' && plan !== 'free') await this.conversion.recordSubscribed(userId, plan);
     } catch (err) {
       // L'utilisateur peut ne pas exister (achat avant inscription, identifiant
       // anonyme RevenueCat) : rien à mettre à jour.

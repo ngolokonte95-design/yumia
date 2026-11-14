@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Place as PrismaPlace } from '@prisma/client';
-import { PLAN_LIMITS, isUniverse, type Place, type PriceTier, type Universe } from '@yumia/shared';
+import { PLAN_LIMITS, effectivePlan, isUniverse, type Place, type PriceTier, type Universe } from '@yumia/shared';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { RedisService } from '../../infra/redis/redis.service';
 
@@ -22,11 +22,11 @@ export class SavedService {
   async save(userId: string, placeId: string, listName = 'a_essayer'): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { plan: true },
+      select: { plan: true, trialEndsAt: true },
     });
     if (!user) throw new UnauthorizedException('Utilisateur introuvable.');
 
-    if (user.plan === 'free') {
+    if (effectivePlan(user.plan, user.trialEndsAt) === 'free') {
       const count = await this.prisma.savedPlace.count({ where: { userId } });
       const limit = PLAN_LIMITS.free.savedPlacesMax;
       if (count >= limit) {

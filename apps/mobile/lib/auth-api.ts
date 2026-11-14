@@ -26,8 +26,11 @@ export interface PublicUser {
   locale: string;
   currency: string;
   countryCode: string | null;
+  /** Forfait PAYÉ. Les droits réels tiennent compte de l'essai (usePlanLimits). */
   plan: Plan;
   isPremium: boolean;
+  /** Fin de l'essai Gold offert à l'inscription (null : compte d'avant l'essai). */
+  trialEndsAt?: string | null;
   premiumPlan: string | null;
   totalXp: number;
   level: number;

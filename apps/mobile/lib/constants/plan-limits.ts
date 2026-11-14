@@ -128,6 +128,20 @@ export const LIMIT_UNIT_KEYS: Partial<Record<LimitedFeature, TranslationKey>> = 
   suggestionsPerDay: 'limit_unit_places',
 };
 
+/** Nom de chaque fonctionnalité limitée, tel que l'app l'affiche (admin : limites atteintes). */
+export const FEATURE_LABEL_KEYS: Record<LimitedFeature, TranslationKey> = {
+  chatbotPerDay: 'home_shortcut_chatbot',
+  desirePerDay: 'search_title',
+  itineraryPerModePerDay: 'home_shortcut_itinerary',
+  surprisePerDay: 'home_shortcut_surprise',
+  placeLoadsPerDay: 'plus_row_place_loads',
+  suggestionsPerDay: 'tab_foryou',
+  peopleSuggestionsPerDay: 'social_menu_tind',
+  eventsPerDay: 'mu_title',
+  circleMaxMembers: 'group_title',
+  passportMaxEntries: 'tab_passport',
+};
+
 /** Période de réinitialisation d'un compteur d'usage (pour les limites temporelles). */
 export const LIMIT_PERIOD: Record<LimitedFeature, 'day' | 'week' | 'none'> = {
   suggestionsPerDay: 'day',

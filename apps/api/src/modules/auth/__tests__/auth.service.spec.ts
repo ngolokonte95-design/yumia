@@ -456,6 +456,21 @@ describe('AuthService', () => {
     });
   });
 
+  describe('startTrial', () => {
+    it('offre Gold 7 jours à un compte gratuit de moins de 24 h, une seule fois', async () => {
+      prismaMock.user.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      const before = Date.now();
+
+      await service.startTrial('user-1');
+
+      const { where, data } = prismaMock.user.updateMany.mock.calls[0][0];
+      expect(where).toMatchObject({ id: 'user-1', plan: 'free', trialEndsAt: null });
+      expect(before - where.createdAt.gt.getTime()).toBeGreaterThanOrEqual(24 * 3600 * 1000 - 1000);
+      expect(data.trialEndsAt.getTime() - before).toBeGreaterThanOrEqual(7 * 86_400_000 - 1000);
+    });
+  });
+
   describe('me', () => {
     it('retourne le profil public de l\'utilisateur', async () => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser);

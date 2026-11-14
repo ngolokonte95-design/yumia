@@ -4,6 +4,7 @@ import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
 import { ModerationService, type ModerationAction } from './moderation.service';
 import { AffiliatesService } from '../affiliates/affiliates.service';
+import { ConversionService } from '../conversion/conversion.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard)
@@ -12,6 +13,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly moderation: ModerationService,
     private readonly affiliatesService: AffiliatesService,
+    private readonly conversion: ConversionService,
   ) {}
 
   /** Vérifie si l'utilisateur courant est admin (pas besoin d'AdminGuard ici). */
@@ -40,6 +42,14 @@ export class AdminController {
   @UseGuards(AdminGuard)
   overview() {
     return this.adminService.getOverview();
+  }
+
+  /** Essai Gold, limites atteintes, page des forfaits, abonnements — sur `days` jours. */
+  @Get('conversion')
+  @UseGuards(AdminGuard)
+  conversionStats(@Query('days') days?: string) {
+    const n = Number(days);
+    return this.conversion.stats(Number.isFinite(n) && n > 0 ? Math.min(n, 90) : 7);
   }
 
   @Get('users/by-country')
