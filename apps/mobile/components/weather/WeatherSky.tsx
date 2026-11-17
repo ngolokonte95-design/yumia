@@ -201,12 +201,19 @@ function Lightning() {
 // ── Composant principal ──────────────────────────────────────────────────────
 
 export function WeatherSky({
-  kind, moment, style, children,
+  kind, moment, style, children, flat = false,
 }: {
   kind: WeatherKind;
   moment: DayMoment;
   style?: ViewStyle;
   children?: React.ReactNode;
+  /**
+   * Fond UNI (une seule couleur, la teinte médiane du ciel) : ni dégradé, ni
+   * voile, ni bandes de brume. Pour un fond plein écran (Accueil) où ces
+   * transitions dessinaient des « barres grises ». Étoiles, pluie, neige,
+   * soleil et éclairs restent.
+   */
+  flat?: boolean;
 }) {
   const colors = skyColors(kind, moment);
   const isNight = moment === 'night';
@@ -220,13 +227,15 @@ export function WeatherSky({
   const stars = useMemo(() => seededParticles(42, 3), []);
 
   return (
-    <View style={[StyleSheet.absoluteFill, style]}>
-      <LinearGradient
-        colors={colors as [string, string, ...string[]]}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={[StyleSheet.absoluteFill, flat && { backgroundColor: colors[Math.floor(colors.length / 2)] }, style]}>
+      {flat ? null : (
+        <LinearGradient
+          colors={colors as [string, string, ...string[]]}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
 
       {isNight && stars.map((p, i) => <Star key={`s${i}`} {...p} />)}
       {!isNight && (kind === 'clear' || kind === 'partly_cloudy') && <SunGlow />}
@@ -236,7 +245,7 @@ export function WeatherSky({
       ))}
       {kind === 'snow' && flakes.map((p, i) => <Flake key={`f${i}`} {...p} />)}
 
-      {(kind === 'fog' || kind === 'cloudy') && (
+      {!flat && (kind === 'fog' || kind === 'cloudy') && (
         <>
           <FogBand top={H * 0.22} delay={0} duration={26000} />
           <FogBand top={H * 0.44} delay={4000} duration={34000} />
@@ -249,11 +258,13 @@ export function WeatherSky({
       {/* Voile de lisibilité, volontairement très léger : il doit assurer le
           contraste du texte sans effacer le ciel. Un voile opaque rendrait
           aussi le flou des cartes invisible, faute de couleur à diffuser. */}
-      <LinearGradient
-        colors={gradients.skyVeil}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+      {flat ? null : (
+        <LinearGradient
+          colors={gradients.skyVeil}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      )}
 
       {children}
     </View>

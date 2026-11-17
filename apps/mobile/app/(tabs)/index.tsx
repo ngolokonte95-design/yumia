@@ -150,7 +150,7 @@ export default function HomeScreen() {
           (17/11, demande de l'utilisateur : le voile dégradé qui fondait le
           ciel dans le fond sombre dessinait une barre grise au milieu). */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {current && focused ? <WeatherSky kind={current.kind} moment={moment} /> : null}
+        {current && focused ? <WeatherSky kind={current.kind} moment={moment} flat /> : null}
       </View>
 
       <Animated.ScrollView
