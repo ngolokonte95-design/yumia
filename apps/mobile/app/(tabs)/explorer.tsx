@@ -2,9 +2,9 @@
  * EXPLORER — hub de découverte & catalogue. Distinct de Home (« quoi faire
  * maintenant ») : ici on parcourt, on cherche, on réserve.
  *
- * Mise en scène (17/11/2026) : le haut de l'écran est le CIEL RÉEL de
- * l'endroit où l'on se trouve (pluie, soleil, étoiles — WeatherSky, le même
- * que l'écran Météo), qui glisse en parallaxe au défilement. Viennent ensuite
+ * Mise en scène (17/11/2026) : fond « espace profond » sur tout l'écran, le
+ * même que l'Accueil (SpaceBackground : étoiles, étoiles filantes, système
+ * solaire), en-tête avec la météo du moment. Viennent ensuite
  * la grille « Réserver » (Guides, Boutique, Cadeaux, partenaires), les
  * Tendances, puis le Top 3 de l'IA en grand carrousel photo (ordre demandé
  * par l'utilisateur le 17/11 : la réservation partenaire d'abord).
@@ -33,7 +33,7 @@ import { useAuth } from '../../lib/auth-context';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { PlacePhoto } from '../../components/PlacePhoto';
 import { PressableScale, Reveal, GradientText } from '../../components/ui';
-import { WeatherSky } from '../../components/weather/WeatherSky';
+import { SpaceBackground, SPACE_BLACK } from '../../components/space/SpaceBackground';
 import { useTop3 } from '../../lib/useTop3';
 import { useSaved } from '../../lib/useSaved';
 import { useI18n } from '../../lib/useI18n';
@@ -41,7 +41,7 @@ import type { TranslationKey } from '../../lib/translations';
 import { placeStore } from '../../lib/place-store';
 import { useWeather } from '../../lib/useWeather';
 import { useWeatherReport } from '../../lib/useWeatherReport';
-import { dayMomentAt, kindEmoji } from '../../lib/services/weather';
+import { kindEmoji } from '../../lib/services/weather';
 import { useTrending } from '../../lib/useTrending';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import type { TrendingPlace } from '../../lib/places-api';
@@ -119,11 +119,6 @@ export default function ExplorerScreen() {
 
   const weather = useWeather(coords.lat, coords.lng);
   const { report } = useWeatherReport(coords.lat, coords.lng);
-  const moment = useMemo(
-    () => (report ? dayMomentAt(new Date(), report.astro, report.coordinates.lat) : 'day'),
-    [report],
-  );
-
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
   const { savedLimitMessage } = usePlanLimits();
 
@@ -223,16 +218,10 @@ export default function ExplorerScreen() {
 
   const top3 = useTop3(top3Params, !resolving);
 
-  // ── Parallaxe du ciel ─────────────────────────────────────────────────────
+  // ── En-tête qui s'efface au défilement ────────────────────────────────────
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
   const heroTotal = HERO_HEIGHT + insets.top;
-  const skyStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [-200, 0, heroTotal], [-100, 0, heroTotal * 0.45], Extrapolation.CLAMP) },
-      { scale: interpolate(scrollY.value, [-200, 0], [1.35, 1], Extrapolation.CLAMP) },
-    ],
-  }));
   const heroContentStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, heroTotal * 0.6], [1, 0], Extrapolation.CLAMP),
     transform: [{ translateY: interpolate(scrollY.value, [0, heroTotal], [0, -30], Extrapolation.CLAMP) }],
@@ -268,19 +257,9 @@ export default function ExplorerScreen() {
     <View style={styles.screen}>
       <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
 
-      {/* ── Ciel réel, en fond, sous le défilement ─────────────────────── */}
-      <Animated.View style={[styles.sky, { height: heroTotal + 80 }, skyStyle]} pointerEvents="none">
-        {current && focused ? (
-          <WeatherSky kind={current.kind} moment={moment} />
-        ) : (
-          <LinearGradient colors={gradients.brand} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
-        )}
-        <LinearGradient
-          colors={['transparent', 'rgba(14,14,18,0.55)', colors.bg]}
-          locations={[0.35, 0.75, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
+      {/* ── Espace profond en fond de TOUT l'écran, comme l'Accueil ──────
+          (17/11, demande de l'utilisateur : même fond « système solaire »). */}
+      <SpaceBackground active={focused} />
 
       <Animated.ScrollView
         onScroll={onScroll}
@@ -647,12 +626,12 @@ const TEXT_SHADOW = {
 } as const;
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: SPACE_BLACK },
   padded: { paddingHorizontal: spacing.lg },
   block: { marginBottom: spacing.xl },
 
   // Ciel
-  sky: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
+
   hero: { paddingHorizontal: spacing.lg, justifyContent: 'space-between', paddingBottom: spacing.lg },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   weatherChip: {
