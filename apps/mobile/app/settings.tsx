@@ -1,16 +1,18 @@
 /**
  * PARAMÈTRES — notifications, sécurité, compte, données.
+ *
+ * Mise en scène (17/11/2026) : sections en petites capitales, lignes en
+ * groupes vitrés (icône dans un rond en verre, chevron, filets fins),
+ * carte d'abonnement à cadre dégradé, actions destructrices en rouge
+ * fonctionnel dans des groupes à part. Logique inchangée.
  */
 import { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   ScrollView,
-  Switch,
   Alert,
-  ActivityIndicator,
   Linking,
   Platform,
   Share,
@@ -19,7 +21,12 @@ import Constants from 'expo-constants';
 import { File, Paths } from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, spacing, typography } from '../theme/tokens';
+import { GradientText, PressableScale, Reveal } from '../components/ui';
+import { haptics } from '../lib/useHaptics';
+import {
+  BrandDot, BrandFrame, CHEVRON, GlassGroup, MenuRow, ScreenHeader, SectionLabel, ToggleRow,
+} from '../components/profile/ProfileChrome';
 import { useAuth } from '../lib/auth-context';
 import { resetPasswordRequest, deleteAccountRequest, exportDataRequest, updateProfileRequest } from '../lib/auth-api';
 import { API_BASE_URL } from '../lib/config';
@@ -132,139 +139,152 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('settings_title')}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title={t('settings_title')} onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* Compte */}
-        <SectionTitle label={t('settings_section_account')} />
-        <SettingRow
-          icon="✏️"
-          label={t('settings_edit_profile')}
-          onPress={() => router.push('/edit-profile')}
-        />
-        {user?.authProvider === 'password' ? (
-          <SettingRow
-            icon="🔑"
-            label={t('settings_change_password')}
-            onPress={handleChangePassword}
-          />
-        ) : null}
-        <SettingRow
-          icon="🌍"
-          label={t('settings_language')}
-          value={user?.locale?.toUpperCase() ?? 'FR'}
-          onPress={() => router.push('/edit-profile')}
-        />
+        <Reveal index={0}>
+          <SectionLabel label={t('settings_section_account')} />
+          <GlassGroup>
+            <MenuRow
+              icon="✏️"
+              label={t('settings_edit_profile')}
+              onPress={() => router.push('/edit-profile')}
+            />
+            {user?.authProvider === 'password' ? (
+              <MenuRow
+                icon="🔑"
+                label={t('settings_change_password')}
+                onPress={handleChangePassword}
+              />
+            ) : null}
+            <MenuRow
+              icon="🌍"
+              label={t('settings_language')}
+              value={user?.locale?.toUpperCase() ?? 'FR'}
+              onPress={() => router.push('/edit-profile')}
+            />
+          </GlassGroup>
+        </Reveal>
 
         {/* Notifications */}
-        <SectionTitle label={t('settings_section_notifications')} />
-        <SettingToggle
-          icon="🌅"
-          label={t('settings_digest_label')}
-          sublabel={t('settings_digest_sub')}
-          value={notifDigest}
-          onValueChange={(v) => { setNotifDigest(v); void saveNotifPref('notifDigest', v); }}
-        />
-        <SettingToggle
-          icon="🔥"
-          label={t('settings_streak_label')}
-          sublabel={t('settings_streak_sub')}
-          value={notifStreak}
-          onValueChange={(v) => { setNotifStreak(v); void saveNotifPref('notifStreak', v); }}
-        />
+        <Reveal index={1}>
+          <SectionLabel label={t('settings_section_notifications')} />
+          <GlassGroup>
+            <ToggleRow
+              icon="🌅"
+              label={t('settings_digest_label')}
+              sublabel={t('settings_digest_sub')}
+              value={notifDigest}
+              onValueChange={(v) => { setNotifDigest(v); void saveNotifPref('notifDigest', v); }}
+            />
+            <ToggleRow
+              icon="🔥"
+              label={t('settings_streak_label')}
+              sublabel={t('settings_streak_sub')}
+              value={notifStreak}
+              onValueChange={(v) => { setNotifStreak(v); void saveNotifPref('notifStreak', v); }}
+            />
+          </GlassGroup>
+        </Reveal>
 
-        {/* YUMIA Plus */}
-        <SectionTitle label={t('settings_section_subscription')} />
-        <Pressable
-          style={styles.plusCard}
-          onPress={() => router.push('/plus')}
-        >
-          <View>
-            {/* Le palier réel, pas seulement Plus : un abonné Gold lisait
-                « Passer à YUMIA Plus » alors qu'il paie au-dessus. */}
-            <Text style={styles.plusTitle}>
-              {isPaid
-                ? t('settings_plus_active').replace('YUMIA Plus', PLAN_NAME[plan])
-                : t('settings_plus_upgrade').replace('YUMIA Plus', PLAN_NAME[nextTier ?? 'gold'])}
-            </Text>
-            <Text style={styles.plusSub}>
-              {isPaid ? t('settings_plus_thanks') : t('settings_plus_pitch')}
-            </Text>
-          </View>
-          {nextTier ? (
-            <Text style={styles.plusChevron}>›</Text>
-          ) : null}
-        </Pressable>
-        {/* La résiliation se fait dans la boutique, jamais dans l'app : ce
-            lien y mène directement. */}
-        <SettingRow
-          icon="💳"
-          label={t('settings_manage_subscription')}
-          onPress={() => void openManageSubscriptions().catch(() => undefined)}
-        />
+        {/* Abonnement */}
+        <Reveal index={2}>
+          <SectionLabel label={t('settings_section_subscription')} />
+          <PressableScale onPress={() => { haptics.select(); router.push('/plus'); }} scaleTo={0.98}>
+            <BrandFrame innerStyle={styles.plusInner}>
+              <View style={{ flex: 1 }}>
+                {/* Le palier réel, pas seulement Plus : un abonné Gold lisait
+                    « Passer à YUMIA Plus » alors qu'il paie au-dessus. */}
+                <GradientText style={styles.plusTitle}>
+                  {isPaid
+                    ? t('settings_plus_active').replace('YUMIA Plus', PLAN_NAME[plan])
+                    : t('settings_plus_upgrade').replace('YUMIA Plus', PLAN_NAME[nextTier ?? 'gold'])}
+                </GradientText>
+                <Text style={styles.plusSub}>
+                  {isPaid ? t('settings_plus_thanks') : t('settings_plus_pitch')}
+                </Text>
+              </View>
+              {nextTier ? <BrandDot label={CHEVRON} size={30} /> : null}
+            </BrandFrame>
+          </PressableScale>
+          {/* La résiliation se fait dans la boutique, jamais dans l'app : ce
+              lien y mène directement. */}
+          <GlassGroup style={{ marginTop: spacing.sm }}>
+            <MenuRow
+              icon="💳"
+              label={t('settings_manage_subscription')}
+              onPress={() => void openManageSubscriptions().catch(() => undefined)}
+            />
+          </GlassGroup>
+        </Reveal>
 
         {/* Données & confidentialité */}
-        <SectionTitle label={t('settings_section_privacy')} />
-        <SettingRow
-          icon="💡"
-          label={t('tip_reset')}
-          onPress={() => { void resetTips().then(() => Alert.alert(t('tip_reset'), t('tip_reset_done'))); }}
-        />
-        <SettingRow
-          icon="📥"
-          label={t('settings_export_data')}
-          loading={exporting}
-          onPress={handleExportData}
-        />
-        <SettingRow
-          icon="🔒"
-          label={t('settings_privacy_policy')}
-          onPress={() => void Linking.openURL(PRIVACY_URL)}
-        />
-        <SettingRow
-          icon="📄"
-          label={t('settings_terms')}
-          onPress={() => void Linking.openURL(TERMS_URL)}
-        />
-        <SettingRow
-          icon="🧾"
-          label={t('settings_cgv')}
-          onPress={() => void Linking.openURL(CGV_URL)}
-        />
-        <SettingRow
-          icon="💬"
-          label={t('settings_support')}
-          onPress={() => void Linking.openURL(SUPPORT_URL)}
-        />
-        <SettingRow
-          icon="🗑️"
-          label={t('settings_delete_account')}
-          danger
-          onPress={handleDeleteAccount}
-          loading={deletingAccount}
-        />
+        <Reveal index={3}>
+          <SectionLabel label={t('settings_section_privacy')} />
+          <GlassGroup>
+            <MenuRow
+              icon="💡"
+              label={t('tip_reset')}
+              onPress={() => { void resetTips().then(() => Alert.alert(t('tip_reset'), t('tip_reset_done'))); }}
+            />
+            <MenuRow
+              icon="📥"
+              label={t('settings_export_data')}
+              loading={exporting}
+              onPress={handleExportData}
+            />
+            <MenuRow
+              icon="🔒"
+              label={t('settings_privacy_policy')}
+              onPress={() => void Linking.openURL(PRIVACY_URL)}
+            />
+            <MenuRow
+              icon="📄"
+              label={t('settings_terms')}
+              onPress={() => void Linking.openURL(TERMS_URL)}
+            />
+            <MenuRow
+              icon="🧾"
+              label={t('settings_cgv')}
+              onPress={() => void Linking.openURL(CGV_URL)}
+            />
+            <MenuRow
+              icon="💬"
+              label={t('settings_support')}
+              onPress={() => void Linking.openURL(SUPPORT_URL)}
+            />
+          </GlassGroup>
+          {/* Suppression du compte : à part, en rouge fonctionnel. */}
+          <GlassGroup style={{ marginTop: spacing.sm }}>
+            <MenuRow
+              icon="🗑️"
+              label={t('settings_delete_account')}
+              danger
+              onPress={handleDeleteAccount}
+              loading={deletingAccount}
+            />
+          </GlassGroup>
+        </Reveal>
 
         {/* Administration (visible uniquement pour les admins) */}
         <AdminSection />
 
         {/* Déconnexion */}
-        <SectionTitle label={t('settings_section_session')} />
-        <SettingRow
-          icon="🚪"
-          label={t('settings_logout')}
-          danger
-          onPress={handleLogout}
-        />
+        <Reveal index={4}>
+          <SectionLabel label={t('settings_section_session')} />
+          <GlassGroup>
+            <MenuRow
+              icon="🚪"
+              label={t('settings_logout')}
+              danger
+              onPress={handleLogout}
+            />
+          </GlassGroup>
+        </Reveal>
 
         {/* Version */}
         <Text style={styles.version}>
@@ -295,145 +315,24 @@ function AdminSection() {
 
   return (
     <>
-      <SectionTitle label={t('settings_section_admin')} />
-      <SettingRow
-        icon="🛡️"
-        label={t('settings_admin_dashboard')}
-        onPress={() => router.push('/admin')}
-      />
+      <SectionLabel label={t('settings_section_admin')} />
+      <GlassGroup>
+        <MenuRow
+          icon="🛡️"
+          label={t('settings_admin_dashboard')}
+          onPress={() => router.push('/admin')}
+        />
+      </GlassGroup>
     </>
-  );
-}
-
-function SectionTitle({ label }: { label: string }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
-}
-
-function SettingRow({
-  icon,
-  label,
-  value,
-  danger = false,
-  loading = false,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  value?: string;
-  danger?: boolean;
-  loading?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable style={styles.row} onPress={onPress}>
-      <Text style={styles.rowIcon}>{icon}</Text>
-      <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
-      {loading
-        ? <ActivityIndicator size="small" color={colors.textMuted} />
-        : value
-          ? <Text style={styles.rowValue}>{value}</Text>
-          : <Text style={styles.rowChevron}>›</Text>
-      }
-    </Pressable>
-  );
-}
-
-function SettingToggle({
-  icon,
-  label,
-  sublabel,
-  value,
-  onValueChange,
-}: {
-  icon: string;
-  label: string;
-  sublabel: string;
-  value: boolean;
-  onValueChange: (v: boolean) => void;
-}) {
-  return (
-    <View style={styles.toggleRow}>
-      <Text style={styles.rowIcon}>{icon}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        <Text style={styles.toggleSub}>{sublabel}</Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: `${colors.brand}88` }}
-        thumbColor={value ? colors.brand : colors.textMuted}
-      />
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backBtn: { width: 40, padding: spacing.xs },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
-  title: { ...typography.heading, color: colors.textPrimary },
-  content: { paddingBottom: spacing.xxl },
-  sectionTitle: {
-    ...typography.label,
-    color: colors.textMuted,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  rowIcon: { fontSize: 20, width: 28, textAlign: 'center' },
-  rowLabel: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  rowLabelDanger: { color: colors.danger },
-  rowValue: { ...typography.caption, color: colors.textMuted },
-  rowChevron: { ...typography.title, color: colors.textMuted, lineHeight: 20 },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  toggleSub: { ...typography.caption, color: colors.textMuted, marginTop: 2, lineHeight: 16 },
-  plusCard: {
-    marginBottom: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: `${colors.brand}12`,
-    borderColor: colors.brand,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-  plusTitle: { ...typography.body, color: colors.brandSoft, fontWeight: '700' },
-  plusSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
-  plusChevron: { ...typography.title, color: colors.brandSoft, lineHeight: 20 },
+  content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl },
+  plusInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  plusTitle: { fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
+  plusSub: { ...typography.caption, color: colors.textSecondary, marginTop: 3, lineHeight: 17 },
   version: {
     ...typography.label,
     color: colors.textMuted,

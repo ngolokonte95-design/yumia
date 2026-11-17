@@ -1,12 +1,16 @@
 /**
  * ÉDITER LE PROFIL — nom, photo de profil, langue.
+ *
+ * Mise en scène (17/11/2026) : grand avatar à anneau dégradé avec pastille
+ * « modifier », champs vitrés (liseré de marque au focus), langues en
+ * groupe vitré avec coche dégradée, bouton Enregistrer en pastille
+ * dégradée. Logique inchangée.
  */
 import { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  Pressable,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
@@ -18,12 +22,20 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
+import { PressableScale, Reveal } from '../components/ui';
+import { haptics } from '../lib/useHaptics';
+import {
+  BrandDot, GLASS, GlassGroup, GradientRing, SectionLabel,
+} from '../components/profile/ProfileChrome';
 import { useAuth } from '../lib/auth-context';
 import { uploadAvatarRequest } from '../lib/auth-api';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import { SUPPORTED_LOCALES } from '../lib/locales';
+
+const AVATAR = 132;
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -38,6 +50,8 @@ export default function EditProfileScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Champ qui a le focus : liseré de marque (purement visuel). */
+  const [focused, setFocused] = useState<'name' | 'bio' | null>(null);
 
   const dirty =
     displayName.trim() !== (user?.displayName ?? '') ||
@@ -109,22 +123,26 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.screen, { paddingTop: insets.top }]}>
-        {/* Header */}
+        {/* En-tête : annuler, titre, enregistrer (pastille au dégradé) */}
         <View style={styles.header}>
-          <Pressable onPress={handleDiscard} style={styles.navBtn}>
+          <PressableScale onPress={handleDiscard} style={styles.navBtn} scaleTo={0.94}>
             <Text style={styles.navBtnText}>{t('ep_cancel')}</Text>
-          </Pressable>
-          <Text style={styles.title}>{t('ep_title')}</Text>
-          <Pressable
+          </PressableScale>
+          <Text style={styles.title} numberOfLines={1}>{t('ep_title')}</Text>
+          <PressableScale
             style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
-            onPress={handleSave}
+            onPress={() => { haptics.select(); void handleSave(); }}
             disabled={!canSave}
+            scaleTo={0.94}
           >
+            {canSave ? (
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            ) : null}
             {loading
-              ? <ActivityIndicator color={colors.brand} size="small" />
+              ? <ActivityIndicator color="#fff" size="small" />
               : <Text style={[styles.saveBtnText, !canSave && styles.saveBtnTextDisabled]}>{t('ep_save')}</Text>
             }
-          </Pressable>
+          </PressableScale>
         </View>
 
         <ScrollView
@@ -132,83 +150,95 @@ export default function EditProfileScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Avatar */}
-          <View style={styles.avatarRow}>
-            <Pressable style={styles.avatarWrap} onPress={handlePickAvatar} disabled={uploadingAvatar}>
-              {avatarSource ? (
-                <Image source={{ uri: avatarSource }} style={styles.avatarImage} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
+          {/* Avatar mis en valeur */}
+          <Reveal index={0} style={styles.avatarBlock}>
+            <PressableScale onPress={handlePickAvatar} disabled={uploadingAvatar} scaleTo={0.95}>
+              <GradientRing size={AVATAR} thickness={3}>
+                {avatarSource ? (
+                  <Image source={{ uri: avatarSource }} style={styles.avatarImage} />
+                ) : (
                   <Text style={styles.avatarText}>{initial}</Text>
-                </View>
-              )}
-              {uploadingAvatar ? (
-                <View style={styles.avatarOverlay}>
-                  <ActivityIndicator color="#fff" />
-                </View>
-              ) : (
+                )}
+                {uploadingAvatar ? (
+                  <View style={styles.avatarOverlay}>
+                    <ActivityIndicator color="#fff" />
+                  </View>
+                ) : null}
+              </GradientRing>
+              {uploadingAvatar ? null : (
                 <View style={styles.avatarEditBadge}>
-                  <Text style={styles.avatarEditText}>✎</Text>
+                  <BrandDot label="✎" size={36} />
                 </View>
               )}
-            </Pressable>
+            </PressableScale>
             <Text style={styles.avatarHint}>{t('ep_avatar_hint')}</Text>
-          </View>
+          </Reveal>
 
           {/* Champs */}
-          <View style={styles.section}>
+          <Reveal index={1} style={styles.section}>
             <View style={styles.field}>
-              <Text style={styles.label}>{t('ep_display_name')}</Text>
+              <SectionLabel label={t('ep_display_name')} style={styles.fieldLabel} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, GLASS, focused === 'name' && styles.inputFocused]}
                 placeholder={t('ep_name_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={displayName}
                 onChangeText={setDisplayName}
+                onFocus={() => setFocused('name')}
+                onBlur={() => setFocused(null)}
                 maxLength={40}
                 returnKeyType="done"
               />
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>{t('ep_bio')}</Text>
+              <SectionLabel label={t('ep_bio')} style={styles.fieldLabel} />
               <TextInput
-                style={[styles.input, styles.bioInput]}
+                style={[styles.input, styles.bioInput, GLASS, focused === 'bio' && styles.inputFocused]}
                 placeholder={t('ep_bio_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={bio}
                 onChangeText={setBio}
+                onFocus={() => setFocused('bio')}
+                onBlur={() => setFocused(null)}
                 maxLength={200}
                 multiline
                 textAlignVertical="top"
                 returnKeyType="done"
               />
-              <Text style={styles.fieldHint}>{bio.length}/200</Text>
+              <Text style={styles.counter}>{bio.length}/200</Text>
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>{t('ep_email')}</Text>
+              <SectionLabel label={t('ep_email')} style={styles.fieldLabel} />
               <View style={styles.inputReadonly}>
-                <Text style={styles.inputReadonlyText}>{user?.email}</Text>
+                <Text style={styles.inputReadonlyText}>🔒  {user?.email}</Text>
               </View>
               <Text style={styles.fieldHint}>{t('ep_email_hint')}</Text>
             </View>
-          </View>
+          </Reveal>
 
           {/* Langue */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('ep_language')}</Text>
-            {SUPPORTED_LOCALES.map((l) => (
-              <Pressable
-                key={l.code}
-                style={[styles.localeRow, locale === l.code && styles.localeRowActive]}
-                onPress={() => setLocale(l.code)}
-              >
-                <Text style={styles.localeLabel}>{l.flag} {l.nativeLabel}</Text>
-                {locale === l.code ? <Text style={styles.localeCheck}>✓</Text> : null}
-              </Pressable>
-            ))}
-          </View>
+          <Reveal index={2} style={styles.section}>
+            <SectionLabel label={t('ep_language')} style={styles.fieldLabel} />
+            <GlassGroup>
+              {SUPPORTED_LOCALES.map((l) => {
+                const active = locale === l.code;
+                return (
+                  <PressableScale
+                    key={l.code}
+                    style={styles.localeRow}
+                    scaleTo={0.98}
+                    onPress={() => { haptics.select(); setLocale(l.code); }}
+                  >
+                    <Text style={styles.localeFlag}>{l.flag}</Text>
+                    <Text style={[styles.localeLabel, active && styles.localeLabelActive]}>{l.nativeLabel}</Text>
+                    {active ? <BrandDot label="✓" size={26} /> : <View style={styles.localeEmpty} />}
+                  </PressableScale>
+                );
+              })}
+            </GlassGroup>
+          </Reveal>
 
           {error ? (
             <Text style={styles.error}>{error}</Text>
@@ -225,75 +255,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
-  navBtn: { padding: spacing.xs },
-  navBtnText: { ...typography.body, color: colors.brandSoft },
-  title: { ...typography.heading, color: colors.textPrimary },
-  saveBtn: { padding: spacing.xs },
-  saveBtnText: { ...typography.body, color: colors.brand, fontWeight: '700' },
-  saveBtnDisabled: {},
+  navBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
+  navBtnText: { ...typography.body, color: colors.textSecondary, fontWeight: '600' },
+  title: { flex: 1, textAlign: 'center', color: colors.textPrimary, fontSize: 18, fontWeight: '900' },
+  saveBtn: {
+    minWidth: 92, height: 38, borderRadius: radius.pill, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md,
+  },
+  saveBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   saveBtnTextDisabled: { color: colors.textMuted },
   content: { padding: spacing.lg, gap: spacing.xl, paddingBottom: spacing.xxl },
 
-  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
-  avatarWrap: { position: 'relative', width: 80, height: 80 },
-  avatarImage: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, borderColor: colors.brand },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: `${colors.brand}33`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.brand,
-  },
-  avatarText: { ...typography.display, color: colors.brand, fontSize: 28 },
+  avatarBlock: { alignItems: 'center', gap: spacing.md },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarText: { ...typography.display, color: colors.textPrimary, fontSize: 48 },
   avatarOverlay: {
     ...StyleSheet.absoluteFill,
-    borderRadius: 40,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarEditBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.bg,
-  },
-  avatarEditText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  avatarHint: { ...typography.caption, color: colors.textMuted, flex: 1, lineHeight: 18 },
+  avatarEditBadge: { position: 'absolute', bottom: 2, right: 2 },
+  avatarHint: { ...typography.caption, color: colors.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 280 },
 
   section: { gap: spacing.md },
-  sectionTitle: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.xs },
+  fieldLabel: { marginTop: 0, marginBottom: 2 },
   field: { gap: spacing.xs },
-  label: { ...typography.label, color: colors.textSecondary },
   input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
     borderRadius: radius.md,
     padding: spacing.md,
     ...typography.body,
     color: colors.textPrimary,
   },
-  bioInput: { minHeight: 80 },
+  inputFocused: { borderColor: colors.brand, borderWidth: 1 },
+  bioInput: { minHeight: 96 },
+  counter: { ...typography.label, color: colors.textMuted, alignSelf: 'flex-end' },
   inputReadonly: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.md,
     padding: spacing.md,
   },
@@ -302,15 +308,13 @@ const styles = StyleSheet.create({
   localeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
   },
-  localeRowActive: { borderColor: colors.brand, backgroundColor: `${colors.brand}0D` },
-  localeLabel: { ...typography.body, color: colors.textPrimary },
-  localeCheck: { ...typography.body, color: colors.brand, fontWeight: '700' },
+  localeFlag: { fontSize: 22 },
+  localeLabel: { ...typography.body, color: colors.textPrimary, flex: 1 },
+  localeLabelActive: { fontWeight: '800' },
+  localeEmpty: { width: 26, height: 26 },
   error: { ...typography.caption, color: colors.danger, textAlign: 'center' },
 });
