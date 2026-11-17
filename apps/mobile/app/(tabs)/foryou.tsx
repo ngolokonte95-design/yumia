@@ -54,8 +54,14 @@ import { UniverseGlyph } from '../../components/UniverseGlyph';
 import { universeGradient } from '../../lib/universeTheme';
 
 export default function ForYouScreen() {
-  const { height } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  // Hauteur RÉELLEMENT visible (fenêtre moins la barre d'onglets) : une carte
+  // à la hauteur de la fenêtre passait sous la barre, et le bas de la carte
+  // (raison de l'IA) n'apparaissait qu'à moitié. Mesurée au premier rendu ;
+  // la fenêtre sert de repli le temps de cette mesure.
+  const [pageHeight, setPageHeight] = useState(0);
+  const height = pageHeight || windowHeight;
   const { t } = useI18n();
   const { coords, resolving } = useLocation();
   const weather = useWeather(coords.lat, coords.lng);
@@ -96,7 +102,13 @@ export default function ForYouScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <View
+      style={styles.screen}
+      onLayout={(e) => {
+        const h = Math.round(e.nativeEvent.layout.height);
+        if (h > 0 && h !== pageHeight) setPageHeight(h);
+      }}
+    >
       <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
@@ -125,6 +137,7 @@ export default function ForYouScreen() {
           keyExtractor={(s) => s.place.id}
           pagingEnabled
           snapToInterval={height}
+          getItemLayout={(_, index) => ({ length: height, offset: height * index, index })}
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
           onEndReached={handleEndReached}
