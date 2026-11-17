@@ -1,32 +1,29 @@
 /**
  * HOME — « Que faire maintenant ? ». Point de départ de chaque session.
  *
- * Mise en scène (17/11/2026) :
+ * 17/11/2026, deuxième version (demande de l'utilisateur après essai) : retour
+ * à la disposition d'origine — logo au centre, raccourcis, humeurs, puis TOUS
+ * les univers visibles par catégorie, accessibles en un toucher — mais en
+ * beaucoup plus soigné :
  *  - en-tête = ciel réel de l'endroit où l'on est (WeatherSky), en parallaxe,
- *    avec la salutation en grand, la météo, la recherche et les humeurs ;
- *  - raccourcis en bulles façon « stories » ;
- *  - « Parfait maintenant » : 4 à 5 univers choisis selon l'heure et la météo,
- *    en grandes cartes colorées dont l'icône flotte ;
- *  - les 12 catégories en bannières dégradées qui s'ouvrent en accordéon sur
- *    leurs univers — plus de mur de 120 cases grises identiques.
- *
- * L'ancien écran (grille d'univers par catégorie) est dans l'historique git,
- * commit a2ced69 et antérieurs.
+ *    avec le logo en grand au centre, la salutation et la recherche ;
+ *  - raccourcis en tuiles vitrées à pastille dégradée ;
+ *  - chaque catégorie a sa couleur (tokens.categoryGradients) : bandeau de
+ *    titre, tuiles teintées, apparition en cascade.
+ * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  Easing, Extrapolation, FadeIn, LinearTransition, cancelAnimation, interpolate,
-  useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat,
-  withSequence, withTiming,
+  Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
+import { UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode, UniverseCategory } from '@yumia/shared';
-import { colors, gradients, motion, radius, spacing, typography } from '../../theme/tokens';
-import { CATEGORY_OF, categoryGradient } from '../../lib/universeTheme';
+import { colors, elevation, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { categoryGradient } from '../../lib/universeTheme';
 import { UniverseGlyph } from '../../components/UniverseGlyph';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PlanBadgeIcon } from '../../components/Avatar';
@@ -39,15 +36,13 @@ import type { TranslationKey } from '../../lib/translations';
 import { WeatherSky } from '../../components/weather/WeatherSky';
 import { useWeatherReport } from '../../lib/useWeatherReport';
 import { dayMomentAt, kindEmoji } from '../../lib/services/weather';
-import type { WeatherKind } from '../../lib/services/weather/types';
-import { PressableScale, Reveal, GradientText } from '../../components/ui';
-import { haptics } from '../../lib/useHaptics';
+import { PressableScale, Reveal } from '../../components/ui';
 import { FeatureTip } from '../../components/FeatureTip';
 
 type TFn = (key: TranslationKey) => string;
 
-/** Hauteur du ciel, hors encoche. */
-const HERO_HEIGHT = 330;
+/** Hauteur du ciel, hors encoche : logo, salutation et recherche y tiennent. */
+const HERO_HEIGHT = 380;
 
 function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
   const h = new Date().getHours();
@@ -65,14 +60,14 @@ function buildGreeting(name: string, t: TFn): { title: string; sub: string } {
 // n'étaient relus nulle part ; Surprise couvre « propose-moi quelque chose »).
 // La Boutique est aussi dans Explorer, avec une autre icône.
 const FEATURE_SHORTCUTS: { key: string; emoji: string; route: string }[] = [
-  { key: 'chatbot', emoji: '🤖', route: '/chatbot' },
-  { key: 'surprise', emoji: '🎲', route: '/surprise' },
-  { key: 'itinerary', emoji: '✨', route: '/itinerary' },
-  { key: 'chat', emoji: '💬', route: '/chat' },
-  { key: 'quests', emoji: '🎯', route: '/quests' },
   { key: 'shop', emoji: '🏬', route: '/shop' },
+  { key: 'chatbot', emoji: '🤖', route: '/chatbot' },
+  { key: 'itinerary', emoji: '✨', route: '/itinerary' },
+  { key: 'quests', emoji: '🎯', route: '/quests' },
+  { key: 'chat', emoji: '💬', route: '/chat' },
   { key: 'saved', emoji: '🔖', route: '/favorites' },
   { key: 'leaderboard', emoji: '🏆', route: '/leaderboard' },
+  { key: 'surprise', emoji: '🎲', route: '/surprise' },
   { key: 'calendar', emoji: '🗓️', route: '/calendar' },
   { key: 'notebook', emoji: '📝', route: '/notebook' },
 ];
@@ -94,39 +89,6 @@ function universeRoute(u: string): string {
   return UNIVERSE_ROUTE_OVERRIDES[u] ?? `/universe?u=${u}`;
 }
 
-const gradientOf = categoryGradient;
-
-// ── « Parfait maintenant » ───────────────────────────────────────────────────
-
-const WET: ReadonlySet<WeatherKind> = new Set(['drizzle', 'rain', 'heavy_rain', 'thunderstorm']);
-
-/**
- * Univers mis en avant selon l'heure locale et le temps qu'il fait. Règles
- * fixes et lisibles : la pluie l'emporte sur l'heure (on propose de
- * l'intérieur), puis le créneau de la journée.
- */
-export function nowPicks(
-  hour: number,
-  kind: WeatherKind | undefined,
-  tempC: number | undefined,
-): { universes: string[]; reason: TranslationKey } {
-  const wet = kind ? WET.has(kind) : false;
-  if (kind === 'snow') return { universes: ['spa', 'cafe', 'cinema', 'museum', 'tea_house'], reason: 'home_now_reason_snow' };
-  if (hour >= 23 || hour < 5) {
-    return { universes: ['nightclub', 'bar', 'hookah', 'karaoke', 'pharmacy'], reason: 'home_now_reason_night' };
-  }
-  if (wet) return { universes: ['cinema', 'museum', 'bowling', 'escape_game', 'spa'], reason: 'home_now_reason_rain' };
-  if (hour < 11) return { universes: ['bakery', 'cafe', 'brunch', 'park', 'juice_bar'], reason: 'home_now_reason_morning' };
-  if (hour < 14) return { universes: ['restaurant', 'brunch', 'food_truck', 'picnic_area', 'cafe'], reason: 'home_now_reason_noon' };
-  if (hour < 18) {
-    if ((kind === 'clear' || kind === 'partly_cloudy') && (tempC ?? 0) >= 24) {
-      return { universes: ['beach', 'ice_cream', 'aquatic', 'park', 'juice_bar'], reason: 'home_now_reason_hot' };
-    }
-    return { universes: ['museum', 'shopping', 'escape_game', 'ice_cream', 'park'], reason: 'home_now_reason_afternoon' };
-  }
-  return { universes: ['restaurant', 'rooftop', 'bar', 'live_music', 'comedy_club'], reason: 'home_now_reason_evening' };
-}
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -134,8 +96,7 @@ export default function HomeScreen() {
   const { t } = useI18n();
   const { coords, city } = useLocation();
 
-  // Le ciel et les icônes flottantes ne tournent que tant que l'onglet est
-  // affiché (batterie).
+  // Le ciel animé ne tourne que tant que l'onglet est affiché (batterie).
   const [focused, setFocused] = useState(true);
 
   // Badge des Messages : conversations non lues, relues à chaque retour sur
@@ -171,15 +132,6 @@ export default function HomeScreen() {
     [report],
   );
 
-  const now = nowPicks(new Date().getHours(), current?.kind, current?.tempC);
-
-  // Une seule catégorie ouverte à la fois : l'écran reste lisible.
-  const [openCat, setOpenCat] = useState<string | null>(null);
-  const toggleCat = (key: string) => {
-    haptics.select();
-    setOpenCat((prev) => (prev === key ? null : key));
-  };
-
   // ── Parallaxe du ciel ─────────────────────────────────────────────────────
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
@@ -191,7 +143,7 @@ export default function HomeScreen() {
     ],
   }));
   const heroContentStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, heroTotal * 0.6], [1, 0], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, [0, heroTotal * 0.65], [1, 0], Extrapolation.CLAMP),
     transform: [{ translateY: interpolate(scrollY.value, [0, heroTotal], [0, -30], Extrapolation.CLAMP) }],
   }));
 
@@ -208,7 +160,7 @@ export default function HomeScreen() {
         )}
         <LinearGradient
           colors={['transparent', 'rgba(14,14,18,0.55)', colors.bg]}
-          locations={[0.35, 0.78, 1]}
+          locations={[0.4, 0.8, 1]}
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
@@ -221,8 +173,8 @@ export default function HomeScreen() {
       >
         {/* ── En-tête sur le ciel ─────────────────────────────────────── */}
         <Animated.View style={[styles.hero, { height: heroTotal, paddingTop: insets.top + spacing.sm }, heroContentStyle]}>
+          {/* Météo du moment, en haut à droite — ouvre l'écran Météo. */}
           <View style={styles.heroTop}>
-            <YumiaLogo height={44} />
             {current ? (
               <PressableScale style={styles.weatherChip} onPress={() => go('/weather')}>
                 <Text style={styles.weatherChipEmoji}>{kindEmoji(current.kind, current.isDay)}</Text>
@@ -232,12 +184,17 @@ export default function HomeScreen() {
             ) : null}
           </View>
 
+          {/* Logo en grand, au centre. */}
+          <View style={styles.logoWrap}>
+            <YumiaLogo height={150} />
+          </View>
+
           <View style={styles.heroBottom}>
             {/* Badge en rangée séparée (pas dans le flux du Text) : sinon il
                 chevauche une lettre en arabe. */}
             <View style={styles.greetingRow}>
               <Text style={styles.greeting} numberOfLines={2}>{greetTitle}</Text>
-              <PlanBadgeIcon plan={user?.plan} size={28} />
+              <PlanBadgeIcon plan={user?.plan} size={26} />
             </View>
             <Text style={styles.subGreeting} numberOfLines={2}>
               {city ? `📍 ${city} · ` : ''}{greetSub}
@@ -250,200 +207,111 @@ export default function HomeScreen() {
                 <Text style={styles.searchGoText}>→</Text>
               </View>
             </PressableScale>
-
-            {/* Humeurs — 4 pastilles qui se partagent toujours la largeur. */}
-            <View style={styles.modesRow}>
-              {MODE_CHIPS.map((m) => (
-                <PressableScale
-                  key={m.key}
-                  style={styles.modeChip}
-                  onPress={() => go(m.route ?? `/itinerary?mood=${m.mood}`)}
-                >
-                  <Text style={styles.modeEmoji}>{m.emoji}</Text>
-                  <Text style={styles.modeLabel} numberOfLines={1}>
-                    {t(`home_mode_${m.key === 'groupOuting' ? 'group_outing' : m.key}` as TranslationKey)}
-                  </Text>
-                </PressableScale>
-              ))}
-            </View>
           </View>
         </Animated.View>
 
-        {/* ── Raccourcis en bulles ────────────────────────────────────── */}
-        <Reveal index={0}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
+        {/* ── Raccourcis : 2 lignes de 5, largeur en % (tient sur tout écran) ── */}
+        <Reveal index={0} style={styles.section}>
+          <View style={styles.shortcutsGrid}>
             {FEATURE_SHORTCUTS.map((s) => (
-              <PressableScale key={s.key} style={styles.story} onPress={() => go(s.route)} scaleTo={0.9}>
-                <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.storyRing}>
-                  <View style={styles.storyInner}>
-                    <Text style={styles.storyEmoji}>{s.emoji}</Text>
-                  </View>
+              <PressableScale key={s.key} style={styles.shortcut} onPress={() => go(s.route)} scaleTo={0.92}>
+                <LinearGradient colors={gradients.brandSoft} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shortcutIcon}>
+                  <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
                 </LinearGradient>
                 {s.key === 'chat' && unreadChats > 0 ? (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{unreadChats > 9 ? '9+' : unreadChats}</Text>
                   </View>
                 ) : null}
-                <Text style={styles.storyLabel} numberOfLines={1}>{t(`home_shortcut_${s.key}` as TranslationKey)}</Text>
+                <Text style={styles.shortcutLabel} numberOfLines={1}>{t(`home_shortcut_${s.key}` as TranslationKey)}</Text>
               </PressableScale>
             ))}
-          </ScrollView>
-        </Reveal>
-
-        {/* ── Parfait maintenant ──────────────────────────────────────── */}
-        <Reveal index={1} style={styles.block}>
-          <View style={styles.sectionHead}>
-            <GradientText style={styles.sectionTitle}>{t('home_now_title')}</GradientText>
-            <Text style={styles.sectionSub}>{t(now.reason)}</Text>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.nowRow}>
-            {now.universes.map((u, i) => (
-              <NowCard
-                key={u}
-                u={u}
-                index={i}
-                focused={focused}
-                label={universeLabel(t, u)}
-                categoryLabel={CATEGORY_OF[u] ? t(`category_${CATEGORY_OF[u]}` as TranslationKey) : ''}
-                onPress={() => go(universeRoute(u))}
-              />
-            ))}
-          </ScrollView>
         </Reveal>
 
-        {/* ── Tous les univers : bannières en accordéon ───────────────── */}
-        <Reveal index={2} style={[styles.block, styles.padded]}>
-          <Text style={styles.sectionTitlePlain}>{t('home_all_universes')}</Text>
-          {UNIVERSE_CATEGORIES.map((cat, i) => (
-            <CategoryBanner
-              key={cat.key}
-              cat={cat}
-              index={i}
-              open={openCat === cat.key}
-              title={t(`category_${cat.key}` as TranslationKey)}
-              count={t('home_universe_count').replace('{n}', String(cat.universes.length))}
-              labelOf={(u) => universeLabel(t, u)}
-              onToggle={() => toggleCat(cat.key)}
-              onOpenUniverse={(u) => go(universeRoute(u))}
-            />
-          ))}
+        {/* ── Humeurs — 4 pastilles qui se partagent toujours la largeur ── */}
+        <Reveal index={1} style={styles.section}>
+          <View style={styles.modesRow}>
+            {MODE_CHIPS.map((m) => (
+              <PressableScale
+                key={m.key}
+                style={styles.modeChip}
+                onPress={() => go(m.route ?? `/itinerary?mood=${m.mood}`)}
+              >
+                <Text style={styles.modeEmoji}>{m.emoji}</Text>
+                <Text style={styles.modeLabel} numberOfLines={1}>
+                  {t(`home_mode_${m.key === 'groupOuting' ? 'group_outing' : m.key}` as TranslationKey)}
+                </Text>
+              </PressableScale>
+            ))}
+          </View>
         </Reveal>
+
+        {/* ── Tous les univers, par catégorie, tous visibles ───────────── */}
+        {UNIVERSE_CATEGORIES.map((cat, i) => (
+          <CategorySection
+            key={cat.key}
+            cat={cat}
+            index={i + 2}
+            title={t(`category_${cat.key}` as TranslationKey)}
+            labelOf={(u) => universeLabel(t, u)}
+            onOpen={(u) => go(universeRoute(u))}
+          />
+        ))}
       </Animated.ScrollView>
       <FeatureTip feature="home" />
     </View>
   );
 }
 
-// ── Carte « Parfait maintenant » ─────────────────────────────────────────────
+// ── Catégorie : bandeau coloré + grille de tous ses univers ─────────────────
 
-function NowCard({
-  u, index, focused, label, categoryLabel, onPress,
-}: {
-  u: string;
-  index: number;
-  focused: boolean;
-  label: string;
-  categoryLabel: string;
-  onPress: () => void;
-}) {
-  // L'icône flotte doucement, chaque carte décalée de la précédente : la
-  // rangée « respire » au lieu de rester figée.
-  const float = useSharedValue(0);
-  useEffect(() => {
-    if (!focused) {
-      cancelAnimation(float);
-      return;
-    }
-    const ease = Easing.inOut(Easing.sin);
-    float.value = withDelay(
-      index * 220,
-      withRepeat(withSequence(withTiming(-7, { duration: 1700, easing: ease }), withTiming(0, { duration: 1700, easing: ease })), -1),
-    );
-    return () => cancelAnimation(float);
-  }, [focused, index, float]);
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: float.value }] }));
-
-  const grad = gradientOf(CATEGORY_OF[u]);
-  const emoji = UNIVERSE_META[u as keyof typeof UNIVERSE_META]?.emoji ?? '📍';
-
-  return (
-    <Reveal index={index} from="fade">
-      <PressableScale style={styles.nowCard} onPress={onPress} scaleTo={0.95} haptic>
-        <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <LinearGradient colors={gradients.glassSheen} style={StyleSheet.absoluteFill} />
-        <Text style={styles.nowGhost}>{emoji}</Text>
-        <Animated.View style={[styles.nowIcon, iconStyle]}>
-          <UniverseGlyph u={u} size={40} />
-        </Animated.View>
-        <View>
-          <Text style={styles.nowLabel} numberOfLines={2}>{label}</Text>
-          {categoryLabel ? <Text style={styles.nowCat} numberOfLines={1}>{categoryLabel}</Text> : null}
-        </View>
-      </PressableScale>
-    </Reveal>
-  );
-}
-
-// ── Bannière de catégorie ────────────────────────────────────────────────────
-
-function CategoryBanner({
-  cat, index, open, title, count, labelOf, onToggle, onOpenUniverse,
+function CategorySection({
+  cat, index, title, labelOf, onOpen,
 }: {
   cat: UniverseCategory;
   index: number;
-  open: boolean;
   title: string;
-  count: string;
   labelOf: (u: string) => string;
-  onToggle: () => void;
-  onOpenUniverse: (u: string) => void;
+  onOpen: (u: string) => void;
 }) {
-  const grad = gradientOf(cat.key);
-
-  const turn = useSharedValue(open ? 1 : 0);
-  useEffect(() => {
-    turn.value = withTiming(open ? 1 : 0, { duration: motion.duration.fast });
-  }, [open, turn]);
-  const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.value * 180}deg` }] }));
-
+  const grad = categoryGradient(cat.key);
   return (
-    <Animated.View layout={LinearTransition.duration(motion.duration.normal)} style={styles.catWrap}>
-      <Reveal index={index} from="fade">
-        <PressableScale style={styles.catBanner} onPress={onToggle} scaleTo={0.98}>
-          <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <LinearGradient colors={gradients.glassSheen} style={StyleSheet.absoluteFill} />
-          <Text style={styles.catGhost}>{cat.emoji}</Text>
-          <View style={styles.catText}>
-            <Text style={styles.catTitle} numberOfLines={1}>{title}</Text>
-            <Text style={styles.catCount}>{count}</Text>
-            <View style={styles.catPreview}>
-              {cat.universes.slice(0, 5).map((u) => (
-                <View key={u} style={styles.catPreviewDot}>
-                  <UniverseGlyph u={u} size={16} />
-                </View>
-              ))}
-            </View>
-          </View>
-          <Animated.View style={[styles.chevron, chevronStyle]}>
-            <Text style={styles.chevronText}>⌄</Text>
-          </Animated.View>
-        </PressableScale>
-      </Reveal>
+    // Au-delà des premières catégories, plus de délai : elles apparaissent
+    // hors écran, un retard ne ferait que ralentir le défilement.
+    <Reveal index={Math.min(index, 5)} style={styles.section}>
+      <View style={styles.catHead}>
+        <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.catBadge}>
+          <Text style={styles.catBadgeEmoji}>{cat.emoji}</Text>
+        </LinearGradient>
+        <Text style={styles.catTitle} numberOfLines={1}>{title}</Text>
+        <LinearGradient
+          colors={[`${grad[1]}AA`, `${grad[1]}00`]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.catRule}
+        />
+      </View>
 
-      {open ? (
-        <View style={styles.universeGrid}>
-          {cat.universes.map((u, i) => (
-            <Animated.View key={u} entering={FadeIn.duration(motion.duration.fast).delay(i * 28)} style={styles.universeCell}>
-              <PressableScale style={[styles.universeTile, { borderColor: `${grad[1]}66` }]} onPress={() => onOpenUniverse(u)}>
-                <LinearGradient colors={[`${grad[1]}38`, `${grad[0]}10`]} style={StyleSheet.absoluteFill} />
-                <UniverseGlyph u={u} size={28} />
-                <Text style={styles.universeLabel} numberOfLines={2}>{labelOf(u)}</Text>
-              </PressableScale>
-            </Animated.View>
-          ))}
-        </View>
-      ) : null}
-    </Animated.View>
+      <View style={styles.universeGrid}>
+        {cat.universes.map((u) => (
+          <View key={u} style={styles.universeCell}>
+            <PressableScale style={[styles.universeTile, { borderColor: `${grad[1]}55` }]} onPress={() => onOpen(u)} scaleTo={0.92}>
+              <LinearGradient
+                colors={[`${grad[1]}40`, `${grad[0]}12`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[styles.universeIcon, { backgroundColor: `${grad[0]}55` }]}>
+                <UniverseGlyph u={u} size={24} />
+              </View>
+              <Text style={styles.universeLabel} numberOfLines={2}>{labelOf(u)}</Text>
+            </PressableScale>
+          </View>
+        ))}
+      </View>
+    </Reveal>
   );
 }
 
@@ -452,26 +320,27 @@ const styles = StyleSheet.create({
   sky: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
 
   // En-tête
-  hero: { paddingHorizontal: spacing.lg, justifyContent: 'space-between', paddingBottom: spacing.md },
-  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  heroTop: { flexDirection: 'row', justifyContent: 'flex-end', minHeight: 34 },
   weatherChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '60%',
+    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '70%',
     backgroundColor: 'rgba(0,0,0,0.30)', borderColor: 'rgba(255,255,255,0.22)', borderWidth: 1,
     borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12,
   },
   weatherChipEmoji: { fontSize: 16 },
   weatherChipTemp: { color: '#fff', fontWeight: '800', fontSize: 15 },
   weatherChipCity: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 13, flexShrink: 1 },
+  logoWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   heroBottom: { gap: spacing.sm },
-  greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  // flex:1 borne le texte à la largeur restante après le badge, en LTR comme en RTL.
+  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  // flexShrink borne le texte à la largeur restante après le badge, en LTR comme en RTL.
   greeting: {
-    flex: 1, minWidth: 0, color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: -0.8,
+    flexShrink: 1, minWidth: 0, color: '#fff', fontSize: 30, fontWeight: '900', letterSpacing: -0.6, textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 12, textShadowOffset: { width: 0, height: 2 },
   },
-  subGreeting: { ...typography.body, color: 'rgba(255,255,255,0.88)', marginTop: -2 },
+  subGreeting: { ...typography.body, color: 'rgba(255,255,255,0.88)', textAlign: 'center', marginTop: -2 },
   search: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm,
     backgroundColor: 'rgba(14,14,18,0.55)', borderColor: 'rgba(255,255,255,0.18)', borderWidth: 1,
     borderRadius: radius.pill, paddingVertical: 8, paddingLeft: spacing.md, paddingRight: 8,
   },
@@ -482,83 +351,58 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   searchGoText: { color: '#fff', fontWeight: '900', fontSize: 16 },
-  modesRow: { flexDirection: 'row', gap: 6 },
-  modeChip: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.22)', borderWidth: 1,
-    borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 6,
-  },
-  modeEmoji: { fontSize: 15 },
-  modeLabel: { ...typography.caption, color: '#fff', fontWeight: '700' },
 
-  // Raccourcis en bulles
-  storiesRow: { paddingHorizontal: spacing.lg, gap: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.lg },
-  story: { width: 68, alignItems: 'center', gap: 6 },
-  storyRing: { width: 66, height: 66, borderRadius: 33, padding: 2.5 },
-  storyInner: {
-    flex: 1, borderRadius: 31, backgroundColor: colors.surface,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.bg,
+  section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
+
+  // Raccourcis
+  shortcutsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  shortcut: {
+    width: '18.2%', alignItems: 'center', gap: 5, paddingVertical: 9,
+    borderRadius: radius.md, backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
   },
-  storyEmoji: { fontSize: 26 },
-  storyLabel: { ...typography.label, color: colors.textSecondary, fontSize: 11 },
+  shortcutIcon: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+  },
+  shortcutEmoji: { fontSize: 20 },
+  shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
   badge: {
-    position: 'absolute', top: 0, right: 0,
-    minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5,
+    position: 'absolute', top: 3, right: 4,
+    minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
     backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.bg,
+    borderWidth: 1.5, borderColor: colors.surface,
   },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 
-  // Sections
-  block: { marginBottom: spacing.xl },
-  padded: { paddingHorizontal: spacing.lg },
-  sectionHead: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, gap: 4 },
-  sectionTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
-  sectionTitlePlain: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.4, marginBottom: spacing.md },
-  sectionSub: { ...typography.caption, color: colors.textSecondary },
-
-  // Parfait maintenant
-  nowRow: { paddingHorizontal: spacing.lg, gap: spacing.md },
-  nowCard: {
-    width: 152, height: 196, borderRadius: radius.lg, overflow: 'hidden',
-    padding: spacing.md, justifyContent: 'space-between',
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)',
+  // Humeurs
+  modesRow: { flexDirection: 'row', gap: 6 },
+  modeChip: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    backgroundColor: colors.surfaceElevated, borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+    borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 6,
   },
-  nowGhost: { position: 'absolute', right: -18, bottom: 30, fontSize: 96, opacity: 0.22 },
-  nowIcon: {
-    width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)', borderColor: 'rgba(255,255,255,0.30)', borderWidth: 1,
-  },
-  nowLabel: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: -0.3 },
-  nowCat: { color: 'rgba(255,255,255,0.78)', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  modeEmoji: { fontSize: 15 },
+  modeLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700' },
 
   // Catégories
-  catWrap: { marginBottom: spacing.sm },
-  catBanner: {
-    height: 104, borderRadius: radius.lg, overflow: 'hidden',
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.20)',
+  catHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  catBadge: {
+    width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    ...elevation.low,
   },
-  catGhost: { position: 'absolute', right: 36, top: -6, fontSize: 92, opacity: 0.25 },
-  catText: { flex: 1, gap: 2 },
-  catTitle: { color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 },
-  catCount: { color: 'rgba(255,255,255,0.78)', fontSize: 12, fontWeight: '600' },
-  catPreview: { flexDirection: 'row', gap: 5, marginTop: 6 },
-  catPreviewDot: {
-    width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.22)', borderColor: 'rgba(255,255,255,0.25)', borderWidth: StyleSheet.hairlineWidth,
-  },
-  chevron: {
-    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-  },
-  chevronText: { color: '#fff', fontSize: 20, fontWeight: '900', marginTop: -6 },
-  universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingTop: spacing.sm },
+  catBadgeEmoji: { fontSize: 19 },
+  catTitle: { ...typography.title, color: colors.textPrimary, fontWeight: '900', flexShrink: 1 },
+  catRule: { flex: 1, height: 2, borderRadius: 1, minWidth: 16 },
+  universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   // Pourcentages : 4 colonnes quelle que soit la largeur (Android inclus).
   universeCell: { width: '22.8%' },
   universeTile: {
-    aspectRatio: 0.9, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1,
-    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 3,
+    aspectRatio: 0.92, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1,
+    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 3,
+  },
+  universeIcon: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
   },
   universeLabel: { ...typography.label, color: colors.textPrimary, textAlign: 'center', fontSize: 10, lineHeight: 12 },
 });
