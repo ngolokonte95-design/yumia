@@ -5,8 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../theme/tokens';
 import { onQuotaNotice } from '../lib/quota-notice';
 
-/** Durée d'affichage d'un avertissement. */
-const VISIBLE_MS = 4500;
+/**
+ * Durée d'affichage d'un avertissement. 4,5 s ne laissait pas le temps de
+ * lire la phrase entière (compteur + offre) : il disparaissait trop vite.
+ */
+const VISIBLE_MS = 9000;
 
 /**
  * Bandeau « plus que N chargements aujourd'hui · Gold : 40 par jour ».
