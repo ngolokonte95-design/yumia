@@ -2172,6 +2172,17 @@ const FR = {
   adm_conv_views: "ouvertures",
   adm_conv_limit_users: "Ont atteint une limite",
   adm_conv_no_limits: "Aucune limite atteinte sur la période.",
+  home_now_title: "✨ Parfait maintenant",
+  home_now_reason_snow: "Il neige : on se met au chaud",
+  home_now_reason_night: "La nuit est encore jeune",
+  home_now_reason_rain: "Il pleut : on file à l'abri",
+  home_now_reason_morning: "Bien commencer la journée",
+  home_now_reason_noon: "C'est l'heure de manger",
+  home_now_reason_hot: "Il fait chaud : cap sur le frais",
+  home_now_reason_afternoon: "Un après-midi à remplir",
+  home_now_reason_evening: "La soirée commence",
+  home_all_universes: "Tous les univers",
+  home_universe_count: "{n} univers",
 } as const;
 
 const EN: Record<TranslationKey, string> = {
@@ -4331,6 +4342,17 @@ const EN: Record<TranslationKey, string> = {
   adm_conv_views: "views",
   adm_conv_limit_users: "Hit a limit",
   adm_conv_no_limits: "No limit reached in this period.",
+  home_now_title: "✨ Perfect right now",
+  home_now_reason_snow: "It's snowing: time to get cosy",
+  home_now_reason_night: "The night is still young",
+  home_now_reason_rain: "It's raining: head indoors",
+  home_now_reason_morning: "Start the day right",
+  home_now_reason_noon: "Time to eat",
+  home_now_reason_hot: "It's hot: let's cool off",
+  home_now_reason_afternoon: "An afternoon to fill",
+  home_now_reason_evening: "The evening starts here",
+  home_all_universes: "All universes",
+  home_universe_count: "{n} universes",
 };
 
 const ES: Record<TranslationKey, string> = {
@@ -6490,6 +6512,17 @@ const ES: Record<TranslationKey, string> = {
   adm_conv_views: "visitas",
   adm_conv_limit_users: "Alcanzaron un límite",
   adm_conv_no_limits: "Ningún límite alcanzado en el período.",
+  home_now_title: "✨ Perfecto ahora",
+  home_now_reason_snow: "Nieva: a resguardarse del frío",
+  home_now_reason_night: "La noche es joven",
+  home_now_reason_rain: "Llueve: mejor bajo techo",
+  home_now_reason_morning: "Empieza bien el día",
+  home_now_reason_noon: "Hora de comer",
+  home_now_reason_hot: "Hace calor: a refrescarse",
+  home_now_reason_afternoon: "Una tarde por llenar",
+  home_now_reason_evening: "Empieza la noche",
+  home_all_universes: "Todos los universos",
+  home_universe_count: "{n} universos",
 };
 
 const PT: Record<TranslationKey, string> = {
@@ -8649,6 +8682,17 @@ const PT: Record<TranslationKey, string> = {
   adm_conv_views: "visualizações",
   adm_conv_limit_users: "Atingiram um limite",
   adm_conv_no_limits: "Nenhum limite atingido no período.",
+  home_now_title: "✨ Perfeito agora",
+  home_now_reason_snow: "Está nevando: hora de se aquecer",
+  home_now_reason_night: "A noite é uma criança",
+  home_now_reason_rain: "Está chovendo: vamos para um lugar coberto",
+  home_now_reason_morning: "Comece bem o dia",
+  home_now_reason_noon: "Hora de comer",
+  home_now_reason_hot: "Está calor: bora se refrescar",
+  home_now_reason_afternoon: "Uma tarde para aproveitar",
+  home_now_reason_evening: "A noite está começando",
+  home_all_universes: "Todos os universos",
+  home_universe_count: "{n} universos",
 };
 
 const AR: Record<TranslationKey, string> = {
@@ -10808,6 +10852,17 @@ const AR: Record<TranslationKey, string> = {
   adm_conv_views: "مرات فتح",
   adm_conv_limit_users: "بلغوا حدًا",
   adm_conv_no_limits: "لم يُبلغ أي حد خلال الفترة.",
+  home_now_title: "✨ مثالي الآن",
+  home_now_reason_snow: "الثلج يتساقط: لنبقَ في الدفء",
+  home_now_reason_night: "الليل ما زال في أوله",
+  home_now_reason_rain: "إنها تمطر: لنحتمِ في الداخل",
+  home_now_reason_morning: "ابدأ يومك بشكل جيد",
+  home_now_reason_noon: "حان وقت الأكل",
+  home_now_reason_hot: "الجو حار: لنبحث عن الانتعاش",
+  home_now_reason_afternoon: "فترة بعد الظهر بانتظارك",
+  home_now_reason_evening: "السهرة تبدأ الآن",
+  home_all_universes: "كل العوالم",
+  home_universe_count: "{n} عوالم",
 };
 
 const NL: Record<TranslationKey, string> = {
@@ -12945,6 +13000,17 @@ const NL: Record<TranslationKey, string> = {
   adm_conv_views: "keer geopend",
   adm_conv_limit_users: "Bereikten een limiet",
   adm_conv_no_limits: "Geen limiet bereikt in deze periode.",
+  home_now_title: "✨ Perfect voor nu",
+  home_now_reason_snow: "Het sneeuwt: lekker binnen opwarmen",
+  home_now_reason_night: "De nacht is nog jong",
+  home_now_reason_rain: "Het regent: snel naar binnen",
+  home_now_reason_morning: "Begin de dag goed",
+  home_now_reason_noon: "Tijd om te eten",
+  home_now_reason_hot: "Het is warm: tijd om af te koelen",
+  home_now_reason_afternoon: "Een middag om te vullen",
+  home_now_reason_evening: "De avond begint",
+  home_all_universes: "Alle universums",
+  home_universe_count: "{n} universums",
 };
 
 const IT: Record<TranslationKey, string> = {
@@ -15082,6 +15148,17 @@ const IT: Record<TranslationKey, string> = {
   adm_conv_views: "aperture",
   adm_conv_limit_users: "Hanno raggiunto un limite",
   adm_conv_no_limits: "Nessun limite raggiunto nel periodo.",
+  home_now_title: "✨ Perfetto adesso",
+  home_now_reason_snow: "Nevica: meglio stare al caldo",
+  home_now_reason_night: "La notte è ancora giovane",
+  home_now_reason_rain: "Piove: meglio al coperto",
+  home_now_reason_morning: "Inizia bene la giornata",
+  home_now_reason_noon: "È ora di mangiare",
+  home_now_reason_hot: "Fa caldo: rinfreschiamoci",
+  home_now_reason_afternoon: "Un pomeriggio da riempire",
+  home_now_reason_evening: "La serata comincia",
+  home_all_universes: "Tutti gli universi",
+  home_universe_count: "{n} universi",
 };
 
 const DE: Record<TranslationKey, string> = {
@@ -17219,6 +17296,17 @@ const DE: Record<TranslationKey, string> = {
   adm_conv_views: "Aufrufe",
   adm_conv_limit_users: "Haben ein Limit erreicht",
   adm_conv_no_limits: "Kein Limit im Zeitraum erreicht.",
+  home_now_title: "✨ Perfekt für jetzt",
+  home_now_reason_snow: "Es schneit: ab ins Warme",
+  home_now_reason_night: "Die Nacht ist noch jung",
+  home_now_reason_rain: "Es regnet: ab ins Trockene",
+  home_now_reason_morning: "Gut in den Tag starten",
+  home_now_reason_noon: "Zeit zum Essen",
+  home_now_reason_hot: "Es ist heiß: ab zur Abkühlung",
+  home_now_reason_afternoon: "Ein Nachmittag voller Möglichkeiten",
+  home_now_reason_evening: "Der Abend beginnt",
+  home_all_universes: "Alle Universen",
+  home_universe_count: "{n} Universen",
 };
 
 const PL: Record<TranslationKey, string> = {
@@ -19356,6 +19444,17 @@ const PL: Record<TranslationKey, string> = {
   adm_conv_views: "wyświetleń",
   adm_conv_limit_users: "Osiągnęli limit",
   adm_conv_no_limits: "Brak osiągniętych limitów w tym okresie.",
+  home_now_title: "✨ Idealne teraz",
+  home_now_reason_snow: "Pada śnieg: czas się ogrzać",
+  home_now_reason_night: "Noc jest jeszcze młoda",
+  home_now_reason_rain: "Pada deszcz: czas pod dach",
+  home_now_reason_morning: "Dobry początek dnia",
+  home_now_reason_noon: "Pora coś zjeść",
+  home_now_reason_hot: "Jest gorąco: czas się ochłodzić",
+  home_now_reason_afternoon: "Popołudnie do wypełnienia",
+  home_now_reason_evening: "Wieczór się zaczyna",
+  home_all_universes: "Wszystkie uniwersa",
+  home_universe_count: "Uniwersa: {n}",
 };
 
 const SV: Record<TranslationKey, string> = {
@@ -21493,6 +21592,17 @@ const SV: Record<TranslationKey, string> = {
   adm_conv_views: "visningar",
   adm_conv_limit_users: "Nådde en gräns",
   adm_conv_no_limits: "Ingen gräns nådd under perioden.",
+  home_now_title: "✨ Perfekt just nu",
+  home_now_reason_snow: "Det snöar: dags att värma sig",
+  home_now_reason_night: "Natten är ung",
+  home_now_reason_rain: "Det regnar: dags att gå in",
+  home_now_reason_morning: "Börja dagen rätt",
+  home_now_reason_noon: "Dags att äta",
+  home_now_reason_hot: "Det är varmt: dags att svalka sig",
+  home_now_reason_afternoon: "En eftermiddag att fylla",
+  home_now_reason_evening: "Kvällen börjar",
+  home_all_universes: "Alla universum",
+  home_universe_count: "{n} universum",
 };
 
 const ZH: Record<TranslationKey, string> = {
@@ -23630,6 +23740,17 @@ const ZH: Record<TranslationKey, string> = {
   adm_conv_views: "次打开",
   adm_conv_limit_users: "达到过限制",
   adm_conv_no_limits: "此期间未达到任何限制。",
+  home_now_title: "✨ 此刻最合适",
+  home_now_reason_snow: "下雪了：找个暖和的地方",
+  home_now_reason_night: "夜晚才刚刚开始",
+  home_now_reason_rain: "下雨了：去室内吧",
+  home_now_reason_morning: "美好的一天从这里开始",
+  home_now_reason_noon: "该吃饭了",
+  home_now_reason_hot: "天气很热：去凉快一下",
+  home_now_reason_afternoon: "下午时光等你安排",
+  home_now_reason_evening: "夜晚开始了",
+  home_all_universes: "全部类别",
+  home_universe_count: "{n} 个类别",
 };
 
 const RU: Record<TranslationKey, string> = {
@@ -25767,6 +25888,17 @@ const RU: Record<TranslationKey, string> = {
   adm_conv_views: "открытий",
   adm_conv_limit_users: "Достигли лимита",
   adm_conv_no_limits: "За период лимиты не достигались.",
+  home_now_title: "✨ Идеально сейчас",
+  home_now_reason_snow: "Идёт снег: пора в тепло",
+  home_now_reason_night: "Ночь ещё только начинается",
+  home_now_reason_rain: "Идёт дождь: пора под крышу",
+  home_now_reason_morning: "Начни день правильно",
+  home_now_reason_noon: "Время поесть",
+  home_now_reason_hot: "Жарко: пора освежиться",
+  home_now_reason_afternoon: "Свободный день впереди",
+  home_now_reason_evening: "Вечер начинается",
+  home_all_universes: "Все вселенные",
+  home_universe_count: "Вселенных: {n}",
 };
 
 const HI: Record<TranslationKey, string> = {
@@ -27904,6 +28036,17 @@ const HI: Record<TranslationKey, string> = {
   adm_conv_views: "बार खोला",
   adm_conv_limit_users: "सीमा तक पहुँचे",
   adm_conv_no_limits: "इस अवधि में कोई सीमा नहीं पहुँची।",
+  home_now_title: "✨ अभी के लिए बिल्कुल सही",
+  home_now_reason_snow: "बर्फ़ गिर रही है: गर्माहट में चलें",
+  home_now_reason_night: "रात अभी बाकी है",
+  home_now_reason_rain: "बारिश हो रही है: अंदर चलें",
+  home_now_reason_morning: "दिन की अच्छी शुरुआत",
+  home_now_reason_noon: "खाने का समय",
+  home_now_reason_hot: "गर्मी है: ठंडक की तलाश",
+  home_now_reason_afternoon: "दोपहर को यादगार बनाओ",
+  home_now_reason_evening: "शाम शुरू हो रही है",
+  home_all_universes: "सभी यूनिवर्स",
+  home_universe_count: "{n} यूनिवर्स",
 };
 
 export const TRANSLATIONS: Record<string, Record<TranslationKey, string>> = {

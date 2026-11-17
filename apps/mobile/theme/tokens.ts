@@ -112,6 +112,26 @@ export const gradients = {
   weatherSunset: ['#1E1B3A', '#7B3F6E', '#E8621A'] as const,
 } as const;
 
+/**
+ * Couleur de chaque catégorie d'univers (clés de UNIVERSE_CATEGORIES) — les
+ * bannières de l'Accueil et les cartes « Parfait maintenant ». Deux teintes
+ * proches par catégorie, toutes assez sombres pour porter du texte blanc.
+ */
+export const categoryGradients: Record<string, readonly [string, string]> = {
+  food: ['#B23A0C', '#F07B2A'],
+  nightlife: ['#3E1A86', '#B02DA8'],
+  culture: ['#8E1538', '#E0405E'],
+  sport: ['#1B3FB8', '#14A9C9'],
+  nature: ['#135C33', '#2FB665'],
+  wellness: ['#8A1E5C', '#E25FA4'],
+  shopping: ['#4B23B0', '#8B5CF6'],
+  health: ['#0D6560', '#26BFAE'],
+  transport: ['#17306E', '#3C7BE0'],
+  services: ['#2C3A4E', '#5F7389'],
+  auto: ['#6E2F0C', '#D08A12'],
+  other: ['#33333D', '#6E6E80'],
+};
+
 // ── Mouvement ────────────────────────────────────────────────────────────────
 // Durées et courbes uniformes : une app premium a UN vocabulaire de mouvement,
 // pas dix. Les springs sont les configs à passer à withSpring() de Reanimated.
@@ -204,6 +224,6 @@ export const elevation = {
 } as const;
 
 export const theme = {
-  colors, spacing, radius, typography, gradients, motion, glass, elevation,
+  colors, spacing, radius, typography, gradients, categoryGradients, motion, glass, elevation,
 } as const;
 export type Theme = typeof theme;
