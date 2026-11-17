@@ -4,3 +4,9 @@
 
 expo-env.d.ts
 # @end expo-cli
+# Dossiers natifs générés par `expo prebuild` (EAS) : jamais versionnés. Sans ces
+# lignes, EAS croit le projet « bare » après son prebuild et calcule une autre
+# empreinte que le poste local (runtimeVersion fingerprint) → build refusé.
+# Le slash initial épargne modules/*/ios et modules/*/android.
+/ios
+/android
