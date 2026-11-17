@@ -822,20 +822,11 @@ export default function MapScreen() {
               // dessinée sous ses voisines.
               {...(Platform.OS === 'android' ? { anchor: { x: 0.5, y: 0.5 }, zIndex: place.id === selectedId ? 1 : 0 } : {})}
             >
-              {/* Repère à la couleur de la catégorie du lieu. Même structure
-                  qu'avant (une vue + une icône) : pas un pixel de plus à
-                  rasteriser, la mémoire de la carte ne bouge pas. */}
-              <View
-                style={[
-                  styles.markerBubble,
-                  { backgroundColor: universeColor(place.universe) },
-                  place.id === selectedId && styles.markerSelected,
-                ]}
-              >
-                {universeIcon(place.universe, place.id === selectedId ? 26 : 20) ?? (
-                  <Text style={place.id === selectedId ? styles.markerEmojiSelected : styles.markerEmoji}>
-                    {placeEmoji(place.universe, place.tags)}
-                  </Text>
+              {/* Repère d'origine (bulle sombre, liseré orange quand choisi) :
+                  préféré par l'utilisateur aux repères colorés (17/11). */}
+              <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
+                {universeIcon(place.universe, 22) ?? (
+                  <Text style={styles.markerEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
                 )}
               </View>
             </Marker>
@@ -1400,10 +1391,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   markerBubble: {
-    // Fond = couleur de la catégorie (posée en ligne) ; liseré blanc pour se
-    // détacher de la carte claire.
-    borderWidth: 2,
-    borderColor: '#fff',
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -1411,19 +1401,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   markerSelected: {
-    borderColor: colors.bg,
-    borderWidth: 3,
+    borderColor: colors.brand,
+    borderWidth: 2.5,
+    backgroundColor: colors.bg,
     // Pas de `transform: scale` : Android dessine le marqueur dans un bitmap
     // à partir des dimensions de mise en page, et une transformation appliquée
     // à cette même vue n'y figure pas — le marqueur choisi ne grossissait donc
     // jamais. Un agrandissement par la taille, lui, traverse la capture, et
     // l'ancre centrée le garde sur son point GPS.
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  markerEmoji: { fontSize: 18 },
-  markerEmojiSelected: { fontSize: 24 },
+  markerEmoji: { fontSize: 20 },
 
   // Onde de recherche au point touché
   pulseBox: { width: PULSE_SIZE, height: PULSE_SIZE, alignItems: 'center', justifyContent: 'center' },
