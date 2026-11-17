@@ -1,28 +1,45 @@
 /**
  * UNIVERSE EXPLORER — liste des lieux d'un univers donné autour de l'utilisateur.
  * L'univers est passé via le paramètre URL `?u=restaurant`.
+ *
+ * Mise en scène (17/11/2026, dans la suite de l'Accueil) : grand en-tête aux
+ * couleurs de la catégorie de l'univers, icône qui flotte, parallaxe au
+ * défilement ; barre du haut en verre qui se remplit quand l'en-tête disparaît ;
+ * lieux en grandes cartes photo (UniversePlaceCard) qui apparaissent en cascade.
  */
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
-import { Image } from 'expo-image';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing, Extrapolation, cancelAnimation, interpolate, useAnimatedScrollHandler,
+  useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { UNIVERSE_META, isUniverse } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import { useLocation } from '../lib/useLocation';
 import { useAuth } from '../lib/auth-context';
 import { useI18n } from '../lib/useI18n';
+import type { TranslationKey } from '../lib/translations';
 import { useSaved } from '../lib/useSaved';
 import { useNearbyUniverse } from '../lib/useNearbyUniverse';
 import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
-import { placeEmoji, universeLabel } from '../lib/universeMeta';
+import { universeLabel } from '../lib/universeMeta';
 import { placeStore } from '../lib/place-store';
-import { recordVisit } from '../lib/passport-api';
 import type { NearbyPlace } from '../lib/places-api';
 import { universeSearchRadius } from '../lib/universeRadius';
-import { ratingPrefix } from '../lib/place-rating';
+import { CATEGORY_OF, universeGradient } from '../lib/universeTheme';
+import { UniverseGlyph } from '../components/UniverseGlyph';
+import { PressableScale, Reveal } from '../components/ui';
+import { PLACE_CARD_HEIGHT, UniversePlaceCard } from '../components/universe/UniversePlaceCard';
+
+/** Hauteur de l'en-tête coloré, hors encoche. */
+const HERO_HEIGHT = 270;
+/** Barre du haut (bouton retour + titre compact). */
+const BAR_HEIGHT = 52;
 
 export default function UniverseScreen() {
   const insets = useSafeAreaInsets();
@@ -114,19 +131,120 @@ export default function UniverseScreen() {
     router.push('/place');
   }
 
+  // L'icône flotte tant que l'écran est affiché, s'arrête sinon (batterie).
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  const float = useSharedValue(0);
+  useEffect(() => {
+    if (!focused) {
+      cancelAnimation(float);
+      return;
+    }
+    const ease = Easing.inOut(Easing.sin);
+    float.value = withRepeat(
+      withSequence(withTiming(-9, { duration: 1800, easing: ease }), withTiming(0, { duration: 1800, easing: ease })),
+      -1,
+    );
+    return () => cancelAnimation(float);
+  }, [focused, float]);
+  const floatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: float.value }] }));
+
+  // ── Parallaxe de l'en-tête ────────────────────────────────────────────────
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const heroTotal = HERO_HEIGHT + insets.top;
+  const backdropStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(scrollY.value, [-200, 0, heroTotal], [-100, 0, -heroTotal * 0.55], Extrapolation.CLAMP) },
+      { scale: interpolate(scrollY.value, [-200, 0], [1.3, 1], Extrapolation.CLAMP) },
+    ],
+  }));
+  const heroContentStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, heroTotal * 0.55], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, [0, heroTotal], [0, -40], Extrapolation.CLAMP) }],
+  }));
+  // Barre du haut : transparente sur l'en-tête, pleine une fois qu'il a défilé.
+  const barBgStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [heroTotal * 0.45, heroTotal * 0.75], [0, 1], Extrapolation.CLAMP),
+  }));
+
   if (!universe || !meta) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + spacing.lg }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>{t('uv_back')}</Text>
-        </Pressable>
-        <Text style={styles.error}>{t('uv_unknown')}</Text>
+      <View style={[styles.screen, { paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.lg }]}>
+        <PressableScale onPress={() => router.back()} style={styles.backBtnSolid}>
+          <Text style={styles.backText}>←</Text>
+        </PressableScale>
+        <View style={styles.center}>
+          <Text style={styles.stateEmoji}>🧭</Text>
+          <Text style={styles.stateText}>{t('uv_unknown')}</Text>
+        </View>
       </View>
     );
   }
 
+  const grad = universeGradient(universe);
+  const label = universeLabel(t, universe);
+  const categoryKey = CATEGORY_OF[universe];
+  const subtitle = placeParam
+    ? `${t('uv_at')} ${placeParam}`
+    : categoryKey ? t(`category_${categoryKey}` as TranslationKey) : '';
+  const showCount = !(loading && places.length === 0) && !error;
+
+  const header = (
+    <Animated.View style={[styles.hero, { height: heroTotal, paddingTop: insets.top + BAR_HEIGHT }, heroContentStyle]}>
+      <Animated.View style={[styles.heroIcon, floatStyle]}>
+        <UniverseGlyph u={universe} size={52} />
+      </Animated.View>
+      <View style={styles.heroText}>
+        <Text style={styles.heroTitle} numberOfLines={2}>{label}</Text>
+        <View style={styles.heroMetaRow}>
+          {subtitle ? <Text style={styles.heroSub} numberOfLines={1}>{subtitle}</Text> : null}
+          {showCount ? (
+            <View style={styles.countPill}>
+              <Text style={styles.countText}>
+                {t('uv_count' as TranslationKey).replace('{n}', String(places.length))}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </Animated.View>
+  );
+
+  const emptyState = loading && places.length === 0 ? (
+    <View style={styles.stateBlock}>
+      <View style={styles.searchingRow}>
+        <ActivityIndicator color={grad[1]} />
+        <Text style={styles.stateTextSmall}>
+          {placeParam ? t('uv_searching_near_place').replace('{place}', placeParam) : t('uv_searching_near_you')}
+        </Text>
+      </View>
+      {[0, 1, 2].map((i) => <SkeletonCard key={i} index={i} />)}
+    </View>
+  ) : error ? (
+    <View style={[styles.stateBlock, styles.stateCentered]}>
+      <Text style={styles.stateEmoji}>📡</Text>
+      <Text style={styles.stateText}>{error}</Text>
+      <PressableScale style={[styles.retryBtn, { backgroundColor: grad[1] }]} onPress={() => void reloadWithQuota()} haptic>
+        <Text style={styles.retryText}>{t('retry')}</Text>
+      </PressableScale>
+    </View>
+  ) : (
+    <View style={[styles.stateBlock, styles.stateCentered]}>
+      <View style={[styles.emptyIcon, { borderColor: `${grad[1]}66` }]}>
+        <UniverseGlyph u={universe} size={44} />
+      </View>
+      <Text style={styles.stateText}>{t('uv_empty')}</Text>
+    </View>
+  );
+
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <PremiumUpsellModal
         visible={upsell !== null}
         message={upsell ?? ''}
@@ -140,96 +258,96 @@ export default function UniverseScreen() {
           if (quotaOk === false) router.replace('/(tabs)');
         }}
       />
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <View style={styles.headerTitle}>
-          <Text style={styles.headerEmoji}>{meta.emoji}</Text>
-          <View>
-            <Text style={styles.headerLabel}>{universeLabel(t, universe)}</Text>
-            {placeParam ? <Text style={styles.headerSubLabel} numberOfLines={1}>{t('uv_at')} {placeParam}</Text> : null}
-          </View>
-        </View>
-        <Text style={styles.count}>{places.length}</Text>
-      </View>
 
-      {loading && places.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.brand} size="large" />
-          <Text style={styles.loadingText}>
-            {placeParam ? t('uv_searching_near_place').replace('{place}', placeParam) : t('uv_searching_near_you')}
-          </Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryBtn} onPress={() => void reloadWithQuota()}>
-            <Text style={styles.retryText}>{t('retry')}</Text>
-          </Pressable>
-        </View>
-      ) : places.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>{meta.emoji}</Text>
-          <Text style={styles.emptyText}>{t('uv_empty')}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={places}
-          keyExtractor={(p) => p.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={() => void reloadWithQuota()} tintColor={colors.brand} />
-          }
-          renderItem={({ item }) => {
-            const isSaved = savedIds.has(item.id);
-            const todayHours = getTodayHours(item.openingHours, t);
-            return (
-              <Pressable style={styles.card} onPress={() => handleTap(item)}>
-                <View style={styles.cardLeft}>
-                  {item.photoUrls && item.photoUrls.length > 0 ? (
-                    <Image
-                      source={{ uri: item.photoUrls[0] }}
-                      style={styles.cardPhoto}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                      recyclingKey={item.photoUrls[0]}
-                      transition={150}
-                    />
-                  ) : (
-                    <View style={styles.cardEmojiBg}>
-                      <Text style={styles.cardEmoji}>{placeEmoji(item.universe, item.tags)}</Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.cardMeta}>
-                      {ratingPrefix(item.rating)}{formatDistance(item.distanceMeters)}
-                    </Text>
-                    {item.city ? <Text style={styles.cardCity}>{item.city}</Text> : null}
-                    {todayHours ? (
-                      <Text style={styles.cardHours} numberOfLines={1}>🕐 {todayHours}</Text>
-                    ) : null}
-                  </View>
-                </View>
-                <View style={styles.cardActions}>
-                  {accessToken ? (
-                    <Pressable
-                      style={styles.heartBtn}
-                      onPress={() => isSaved ? void unsave(item.id) : void save(item.id)}
-                    >
-                      <Text style={styles.heartText}>{isSaved ? '❤️' : '🤍'}</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              </Pressable>
-            );
-          }}
+      {/* ── Fond coloré de l'univers, en parallaxe sous la liste ──────── */}
+      <Animated.View style={[styles.backdrop, { height: heroTotal + 120 }, backdropStyle]} pointerEvents="none">
+        <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={gradients.glassSheen} style={StyleSheet.absoluteFill} />
+        <Text style={[styles.ghost, { top: insets.top + 20 }]}>{meta.emoji}</Text>
+        <LinearGradient
+          colors={['transparent', 'rgba(14,14,18,0.5)', colors.bg]}
+          locations={[0.45, 0.8, 1]}
+          style={StyleSheet.absoluteFill}
         />
-      )}
+      </Animated.View>
+
+      <Animated.FlatList
+        data={places}
+        keyExtractor={(p: NearbyPlace) => p.id}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        ListHeaderComponent={header}
+        ListEmptyComponent={emptyState}
+        contentContainerStyle={{ paddingBottom: spacing.xxl + insets.bottom }}
+        ItemSeparatorComponent={Separator}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading && places.length > 0}
+            onRefresh={() => void reloadWithQuota()}
+            tintColor="#fff"
+            progressViewOffset={insets.top + BAR_HEIGHT}
+          />
+        }
+        renderItem={({ item, index }: { item: NearbyPlace; index: number }) => {
+          const todayHours = getTodayHours(item.openingHours, t);
+          return (
+            // Cascade limitée aux premières cartes : plus bas, un délai
+            // croissant ferait attendre chaque carte recyclée au défilement.
+            <Reveal index={Math.min(index, 5)} style={styles.cardWrap}>
+              <UniversePlaceCard
+                name={item.name}
+                universe={item.universe}
+                photoUrl={item.photoUrls?.[0]}
+                distance={formatDistance(item.distanceMeters)}
+                rating={item.rating}
+                city={item.city}
+                hours={todayHours}
+                closed={todayHours === t('uv_closed')}
+                saved={accessToken ? savedIds.has(item.id) : undefined}
+                onToggleSave={accessToken
+                  ? () => (savedIds.has(item.id) ? void unsave(item.id) : void save(item.id))
+                  : undefined}
+                onPress={() => handleTap(item)}
+              />
+            </Reveal>
+          );
+        }}
+      />
+
+      {/* ── Barre du haut : retour en verre + titre compact ───────────── */}
+      <View style={[styles.bar, { paddingTop: insets.top, height: insets.top + BAR_HEIGHT }]} pointerEvents="box-none">
+        <Animated.View style={[StyleSheet.absoluteFill, styles.barBg, barBgStyle]} pointerEvents="none">
+          <LinearGradient colors={[grad[0], `${grad[0]}CC`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        </Animated.View>
+        <PressableScale onPress={() => router.back()} style={styles.backBtn} scaleTo={0.88} hitSlop={8}>
+          <Text style={styles.backText}>←</Text>
+        </PressableScale>
+        <Animated.View style={[styles.barTitleWrap, barBgStyle]} pointerEvents="none">
+          <UniverseGlyph u={universe} size={20} />
+          <Text style={styles.barTitle} numberOfLines={1}>{label}</Text>
+        </Animated.View>
+      </View>
     </View>
+  );
+}
+
+function Separator() {
+  return <View style={{ height: spacing.md }} />;
+}
+
+/** Carte fantôme qui pulse pendant la recherche. */
+function SkeletonCard({ index }: { index: number }) {
+  const pulse = useSharedValue(0.45);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(0.85, { duration: 900, easing: Easing.inOut(Easing.quad) }), -1, true);
+    return () => cancelAnimation(pulse);
+  }, [pulse]);
+  const style = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  return (
+    <Reveal index={index} from="fade">
+      <Animated.View style={[styles.skeleton, style]} />
+    </Reveal>
   );
 }
 
@@ -237,7 +355,7 @@ function formatDistance(m: number): string {
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
 }
 
-function getTodayHours(hours: string[] | undefined, t: (key: import('../lib/translations').TranslationKey) => string): string | null {
+function getTodayHours(hours: string[] | undefined, t: (key: TranslationKey) => string): string | null {
   if (!hours || hours.length === 0) return null;
   const todayIdx = (new Date().getDay() + 6) % 7;
   const entry = hours[todayIdx];
@@ -268,83 +386,66 @@ function to24h(time: string): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.md,
-  },
-  backBtn: { padding: spacing.xs },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
-  headerTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerEmoji: { fontSize: 24 },
-  headerLabel: { ...typography.title, color: colors.textPrimary },
-  headerSubLabel: { ...typography.caption, color: colors.textMuted, marginTop: -2 },
-  count: {
-    ...typography.caption,
-    color: colors.textMuted,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
+  ghost: { position: 'absolute', right: -24, fontSize: 190, opacity: 0.16 },
 
+  // En-tête
+  hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, justifyContent: 'flex-end', gap: spacing.md },
+  heroIcon: {
+    width: 88, height: 88, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)', borderColor: 'rgba(255,255,255,0.35)', borderWidth: 1,
+  },
+  heroText: { gap: 6 },
+  heroTitle: {
+    color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: -0.9,
+    textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 12, textShadowOffset: { width: 0, height: 2 },
+  },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
+  heroSub: { ...typography.body, color: 'rgba(255,255,255,0.88)', flexShrink: 1 },
+  countPill: {
+    backgroundColor: 'rgba(0,0,0,0.30)', borderColor: 'rgba(255,255,255,0.25)', borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.pill, paddingVertical: 4, paddingHorizontal: 10,
+  },
+  countText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+  // Barre du haut
+  bar: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, gap: spacing.sm,
+  },
+  barBg: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.15)' },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.32)', borderColor: 'rgba(255,255,255,0.25)', borderWidth: StyleSheet.hairlineWidth,
+  },
+  backBtnSolid: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surfaceElevated,
+  },
+  backText: { color: '#fff', fontSize: 20, fontWeight: '800', marginTop: -2 },
+  barTitleWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  barTitle: { color: '#fff', fontSize: 17, fontWeight: '800', flexShrink: 1 },
+
+  // Liste
+  cardWrap: { paddingHorizontal: spacing.lg },
+
+  // États
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  loadingText: { ...typography.body, color: colors.textSecondary },
-  error: { ...typography.body, color: colors.danger, padding: spacing.lg },
-  errorText: { ...typography.body, color: colors.danger },
-  retryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
+  stateBlock: { paddingHorizontal: spacing.lg, gap: spacing.md },
+  stateCentered: { alignItems: 'center', paddingTop: spacing.xl },
+  searchingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, justifyContent: 'center' },
+  stateEmoji: { fontSize: 52 },
+  stateText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  stateTextSmall: { ...typography.caption, color: colors.textSecondary },
+  emptyIcon: {
+    width: 96, height: 96, borderRadius: 30, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, borderWidth: 1,
   },
-  retryText: { ...typography.caption, color: '#fff' },
-  emptyEmoji: { fontSize: 56 },
-  emptyText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-
-  list: { padding: spacing.md, gap: spacing.sm },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
+  retryBtn: { borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
+  retryText: { ...typography.caption, color: '#fff', fontWeight: '800' },
+  skeleton: {
+    height: PLACE_CARD_HEIGHT, borderRadius: radius.lg, backgroundColor: colors.surfaceElevated,
+    borderWidth: 1, borderColor: colors.border,
   },
-  cardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  cardPhoto: {
-    width: 60,
-    height: 60,
-    borderRadius: radius.md,
-    flexShrink: 0,
-  },
-  cardEmojiBg: {
-    width: 60,
-    height: 60,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  cardEmoji: { fontSize: 26 },
-  cardName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  cardMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  cardCity: { ...typography.label, color: colors.textMuted, marginTop: 1 },
-  cardHours: { ...typography.label, color: colors.brand, marginTop: 2, fontSize: 11 },
-  cardActions: { gap: spacing.sm },
-  heartBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heartText: { fontSize: 18 },
 });
+
