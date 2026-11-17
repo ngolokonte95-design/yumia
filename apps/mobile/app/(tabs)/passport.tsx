@@ -1,24 +1,44 @@
-import { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, ActivityIndicator, RefreshControl, Pressable, Alert } from 'react-native';
+/**
+ * PASSEPORT YUMIA — mémoire gamifiée : stats, badges, pays, univers.
+ * Moteur de rétention long terme (section 5.4 du PRD). Branché sur /passport.
+ *
+ * Mise en scène (17/11/2026) : couverture de passeport animée (niveau, XP qui
+ * défile, progression), stats en tuiles vitrées, tampons des pays visités,
+ * univers aux couleurs de leur catégorie, badges en médaillons. Uniquement
+ * les données renvoyées par l'API — rien d'inventé.
+ */
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, ZoomIn, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { BADGES, BADGE_META, UNIVERSE_META, isUniverse } from '@yumia/shared';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { BADGES, BADGE_META } from '@yumia/shared';
+import { colors, gradients, motion, radius, spacing, typography } from '../../theme/tokens';
 import { useAuth } from '../../lib/auth-context';
 import { usePassport } from '../../lib/usePassport';
 import { freezeStreak } from '../../lib/passport-api';
 import { ActivityHeatmap } from '../../components/ActivityHeatmap';
-import { YumiaLogo } from '../../components/YumiaLogo';
 import { usePlanLimits } from '../../lib/usePlanLimits';
 import { useI18n } from '../../lib/useI18n';
-import { badgeName, levelName } from '../../lib/labelHelpers';
+import type { TranslationKey } from '../../lib/translations';
+import { badgeCondition, badgeName, levelName } from '../../lib/labelHelpers';
 import type { UniverseCount } from '../../lib/passport-api';
 import { FeatureTip } from '../../components/FeatureTip';
+import { AnimatedNumber, PressableScale, Reveal } from '../../components/ui';
+import { UniverseGlyph } from '../../components/UniverseGlyph';
+import { universeGradient } from '../../lib/universeTheme';
+import { universeLabel } from '../../lib/universeMeta';
+import { PassportCover } from '../../components/passport/PassportCover';
+import { BadgeGrid } from '../../components/passport/BadgeGrid';
+import { haptics } from '../../lib/useHaptics';
 
-/**
- * PASSEPORT YUMIA — mémoire gamifiée : stats, badges, carte du monde.
- * Moteur de rétention long terme (section 5.4 du PRD). Branché sur /passport.
- */
+/** Drapeau emoji d'un code pays ISO (« FR » → 🇫🇷) ; null si code invalide. */
+function flagOf(code: string | null | undefined): string | null {
+  if (!code || !/^[A-Za-z]{2}$/.test(code)) return null;
+  return String.fromCodePoint(...code.toUpperCase().split('').map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+}
+
 export default function PassportScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -29,6 +49,15 @@ export default function PassportScreen() {
   const [freezing, setFreezing] = useState(false);
   const passportFull = (passport?.totalVisits ?? 0) >= getLimit('passportMaxEntries');
 
+  // Les animations en boucle de la couverture ne tournent qu'onglet affiché.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
   const level = stats?.level.current;
   const earned = new Set<string>(stats?.badges.earned ?? []);
   async function handleFreeze() {
@@ -36,6 +65,7 @@ export default function PassportScreen() {
     setFreezing(true);
     try {
       const result = await freezeStreak(accessToken);
+      haptics.success();
       Alert.alert(
         t('passport_freeze_alert_title'),
         t('passport_freeze_alert_body')
@@ -50,175 +80,191 @@ export default function PassportScreen() {
     }
   }
 
-  const statCards = [
-    { label: t('stat_places'), value: String(passport?.totalVisits ?? 0) },
-    { label: t('stat_universes'), value: String(passport?.distinctUniverses ?? 0) },
-    { label: t('stat_countries'), value: String(passport?.distinctCountries ?? 0) },
-    { label: t('stat_streak'), value: `${stats?.streak.current ?? 0} 🔥` },
+  const statTiles = [
+    { key: 'places', emoji: '📍', label: t('stat_places'), value: passport?.totalVisits ?? 0, tint: colors.brand },
+    { key: 'universes', emoji: '🌐', label: t('stat_universes'), value: passport?.distinctUniverses ?? 0, tint: colors.accent },
+    { key: 'countries', emoji: '✈️', label: t('stat_countries'), value: passport?.distinctCountries ?? 0, tint: colors.success },
+    { key: 'streak', emoji: '🔥', label: t('stat_streak'), value: stats?.streak.current ?? 0, tint: colors.warning },
   ];
+
+  // Tampons : pays présents dans les visites renvoyées, du plus récent au plus ancien.
+  const stamps: { code: string; flag: string }[] = [];
+  for (const v of passport?.visits ?? []) {
+    const code = v.place.countryCode?.toUpperCase();
+    const flag = flagOf(code);
+    if (code && flag && !stamps.some((s) => s.code === code)) stamps.push({ code, flag });
+  }
+
+  const progressHint = stats?.level.next
+    ? `${stats.level.xpIntoLevel} / ${stats.level.xpForNext} XP ${t('passport_xp_toward')} ${stats.level.next.emoji} ${levelName(t, stats.level.next.level, stats.level.next.titleFr)}`
+    : null;
+
+  const badgeItems = BADGES.map((b) => ({
+    key: b,
+    emoji: BADGE_META[b].emoji,
+    name: badgeName(t, b, BADGE_META[b].nameFr),
+    condition: badgeCondition(t, b, BADGE_META[b].conditionFr),
+    earned: earned.has(b),
+  }));
+
+  const showFreeze = !!user?.plan && user.plan !== 'free'
+    && (stats?.streak.freezesLeft ?? 0) > 0 && (stats?.streak.current ?? 0) > 0;
 
   return (
     <>
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
-      }
-    >
-      {/* Logo Yumia — bien visible */}
-      <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
-        <YumiaLogo height={110} />
-      </View>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />}
+      >
+        {/* ── Couverture ─────────────────────────────────────────────── */}
+        <Reveal index={0} style={styles.section}>
+          <PassportCover
+            active={focused}
+            title={t('passport_title')}
+            holder={user?.displayName}
+            level={level ? { emoji: level.emoji, name: levelName(t, level.level, level.titleFr) } : null}
+            journeyStart={t('passport_journey_start')}
+            totalXp={stats?.totalXp ?? 0}
+            ratio={stats?.level.next ? stats.level.ratio : null}
+            progressHint={progressHint}
+            leaderboardLabel={t('passport_leaderboard')}
+            onLeaderboard={() => router.push('/leaderboard')}
+          />
+        </Reveal>
 
-      {passportFull ? (
-        <Pressable
-          style={styles.passportFullBanner}
-          onPress={() => router.push('/plus' as never)}
-        >
-          <Text style={styles.passportFullEmoji}>👑</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.passportFullTitle}>{t('passport_full_title')} ({getLimit('passportMaxEntries')} {t('passport_full_visits')})</Text>
-            <Text style={styles.passportFullSub}>{t('passport_full_sub')}</Text>
-          </View>
-          <Text style={styles.passportFullArrow}>›</Text>
-        </Pressable>
-      ) : null}
-
-      <View style={styles.section}>
-        <View style={styles.titleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{t('passport_title')}</Text>
-            {level ? (
-              <Text style={styles.levelLine}>
-                {level.emoji} {levelName(t, level.level, level.titleFr)} · {stats?.totalXp} XP
-              </Text>
-            ) : (
-              <Text style={styles.levelLine}>{t('passport_journey_start')}</Text>
-            )}
-          </View>
-          <Pressable style={styles.leaderboardBtn} onPress={() => router.push('/leaderboard')}>
-            <Text style={styles.leaderboardText}>🏆 {t('passport_leaderboard')}</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {error ? (
-        <View style={styles.section}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
-
-      {loading && !stats ? (
-        <View style={styles.section}>
-          <ActivityIndicator color={colors.brand} />
-        </View>
-      ) : null}
-
-      {/* Progression de niveau */}
-      {stats?.level.next ? (
-        <View style={styles.section}>
-          <View style={styles.progressTrack}>
-            <View
-              style={[styles.progressFill, { width: `${Math.round(stats.level.ratio * 100)}%` }]}
-            />
-          </View>
-          <Text style={styles.progressHint}>
-            {stats.level.xpIntoLevel} / {stats.level.xpForNext} XP {t('passport_xp_toward')} {stats.level.next.emoji}{' '}
-            {levelName(t, stats.level.next.level, stats.level.next.titleFr)}
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Stats */}
-      <View style={[styles.section, styles.statsRow]}>
-        {statCards.map((s) => (
-          <View key={s.label} style={styles.statCard}>
-            <Text style={styles.statValue}>{s.value}</Text>
-            <Text style={styles.statLabel}>{s.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Raccourci vers l'historique complet */}
-      <View style={[styles.section, { marginTop: 0 }]}>
-        <Pressable style={styles.historyBtn} onPress={() => router.push('/visits')}>
-          <Text style={styles.historyIcon}>🗺️</Text>
-          <Text style={styles.historyLabel}>{t('passport_see_visits')}</Text>
-          <Text style={styles.historyChevron}>›</Text>
-        </Pressable>
-      </View>
-
-      {/* Freeze de streak (YUMIA Plus) */}
-      {user?.plan && user.plan !== 'free' && (stats?.streak.freezesLeft ?? 0) > 0 && (stats?.streak.current ?? 0) > 0 ? (
-        <View style={[styles.section, { marginTop: 0 }]}>
-          <Pressable
-            style={[styles.freezeBtn, freezing && styles.freezeBtnDisabled]}
-            onPress={handleFreeze}
-            disabled={freezing}
-          >
-            {freezing ? (
-              <ActivityIndicator color={colors.brand} size="small" />
-            ) : (
-              <>
-                <Text style={styles.freezeIcon}>🧊</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.freezeTitle}>{t('passport_protect_streak')}</Text>
-                  <Text style={styles.freezeSub}>
-                    {stats?.streak.freezesLeft} {t('passport_freezes_available')
-                      .replace('{s}', (stats?.streak.freezesLeft ?? 0) > 1 ? 's' : '')
-                      .replace('{s2}', (stats?.streak.freezesLeft ?? 0) > 1 ? 's' : '')}
-                  </Text>
-                </View>
-              </>
-            )}
-          </Pressable>
-        </View>
-      ) : null}
-
-      {/* Heatmap d'activité (90 jours) */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('passport_activity')}</Text>
-        <View style={styles.heatmapCard}>
-          <ActivityHeatmap data={heatmap} />
-        </View>
-      </View>
-
-      {/* Universe breakdown */}
-      {universeBreakdown.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('passport_universes_explored')}</Text>
-          <View style={styles.universeList}>
-            {universeBreakdown.slice(0, 5).map((item) => (
-              <UniverseBar key={item.universe} item={item} />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {/* Badges */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          {t('passport_badges')} · {earned.size}/{BADGES.length}
-        </Text>
-        <View style={styles.badgeGrid}>
-          {BADGES.map((b) => {
-            const isEarned = earned.has(b);
-            return (
-              <View key={b} style={[styles.badge, !isEarned && styles.badgeLocked]}>
-                <Text style={[styles.badgeEmoji, !isEarned && styles.badgeLockedEmoji]}>
-                  {BADGE_META[b].emoji}
+        {passportFull ? (
+          <Reveal index={1} style={styles.section}>
+            <PressableScale style={styles.fullBanner} onPress={() => router.push('/plus' as never)}>
+              <LinearGradient colors={gradients.shop} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <Text style={styles.fullEmoji}>👑</Text>
+              <View style={styles.flex}>
+                <Text style={styles.fullTitle}>
+                  {t('passport_full_title')} ({getLimit('passportMaxEntries')} {t('passport_full_visits')})
                 </Text>
-                <Text style={styles.badgeName} numberOfLines={1}>
-                  {badgeName(t, b, BADGE_META[b].nameFr)}
-                </Text>
+                <Text style={styles.fullSub}>{t('passport_full_sub')}</Text>
               </View>
-            );
-          })}
+              <Text style={styles.fullArrow}>›</Text>
+            </PressableScale>
+          </Reveal>
+        ) : null}
+
+        {error ? (
+          <View style={styles.section}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {loading && !stats ? (
+          <View style={styles.section}>
+            <ActivityIndicator color={colors.brand} />
+          </View>
+        ) : null}
+
+        {/* ── Stats en tuiles vitrées ────────────────────────────────── */}
+        <View style={[styles.section, styles.statsGrid]}>
+          {statTiles.map((s, i) => (
+            <Reveal key={s.key} index={i + 1} style={styles.statCell}>
+              <View style={[styles.statTile, { borderColor: `${s.tint}55` }]}>
+                <LinearGradient colors={[`${s.tint}40`, `${s.tint}08`]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                <Text style={styles.statEmoji}>{s.emoji}</Text>
+                <AnimatedNumber value={s.value} style={styles.statValue} />
+                <Text style={styles.statLabel} numberOfLines={1}>{s.label}</Text>
+              </View>
+            </Reveal>
+          ))}
         </View>
-      </View>
-    </ScrollView>
+
+        {/* ── Actions : historique + protection du streak ────────────── */}
+        <View style={[styles.section, styles.actions]}>
+          <PressableScale style={styles.actionCard} onPress={() => router.push('/visits')}>
+            <LinearGradient colors={gradients.brandSoft} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <Text style={styles.actionIcon}>🗺️</Text>
+            <Text style={styles.actionLabel} numberOfLines={2}>{t('passport_see_visits')}</Text>
+            <Text style={styles.actionChevron}>›</Text>
+          </PressableScale>
+
+          {showFreeze ? (
+            <PressableScale style={[styles.actionCard, freezing && styles.disabled]} onPress={handleFreeze} disabled={freezing}>
+              <LinearGradient colors={gradients.weatherSnow} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.iceTint]} />
+              {freezing ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.actionIcon}>🧊</Text>
+                  <View style={styles.flex}>
+                    <Text style={styles.actionLabel}>{t('passport_protect_streak')}</Text>
+                    <Text style={styles.actionSub}>
+                      {stats?.streak.freezesLeft} {t('passport_freezes_available')
+                        .replace('{s}', (stats?.streak.freezesLeft ?? 0) > 1 ? 's' : '')
+                        .replace('{s2}', (stats?.streak.freezesLeft ?? 0) > 1 ? 's' : '')}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </PressableScale>
+          ) : null}
+        </View>
+
+        {/* ── Tampons des pays ───────────────────────────────────────── */}
+        {stamps.length > 0 ? (
+          <View style={styles.block}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>{t('passport_stamps_title' as TranslationKey)}</Text>
+              <Text style={styles.sectionCount}>{passport?.distinctCountries ?? stamps.length}</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stampsRow}>
+              {stamps.map((s, i) => (
+                <Animated.View
+                  key={s.code}
+                  entering={ZoomIn.duration(motion.duration.normal).delay(i * 70)}
+                  style={[styles.stamp, { transform: [{ rotate: i % 2 ? '7deg' : '-8deg' }] }]}
+                >
+                  <View style={styles.stampInner}>
+                    <Text style={styles.stampFlag}>{s.flag}</Text>
+                    <Text style={styles.stampCode}>{s.code}</Text>
+                  </View>
+                </Animated.View>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+
+        {/* ── Activité (90 jours) ────────────────────────────────────── */}
+        <Reveal index={2} style={styles.section}>
+          <Text style={[styles.sectionTitle, styles.titleSpaced]}>{t('passport_activity')}</Text>
+          <View style={styles.glassCard}>
+            <ActivityHeatmap data={heatmap} />
+          </View>
+        </Reveal>
+
+        {/* ── Univers explorés ───────────────────────────────────────── */}
+        {universeBreakdown.length > 0 ? (
+          <Reveal index={3} style={styles.section}>
+            <Text style={[styles.sectionTitle, styles.titleSpaced]}>{t('passport_universes_explored')}</Text>
+            <View style={[styles.glassCard, styles.universeList]}>
+              {universeBreakdown.slice(0, 5).map((item, i) => (
+                <UniverseBar key={item.universe} item={item} index={i} label={universeLabel(t, item.universe)} />
+              ))}
+            </View>
+          </Reveal>
+        ) : null}
+
+        {/* ── Badges ─────────────────────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={[styles.sectionHead, styles.noPad]}>
+            <Text style={styles.sectionTitle}>{t('passport_badges')}</Text>
+            <Text style={styles.sectionCount}>{earned.size}/{BADGES.length}</Text>
+          </View>
+          <BadgeGrid
+            badges={badgeItems}
+            earnedLabel={t('passport_badge_earned' as TranslationKey)}
+            lockedLabel={t('passport_badge_locked' as TranslationKey)}
+            tapHint={t('passport_badge_tap_hint' as TranslationKey)}
+          />
+        </View>
+      </ScrollView>
       <FeatureTip feature="passport" />
     </>
   );
@@ -226,158 +272,127 @@ export default function PassportScreen() {
 
 // Échelle FIXE (pas relative à ton propre univers le plus visité) — avec une
 // échelle relative, un seul univers visité remplissait toujours la barre à
-// 100% (1 visite / 1 max = plein), ce qui donnait l'impression d'un bug dès
-// la première visite. Avec une échelle fixe, la barre reflète une vraie
-// progression et se remplit au fil des visites.
+// 100 % dès la première visite, ce qui ressemblait à un bug.
 const UNIVERSE_BAR_SCALE = 15;
 
-function UniverseBar({ item }: { item: UniverseCount }) {
-  const meta = isUniverse(item.universe) ? UNIVERSE_META[item.universe] : null;
+function UniverseBar({ item, index, label }: { item: UniverseCount; index: number; label: string }) {
   const ratio = Math.min(1, item.count / UNIVERSE_BAR_SCALE);
+  const grad = universeGradient(item.universe);
+
+  const fill = useSharedValue(0);
+  useEffect(() => {
+    fill.value = withDelay(200 + index * 120, withTiming(ratio, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [ratio, index, fill]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
+
   return (
     <View style={univStyles.row}>
-      <Text style={univStyles.emoji}>{meta?.emoji ?? '📍'}</Text>
-      <View style={{ flex: 1 }}>
+      <View style={[univStyles.icon, { borderColor: `${grad[1]}88` }]}>
+        <LinearGradient colors={[`${grad[1]}55`, `${grad[0]}22`]} style={StyleSheet.absoluteFill} />
+        <UniverseGlyph u={item.universe} size={20} />
+      </View>
+      <View style={univStyles.body}>
+        <View style={univStyles.labelRow}>
+          <Text style={univStyles.label} numberOfLines={1}>{label}</Text>
+          <Text style={univStyles.count}>{item.count}</Text>
+        </View>
+        {/* Rangée : le remplissage part du début de ligne, à gauche en LTR, à droite en RTL. */}
         <View style={univStyles.track}>
-          <View style={[univStyles.fill, { width: `${Math.round(ratio * 100)}%` }]} />
+          <Animated.View style={[univStyles.fill, fillStyle]}>
+            <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+          </Animated.View>
         </View>
       </View>
-      <Text style={univStyles.count}>{item.count}</Text>
     </View>
   );
 }
 
 const univStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  emoji: { fontSize: 18, width: 24, textAlign: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  icon: {
+    width: 40, height: 40, borderRadius: 14, overflow: 'hidden', borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  body: { flex: 1, gap: 6 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  label: { ...typography.body, color: colors.textPrimary, fontWeight: '700', flex: 1 },
+  count: { ...typography.caption, color: colors.textSecondary, fontWeight: '800' },
   track: {
-    flex: 1,
-    height: 8,
+    height: 8, borderRadius: radius.pill, overflow: 'hidden', flexDirection: 'row',
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
-    // `position: 'relative'` explicite : nécessaire pour que le remplissage
-    // ci-dessous, en position absolue, se cale bien sur CE conteneur.
-    position: 'relative',
   },
-  // Position absolue calée sur le haut ET le bas de la barre (plutôt qu'une
-  // hauteur fixe qui doit rester identique à celle de `track`) — garantit un
-  // remplissage vertical complet, sans dépendre de deux valeurs à maintenir
-  // synchronisées.
-  fill: {
-    position: 'absolute', top: 0, bottom: 0, left: 0,
-    backgroundColor: colors.brand, borderRadius: radius.pill,
-  },
-  count: { ...typography.label, color: colors.textMuted, width: 28, textAlign: 'right' },
+  fill: { height: '100%', borderRadius: radius.pill, overflow: 'hidden' },
 });
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  title: { ...typography.display, color: colors.textPrimary },
-  levelLine: { ...typography.body, color: colors.brandSoft, marginTop: 4 },
-  leaderboardBtn: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    alignSelf: 'flex-start',
-    marginTop: 8,
+  block: { marginBottom: spacing.lg },
+  sectionHead: {
+    flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
+    paddingHorizontal: spacing.md, marginBottom: spacing.md, gap: spacing.sm,
   },
-  leaderboardText: { ...typography.caption, color: colors.textPrimary },
+  noPad: { paddingHorizontal: 0 },
+  sectionTitle: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.4 },
+  titleSpaced: { marginBottom: spacing.md },
+  sectionCount: { ...typography.body, color: colors.brandSoft, fontWeight: '800' },
   errorText: { ...typography.body, color: colors.danger },
-  progressTrack: {
-    height: 8,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.pill,
-    overflow: 'hidden',
+
+  // Bannière « passeport plein »
+  fullBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md,
+    borderRadius: radius.lg, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)',
   },
-  progressFill: { height: 8, backgroundColor: colors.brand, borderRadius: radius.pill },
-  progressHint: { ...typography.caption, color: colors.textMuted, marginTop: 6 },
-  statsRow: { flexDirection: 'row', gap: spacing.sm },
-  statCard: {
-    flex: 1,
+  fullEmoji: { fontSize: 26 },
+  fullTitle: { ...typography.body, color: '#fff', fontWeight: '800' },
+  fullSub: { ...typography.caption, color: 'rgba(255,255,255,0.82)', marginTop: 2 },
+  fullArrow: { ...typography.title, color: '#fff' },
+
+  // Stats
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  statCell: { width: '48.5%' },
+  statTile: {
+    borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1,
+    backgroundColor: colors.surface, padding: spacing.md, gap: 2,
+  },
+  statEmoji: { fontSize: 22, marginBottom: 4 },
+  statValue: { color: colors.textPrimary, fontSize: 30, fontWeight: '900', letterSpacing: -0.5 },
+  statLabel: { ...typography.label, color: colors.textSecondary, fontSize: 12 },
+
+  // Actions
+  actions: { gap: spacing.sm },
+  actionCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    borderRadius: radius.lg, overflow: 'hidden', padding: spacing.md,
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    gap: 2,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
   },
-  statValue: { ...typography.title, color: colors.textPrimary },
-  statLabel: { ...typography.label, color: colors.textMuted },
-  heatmapCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+  iceTint: { opacity: 0.55 },
+  disabled: { opacity: 0.5 },
+  actionIcon: { fontSize: 24 },
+  actionLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '800', flex: 1 },
+  actionSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  actionChevron: { ...typography.title, color: colors.textSecondary },
+
+  // Tampons
+  stampsRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.md },
+  stamp: {
+    width: 86, height: 86, borderRadius: 43, padding: 4,
+    borderWidth: 2, borderColor: colors.brandSoft,
   },
-  sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },
-  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  badge: {
-    width: '23%',
-    aspectRatio: 1,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    padding: 4,
+  stampInner: {
+    flex: 1, borderRadius: 40, borderWidth: 1.5, borderStyle: 'dashed', borderColor: `${colors.brandSoft}AA`,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: `${colors.brand}14`,
   },
-  badgeLocked: { opacity: 0.35 },
-  badgeEmoji: { fontSize: 26 },
-  badgeLockedEmoji: { opacity: 0.6 },
-  badgeName: { ...typography.label, color: colors.textSecondary, textAlign: 'center' },
-  universeList: { gap: spacing.sm },
-  freezeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: `${colors.brand}12`,
-    borderWidth: 1,
-    borderColor: `${colors.brand}40`,
-    borderRadius: radius.md,
-    padding: spacing.md,
+  stampFlag: { fontSize: 32 },
+  stampCode: { color: colors.brandSoft, fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
+
+  // Cartes vitrées
+  glassCard: {
+    backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
   },
-  freezeBtnDisabled: { opacity: 0.5 },
-  freezeIcon: { fontSize: 24 },
-  freezeTitle: { ...typography.body, color: colors.brandSoft, fontWeight: '700' },
-  freezeSub: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  passportFullBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: '#7C3AED18',
-    borderColor: '#7C3AED',
-    borderWidth: 1,
-    borderRadius: radius.md,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-  },
-  passportFullEmoji: { fontSize: 24 },
-  passportFullTitle: { ...typography.body, color: '#C4B5FD', fontWeight: '700' },
-  passportFullSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  passportFullArrow: { ...typography.title, color: '#7C3AED', lineHeight: 22 },
-  historyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    gap: spacing.sm,
-  },
-  historyIcon: { fontSize: 20 },
-  historyLabel: { ...typography.body, color: colors.textPrimary, flex: 1, fontWeight: '600' },
-  historyChevron: { ...typography.title, color: colors.textMuted },
+  universeList: { gap: spacing.md },
 });
