@@ -5,8 +5,9 @@
  * Mise en scène (17/11/2026) : le haut de l'écran est le CIEL RÉEL de
  * l'endroit où l'on se trouve (pluie, soleil, étoiles — WeatherSky, le même
  * que l'écran Météo), qui glisse en parallaxe au défilement. Viennent ensuite
- * le Top 3 de l'IA en grand carrousel photo, les Tendances, puis une grille
- * « Réserver » (Guides, Boutique, Cadeaux, partenaires).
+ * la grille « Réserver » (Guides, Boutique, Cadeaux, partenaires), les
+ * Tendances, puis le Top 3 de l'IA en grand carrousel photo (ordre demandé
+ * par l'utilisateur le 17/11 : la réservation partenaire d'abord).
  *
  * Les rangées Restaurants / Desserts / Lieux de culte ont été retirées : leur
  * choix était arbitraire, elles doublaient la grille d'univers de Home et
@@ -321,57 +322,8 @@ export default function ExplorerScreen() {
           </View>
         </Animated.View>
 
-        {/* ── Top 3 : carrousel photo plein cadre ─────────────────────── */}
-        <Reveal index={0} style={styles.block}>
-          <View style={styles.sectionHead}>
-            <GradientText style={styles.sectionTitle}>{t('top3_title')}</GradientText>
-            {top3.data?.reason ? <Text style={styles.sectionSub}>{top3.data.reason}</Text> : null}
-            {isFallback && !resolving ? <Text style={styles.fallbackHint}>{t('location_fallback')}</Text> : null}
-          </View>
-
-          {resolving || top3.loading ? (
-            <View style={[styles.top3Skeleton, { width: cardWidth }]}>
-              <ActivityIndicator color={colors.brand} />
-            </View>
-          ) : top3.error ? (
-            <StateBox text={top3.error} onRetry={top3.refetch} />
-          ) : top3.data && top3.data.suggestions.length > 0 ? (
-            <Top3Carousel
-              suggestions={top3.data.suggestions}
-              cardWidth={cardWidth}
-              savedIds={savedIds}
-              onOpen={openSuggestion}
-              onToggleSave={accessToken ? (id, willSave) => (willSave ? save(id) : unsave(id)) : undefined}
-            />
-          ) : (
-            <StateBox text={t('no_results')} />
-          )}
-        </Reveal>
-
-        {/* ── Tendances près de toi ───────────────────────────────────── */}
-        {(trending.places.length > 0 || trending.loading) && !resolving ? (
-          <Reveal index={1} style={styles.block}>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitlePlain}>{t('explorer_trending_near_you')}</Text>
-            </View>
-            <Animated.ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.trendingRow}
-            >
-              {trending.loading
-                ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.trendingSkeleton} />)
-                : trending.places.map((place, i) => (
-                  <Reveal key={place.id} index={i} from="fade">
-                    <TrendingCard place={place} rank={i + 1} onPress={() => openTrending(place)} />
-                  </Reveal>
-                ))}
-            </Animated.ScrollView>
-          </Reveal>
-        ) : null}
-
         {/* ── Réserver & découvrir : grille « bento » ─────────────────── */}
-        <Reveal index={2} style={[styles.block, styles.padded]}>
+        <Reveal index={0} style={[styles.block, styles.padded]}>
           <Text style={[styles.sectionTitlePlain, styles.bentoTitle]}>{t('explorer_action_deals_sub')}</Text>
 
           <BentoTile
@@ -419,6 +371,55 @@ export default function ExplorerScreen() {
             ))}
           </View>
         </Reveal>
+        {/* ── Tendances près de toi ───────────────────────────────────── */}
+        {(trending.places.length > 0 || trending.loading) && !resolving ? (
+          <Reveal index={1} style={styles.block}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitlePlain}>{t('explorer_trending_near_you')}</Text>
+            </View>
+            <Animated.ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.trendingRow}
+            >
+              {trending.loading
+                ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.trendingSkeleton} />)
+                : trending.places.map((place, i) => (
+                  <Reveal key={place.id} index={i} from="fade">
+                    <TrendingCard place={place} rank={i + 1} onPress={() => openTrending(place)} />
+                  </Reveal>
+                ))}
+            </Animated.ScrollView>
+          </Reveal>
+        ) : null}
+
+        {/* ── Top 3 : carrousel photo plein cadre ─────────────────────── */}
+        <Reveal index={2} style={styles.block}>
+          <View style={styles.sectionHead}>
+            <GradientText style={styles.sectionTitle}>{t('top3_title')}</GradientText>
+            {top3.data?.reason ? <Text style={styles.sectionSub}>{top3.data.reason}</Text> : null}
+            {isFallback && !resolving ? <Text style={styles.fallbackHint}>{t('location_fallback')}</Text> : null}
+          </View>
+
+          {resolving || top3.loading ? (
+            <View style={[styles.top3Skeleton, { width: cardWidth }]}>
+              <ActivityIndicator color={colors.brand} />
+            </View>
+          ) : top3.error ? (
+            <StateBox text={top3.error} onRetry={top3.refetch} />
+          ) : top3.data && top3.data.suggestions.length > 0 ? (
+            <Top3Carousel
+              suggestions={top3.data.suggestions}
+              cardWidth={cardWidth}
+              savedIds={savedIds}
+              onOpen={openSuggestion}
+              onToggleSave={accessToken ? (id, willSave) => (willSave ? save(id) : unsave(id)) : undefined}
+            />
+          ) : (
+            <StateBox text={t('no_results')} />
+          )}
+        </Reveal>
+
       </Animated.ScrollView>
       <FeatureTip feature="explorer" />
     </View>
