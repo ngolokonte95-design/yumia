@@ -5,11 +5,12 @@
  * à la disposition d'origine — logo au centre, raccourcis, humeurs, puis TOUS
  * les univers visibles par catégorie, accessibles en un toucher — mais en
  * beaucoup plus soigné :
- *  - en-tête = ciel réel de l'endroit où l'on est (WeatherSky), en parallaxe,
- *    avec le logo en grand au centre, la salutation et la recherche ;
- *  - raccourcis en tuiles vitrées à pastille dégradée ;
- *  - chaque catégorie a sa couleur (tokens.categoryGradients) : bandeau de
- *    titre, tuiles teintées, apparition en cascade.
+ *  - fond = ciel réel de l'endroit où l'on est (WeatherSky) sur TOUT l'écran,
+ *    fixe et sans dégradé (un voile dégradé dessinait une barre grise) ;
+ *  - logo en grand au centre, salutation et recherche par-dessus ;
+ *  - raccourcis en tuiles à pastille dégradée ;
+ *  - univers : tuiles d'origine, sobres ; seul le titre de chaque catégorie
+ *    prend sa couleur (tokens.categoryGradients).
  * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
 import { useCallback, useMemo, useState } from 'react';
@@ -22,7 +23,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode, UniverseCategory } from '@yumia/shared';
-import { colors, elevation, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, radius, spacing, typography } from '../../theme/tokens';
 import { categoryGradient } from '../../lib/universeTheme';
 import { UniverseGlyph } from '../../components/UniverseGlyph';
 import { YumiaLogo } from '../../components/YumiaLogo';
@@ -136,12 +137,6 @@ export default function HomeScreen() {
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
   const heroTotal = HERO_HEIGHT + insets.top;
-  const skyStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [-200, 0, heroTotal], [-100, 0, heroTotal * 0.45], Extrapolation.CLAMP) },
-      { scale: interpolate(scrollY.value, [-200, 0], [1.35, 1], Extrapolation.CLAMP) },
-    ],
-  }));
   const heroContentStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, heroTotal * 0.65], [1, 0], Extrapolation.CLAMP),
     transform: [{ translateY: interpolate(scrollY.value, [0, heroTotal], [0, -30], Extrapolation.CLAMP) }],
@@ -151,19 +146,12 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* ── Ciel réel, en fond, sous le défilement ─────────────────────── */}
-      <Animated.View style={[styles.sky, { height: heroTotal + 90 }, skyStyle]} pointerEvents="none">
-        {current && focused ? (
-          <WeatherSky kind={current.kind} moment={moment} />
-        ) : (
-          <LinearGradient colors={gradients.brand} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
-        )}
-        <LinearGradient
-          colors={['transparent', 'rgba(14,14,18,0.55)', colors.bg]}
-          locations={[0.4, 0.8, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
+      {/* ── Ciel réel en fond de TOUT l'écran, fixe, sans dégradé ──────────
+          (17/11, demande de l'utilisateur : le voile dégradé qui fondait le
+          ciel dans le fond sombre dessinait une barre grise au milieu). */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {current && focused ? <WeatherSky kind={current.kind} moment={moment} /> : null}
+      </View>
 
       <Animated.ScrollView
         onScroll={onScroll}
@@ -264,7 +252,9 @@ export default function HomeScreen() {
   );
 }
 
-// ── Catégorie : bandeau coloré + grille de tous ses univers ─────────────────
+// ── Catégorie : titre en couleur + grille de tous ses univers ───────────────
+// Tuiles sobres, comme à l'origine (17/11, demande de l'utilisateur : « trop
+// de couleur ») ; seule la couleur de la catégorie reste, sur le titre.
 
 function CategorySection({
   cat, index, title, labelOf, onOpen,
@@ -280,35 +270,13 @@ function CategorySection({
     // Au-delà des premières catégories, plus de délai : elles apparaissent
     // hors écran, un retard ne ferait que ralentir le défilement.
     <Reveal index={Math.min(index, 5)} style={styles.section}>
-      <View style={styles.catHead}>
-        <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.catBadge}>
-          <Text style={styles.catBadgeEmoji}>{cat.emoji}</Text>
-        </LinearGradient>
-        <Text style={styles.catTitle} numberOfLines={1}>{title}</Text>
-        <LinearGradient
-          colors={[`${grad[1]}AA`, `${grad[1]}00`]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={styles.catRule}
-        />
-      </View>
-
+      <Text style={[styles.catTitle, { color: grad[1] }]} numberOfLines={1}>{cat.emoji} {title}</Text>
       <View style={styles.universeGrid}>
         {cat.universes.map((u) => (
-          <View key={u} style={styles.universeCell}>
-            <PressableScale style={[styles.universeTile, { borderColor: `${grad[1]}55` }]} onPress={() => onOpen(u)} scaleTo={0.92}>
-              <LinearGradient
-                colors={[`${grad[1]}40`, `${grad[0]}12`]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={[styles.universeIcon, { backgroundColor: `${grad[0]}55` }]}>
-                <UniverseGlyph u={u} size={24} />
-              </View>
-              <Text style={styles.universeLabel} numberOfLines={2}>{labelOf(u)}</Text>
-            </PressableScale>
-          </View>
+          <PressableScale key={u} style={styles.universeTile} onPress={() => onOpen(u)} scaleTo={0.92}>
+            <UniverseGlyph u={u} size={26} />
+            <Text style={styles.universeLabel} numberOfLines={2}>{labelOf(u)}</Text>
+          </PressableScale>
         ))}
       </View>
     </Reveal>
@@ -317,7 +285,7 @@ function CategorySection({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  sky: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
+
 
   // En-tête
   hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
@@ -386,23 +354,22 @@ const styles = StyleSheet.create({
   modeLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700' },
 
   // Catégories
-  catHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  catBadge: {
-    width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    ...elevation.low,
-  },
-  catBadgeEmoji: { fontSize: 19 },
-  catTitle: { ...typography.title, color: colors.textPrimary, fontWeight: '900', flexShrink: 1 },
-  catRule: { flex: 1, height: 2, borderRadius: 1, minWidth: 16 },
+  // Titre de catégorie : seul élément en couleur (couleur posée en ligne).
+  catTitle: { ...typography.title, fontWeight: '800', marginBottom: spacing.md },
   universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  // Pourcentages : 4 colonnes quelle que soit la largeur (Android inclus).
-  universeCell: { width: '22.8%' },
+  // Tuile d'origine. Largeur en % : 4 colonnes quelle que soit la largeur
+  // de l'écran (Android inclus).
   universeTile: {
-    aspectRatio: 0.92, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1,
-    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 3,
+    width: '22.5%',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 3,
+    gap: 3,
   },
-  universeIcon: {
-    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-  },
-  universeLabel: { ...typography.label, color: colors.textPrimary, textAlign: 'center', fontSize: 10, lineHeight: 12 },
+  universeLabel: { ...typography.label, color: colors.textSecondary, textAlign: 'center', fontSize: 9, lineHeight: 12 },
 });
