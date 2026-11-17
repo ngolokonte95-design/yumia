@@ -3,7 +3,7 @@
  * Import lazy : ne crashe pas dans Expo Go, affiche un écran d'info à la place.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
@@ -17,6 +17,8 @@ import { startCallSound, stopCallSound } from '../lib/call-sounds';
 import { restorePlaybackAudio } from '../lib/audio-session';
 import { consumeOutgoingCall } from '../lib/outgoing-call';
 import { dismissIncomingCall, endNativeCall, onNativeCallEvents, setShowWhenLocked } from '../lib/call-ui';
+import { SpaceBackground, SPACE_BLACK } from '../components/space/SpaceBackground';
+import { GlassControl, PulsingAvatar, RoundAction } from '../components/call/CallVisuals';
 
 // Import lazy — react-native-webrtc nécessite un build natif (pas Expo Go)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,7 +54,7 @@ function NoWebRTCScreen({ onBack }: { onBack: () => void }) {
 }
 
 const noStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D14', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 20 },
+  container: { flex: 1, backgroundColor: SPACE_BLACK, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 20 },
   icon: { fontSize: 64 },
   title: { fontSize: 22, fontWeight: '800', color: '#fff', textAlign: 'center' },
   body: { fontSize: 15, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 22 },
@@ -391,6 +393,10 @@ export default function CallScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
+      {/* Fond : espace profond (comme l'Accueil), sauf quand la vidéo
+          distante occupe l'écran. Animations arrêtées en fin d'appel. */}
+      {!showVideo && <SpaceBackground active={callState !== 'ended'} />}
+
       {/* Flux vidéo distant plein écran */}
       {showVideo && remoteStream && (
         <RTCView streamURL={remoteStream.toURL()} style={StyleSheet.absoluteFill} objectFit="cover" zOrder={0} />
@@ -398,7 +404,7 @@ export default function CallScreen() {
 
       {/* Flux vidéo local (coin) */}
       {showVideo && localStream && videoOn && (
-        <RTCView streamURL={localStream.toURL()} style={styles.localVideo} objectFit="cover" zOrder={1} mirror />
+        <RTCView streamURL={localStream.toURL()} style={[styles.localVideo, { top: insets.top + 72 }]} objectFit="cover" zOrder={1} mirror />
       )}
 
       {/* Badge chiffrement */}
@@ -411,65 +417,58 @@ export default function CallScreen() {
       {/* Avatar & infos (mode vocal ou en attente) */}
       {!showVideo && (
         <View style={styles.callerSection}>
-          {/* L'anneau est centré sur l'avatar, dans son propre cadre : posé en
-              absolu dans la section entière, il se centrait sur avatar + nom +
-              statut et coupait le texte. */}
-          <View style={styles.avatarFrame}>
-            {(callState === 'calling' || callState === 'ringing') && <View style={styles.avatarRing} />}
-            {partnerPhoto ? (
-              <Image source={{ uri: partnerPhoto }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarInitials}>{initials}</Text>
-              </View>
-            )}
+          <PulsingAvatar
+            photo={partnerPhoto}
+            initials={initials}
+            pulsing={callState === 'calling' || callState === 'ringing'}
+          />
+          <Text style={styles.partnerName} numberOfLines={2}>{partnerName ?? t('call_user_fallback')}</Text>
+          <View style={[styles.statusPill, callState === 'connected' && styles.statusPillLive]}>
+            {callState === 'connected' ? <View style={styles.liveDot} /> : null}
+            <Text style={[styles.callStatus, callState === 'connected' && styles.callTimer]}>{statusLabel()}</Text>
           </View>
-          <Text style={styles.partnerName}>{partnerName ?? t('call_user_fallback')}</Text>
-          <Text style={styles.callStatus}>{statusLabel()}</Text>
-          {callState === 'calling' && <ActivityIndicator color="rgba(255,255,255,0.6)" size="small" style={{ marginTop: 8 }} />}
+          {callState === 'calling' && <ActivityIndicator color="rgba(255,255,255,0.6)" size="small" style={{ marginTop: 4 }} />}
         </View>
       )}
 
       {/* Nom + timer sur vidéo */}
       {showVideo && (
         <View style={[styles.videoTopInfo, { paddingTop: insets.top + 8 }]}>
-          <Text style={styles.partnerName}>{partnerName}</Text>
-          <Text style={styles.callStatus}>{fmtTimer(timer)}</Text>
+          <View style={styles.videoInfoPill}>
+            <Text style={styles.videoName} numberOfLines={1}>{partnerName}</Text>
+            <View style={styles.liveDot} />
+            <Text style={[styles.callStatus, styles.callTimer]}>{fmtTimer(timer)}</Text>
+          </View>
         </View>
       )}
 
       {/* Contrôles en cours d'appel */}
       {callState === 'connected' && (
-        <View style={styles.inCallControls}>
-          <CallControl icon={isMuted ? '🔇' : '🎤'} label={isMuted ? t('call_muted') : t('call_mic')} active={!isMuted} onPress={toggleMute} />
-          <CallControl icon={speakerOn ? '🔊' : '🔉'} label={t('call_speaker')} active={speakerOn} onPress={() => setSpeakerOn(!speakerOn)} />
-          {callType === 'video' && (
-            <CallControl icon={videoOn ? '📹' : '🚫'} label={videoOn ? t('call_camera') : t('call_camera_off')} active={videoOn} onPress={toggleVideo} />
-          )}
-          <CallControl icon="⌨️" label={t('call_keyboard')} active={false} onPress={() => {}} />
+        <View style={styles.controlsDock}>
+          <View style={styles.inCallControls}>
+            <GlassControl icon={isMuted ? '🔇' : '🎤'} label={isMuted ? t('call_muted') : t('call_mic')} active={!isMuted} onPress={toggleMute} />
+            <GlassControl icon={speakerOn ? '🔊' : '🔉'} label={t('call_speaker')} active={speakerOn} onPress={() => setSpeakerOn(!speakerOn)} />
+            {callType === 'video' && (
+              <GlassControl icon={videoOn ? '📹' : '🚫'} label={videoOn ? t('call_camera') : t('call_camera_off')} active={videoOn} onPress={toggleVideo} />
+            )}
+            <GlassControl icon="⌨️" label={t('call_keyboard')} active={false} onPress={() => {}} />
+          </View>
         </View>
       )}
 
       {/* Appel entrant */}
       {callState === 'ringing' && (
         <View style={styles.incomingActions}>
-          <Pressable style={styles.declineBtn} onPress={declineCall}>
-            <Text style={styles.callBtnIcon}>📴</Text>
-            <Text style={styles.callBtnLabel}>{t('call_decline')}</Text>
-          </Pressable>
-          <Pressable style={styles.acceptBtn} onPress={acceptCall}>
-            <Text style={styles.callBtnIcon}>{callType === 'video' ? '📹' : '📞'}</Text>
-            <Text style={styles.callBtnLabel}>{t('call_accept')}</Text>
-          </Pressable>
+          <RoundAction kind="decline" icon="📴" label={t('call_decline')} onPress={declineCall} />
+          <RoundAction kind="accept" icon={callType === 'video' ? '📹' : '📞'} label={t('call_accept')} onPress={acceptCall} bounce />
         </View>
       )}
 
       {/* Raccrocher */}
       {(callState === 'calling' || callState === 'connected') && (
-        <Pressable style={styles.endBtn} onPress={endCall}>
-          <Text style={styles.endBtnIcon}>📴</Text>
-          <Text style={styles.endBtnLabel}>{t('call_end')}</Text>
-        </Pressable>
+        <View style={styles.endWrap}>
+          <RoundAction kind="decline" icon="📴" label={t('call_end')} onPress={endCall} />
+        </View>
       )}
 
       {callState === 'ended' && (
@@ -481,45 +480,46 @@ export default function CallScreen() {
   );
 }
 
-function CallControl({ icon, label, active, onPress }: { icon: string; label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable style={styles.control} onPress={onPress}>
-      <View style={[styles.controlCircle, active && styles.controlCircleActive]}>
-        <Text style={styles.controlIcon}>{icon}</Text>
-      </View>
-      <Text style={styles.controlLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D14', alignItems: 'center' },
-  localVideo: { position: 'absolute', top: 80, right: 16, width: 100, height: 140, borderRadius: radius.lg, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', zIndex: 10 },
-  videoTopInfo: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 4, zIndex: 5 },
-  encBadge: { marginTop: 12, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 6, zIndex: 5 },
-  encBadgeTxt: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '600' },
-  callerSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: 'rgba(255,255,255,0.2)' },
-  avatarFallback: { width: 120, height: 120, borderRadius: 60, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarInitials: { fontSize: 42, fontWeight: '800', color: '#fff' },
-  avatarFrame: { width: 148, height: 148, alignItems: 'center', justifyContent: 'center' },
-  avatarRing: { position: 'absolute', width: 148, height: 148, borderRadius: 74, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
-  partnerName: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  callStatus: { fontSize: 16, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
-  inCallControls: { flexDirection: 'row', gap: spacing.xl, paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
-  control: { alignItems: 'center', gap: 8, minWidth: 64 },
-  controlCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
-  controlCircleActive: { backgroundColor: 'rgba(255,255,255,0.22)' },
-  controlIcon: { fontSize: 26 },
-  controlLabel: { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '600', textAlign: 'center' },
-  incomingActions: { flexDirection: 'row', gap: spacing.xxl, paddingBottom: spacing.xxl },
-  declineBtn: { alignItems: 'center', gap: 10 },
-  acceptBtn: { alignItems: 'center', gap: 10 },
-  callBtnIcon: { fontSize: 32 },
-  callBtnLabel: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
-  endBtn: { alignItems: 'center', gap: 8, paddingBottom: spacing.xl },
-  endBtnIcon: { fontSize: 38, backgroundColor: '#E5484D', borderRadius: 40, width: 76, height: 76, textAlign: 'center', lineHeight: 76 },
-  endBtnLabel: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
+  container: { flex: 1, backgroundColor: SPACE_BLACK, alignItems: 'center' },
+  localVideo: {
+    position: 'absolute', right: 16, width: 104, height: 148, borderRadius: radius.lg,
+    borderWidth: 2, borderColor: colors.brandSoft, zIndex: 10, overflow: 'hidden',
+  },
+  videoTopInfo: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', zIndex: 5 },
+  videoInfoPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '80%',
+    paddingVertical: 8, paddingHorizontal: 16, borderRadius: radius.pill,
+    backgroundColor: 'rgba(3,3,10,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
+  },
+  videoName: { color: '#fff', fontSize: 16, fontWeight: '800', flexShrink: 1 },
+  encBadge: {
+    marginTop: 12, zIndex: 5, borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
+  },
+  encBadgeTxt: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '700' },
+  callerSection: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: spacing.lg },
+  partnerName: {
+    fontSize: 32, fontWeight: '900', color: '#fff', letterSpacing: -0.8, textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 12, textShadowOffset: { width: 0, height: 2 },
+  },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 7, paddingHorizontal: 16, borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  statusPillLive: { borderColor: 'rgba(43,182,115,0.5)' },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  callStatus: { fontSize: 15, color: 'rgba(255,255,255,0.75)', fontWeight: '600' },
+  callTimer: { color: '#fff', fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: 0.5 },
+  controlsDock: {
+    marginBottom: spacing.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.sm,
+    borderRadius: radius.xl, backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  inCallControls: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.sm },
+  incomingActions: { flexDirection: 'row', gap: 96, paddingBottom: spacing.xxl },
+  endWrap: { paddingBottom: spacing.xl },
   endedBadge: { paddingBottom: spacing.xxl },
-  endedTxt: { fontSize: 16, color: 'rgba(255,255,255,0.5)' },
+  endedTxt: { fontSize: 16, color: 'rgba(255,255,255,0.55)', fontWeight: '600' },
 });
