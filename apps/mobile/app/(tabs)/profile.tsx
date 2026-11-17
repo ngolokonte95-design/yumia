@@ -102,7 +102,7 @@ export default function ProfileScreen() {
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={styles.name}>{displayName}</Text>
-            <PlanBadgeIcon plan={user?.plan} size={42} />
+            <PlanBadgeIcon plan={user?.plan} size={22} />
           </View>
           {stats ? (
             <Text style={styles.handle}>
