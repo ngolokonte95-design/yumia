@@ -17,12 +17,20 @@ import {
   BackHandler,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import Reanimated, {
+  Easing, FadeInDown, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming,
+} from 'react-native-reanimated';
+import { universeColor, universeGradient } from '../../lib/universeTheme';
+import { UniverseGlyph } from '../../components/UniverseGlyph';
+import { PressableScale } from '../../components/ui';
+import { haptics } from '../../lib/useHaptics';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META, type Universe } from '@yumia/shared';
 import { safeMeta, placeEmoji, universeLabel } from '../../lib/universeMeta';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, elevation, radius, spacing, typography } from '../../theme/tokens';
 import { useI18n } from '../../lib/useI18n';
 import { useLocation } from '../../lib/useLocation';
 import { useNearby } from '../../lib/useNearby';
@@ -35,7 +43,7 @@ import { useCitySearch } from '../../lib/useCitySearch';
 import type { CitySuggestion } from '../../lib/services/weather';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { universeIcon } from '../../components/icons/universeIcons';
-import { ratingSuffix } from '../../lib/place-rating';
+import { ratingLabel, ratingSuffix } from '../../lib/place-rating';
 import { FeatureTip } from '../../components/FeatureTip';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -52,10 +60,25 @@ const MAP_DELTA = 0.025;
 // marqueurs = moins de travail de conversion = apparition plus rapide.
 const MAX_MARKERS = Platform.OS === 'android' ? 25 : 45;
 const MAX_DISPLAY_PLACES = 50;
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_COLLAPSED = 56;
 const DRAWER_EXPANDED = Math.round(SCREEN_HEIGHT * 0.62);
 const DRAWER_MAX_TRANSLATE = DRAWER_EXPANDED - DRAWER_COLLAPSED;
+
+// Carrousel de cartes photo au-dessus du tiroir replié, synchronisé avec les
+// repères : glisser une carte centre la carte sur le lieu, toucher un repère
+// amène sa carte.
+const CARD_W = Math.min(SCREEN_WIDTH - 72, 300);
+const CARD_H = 150;
+const CARD_GAP = 12;
+const CARD_STEP = CARD_W + CARD_GAP;
+/** Hauteur réservée en bas de la carte (tiroir replié + carrousel). */
+const BOTTOM_SPACE = DRAWER_COLLAPSED + CARD_H + spacing.sm * 2;
+
+/** Univers proposés en pastilles rapides sous la recherche. */
+const QUICK_UNIVERSES: Universe[] = [
+  'restaurant', 'cafe', 'bar', 'bakery', 'supermarket', 'pharmacy', 'park', 'museum', 'nightclub', 'hotel',
+];
 
 /** Univers du panneau de filtre, triés alphabétiquement (« Tous » reste à part, en tête). */
 const SORTED_UNIVERSES = [...UNIVERSES].sort(
@@ -384,6 +407,9 @@ export default function MapScreen() {
     // L'événement est lu AVANT toute attente : React recycle les événements
     // synthétiques dès que la main lui revient, et `e.nativeEvent` serait nul
     // au retour du premier `await`.
+    // Un toucher sur un repère remonte aussi jusqu'à la carte (iOS) : ce n'est
+    // pas une recherche à cet endroit, et il ne doit pas coûter un chargement.
+    if (e.nativeEvent.action === 'marker-press') return;
     const { latitude, longitude } = e.nativeEvent.coordinate;
 
     // ANDROID : la position du tap arrive en PIXELS PHYSIQUES — le natif la
@@ -425,6 +451,28 @@ export default function MapScreen() {
       setTapLoading(false);
     }
   }, [universe, radiusKm, consumePlaceLoad]);
+
+  /**
+   * Met un lieu en avant SANS changer le zoom : utilisé par le carrousel (on
+   * glisse d'une carte à l'autre) et par le toucher d'un repère. `selectPlace`,
+   * lui, zoome — réservé à la liste du tiroir.
+   */
+  const focusPlace = useCallback((place: NearbyPlace) => {
+    setSelectedId(place.id);
+    const { latitudeDelta, longitudeDelta } = regionRef.current;
+    mapRef.current?.animateToRegion(
+      { latitude: place.lat, longitude: place.lng, latitudeDelta, longitudeDelta },
+      300,
+    );
+  }, []);
+
+  const recenter = useCallback(() => {
+    haptics.select();
+    mapRef.current?.animateToRegion(
+      { latitude: coords.lat, longitude: coords.lng, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
+      400,
+    );
+  }, [coords.lat, coords.lng]);
 
   function selectPlace(place: NearbyPlace) {
     setSelectedId(place.id);
@@ -571,6 +619,8 @@ export default function MapScreen() {
     ? t('map_places_point').replace('{n}', String(displayPlaces.length))
     : t('map_places_you').replace('{n}', String(displayPlaces.length));
 
+  const carouselVisible = !resolving && !expanded && displayPlaces.length > 0;
+
   return (
     <View style={styles.screen}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
@@ -583,10 +633,19 @@ export default function MapScreen() {
         />
       ) : null}
 
+      {/* Voile sombre en haut de la carte : la recherche et les pastilles s'en
+          détachent, et la carte claire garde du relief. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(14,14,18,0.62)', 'rgba(14,14,18,0.28)', 'transparent']}
+        style={[styles.topScrim, { height: insets.top + 150 }]}
+      />
+
       {/* Barre de recherche + filtre univers */}
       <View style={[styles.filtersContainer, { paddingTop: insets.top + spacing.xs }]}>
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
+            <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
               style={styles.searchInput}
               placeholder={t('map_search_placeholder')}
@@ -631,33 +690,52 @@ export default function MapScreen() {
           </View>
         )}
 
-        {/* Univers + rayon de recherche, côte à côte */}
-        <View style={styles.filterRow}>
-          <Pressable
-            style={styles.filterButton}
+        {/* Pastilles : tous les univers (ouvre la grille), rayon, puis les
+            univers les plus demandés en accès direct, à leur couleur. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.chipRow}
+        >
+          <PressableScale
+            style={[styles.chip, universe !== null && !QUICK_UNIVERSES.includes(universe) && { backgroundColor: universeColor(universe), borderColor: 'rgba(255,255,255,0.5)' }]}
             onPress={() => { setFilterPanelOpen((o) => !o); setRadiusPanelOpen(false); }}
           >
-            {universe && universeIcon(universe, 16) ? (
+            {universe !== null && !QUICK_UNIVERSES.includes(universe) ? (
               <>
-                {universeIcon(universe, 16)}
-                <Text style={[styles.filterButtonText, { marginLeft: 6 }]} numberOfLines={1}>{universeLabel(t, universe)}</Text>
+                <UniverseGlyph u={universe} size={16} />
+                <Text style={styles.chipText} numberOfLines={1}>{universeLabel(t, universe)}</Text>
               </>
             ) : (
-              <Text style={styles.filterButtonText} numberOfLines={1}>
-                {universe === null ? '🗂️  ' + t('map_all_universes') : `${UNIVERSE_META[universe].emoji}  ${universeLabel(t, universe)}`}
-              </Text>
+              <Text style={styles.chipText} numberOfLines={1}>🗂️  {t('map_all_universes')}</Text>
             )}
-            <Text style={styles.filterButtonChevron}>{filterPanelOpen ? '▲' : '▾'}</Text>
-          </Pressable>
+            <Text style={styles.chipChevron}>{filterPanelOpen ? '▲' : '▾'}</Text>
+          </PressableScale>
 
-          <Pressable
-            style={styles.radiusButton}
+          <PressableScale
+            style={styles.chip}
             onPress={() => { setRadiusPanelOpen((o) => !o); setFilterPanelOpen(false); }}
           >
-            <Text style={styles.radiusButtonText} numberOfLines={1}>{radiusKm} km</Text>
-            <Text style={styles.filterButtonChevron}>{radiusPanelOpen ? '▲' : '▾'}</Text>
-          </Pressable>
-        </View>
+            <Text style={styles.chipText} numberOfLines={1}>📏  {radiusKm} km</Text>
+            <Text style={styles.chipChevron}>{radiusPanelOpen ? '▲' : '▾'}</Text>
+          </PressableScale>
+
+          {QUICK_UNIVERSES.map((u) => {
+            const active = universe === u;
+            return (
+              <PressableScale
+                key={u}
+                style={[styles.chip, active && { backgroundColor: universeColor(u), borderColor: 'rgba(255,255,255,0.5)' }]}
+                // Retoucher la pastille active revient à « Tous ».
+                onPress={() => void selectUniverse(active ? null : u)}
+              >
+                <UniverseGlyph u={u} size={16} />
+                <Text style={styles.chipText} numberOfLines={1}>{universeLabel(t, u)}</Text>
+              </PressableScale>
+            );
+          })}
+        </ScrollView>
 
         {/* Panneau grille — tous les univers, compact et scrollable */}
         {filterPanelOpen ? (
@@ -674,6 +752,7 @@ export default function MapScreen() {
                   label={universeLabel(t, u)}
                   emoji={UNIVERSE_META[u].emoji}
                   icon={universeIcon(u, 14) ?? undefined}
+                  color={universeColor(u)}
                   active={universe === u}
                   onPress={() => void selectUniverse(u)}
                 />
@@ -733,9 +812,13 @@ export default function MapScreen() {
           // hors de YUMIA ; on retrouvait les deux au retour de la fiche.
           // mapPadding : le tiroir replié couvrait le logo Google, que les
           // conditions Google Maps Platform imposent de laisser visible.
-          {...(Platform.OS === 'android'
-            ? { toolbarEnabled: false, moveOnMarkerPress: false, mapPadding: { top: 0, right: 0, bottom: DRAWER_COLLAPSED, left: 0 } }
-            : {})}
+          {...(Platform.OS === 'android' ? { toolbarEnabled: false, moveOnMarkerPress: false } : {})}
+          // Marge basse fixe (tiroir replié + carrousel) sur les deux
+          // plateformes : le logo Google / la mention Apple restent visibles
+          // au-dessus des cartes, et le lieu mis en avant se centre dans la
+          // partie visible. Fixe et non liée à l'état : la changer en cours de
+          // route ferait sauter la caméra.
+          mapPadding={{ top: 0, right: 0, bottom: BOTTOM_SPACE, left: 0 }}
           onPress={handleMapTap}
           onRegionChangeComplete={onRegionChangeComplete}
         >
@@ -743,13 +826,16 @@ export default function MapScreen() {
             <Marker
               key={place.id}
               coordinate={{ latitude: place.lat, longitude: place.lng }}
-              // iOS seulement : sur Android, un titre fait apparaître
-              // l'info-bulle Google par-dessus notre fiche.
-              {...(Platform.OS === 'ios'
-                ? { title: place.name, description: `${universeLabel(t, place.universe) || place.universe}${ratingSuffix(place.rating)}` }
-                : {})}
+              // Pas de titre : il ferait apparaître l'info-bulle d'Apple ou de
+              // Google par-dessus le carrousel, qui joue déjà ce rôle.
               tracksViewChanges={trackingIds.has(place.id)}
-              onPress={() => openDetail(place)}
+              // Toucher un repère amène sa carte photo (le carrousel suit
+              // `selectedId`) ; c'est la carte qui ouvre la fiche. Un second
+              // toucher sur le repère déjà choisi ouvre la fiche directement.
+              onPress={(e) => {
+                e.stopPropagation();
+                if (place.id === selectedId) openDetail(place); else { haptics.select(); focusPlace(place); }
+              }}
               // Android uniquement : notre bulle est ronde (pas une épingle
               // pointue), donc son ancre doit être son centre — pas le
               // bas-centre par défaut de react-native-maps. Sans ça, la bulle
@@ -759,9 +845,20 @@ export default function MapScreen() {
               // dessinée sous ses voisines.
               {...(Platform.OS === 'android' ? { anchor: { x: 0.5, y: 0.5 }, zIndex: place.id === selectedId ? 1 : 0 } : {})}
             >
-              <View style={[styles.markerBubble, place.id === selectedId && styles.markerSelected]}>
-                {universeIcon(place.universe, 22) ?? (
-                  <Text style={styles.markerEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
+              {/* Repère à la couleur de la catégorie du lieu. Même structure
+                  qu'avant (une vue + une icône) : pas un pixel de plus à
+                  rasteriser, la mémoire de la carte ne bouge pas. */}
+              <View
+                style={[
+                  styles.markerBubble,
+                  { backgroundColor: universeColor(place.universe) },
+                  place.id === selectedId && styles.markerSelected,
+                ]}
+              >
+                {universeIcon(place.universe, place.id === selectedId ? 26 : 20) ?? (
+                  <Text style={place.id === selectedId ? styles.markerEmojiSelected : styles.markerEmoji}>
+                    {placeEmoji(place.universe, place.tags)}
+                  </Text>
                 )}
               </View>
             </Marker>
@@ -777,20 +874,44 @@ export default function MapScreen() {
 
       {tapLoading && !resolving ? (
         <View
+          pointerEvents="none"
           style={[
             styles.loadingOverlayAtPoint,
             tapPoint
-              ? { left: tapPoint.x - 12, top: tapPoint.y - 12 }
-              : { top: '50%', left: '50%', marginLeft: -12, marginTop: -12 },
+              ? { left: tapPoint.x - PULSE_SIZE / 2, top: tapPoint.y - PULSE_SIZE / 2 }
+              : { top: '50%', left: '50%', marginLeft: -PULSE_SIZE / 2, marginTop: -PULSE_SIZE / 2 },
           ]}
         >
-          <ActivityIndicator color={colors.brand} />
+          <SearchPulse />
         </View>
+      ) : null}
+
+      {/* Recentrer sur ma position */}
+      {!resolving ? (
+        <PressableScale
+          style={[styles.recenter, { bottom: (carouselVisible ? BOTTOM_SPACE : DRAWER_COLLAPSED) + spacing.sm }]}
+          onPress={recenter}
+          scaleTo={0.9}
+        >
+          <Text style={styles.recenterIcon}>◎</Text>
+        </PressableScale>
+      ) : null}
+
+      {/* Carrousel de cartes photo, synchronisé avec les repères. Masqué
+          quand le tiroir est ouvert (la liste prend le relais). */}
+      {carouselVisible ? (
+        <PlaceCarousel
+          places={displayPlaces}
+          selectedId={selectedId}
+          hideDist={cityResults !== null}
+          onSnap={focusPlace}
+          onOpen={openDetail}
+        />
       ) : null}
 
       {showTapHint && !loading && !tapLoading && !resolving ? (
         // pointerEvents none : la bulle ne doit pas intercepter le tap qu'elle suggère.
-        <View pointerEvents="none" style={styles.tapHint}>
+        <View pointerEvents="none" style={[styles.tapHint, carouselVisible && { bottom: BOTTOM_SPACE + spacing.sm }]}>
           <Text style={styles.tapHintText}>{t('map_tap_hint')}</Text>
         </View>
       ) : null}
@@ -858,17 +979,28 @@ function FilterTile({
   label,
   emoji,
   icon,
+  color,
   active,
   onPress,
 }: {
   label: string;
   emoji: string;
   icon?: React.ReactNode;
+  /** Couleur de la catégorie de l'univers — remplit la tuile active. */
+  color?: string;
   active: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={[styles.filterTile, active && styles.filterTileActive]} onPress={onPress}>
+    <Pressable
+      style={[
+        styles.filterTile,
+        // Un liseré à la couleur de la catégorie : la grille se lit par familles.
+        color ? { borderColor: `${color}88` } : null,
+        active && (color ? { backgroundColor: color, borderColor: color } : styles.filterTileActive),
+      ]}
+      onPress={onPress}
+    >
       {icon
         ? <View style={{ width: 15, height: 15, alignItems: 'center', justifyContent: 'center' }}>{icon}</View>
         : <Text style={styles.filterTileEmoji}>{emoji}</Text>
@@ -879,6 +1011,161 @@ function FilterTile({
     </Pressable>
   );
 }
+
+// ── Onde de recherche ────────────────────────────────────────────────────────
+
+const PULSE_SIZE = 76;
+
+/** Deux anneaux qui s'élargissent depuis le point touché, le temps de la recherche. */
+function SearchPulse() {
+  const p = useSharedValue(0);
+  useEffect(() => {
+    p.value = withRepeat(withTiming(1, { duration: 1300, easing: Easing.out(Easing.quad) }), -1);
+    return () => cancelAnimation(p);
+  }, [p]);
+  const ringA = useAnimatedStyle(() => ({
+    opacity: 1 - p.value,
+    transform: [{ scale: 0.2 + p.value * 0.8 }],
+  }));
+  const ringB = useAnimatedStyle(() => {
+    const q = (p.value + 0.5) % 1;
+    return { opacity: 1 - q, transform: [{ scale: 0.2 + q * 0.8 }] };
+  });
+  return (
+    <View style={styles.pulseBox}>
+      <Reanimated.View style={[styles.pulseRing, ringA]} />
+      <Reanimated.View style={[styles.pulseRing, ringB]} />
+      <View style={styles.pulseDot} />
+    </View>
+  );
+}
+
+// ── Carrousel de cartes photo ────────────────────────────────────────────────
+
+function PlaceCarousel({
+  places, selectedId, hideDist, onSnap, onOpen,
+}: {
+  places: NearbyPlace[];
+  selectedId: string | null;
+  hideDist: boolean;
+  /** Carte amenée au centre par un glissement : la carte doit suivre. */
+  onSnap: (place: NearbyPlace) => void;
+  onOpen: (place: NearbyPlace) => void;
+}) {
+  const listRef = useRef<FlatList<NearbyPlace>>(null);
+  // Carte actuellement centrée. Mise à jour AVANT tout défilement programmé :
+  // la fin de ce défilement repasse par `onMomentumScrollEnd`, qui ne doit pas
+  // renvoyer un `onSnap` en écho.
+  // Au montage (retour du tiroir ouvert), le carrousel s'ouvre directement
+  // sur le lieu déjà choisi.
+  const [initialIdx] = useState(() => Math.max(0, selectedId ? places.findIndex((p) => p.id === selectedId) : 0));
+  const currentIdx = useRef(initialIdx);
+
+  // Un repère touché amène sa carte. Si le lieu choisi n'est plus dans la
+  // liste (autre zone, autre univers), retour à la première carte.
+  useEffect(() => {
+    const idx = selectedId ? places.findIndex((p) => p.id === selectedId) : -1;
+    const target = idx >= 0 ? idx : 0;
+    if (target === currentIdx.current) return;
+    currentIdx.current = target;
+    listRef.current?.scrollToOffset({ offset: target * CARD_STEP, animated: idx >= 0 });
+  }, [selectedId, places]);
+
+  return (
+    <Reanimated.View entering={FadeInDown.duration(260)} style={styles.carousel} pointerEvents="box-none">
+      <FlatList
+        ref={listRef}
+        horizontal
+        data={places}
+        keyExtractor={(p) => p.id}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={CARD_STEP}
+        decelerationRate="fast"
+        contentContainerStyle={styles.carouselContent}
+        getItemLayout={(_, index) => ({ length: CARD_STEP, offset: CARD_STEP * index, index })}
+        initialScrollIndex={initialIdx}
+        // Trois cartes montées au plus : les photos des autres ne sont pas en mémoire.
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        windowSize={3}
+        removeClippedSubviews={Platform.OS === 'android'}
+        onMomentumScrollEnd={(e) => {
+          const idx = Math.max(0, Math.min(places.length - 1, Math.round(e.nativeEvent.contentOffset.x / CARD_STEP)));
+          if (idx === currentIdx.current) return;
+          currentIdx.current = idx;
+          haptics.select();
+          onSnap(places[idx]);
+        }}
+        renderItem={({ item }) => (
+          <MapCard place={item} selected={item.id === selectedId} hideDist={hideDist} onOpen={onOpen} />
+        )}
+      />
+    </Reanimated.View>
+  );
+}
+
+const MapCard = React.memo(function MapCard({
+  place, selected, hideDist, onOpen,
+}: {
+  place: NearbyPlace;
+  selected: boolean;
+  hideDist: boolean;
+  onOpen: (place: NearbyPlace) => void;
+}) {
+  const { t } = useI18n();
+  const grad = universeGradient(place.universe);
+  const photo = place.photoUrls?.[0];
+  const closingTime = getClosingTime(place.openingHours);
+  const meta = [
+    ratingLabel(place.rating),
+    !hideDist && place.distanceMeters > 0 ? formatDistance(place.distanceMeters) : '',
+    closingTime ? t('map_closes_at').replace('{time}', closingTime) : '',
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <PressableScale
+      style={[styles.card, selected && { borderColor: grad[1] }]}
+      onPress={() => onOpen(place)}
+      scaleTo={0.97}
+    >
+      {photo ? (
+        <Image
+          source={{ uri: photo }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={photo}
+          transition={120}
+        />
+      ) : (
+        <>
+          <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <View style={styles.cardGhost}>
+            <UniverseGlyph u={place.universe} size={88} />
+          </View>
+        </>
+      )}
+      <LinearGradient
+        colors={['rgba(14,14,18,0)', 'rgba(14,14,18,0.35)', 'rgba(14,14,18,0.92)']}
+        locations={[0.15, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.cardTop}>
+        <View style={[styles.cardPill, { backgroundColor: grad[1] }]}>
+          <UniverseGlyph u={place.universe} size={13} />
+          <Text style={styles.cardPillText} numberOfLines={1}>{universeLabel(t, place.universe)}</Text>
+        </View>
+        <View style={styles.cardGo}>
+          <Text style={styles.cardGoText}>›</Text>
+        </View>
+      </View>
+      <View>
+        <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
+        {meta ? <Text style={styles.cardMeta} numberOfLines={1}>{meta}</Text> : null}
+      </View>
+    </PressableScale>
+  );
+});
 
 function PlaceRow({
   place,
@@ -897,7 +1184,10 @@ function PlaceRow({
   const meta = safeMeta(place.universe);
   const closingTime = getClosingTime(place.openingHours);
   return (
-    <Pressable style={[styles.row, selected && styles.rowSelected]} onPress={onPress}>
+    <Pressable
+      style={[styles.row, selected && styles.rowSelected, selected && { backgroundColor: `${universeColor(place.universe)}26` }]}
+      onPress={onPress}
+    >
       {place.photoUrls && place.photoUrls.length > 0 ? (
         <Image
           source={{ uri: place.photoUrls[0] }}
@@ -908,7 +1198,7 @@ function PlaceRow({
           transition={100}
         />
       ) : (
-        <View style={styles.rowEmojiBg}>
+        <View style={[styles.rowEmojiBg, { backgroundColor: universeColor(place.universe) }]}>
           {universeIcon(place.universe, 28) ?? (
             <Text style={styles.rowEmoji}>{placeEmoji(place.universe, place.tags)}</Text>
           )}
@@ -916,10 +1206,13 @@ function PlaceRow({
       )}
       <View style={{ flex: 1 }}>
         <Text style={styles.rowName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.rowMeta}>
-          {universeLabel(t, place.universe)}{ratingSuffix(place.rating)}
-          {!hideDist && place.distanceMeters > 0 ? ` · ${formatDistance(place.distanceMeters)}` : ''}
-        </Text>
+        <View style={styles.rowMetaLine}>
+          <View style={[styles.rowDot, { backgroundColor: universeColor(place.universe) }]} />
+          <Text style={[styles.rowMeta, { flex: 1, marginTop: 0 }]} numberOfLines={1}>
+            {universeLabel(t, place.universe)}{ratingSuffix(place.rating)}
+            {!hideDist && place.distanceMeters > 0 ? ` · ${formatDistance(place.distanceMeters)}` : ''}
+          </Text>
+        </View>
         {closingTime ? (
           <Text style={styles.rowHours}>{t('map_closes_at').replace('{time}', closingTime)}</Text>
         ) : null}
@@ -1014,66 +1307,49 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: `${colors.surface}F0`,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(14,14,18,0.86)',
+    borderColor: 'rgba(255,255,255,0.16)',
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingLeft: spacing.md,
-    height: 40,
+    height: 46,
+    ...elevation.medium,
   },
+  searchIcon: { fontSize: 15, marginRight: 8 },
   searchInput: {
     flex: 1,
     ...typography.body,
     color: colors.textPrimary,
-    height: 40,
+    height: 46,
   },
   clearBtn: { ...typography.body, color: colors.textMuted, fontSize: 14 },
   searchGo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
+    ...elevation.glowBrand,
   },
   searchGoText: { color: '#fff', fontSize: 18, fontWeight: '700' },
 
-  // Univers + rayon, côte à côte + panneaux de filtres
-  filterRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  filterButton: {
-    flex: 1,
+  // Pastilles sous la recherche (univers, rayon, accès directs)
+  topScrim: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 8 },
+  chipRow: { paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm, paddingTop: 2 },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-    backgroundColor: `${colors.surface}F5`,
-    borderColor: colors.border,
-    borderWidth: 1,
+    gap: 6,
+    height: 38,
+    paddingHorizontal: 14,
     borderRadius: radius.pill,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.md,
-    height: 40,
-  },
-  filterButtonText: { ...typography.body, color: colors.textPrimary, flex: 1, fontWeight: '600' },
-  filterButtonChevron: { ...typography.caption, color: colors.textMuted, fontSize: 12 },
-  radiusButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: `${colors.surface}F5`,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(14,14,18,0.86)',
     borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.md,
-    height: 40,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  radiusButtonText: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
+  chipText: { ...typography.caption, color: '#fff', fontWeight: '700' },
+  chipChevron: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
   radiusChipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1094,13 +1370,13 @@ const styles = StyleSheet.create({
   filterBackdrop: {
     ...StyleSheet.absoluteFill,
     zIndex: 9,
-    backgroundColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
   },
   filterPanel: {
     marginHorizontal: spacing.md,
     maxHeight: Math.round(SCREEN_HEIGHT * 0.5),
-    backgroundColor: `${colors.surface}FA`,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(14,14,18,0.94)',
+    borderColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
     borderRadius: radius.lg,
     overflow: 'hidden',
@@ -1146,9 +1422,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   markerBubble: {
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    // Fond = couleur de la catégorie (posée en ligne) ; liseré blanc pour se
+    // détacher de la carte claire.
+    borderWidth: 2,
+    borderColor: '#fff',
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -1156,19 +1433,66 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   markerSelected: {
-    borderColor: colors.brand,
-    borderWidth: 2.5,
-    backgroundColor: colors.bg,
+    borderColor: colors.bg,
+    borderWidth: 3,
     // Pas de `transform: scale` : Android dessine le marqueur dans un bitmap
     // à partir des dimensions de mise en page, et une transformation appliquée
     // à cette même vue n'y figure pas — le marqueur choisi ne grossissait donc
     // jamais. Un agrandissement par la taille, lui, traverse la capture, et
     // l'ancre centrée le garde sur son point GPS.
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
-  markerEmoji: { fontSize: 20 },
+  markerEmoji: { fontSize: 18 },
+  markerEmojiSelected: { fontSize: 24 },
+
+  // Onde de recherche au point touché
+  pulseBox: { width: PULSE_SIZE, height: PULSE_SIZE, alignItems: 'center', justifyContent: 'center' },
+  pulseRing: {
+    position: 'absolute', width: PULSE_SIZE, height: PULSE_SIZE, borderRadius: PULSE_SIZE / 2,
+    borderWidth: 3, borderColor: colors.brand, backgroundColor: `${colors.brand}22`,
+  },
+  pulseDot: {
+    width: 14, height: 14, borderRadius: 7, backgroundColor: colors.brand,
+    borderWidth: 2, borderColor: '#fff',
+  },
+
+  // Bouton « recentrer »
+  recenter: {
+    position: 'absolute', right: spacing.md, width: 46, height: 46, borderRadius: 23,
+    backgroundColor: 'rgba(14,14,18,0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center', ...elevation.medium,
+  },
+  recenterIcon: { color: '#fff', fontSize: 22, fontWeight: '700', marginTop: -2 },
+
+  // Carrousel de cartes photo
+  carousel: { position: 'absolute', left: 0, right: 0, bottom: DRAWER_COLLAPSED + spacing.sm, height: CARD_H },
+  carouselContent: { paddingHorizontal: (SCREEN_WIDTH - CARD_W) / 2 },
+  card: {
+    width: CARD_W, height: CARD_H, marginRight: CARD_GAP, borderRadius: radius.lg, overflow: 'hidden',
+    backgroundColor: colors.surface, padding: spacing.md, justifyContent: 'space-between',
+    // Liseré de largeur constante : la carte choisie change de couleur sans
+    // bouger d'un pixel.
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  cardGhost: { position: 'absolute', right: -10, top: 10, opacity: 0.35 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  cardPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1,
+    paddingVertical: 4, paddingHorizontal: 10, borderRadius: radius.pill,
+  },
+  cardPillText: { color: '#fff', fontSize: 12, fontWeight: '800', flexShrink: 1 },
+  cardGo: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(14,14,18,0.6)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  cardGoText: { color: '#fff', fontSize: 20, fontWeight: '800', marginTop: -3 },
+  cardName: {
+    color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 },
+  },
+  cardMeta: { color: 'rgba(255,255,255,0.88)', fontSize: 13, fontWeight: '600', marginTop: 2 },
 
   tapHint: {
     position: 'absolute',
@@ -1196,11 +1520,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingBottom: spacing.sm,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.14)',
     overflow: 'hidden',
   },
   drawerHeader: {
@@ -1214,10 +1538,10 @@ const styles = StyleSheet.create({
   },
   drawerHandle: {
     alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.brand,
     marginBottom: spacing.xs,
   },
   drawerTitleRow: {
@@ -1225,7 +1549,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  drawerTitle: { ...typography.heading, color: colors.textPrimary },
+  drawerTitle: { ...typography.heading, color: colors.textPrimary, fontWeight: '900', letterSpacing: -0.3 },
   drawerChevron: { ...typography.caption, color: colors.textMuted },
   error: { ...typography.caption, color: colors.danger, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
   empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg },
@@ -1240,22 +1564,24 @@ const styles = StyleSheet.create({
   },
   rowSelected: { backgroundColor: `${colors.brand}14`, borderRadius: radius.md, paddingHorizontal: spacing.sm },
   rowPhoto: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.sm,
+    width: 60,
+    height: 60,
+    borderRadius: radius.md,
     flexShrink: 0,
   },
   rowEmojiBg: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.sm,
+    width: 60,
+    height: 60,
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   rowEmoji: { fontSize: 24 },
-  rowName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
+  rowName: { ...typography.body, color: colors.textPrimary, fontWeight: '800', fontSize: 16 },
+  rowDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  rowMetaLine: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
   rowMeta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   rowHours: { ...typography.label, color: colors.brand, marginTop: 2, fontSize: 11 },
   detailBtn: {
