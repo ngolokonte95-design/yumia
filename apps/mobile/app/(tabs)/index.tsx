@@ -9,8 +9,8 @@
  *    fixe et sans dégradé (un voile dégradé dessinait une barre grise) ;
  *  - logo en grand au centre, salutation et recherche par-dessus ;
  *  - raccourcis en tuiles à pastille dégradée ;
- *  - univers : tuiles d'origine, sobres ; titres de catégorie sans couleur,
- *    en petites capitales espacées + filet fin + nombre d'univers.
+ *  - univers : tuiles d'origine, sobres ; en-tête de catégorie = médaillon
+ *    et titre au dégradé de marque (le même partout) + filet dégradé.
  * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
 import { useCallback, useMemo, useState } from 'react';
@@ -23,7 +23,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode, UniverseCategory } from '@yumia/shared';
-import { colors, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { colors, elevation, gradients, radius, spacing, typography } from '../../theme/tokens';
 import { UniverseGlyph } from '../../components/UniverseGlyph';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PlanBadgeIcon } from '../../components/Avatar';
@@ -36,7 +36,7 @@ import type { TranslationKey } from '../../lib/translations';
 import { WeatherSky } from '../../components/weather/WeatherSky';
 import { useWeatherReport } from '../../lib/useWeatherReport';
 import { dayMomentAt, kindEmoji } from '../../lib/services/weather';
-import { PressableScale, Reveal } from '../../components/ui';
+import { GradientText, PressableScale, Reveal } from '../../components/ui';
 import { FeatureTip } from '../../components/FeatureTip';
 
 type TFn = (key: TranslationKey) => string;
@@ -241,6 +241,7 @@ export default function HomeScreen() {
             cat={cat}
             index={i + 2}
             title={t(`category_${cat.key}` as TranslationKey)}
+            count={t('home_universe_count').replace('{n}', String(cat.universes.length))}
             labelOf={(u) => universeLabel(t, u)}
             onOpen={(u) => go(universeRoute(u))}
           />
@@ -251,16 +252,18 @@ export default function HomeScreen() {
   );
 }
 
-// ── Catégorie : titre en couleur + grille de tous ses univers ───────────────
+// ── Catégorie : en-tête au dégradé de marque + grille de tous ses univers ───
 // Tuiles sobres, comme à l'origine (17/11, demande de l'utilisateur : « trop
-// de couleur ») ; seule la couleur de la catégorie reste, sur le titre.
+// de couleur », puis « de la couleur, mais pas différente partout »).
 
 function CategorySection({
-  cat, index, title, labelOf, onOpen,
+  cat, index, title, count, labelOf, onOpen,
 }: {
   cat: UniverseCategory;
   index: number;
   title: string;
+  /** « 12 univers ». */
+  count: string;
   labelOf: (u: string) => string;
   onOpen: (u: string) => void;
 }) {
@@ -268,13 +271,24 @@ function CategorySection({
     // Au-delà des premières catégories, plus de délai : elles apparaissent
     // hors écran, un retard ne ferait que ralentir le défilement.
     <Reveal index={Math.min(index, 5)} style={styles.section}>
-      {/* En-tête façon éditorial de luxe : petites capitales espacées, filet
-          fin qui file jusqu'au nombre d'univers. Aucune couleur. */}
+      {/* En-tête : médaillon et titre au dégradé de MARQUE (orange → violet),
+          le même pour toutes les catégories — de la couleur, mais une seule
+          (17/11, demande de l'utilisateur). Filet dégradé qui s'efface. */}
       <View style={styles.catHead}>
-        <Text style={styles.catTitle} numberOfLines={1}>{title}</Text>
-        <View style={styles.catRule} />
-        <Text style={styles.catCount}>{String(cat.universes.length).padStart(2, '0')}</Text>
+        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.catMedal}>
+          <Text style={styles.catMedalEmoji}>{cat.emoji}</Text>
+        </LinearGradient>
+        <View style={styles.catText}>
+          <GradientText style={styles.catTitle}>{title}</GradientText>
+          <Text style={styles.catCount}>{count}</Text>
+        </View>
       </View>
+      <LinearGradient
+        colors={[colors.brand, `${colors.accent}66`, 'transparent']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={styles.catRule}
+      />
       <View style={styles.universeGrid}>
         {cat.universes.map((u) => (
           <PressableScale key={u} style={styles.universeTile} onPress={() => onOpen(u)} scaleTo={0.92}>
@@ -357,15 +371,18 @@ const styles = StyleSheet.create({
   modeEmoji: { fontSize: 15 },
   modeLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700' },
 
-  // Catégories
-  // Titre de catégorie : seul élément en couleur (couleur posée en ligne).
-  catHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  catTitle: {
-    color: colors.textPrimary, fontSize: 12, fontWeight: '700',
-    letterSpacing: 2.4, textTransform: 'uppercase', flexShrink: 1,
+  // Catégories — une seule couleur, celle de la marque.
+  catHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  catMedal: {
+    width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+    ...elevation.glowBrand,
   },
-  catRule: { flex: 1, minWidth: 16, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.28)' },
-  catCount: { color: colors.textMuted, fontSize: 11, fontWeight: '600', letterSpacing: 1.5, fontVariant: ['tabular-nums'] },
+  catMedalEmoji: { fontSize: 22 },
+  catText: { flex: 1, gap: 1 },
+  catTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
+  catCount: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  catRule: { height: 2, borderRadius: 1, marginTop: spacing.sm, marginBottom: spacing.md },
   universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   // Tuile d'origine. Largeur en % : 4 colonnes quelle que soit la largeur
   // de l'écran (Android inclus).
