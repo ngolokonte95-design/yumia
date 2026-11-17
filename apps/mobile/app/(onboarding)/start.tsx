@@ -5,11 +5,13 @@
  *   2. Sélection des univers favoris (multi-sélection, grille 2 colonnes)
  *   3. Restrictions alimentaires (tags courants)
  * → PATCH /auth/me → preferences.onboardingComplete = true → redirect /
+ *
+ * Mise en scène (17/11/2026) : fond spatial de l'Accueil, barre de
+ * progression, étapes qui apparaissent en cascade, choix en verre qui
+ * prennent le dégradé de marque une fois sélectionnés (une seule couleur).
  */
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,13 +19,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
+import { LinearGradient } from 'expo-linear-gradient';
+import { UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
 import { useAuth } from '../../lib/auth-context';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { universeLabel } from '../../lib/universeMeta';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { PressableScale, Reveal } from '../../components/ui';
+import { UniverseGlyph } from '../../components/UniverseGlyph';
+import {
+  BrandButton, ErrorBanner, GlassBackButton, HeroTitle, SelectChip, SPACE_BLACK, SpaceBackdrop,
+  StepProgress, TextLink,
+} from '../../components/auth/AuthChrome';
 
 // Restriction tags stay in French — they're used as keys by the AI engine.
 const RESTRICTION_TAGS = [
@@ -97,36 +106,46 @@ export default function OnboardingScreen() {
   const firstName = user?.displayName?.split(' ')[0] ?? '';
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {step === 'gender' ? (
-        <GenderStep
-          firstName={firstName}
-          selected={gender}
-          onSelect={setGender}
-          onNext={() => setStep('universes')}
-          t={t}
-        />
-      ) : step === 'universes' ? (
-        <UniverseStep
-          firstName={firstName}
-          selected={selectedUniverses}
-          onToggle={toggleUniverse}
-          onBack={() => setStep('gender')}
-          onNext={() => setStep('restrictions')}
-          t={t}
-        />
-      ) : (
-        <RestrictionsStep
-          selected={selectedRestrictions}
-          onToggle={toggleRestriction}
-          onBack={() => setStep('universes')}
-          onFinish={finish}
-          loading={loading}
-          error={error}
-          t={t}
-        />
-      )}
-    </SafeAreaView>
+    <View style={styles.root}>
+      <SpaceBackdrop />
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.progress}>
+          <StepProgress step={step === 'gender' ? 0 : step === 'universes' ? 1 : 2} total={3} />
+        </View>
+        {/* `key` = étape : chaque étape remonte et rejoue son entrée en cascade. */}
+        {step === 'gender' ? (
+          <GenderStep
+            key="gender"
+            firstName={firstName}
+            selected={gender}
+            onSelect={setGender}
+            onNext={() => setStep('universes')}
+            t={t}
+          />
+        ) : step === 'universes' ? (
+          <UniverseStep
+            key="universes"
+            firstName={firstName}
+            selected={selectedUniverses}
+            onToggle={toggleUniverse}
+            onBack={() => setStep('gender')}
+            onNext={() => setStep('restrictions')}
+            t={t}
+          />
+        ) : (
+          <RestrictionsStep
+            key="restrictions"
+            selected={selectedRestrictions}
+            onToggle={toggleRestriction}
+            onBack={() => setStep('universes')}
+            onFinish={finish}
+            loading={loading}
+            error={error}
+            t={t}
+          />
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -153,36 +172,29 @@ function GenderStep({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{greeting}</Text>
-        <Text style={styles.subtitle}>{t('onboarding_gender_title')}</Text>
-      </View>
+      <Reveal index={0} style={styles.header}>
+        <HeroTitle title={greeting} subtitle={t('onboarding_gender_title')} />
+      </Reveal>
 
-      <View style={styles.tagWrap}>
-        {GENDERS.map((g) => {
-          const active = selected === g.value;
-          return (
-            <Pressable
-              key={g.value}
-              style={[styles.tag, active && styles.tagActive]}
-              onPress={() => onSelect(g.value)}
-            >
-              <Text style={[styles.tagText, active && styles.tagTextActive]}>{t(g.labelKey)}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Reveal index={1} style={styles.tagWrap}>
+        {GENDERS.map((g) => (
+          <SelectChip
+            key={g.value}
+            label={t(g.labelKey)}
+            active={selected === g.value}
+            onPress={() => onSelect(g.value)}
+          />
+        ))}
+      </Reveal>
 
-      <Text style={styles.genderHint}>{t('onboarding_gender_sub')}</Text>
+      <Reveal index={2}>
+        <Text style={styles.genderHint}>{t('onboarding_gender_sub')}</Text>
+      </Reveal>
+
+      <View style={styles.spacer} />
 
       <View style={styles.footer}>
-        <Pressable
-          style={[styles.btn, !selected && styles.btnDisabled]}
-          onPress={onNext}
-          disabled={!selected}
-        >
-          <Text style={styles.btnText}>{t('continue_btn')}</Text>
-        </Pressable>
+        <BrandButton label={t('continue_btn')} onPress={onNext} disabled={!selected} />
       </View>
     </View>
   );
@@ -211,55 +223,70 @@ function UniverseStep({
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>{t('back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{greeting}</Text>
-        <Text style={styles.subtitle}>{t('onboarding_universes_sub')}</Text>
-      </View>
+      <Reveal index={0} style={styles.header}>
+        <View style={styles.backRow}>
+          <GlassBackButton onPress={onBack} />
+          {selected.length > 0 ? (
+            <View style={styles.countPill}>
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.countPillFill]} />
+              <Text style={styles.countPillText}>{selected.length}</Text>
+            </View>
+          ) : null}
+        </View>
+        <HeroTitle title={greeting} subtitle={t('onboarding_universes_sub')} />
+      </Reveal>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {UNIVERSE_CATEGORIES.map((cat) => (
-          <View key={cat.key}>
-            <Text style={styles.catLabel}>{cat.emoji} {t(`category_${cat.key}` as never)}</Text>
+        {UNIVERSE_CATEGORIES.map((cat, ci) => (
+          <Reveal key={cat.key} index={Math.min(ci + 1, 5)}>
+            <View style={styles.catHead}>
+              <Text style={styles.catLabel} numberOfLines={1}>{cat.emoji}  {t(`category_${cat.key}` as never)}</Text>
+              <View style={styles.catRule} />
+            </View>
             <View style={styles.grid}>
               {cat.universes.map((key) => {
-                const meta = UNIVERSE_META[key];
                 const active = selected.includes(key);
                 return (
-                  <Pressable
+                  <PressableScale
                     key={key}
                     style={[styles.universeCard, active && styles.universeCardActive]}
                     onPress={() => onToggle(key)}
+                    scaleTo={0.95}
+                    haptic
                   >
-                    <Text style={styles.universeEmoji}>{meta.emoji}</Text>
-                    <Text style={[styles.universeLabel, active && styles.universeLabelActive]}>
+                    {active ? (
+                      <LinearGradient
+                        colors={gradients.brand}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[StyleSheet.absoluteFill, styles.cardFill]}
+                      />
+                    ) : null}
+                    <View style={[styles.universeIcon, active && styles.universeIconActive]}>
+                      <UniverseGlyph u={key} size={26} />
+                    </View>
+                    <Text style={[styles.universeLabel, active && styles.universeLabelActive]} numberOfLines={2}>
                       {universeLabel(t, key)}
                     </Text>
-                    {active && <View style={styles.checkDot} />}
-                  </Pressable>
+                    {active ? (
+                      <View style={styles.check}>
+                        <Text style={styles.checkText}>✓</Text>
+                      </View>
+                    ) : null}
+                  </PressableScale>
                 );
               })}
             </View>
-          </View>
+          </Reveal>
         ))}
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable
-          style={[styles.btn, selected.length === 0 && styles.btnDisabled]}
-          onPress={onNext}
-          disabled={selected.length === 0}
-        >
-          <Text style={styles.btnText}>{t('continue_btn')}</Text>
-        </Pressable>
-        <Pressable onPress={onNext} style={styles.skipBtn}>
-          <Text style={styles.skipText}>{t('onboarding_skip')}</Text>
-        </Pressable>
+        <BrandButton label={t('continue_btn')} onPress={onNext} disabled={selected.length === 0} />
+        <TextLink label={t('onboarding_skip')} onPress={onNext} />
       </View>
     </View>
   );
@@ -286,43 +313,36 @@ function RestrictionsStep({
 }) {
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>{t('back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('onboarding_restrictions_title')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding_restrictions_sub')}</Text>
-      </View>
+      <Reveal index={0} style={styles.header}>
+        <View style={styles.backRow}>
+          <GlassBackButton onPress={onBack} />
+        </View>
+        <HeroTitle title={t('onboarding_restrictions_title')} subtitle={t('onboarding_restrictions_sub')} />
+      </Reveal>
 
-      <View style={styles.tagWrap}>
-        {RESTRICTION_TAGS.map((tag) => {
-          const active = selected.includes(tag);
-          return (
-            <Pressable
-              key={tag}
-              style={[styles.tag, active && styles.tagActive]}
-              onPress={() => onToggle(tag)}
-            >
-              <Text style={[styles.tagText, active && styles.tagTextActive]}>{tag}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Reveal index={1} style={styles.tagWrap}>
+        {RESTRICTION_TAGS.map((tag) => (
+          <SelectChip
+            key={tag}
+            label={tag}
+            active={selected.includes(tag)}
+            onPress={() => onToggle(tag)}
+          />
+        ))}
+      </Reveal>
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorWrap}>
+          <ErrorBanner message={error} />
+        </View>
+      ) : null}
+
+      <View style={styles.spacer} />
 
       <View style={styles.footer}>
-        <Pressable style={[styles.btn, loading && styles.btnDisabled]} onPress={onFinish} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color={colors.bg} />
-          ) : (
-            <Text style={styles.btnText}>{t('onboarding_finish')}</Text>
-          )}
-        </Pressable>
+        <BrandButton label={t('onboarding_finish')} onPress={onFinish} disabled={loading} loading={loading} />
         {!loading && (
-          <Pressable onPress={onFinish} style={styles.skipBtn}>
-            <Text style={styles.skipText}>{t('onboarding_no_restriction')}</Text>
-          </Pressable>
+          <TextLink label={t('onboarding_no_restriction')} onPress={onFinish} />
         )}
       </View>
     </View>
@@ -332,71 +352,59 @@ function RestrictionsStep({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  root: { flex: 1, backgroundColor: SPACE_BLACK },
+  safe: { flex: 1 },
+  progress: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   container: { flex: 1, paddingHorizontal: spacing.lg },
-  header: { paddingTop: spacing.xl, paddingBottom: spacing.lg },
-  title: { ...typography.display, color: colors.textPrimary, marginBottom: spacing.sm },
-  subtitle: { ...typography.body, color: colors.textSecondary, lineHeight: 22 },
+  header: { paddingTop: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
+  backRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  spacer: { flex: 1 },
+
+  countPill: {
+    minWidth: 36, height: 30, paddingHorizontal: 10, borderRadius: radius.pill,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  countPillFill: { borderRadius: radius.pill },
+  countPillText: { color: '#fff', fontWeight: '900', fontSize: 14 },
 
   scrollContent: { paddingBottom: spacing.xl },
-  catLabel: { ...typography.title, color: colors.textSecondary, fontSize: 13, marginBottom: spacing.sm, marginTop: spacing.md },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingBottom: spacing.sm },
+  catHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg, marginBottom: spacing.sm },
+  catLabel: {
+    color: colors.textPrimary, fontSize: 12, fontWeight: '800',
+    letterSpacing: 1.6, textTransform: 'uppercase', flexShrink: 1,
+  },
+  catRule: { flex: 1, minWidth: 16, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.2)' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingBottom: spacing.xs },
   universeCard: {
-    width: '47%',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    padding: spacing.md,
+    width: '48.5%',
+    backgroundColor: 'rgba(20,20,28,0.78)',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
     gap: spacing.xs,
-    position: 'relative',
+    overflow: 'hidden',
   },
-  universeCardActive: {
-    borderColor: colors.brand,
-    backgroundColor: `${colors.brand}18`,
+  universeCardActive: { borderColor: 'rgba(255,255,255,0.35)' },
+  cardFill: { borderRadius: radius.lg },
+  universeIcon: {
+    width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  universeEmoji: { fontSize: 30 },
-  universeLabel: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
-  universeLabelActive: { color: colors.brandSoft },
-  checkDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.brand,
+  universeIconActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
+  universeLabel: { ...typography.caption, color: colors.textSecondary, textAlign: 'center', fontWeight: '600' },
+  universeLabelActive: { color: '#fff', fontWeight: '800' },
+  check: {
+    position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
   },
+  checkText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
 
-  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   genderHint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.md, lineHeight: 18 },
-  tag: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  tagActive: { borderColor: colors.brand, backgroundColor: `${colors.brand}18` },
-  tagText: { ...typography.body, color: colors.textSecondary },
-  tagTextActive: { color: colors.brandSoft },
 
-  footer: { paddingVertical: spacing.xl, gap: spacing.sm },
-  btn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  btnDisabled: { opacity: 0.45 },
-  btnText: { ...typography.body, color: '#fff', fontWeight: '700' },
-  skipBtn: { alignItems: 'center', paddingVertical: spacing.xs },
-  skipText: { ...typography.caption, color: colors.textMuted },
-
-  backBtn: { marginBottom: spacing.md },
-  backText: { ...typography.body, color: colors.brandSoft },
-
-  errorText: { ...typography.caption, color: colors.danger, marginTop: spacing.sm },
+  footer: { paddingVertical: spacing.lg, gap: spacing.sm },
+  errorWrap: { marginTop: spacing.md },
 });

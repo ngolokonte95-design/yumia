@@ -2,12 +2,8 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  Image,
-  TextInput,
-  Pressable,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Linking,
@@ -23,9 +19,17 @@ import { useI18n } from '../../lib/useI18n';
 import { PRIVACY_URL, TERMS_URL } from '../../lib/legal';
 import { AgeGateFields, AgeGateModal } from '../../components/AgeGateModal';
 import { MIN_SIGNUP_AGE, ageFromIso, toIsoBirthDate } from '../../lib/age-gate';
-import { PasswordInput } from '../../components/PasswordInput';
+import { Reveal } from '../../components/ui';
+import {
+  AuthLogo, BrandButton, ErrorBanner, FieldLabel, GlassInput, GlassPanel, GlassPasswordInput,
+  GoogleButton, HeroTitle, OrDivider, SPACE_BLACK, SpaceBackdrop,
+} from '../../components/auth/AuthChrome';
 
-/** Création de compte par email + mot de passe. */
+/**
+ * Création de compte par email + mot de passe.
+ * Mise en scène (17/11/2026) : fond spatial de l'Accueil, logo sur halo,
+ * formulaire en panneau de verre, une seule couleur d'accent (marque).
+ */
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { register, applyAuthResult } = useAuth();
@@ -76,213 +80,162 @@ export default function RegisterScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* ScrollView (et non une View fixe) : avec les boutons Google + Apple
-          affichés, le contenu dépasse la hauteur de l'écran sur beaucoup de
-          téléphones — le texte légal et le lien « Se connecter » sortaient de
-          l'écran sans aucun moyen d'y accéder. */}
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={[
-          styles.container,
-          { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.lg },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.screen}>
+      <SpaceBackdrop />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Image
-          source={require('../../assets/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>{t('register_title')}</Text>
-        <Text style={styles.subtitle}>{t('register_subtitle')}</Text>
+        {/* ScrollView (et non une View fixe) : avec les boutons Google + Apple
+            affichés, le contenu dépasse la hauteur de l'écran sur beaucoup de
+            téléphones — le texte légal et le lien « Se connecter » sortaient de
+            l'écran sans aucun moyen d'y accéder. */}
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.container,
+            { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <AuthLogo size={104} />
 
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder={t('name_placeholder')}
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="words"
-            value={displayName}
-            onChangeText={setDisplayName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder={t('email_placeholder')}
-            placeholderTextColor={colors.textMuted}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <PasswordInput
-            style={styles.input}
-            placeholder={t('password_hint')}
-            placeholderTextColor={colors.textMuted}
-            value={password}
-            onChangeText={setPassword}
-          />
+          <Reveal index={1}>
+            <HeroTitle title={t('register_title')} subtitle={t('register_subtitle')} center />
+          </Reveal>
 
-          <Text style={styles.fieldLabel}>{t('age_gate_title')}</Text>
-          <AgeGateFields
-            day={day}
-            month={month}
-            year={year}
-            onDay={setDay}
-            onMonth={setMonth}
-            onYear={setYear}
-          />
-          {dateComplete && !birthDate ? (
-            <Text style={styles.error}>{t('age_gate_invalid')}</Text>
-          ) : tooYoung ? (
-            <Text style={styles.error}>
-              {t('age_gate_denied_body').replace('{n}', String(MIN_SIGNUP_AGE))}
-            </Text>
-          ) : (
-            <Text style={styles.fieldHint}>{t('age_gate_subtitle')}</Text>
-          )}
+          <Reveal index={2}>
+            <GlassPanel>
+              <GlassInput
+                placeholder={t('name_placeholder')}
+                autoCapitalize="words"
+                value={displayName}
+                onChangeText={setDisplayName}
+              />
+              <GlassInput
+                placeholder={t('email_placeholder')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+              />
+              <GlassPasswordInput
+                placeholder={t('password_hint')}
+                value={password}
+                onChangeText={setPassword}
+              />
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {google.error ? <Text style={styles.error}>{google.error}</Text> : null}
-          {apple.error ? <Text style={styles.error}>{apple.error}</Text> : null}
-
-          <Pressable
-            style={[styles.button, !canSubmit && styles.buttonDisabled]}
-            disabled={!canSubmit}
-            onPress={onSubmit}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>{t('register_btn')}</Text>
-            )}
-          </Pressable>
-
-          {(google.available || apple.available) ? (
-            <>
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>{t('or')}</Text>
-                <View style={styles.dividerLine} />
-              </View>
-              {google.available ? (
-                <Pressable
-                  style={[styles.socialBtn, google.loading && styles.buttonDisabled]}
-                  disabled={google.loading}
-                  onPress={() => google.signIn(birthDate ?? undefined)}
-                >
-                  {google.loading ? (
-                    <ActivityIndicator color={colors.textPrimary} />
-                  ) : (
-                    <Text style={styles.socialText}>🔵 {t('google_btn')}</Text>
-                  )}
-                </Pressable>
-              ) : null}
-              {apple.available ? (
-                <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                  cornerRadius={radius.pill}
-                  style={styles.appleBtn}
-                  onPress={() => apple.signIn(birthDate ?? undefined)}
+              <View style={styles.ageBlock}>
+                <FieldLabel>{t('age_gate_title')}</FieldLabel>
+                <AgeGateFields
+                  day={day}
+                  month={month}
+                  year={year}
+                  onDay={setDay}
+                  onMonth={setMonth}
+                  onYear={setYear}
                 />
+                {dateComplete && !birthDate ? (
+                  <ErrorBanner message={t('age_gate_invalid')} />
+                ) : tooYoung ? (
+                  <ErrorBanner message={t('age_gate_denied_body').replace('{n}', String(MIN_SIGNUP_AGE))} />
+                ) : (
+                  <Text style={styles.fieldHint}>{t('age_gate_subtitle')}</Text>
+                )}
+              </View>
+
+              {error ? <ErrorBanner message={error} /> : null}
+              {google.error ? <ErrorBanner message={google.error} /> : null}
+              {apple.error ? <ErrorBanner message={apple.error} /> : null}
+
+              <BrandButton
+                label={t('register_btn')}
+                onPress={onSubmit}
+                disabled={!canSubmit}
+                loading={submitting}
+              />
+
+              {(google.available || apple.available) ? (
+                <>
+                  <OrDivider label={t('or')} />
+                  {google.available ? (
+                    <GoogleButton
+                      label={`🔵 ${t('google_btn')}`}
+                      onPress={() => google.signIn(birthDate ?? undefined)}
+                      disabled={google.loading}
+                      loading={google.loading}
+                    />
+                  ) : null}
+                  {apple.available ? (
+                    // Bouton officiel Apple, version blanche : c'est celle que
+                    // les consignes Apple demandent sur un fond sombre.
+                    <AppleAuthentication.AppleAuthenticationButton
+                      buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                      cornerRadius={radius.pill}
+                      style={styles.appleBtn}
+                      onPress={() => apple.signIn(birthDate ?? undefined)}
+                    />
+                  ) : null}
+                </>
               ) : null}
-            </>
-          ) : null}
-        </View>
+            </GlassPanel>
+          </Reveal>
 
-        {/* Acceptation des conditions — exigée par Apple (règle 1.2, contenus
-            publiés par les utilisateurs) et Google Play. Placée sous TOUS les
-            boutons de création de compte, y compris Google et Apple, car tous
-            créent un compte. Les deux liens doivent rester joignables : les
-            testeurs des stores les ouvrent pendant la revue. */}
-        <Text style={styles.legal}>
-          {t('register_legal_prefix')}{' '}
-          <Text style={styles.legalLink} onPress={() => void Linking.openURL(TERMS_URL)}>
-            {t('register_legal_terms')}
+          {/* Acceptation des conditions — exigée par Apple (règle 1.2, contenus
+              publiés par les utilisateurs) et Google Play. Placée sous TOUS les
+              boutons de création de compte, y compris Google et Apple, car tous
+              créent un compte. Les deux liens doivent rester joignables : les
+              testeurs des stores les ouvrent pendant la revue. */}
+          <Text style={styles.legal}>
+            {t('register_legal_prefix')}{' '}
+            <Text style={styles.legalLink} onPress={() => void Linking.openURL(TERMS_URL)}>
+              {t('register_legal_terms')}
+            </Text>
+            {' '}{t('register_legal_and')}{' '}
+            <Text style={styles.legalLink} onPress={() => void Linking.openURL(PRIVACY_URL)}>
+              {t('register_legal_privacy')}
+            </Text>
+            {' '}{t('register_legal_suffix')}
           </Text>
-          {' '}{t('register_legal_and')}{' '}
-          <Text style={styles.legalLink} onPress={() => void Linking.openURL(PRIVACY_URL)}>
-            {t('register_legal_privacy')}
-          </Text>
-          {' '}{t('register_legal_suffix')}
-        </Text>
 
-        <AgeGateModal
-          visible={google.needsAge || apple.needsAge}
-          onCancel={google.needsAge ? google.cancelAge : apple.cancelAge}
-          onSubmit={google.needsAge ? google.submitBirthDate : apple.submitBirthDate}
-        />
+          <AgeGateModal
+            visible={google.needsAge || apple.needsAge}
+            onCancel={google.needsAge ? google.cancelAge : apple.cancelAge}
+            onSubmit={google.needsAge ? google.submitBirthDate : apple.submitBirthDate}
+          />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{t('already_account')} </Text>
-          <Link href="/login" style={styles.footerLink}>
-            {t('sign_in')}
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Reveal index={3} style={styles.footer}>
+            <Text style={styles.footerText}>{t('already_account')} </Text>
+            <Link href="/login" style={styles.footerLink}>
+              {t('sign_in')}
+            </Link>
+          </Reveal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: SPACE_BLACK },
+  flex: { flex: 1 },
   // flexGrow (pas flex) : c'est un contentContainerStyle de ScrollView — le
   // contenu remplit l'écran quand il est court, et peut le dépasser sinon.
-  container: { flexGrow: 1, paddingHorizontal: spacing.lg },
-  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: spacing.md },
-  title: { ...typography.display, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
-  form: { marginTop: spacing.lg, gap: 12 },
-  input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  error: { ...typography.caption, color: colors.danger },
-  fieldLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  container: { flexGrow: 1, paddingHorizontal: spacing.lg, gap: spacing.lg },
+  ageBlock: { gap: spacing.sm, marginTop: spacing.xs },
   fieldHint: { ...typography.caption, color: colors.textMuted, lineHeight: 16 },
-  button: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { ...typography.heading, color: '#fff' },
   legal: {
     ...typography.caption,
     color: colors.textMuted,
     textAlign: 'center',
-    marginTop: spacing.lg,
     lineHeight: 18,
   },
-  legalLink: { color: colors.brandSoft, fontWeight: '600' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg },
+  legalLink: { color: colors.brandSoft, fontWeight: '700' },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerText: { ...typography.body, color: colors.textSecondary },
-  footerLink: { ...typography.body, color: colors.brandSoft, fontWeight: '700' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { ...typography.caption, color: colors.textMuted },
-  socialBtn: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  socialText: { ...typography.heading, color: colors.textPrimary },
-  appleBtn: { width: '100%', height: 48 },
+  footerLink: { ...typography.body, color: colors.brandSoft, fontWeight: '800' },
+  appleBtn: { width: '100%', height: 50 },
 });

@@ -1,24 +1,28 @@
 /**
  * RESET PASSWORD — saisie du code OTP + nouveau mot de passe.
+ * Mise en scène (17/11/2026) : fond spatial, médaillon de marque, panneau de
+ * verre, une seule couleur d'accent.
  */
 import { useState, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  Pressable,
+  ScrollView,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import type { TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, spacing, typography } from '../theme/tokens';
 import { resetPasswordRequest } from '../lib/auth-api';
 import { useI18n } from '../lib/useI18n';
-import { PasswordInput } from '../components/PasswordInput';
+import { Reveal } from '../components/ui';
+import {
+  BrandButton, BrandMedal, ErrorBanner, FieldLabel, GlassBackButton, GlassInput, GlassPanel,
+  GlassPasswordInput, HeroTitle, SPACE_BLACK, SpaceBackdrop, TextLink,
+} from '../components/auth/AuthChrome';
 
 export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -60,160 +64,134 @@ export default function ResetPasswordScreen() {
 
   if (done) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + spacing.lg }]}>
-        <View style={styles.successBox}>
-          <Text style={styles.successEmoji}>✅</Text>
-          <Text style={styles.successTitle}>{t('rp_success_title')}</Text>
-          <Text style={styles.successSub}>
-            {t('rp_success_sub')}
-          </Text>
-          <Pressable style={styles.btn} onPress={() => router.replace('/(auth)/login')}>
-            <Text style={styles.btnText}>{t('rp_login_btn')}</Text>
-          </Pressable>
+      <View style={styles.root}>
+        <SpaceBackdrop />
+        <View style={[styles.successBox, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
+          <BrandMedal emoji="✅" size={96} />
+          <Reveal index={1}>
+            <HeroTitle title={t('rp_success_title')} subtitle={t('rp_success_sub')} center />
+          </Reveal>
+          <Reveal index={2} style={styles.successBtn}>
+            <BrandButton label={t('rp_login_btn')} onPress={() => router.replace('/(auth)/login')} />
+          </Reveal>
         </View>
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={[styles.screen, { paddingTop: insets.top + spacing.lg }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
+    <View style={styles.root}>
+      <SpaceBackdrop />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[styles.screen, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.lg }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <GlassBackButton onPress={() => router.back()} />
 
-        <View style={styles.content}>
-          <Text style={styles.emoji}>🔐</Text>
-          <Text style={styles.title}>{t('rp_title')}</Text>
-          <Text style={styles.sub}>{t('rp_sub')}</Text>
+          <View style={styles.content}>
+            <BrandMedal emoji="🔐" />
+            <Reveal index={1}>
+              <HeroTitle title={t('rp_title')} subtitle={t('rp_sub')} />
+            </Reveal>
 
-          {!params.email && (
-            <View style={styles.field}>
-              <Text style={styles.label}>{t('fp_email_label')}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ton@email.com"
-                placeholderTextColor={colors.textMuted}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          )}
+            <Reveal index={2}>
+              <GlassPanel>
+                {!params.email && (
+                  <View style={styles.field}>
+                    <FieldLabel>{t('fp_email_label')}</FieldLabel>
+                    <GlassInput
+                      placeholder="ton@email.com"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                )}
 
-          {/* Code OTP */}
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('rp_code_label')}</Text>
-            <TextInput
-              style={[styles.input, styles.codeInput]}
-              placeholder="123456"
-              placeholderTextColor={colors.textMuted}
-              value={code}
-              onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
-              keyboardType="number-pad"
-              maxLength={6}
-              returnKeyType="next"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-            />
+                {/* Code OTP */}
+                <View style={styles.field}>
+                  <FieldLabel>{t('rp_code_label')}</FieldLabel>
+                  <GlassInput
+                    style={styles.codeInput}
+                    placeholder="123456"
+                    value={code}
+                    onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                  />
+                </View>
+
+                {/* Nouveau mdp */}
+                <View style={styles.field}>
+                  <FieldLabel>{t('rp_new_password_label')}</FieldLabel>
+                  <GlassPasswordInput
+                    ref={passwordRef}
+                    placeholder="••••••••"
+                    value={password}
+                    onChangeText={setPassword}
+                    returnKeyType="next"
+                  />
+                </View>
+
+                {/* Confirmation */}
+                <View style={styles.field}>
+                  <FieldLabel>{t('rp_confirm_label')}</FieldLabel>
+                  <GlassPasswordInput
+                    style={confirm.length > 0 && !passwordMatch ? styles.inputError : undefined}
+                    placeholder="••••••••"
+                    value={confirm}
+                    onChangeText={setConfirm}
+                    returnKeyType="done"
+                    onSubmitEditing={handleReset}
+                  />
+                  {confirm.length > 0 && !passwordMatch ? (
+                    <Text style={styles.fieldError}>{t('rp_password_mismatch')}</Text>
+                  ) : null}
+                </View>
+
+                {error ? <ErrorBanner message={error} /> : null}
+
+                <BrandButton
+                  label={t('rp_submit_btn')}
+                  onPress={handleReset}
+                  disabled={!canSubmit}
+                  loading={loading}
+                />
+
+                <TextLink label={t('rp_resend_btn')} onPress={() => router.replace('/forgot-password')} />
+              </GlassPanel>
+            </Reveal>
           </View>
-
-          {/* Nouveau mdp */}
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('rp_new_password_label')}</Text>
-            <PasswordInput
-              ref={passwordRef}
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              returnKeyType="next"
-            />
-          </View>
-
-          {/* Confirmation */}
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('rp_confirm_label')}</Text>
-            <PasswordInput
-              style={[styles.input, confirm.length > 0 && !passwordMatch && styles.inputError]}
-              placeholder="••••••••"
-              placeholderTextColor={colors.textMuted}
-              value={confirm}
-              onChangeText={setConfirm}
-              returnKeyType="done"
-              onSubmitEditing={handleReset}
-            />
-            {confirm.length > 0 && !passwordMatch ? (
-              <Text style={styles.fieldError}>{t('rp_password_mismatch')}</Text>
-            ) : null}
-          </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Pressable
-            style={[styles.btn, !canSubmit && styles.btnDisabled]}
-            onPress={handleReset}
-            disabled={!canSubmit}
-          >
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.btnText}>{t('rp_submit_btn')}</Text>
-            }
-          </Pressable>
-
-          <Pressable style={styles.linkBtn} onPress={() => router.replace('/forgot-password')}>
-            <Text style={styles.linkText}>{t('rp_resend_btn')}</Text>
-          </Pressable>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.lg },
-  backBtn: { marginBottom: spacing.xl },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
-  content: { flex: 1, gap: spacing.md },
-  emoji: { fontSize: 48 },
-  title: { ...typography.display, color: colors.textPrimary },
-  sub: { ...typography.body, color: colors.textSecondary, lineHeight: 22, marginBottom: spacing.sm },
+  root: { flex: 1, backgroundColor: SPACE_BLACK },
+  flex: { flex: 1 },
+  screen: { flexGrow: 1, paddingHorizontal: spacing.lg },
+  content: { flex: 1, gap: spacing.lg, marginTop: spacing.xl },
   field: { gap: spacing.xs },
-  label: { ...typography.label, color: colors.textSecondary },
-  input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    ...typography.body,
-    color: colors.textPrimary,
-  },
   codeInput: {
     fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: 8,
+    fontWeight: '800',
+    letterSpacing: 10,
     textAlign: 'center',
   },
   inputError: { borderColor: colors.danger },
-  fieldError: { ...typography.caption, color: colors.danger },
-  error: { ...typography.caption, color: colors.danger },
-  btn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  btnDisabled: { opacity: 0.45 },
-  btnText: { ...typography.body, color: '#fff', fontWeight: '700' },
-  linkBtn: { alignItems: 'center', paddingVertical: spacing.sm },
-  linkText: { ...typography.caption, color: colors.brandSoft },
+  fieldError: { ...typography.caption, color: '#FF9DA0' },
   successBox: {
     flex: 1,
     alignItems: 'center',
@@ -221,7 +199,5 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     paddingHorizontal: spacing.lg,
   },
-  successEmoji: { fontSize: 64 },
-  successTitle: { ...typography.display, color: colors.textPrimary, textAlign: 'center' },
-  successSub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  successBtn: { alignSelf: 'stretch' },
 });
