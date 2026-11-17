@@ -9,6 +9,10 @@
  * Une fois les résultats affichés, les trois critères restent visibles sous
  * forme de puces : on en change une d'un geste au lieu de recommencer le
  * questionnaire.
+ *
+ * Style boutique haut de gamme (17/11/2026) : barre de progression au dégradé
+ * de marque, question en grand, choix en tuiles qui apparaissent en cascade,
+ * occasion proche signalée par un liseré et un compte à rebours de marque.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -16,9 +20,10 @@ import {
   StyleSheet, Text, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, radius, spacing } from '../../theme/tokens';
 import {
   shopApi,
   type GiftChoice,
@@ -27,6 +32,9 @@ import {
   type GiftSuggestions,
 } from '../../lib/shop-api';
 import { ProductCard } from '../../components/shop/ProductCard';
+import { GradientButton, ShopEmpty, ShopHeader } from '../../components/shop/ShopChrome';
+import { GradientText, PressableScale, Reveal } from '../../components/ui';
+import { haptics } from '../../lib/useHaptics';
 import { useI18n } from '../../lib/useI18n';
 import { giftChoiceLabel, type GiftChoiceKind } from '../../lib/gift-guide-label';
 
@@ -95,6 +103,7 @@ export default function GiftIdeasScreen() {
   }, [step, search]);
 
   function choose(value: string) {
+    haptics.select();
     if (step === 'recipient') setRecipient(value);
     else if (step === 'occasion') setOccasion(value);
     else if (step === 'budget') setBudget(value);
@@ -121,55 +130,73 @@ export default function GiftIdeasScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>🎁 {t('explorer_action_gifts_label')}</Text>
-        <View style={{ width: 22 }} />
-      </View>
+      <ShopHeader title={`🎁 ${t('explorer_action_gifts_label')}`} onBack={() => router.back()} backLabel={t('gs_back')} />
 
       {step !== 'results' ? (
         <ScrollView
           contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
           showsVerticalScrollIndicator={false}
         >
+          {/* Progression : un segment par question, rempli au dégradé de marque. */}
+          <View style={styles.progress}>
+            {STEP_ORDER.map((s, i) => (
+              <View key={s} style={styles.progressSeg}>
+                {i <= STEP_ORDER.indexOf(step as Exclude<Step, 'results'>) ? (
+                  <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                ) : null}
+              </View>
+            ))}
+          </View>
           <Text style={styles.stepIndex}>
             {t('shop_gift_step_index')
               .replace('{n}', String(STEP_ORDER.indexOf(step as Exclude<Step, 'results'>) + 1))
               .replace('{total}', String(STEP_ORDER.length))}
           </Text>
-          <Text style={styles.question}>{STEP_TITLE[step as Exclude<Step, 'results'>]}</Text>
+          {/* `key` : la question réapparaît en fondu à chaque étape. */}
+          <Reveal key={step} index={0}>
+            <GradientText style={styles.question}>{STEP_TITLE[step as Exclude<Step, 'results'>]}</GradientText>
+          </Reveal>
 
           {step === 'recipient' && (
             <View style={styles.choiceGrid}>
-              {options?.recipients.map((r) => (
-                <Pressable key={r.slug} style={styles.choiceTile} onPress={() => choose(r.slug)}>
-                  <Text style={styles.choiceEmoji}>{r.emoji}</Text>
-                  <Text style={styles.choiceLabel} numberOfLines={2}>{giftChoiceLabel(t, 'recipient', r.slug, r.label)}</Text>
-                </Pressable>
+              {options?.recipients.map((r, i) => (
+                <Reveal key={r.slug} index={Math.min(i, 9)} from="fade" style={styles.choiceCell}>
+                  <PressableScale style={styles.choiceTile} onPress={() => choose(r.slug)} scaleTo={0.92}>
+                    <View style={styles.choiceMedal}>
+                      <LinearGradient colors={gradients.brandSoft} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                      <Text style={styles.choiceEmoji}>{r.emoji}</Text>
+                    </View>
+                    <Text style={styles.choiceLabel} numberOfLines={2}>{giftChoiceLabel(t, 'recipient', r.slug, r.label)}</Text>
+                  </PressableScale>
+                </Reveal>
               ))}
             </View>
           )}
 
           {step === 'occasion' && (
             <View style={styles.choiceGrid}>
-              {options?.occasions.map((o) => {
+              {options?.occasions.map((o, i) => {
                 const cd = countdown(o, t);
                 return (
-                  <Pressable
-                    key={o.slug}
-                    style={[styles.choiceTile, o.isNow && styles.choiceTileNow]}
-                    onPress={() => choose(o.slug)}
-                  >
-                    {cd && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeTxt}>{cd}</Text>
+                  <Reveal key={o.slug} index={Math.min(i, 9)} from="fade" style={styles.choiceCell}>
+                    <PressableScale
+                      style={[styles.choiceTile, o.isNow && styles.choiceTileNow]}
+                      onPress={() => choose(o.slug)}
+                      scaleTo={0.92}
+                    >
+                      {cd && (
+                        <View style={styles.badge}>
+                          <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                          <Text style={styles.badgeTxt}>{cd}</Text>
+                        </View>
+                      )}
+                      <View style={styles.choiceMedal}>
+                        <LinearGradient colors={gradients.brandSoft} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                        <Text style={styles.choiceEmoji}>{o.emoji}</Text>
                       </View>
-                    )}
-                    <Text style={styles.choiceEmoji}>{o.emoji}</Text>
-                    <Text style={styles.choiceLabel} numberOfLines={2}>{giftChoiceLabel(t, 'occasion', o.slug, o.label)}</Text>
-                  </Pressable>
+                      <Text style={styles.choiceLabel} numberOfLines={2}>{giftChoiceLabel(t, 'occasion', o.slug, o.label)}</Text>
+                    </PressableScale>
+                  </Reveal>
                 );
               })}
             </View>
@@ -177,11 +204,16 @@ export default function GiftIdeasScreen() {
 
           {step === 'budget' && (
             <View style={styles.budgetList}>
-              {options?.budgets.map((b) => (
-                <Pressable key={b.slug} style={styles.budgetRow} onPress={() => choose(b.slug)}>
-                  <Text style={styles.budgetLabel}>{giftChoiceLabel(t, 'budget', b.slug, b.label)}</Text>
-                  <Text style={styles.budgetChevron}>›</Text>
-                </Pressable>
+              {options?.budgets.map((b, i) => (
+                <Reveal key={b.slug} index={i}>
+                  <PressableScale style={styles.budgetRow} onPress={() => choose(b.slug)} scaleTo={0.97}>
+                    <Text style={styles.budgetLabel}>{giftChoiceLabel(t, 'budget', b.slug, b.label)}</Text>
+                    <View style={styles.budgetGo}>
+                      <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                      <Text style={styles.budgetChevron}>›</Text>
+                    </View>
+                  </PressableScale>
+                </Reveal>
               ))}
             </View>
           )}
@@ -199,32 +231,25 @@ export default function GiftIdeasScreen() {
               coupait la troisième puce au bord de l'écran, sans rien pour
               signaler qu'il y avait quelque chose à côté. */}
           <View style={styles.criteriaRow}>
-            <Pressable style={styles.criteriaChip} onPress={() => setStep('recipient')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.recipients, 'recipient', recipient, t('shop_gift_chip_recipient'))}</Text>
-            </Pressable>
-            <Pressable style={styles.criteriaChip} onPress={() => setStep('occasion')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.occasions, 'occasion', occasion, t('shop_gift_chip_occasion'))}</Text>
-            </Pressable>
-            <Pressable style={styles.criteriaChip} onPress={() => setStep('budget')}>
-              <Text style={styles.criteriaTxt}>{labelOf(options?.budgets, 'budget', budget, t('shop_gift_chip_budget'))}</Text>
-            </Pressable>
+            <PressableScale style={styles.criteriaChip} onPress={() => setStep('recipient')} scaleTo={0.94}>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.recipients, 'recipient', recipient, t('shop_gift_chip_recipient'))}  ✎</Text>
+            </PressableScale>
+            <PressableScale style={styles.criteriaChip} onPress={() => setStep('occasion')} scaleTo={0.94}>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.occasions, 'occasion', occasion, t('shop_gift_chip_occasion'))}  ✎</Text>
+            </PressableScale>
+            <PressableScale style={styles.criteriaChip} onPress={() => setStep('budget')} scaleTo={0.94}>
+              <Text style={styles.criteriaTxt}>{labelOf(options?.budgets, 'budget', budget, t('shop_gift_chip_budget'))}  ✎</Text>
+            </PressableScale>
           </View>
 
           {loading ? (
             <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
           ) : failed ? (
-            <View style={styles.center}>
-              <Text style={styles.emptyTitle}>{t('shop_gift_error')}</Text>
-              <Pressable style={styles.retry} onPress={() => void search()}>
-                <Text style={styles.retryTxt}>{t('retry')}</Text>
-              </Pressable>
-            </View>
+            <ShopEmpty emoji="📡" title={t('shop_gift_error')}>
+              <GradientButton size="md" style={styles.retry} label={t('retry')} onPress={() => void search()} />
+            </ShopEmpty>
           ) : result && result.items.length === 0 ? (
-            <View style={styles.center}>
-              <Text style={styles.emptyEmoji}>🎁</Text>
-              <Text style={styles.emptyTitle}>{t('shop_gift_empty_title')}</Text>
-              <Text style={styles.emptyText}>{t('shop_gift_empty_text')}</Text>
-            </View>
+            <ShopEmpty emoji="🎁" title={t('shop_gift_empty_title')} text={t('shop_gift_empty_text')} />
           ) : (
             <FlatList
               data={result?.items ?? []}
@@ -241,14 +266,14 @@ export default function GiftIdeasScreen() {
                   </Text>
                 ) : undefined
               }
-              renderItem={({ item }) => (
-                <View style={styles.cell}>
+              renderItem={({ item, index }) => (
+                <Reveal index={index < 6 ? index : 0} from={index < 6 ? 'below' : 'fade'} style={styles.cell}>
                   <ProductCard
                     product={item}
                     variant="grid"
                     onPress={() => router.push(`/shop/product/${item.slug}` as never)}
                   />
-                </View>
+                </Reveal>
               )}
             />
           )}
@@ -261,69 +286,70 @@ export default function GiftIdeasScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-  },
-  back: { fontSize: 22, color: colors.textPrimary },
-  headerTitle: { ...typography.h3, color: colors.textPrimary },
 
-  stepIndex: { ...typography.label, color: colors.textMuted, marginBottom: 4 },
-  question: { ...typography.h2, color: colors.textPrimary, marginBottom: spacing.lg },
+  progress: { flexDirection: 'row', gap: 6, marginBottom: spacing.md },
+  progressSeg: { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden', backgroundColor: colors.border },
+  stepIndex: {
+    color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.6,
+    textTransform: 'uppercase', marginBottom: 6,
+  },
+  question: { fontSize: 30, fontWeight: '900', letterSpacing: -0.8, lineHeight: 35, marginBottom: spacing.lg },
 
   // Trois par ligne : neuf destinataires et neuf occasions tiennent alors sur
   // un écran sans défilement, ce qui garde le choix immédiat.
   choiceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  choiceCell: { width: '31.5%' },
   choiceTile: {
-    width: '31.5%', aspectRatio: 1,
-    alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 4,
+    aspectRatio: 0.92,
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 6,
   },
-  choiceTileNow: { borderColor: colors.brand },
-  choiceEmoji: { fontSize: 26 },
-  choiceLabel: { ...typography.label, color: colors.textPrimary, fontSize: 11, textAlign: 'center' },
+  choiceTileNow: { borderColor: colors.brand, borderWidth: 1.5 },
+  choiceMedal: {
+    width: 50, height: 50, borderRadius: 25, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+  },
+  choiceEmoji: { fontSize: 25 },
+  choiceLabel: { color: colors.textPrimary, fontSize: 12, fontWeight: '700', textAlign: 'center', lineHeight: 15 },
   badge: {
-    position: 'absolute', top: 6, right: 6,
-    backgroundColor: colors.brand, borderRadius: radius.pill,
-    paddingHorizontal: 6, paddingVertical: 2,
+    position: 'absolute', top: 6, right: 6, overflow: 'hidden',
+    borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2,
   },
-  badgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  badgeTxt: { color: '#fff', fontSize: 10, fontWeight: '900' },
 
   budgetList: { gap: spacing.sm },
   budgetRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
-    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: spacing.md, paddingLeft: spacing.lg, paddingRight: spacing.md,
   },
-  budgetLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  budgetChevron: { fontSize: 20, color: colors.textMuted },
+  budgetLabel: { color: colors.textPrimary, fontSize: 17, fontWeight: '800' },
+  budgetGo: { width: 34, height: 34, borderRadius: 17, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  budgetChevron: { fontSize: 22, color: '#fff', fontWeight: '800', marginTop: -2 },
 
   skip: { alignSelf: 'center', marginTop: spacing.lg, padding: spacing.sm },
-  skipTxt: { ...typography.label, color: colors.textMuted, textDecorationLine: 'underline' },
+  skipTxt: { color: colors.textMuted, fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' },
 
   criteriaRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs,
     paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
   },
   criteriaChip: {
-    backgroundColor: colors.surfaceElevated, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.md, paddingVertical: 7,
+    backgroundColor: 'rgba(31,31,42,0.72)', borderRadius: radius.pill,
+    borderWidth: 1, borderColor: colors.brand,
+    paddingHorizontal: spacing.md, paddingVertical: 8,
   },
-  criteriaTxt: { ...typography.label, color: colors.textPrimary, fontSize: 12 },
+  criteriaTxt: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
 
-  resultCount: { ...typography.label, color: colors.textMuted, marginBottom: spacing.sm },
-  column: { gap: spacing.sm },
-  cell: { flex: 1, marginBottom: spacing.sm },
-
-  emptyEmoji: { fontSize: 40 },
-  emptyTitle: { ...typography.h3, color: colors.textPrimary, textAlign: 'center' },
-  emptyText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  retry: {
-    marginTop: spacing.sm, backgroundColor: colors.brand,
-    borderRadius: radius.pill, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
+  resultCount: {
+    color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.6,
+    textTransform: 'uppercase', marginBottom: spacing.md,
   },
-  retryTxt: { color: '#fff', fontWeight: '800' },
+  column: { gap: spacing.md },
+  cell: { flex: 1, marginBottom: spacing.md },
+
+  retry: { marginTop: spacing.md, alignSelf: 'stretch' },
 });

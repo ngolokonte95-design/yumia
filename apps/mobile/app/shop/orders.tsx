@@ -1,15 +1,21 @@
-/** Mes commandes — statut, articles et suivi du colis. */
+/**
+ * Mes commandes — statut, articles et suivi du colis.
+ * Style boutique haut de gamme (17/11/2026) : cartes sobres en cascade, frise
+ * d'avancement animée au dégradé de marque, total en typographie forte.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import { shopApi, formatPrice, type Order } from '../../lib/shop-api';
 import { isHttpsUrl, openExternalHttps } from '../../lib/external-link';
 import { OrderTimeline } from '../../components/shop/OrderTimeline';
 import { useI18n } from '../../lib/useI18n';
+import { GradientButton, ShopEmpty, ShopHeader } from '../../components/shop/ShopChrome';
+import { PressableScale, Reveal } from '../../components/ui';
 import type { TranslationKey } from '../../lib/translations';
 
 /**
@@ -78,34 +84,23 @@ export default function OrdersScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('shop_orders_title')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ShopHeader title={t('shop_orders_title')} onBack={() => router.back()} backLabel={t('gs_back')} />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
       ) : orders.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>📦</Text>
-          <Text style={styles.emptyTitle}>{t('shop_orders_empty_title')}</Text>
-          <Text style={styles.emptyText}>{t('shop_orders_empty_text')}</Text>
-          <Pressable style={styles.shopBtn} onPress={() => router.replace('/shop' as never)}>
-            <Text style={styles.shopBtnTxt}>{t('shop_orders_go_to_shop')}</Text>
-          </Pressable>
-        </View>
+        <ShopEmpty emoji="📦" title={t('shop_orders_empty_title')} text={t('shop_orders_empty_text')}>
+          <GradientButton size="md" style={styles.shopBtn} label={t('shop_orders_go_to_shop')} onPress={() => router.replace('/shop' as never)} />
+        </ShopEmpty>
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, paddingBottom: insets.bottom + spacing.xl }}
+          contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: insets.bottom + spacing.xl }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
         >
-          {orders.map((o) => {
+          {orders.map((o, i) => {
             const status = STATUS[o.status];
             return (
-              <View key={o.id} style={styles.card}>
+              <Reveal key={o.id} index={Math.min(i, 5)} style={styles.card}>
                 <View style={styles.cardHead}>
                   <View>
                     <Text style={styles.reference}>{o.reference}</Text>
@@ -145,13 +140,13 @@ export default function OrdersScreen() {
                 </View>
 
                 {isHttpsUrl(o.trackingUrl) && (
-                  <Pressable style={styles.trackBtn} onPress={() => void openExternalHttps(o.trackingUrl).catch(() => {})}>
-                    <Text style={styles.trackTxt}>
-                      {o.trackingNumber
+                  <PressableScale style={styles.trackBtn} onPress={() => void openExternalHttps(o.trackingUrl).catch(() => {})} scaleTo={0.97}>
+                    <Text style={styles.trackTxt} numberOfLines={1}>
+                      📍  {o.trackingNumber
                         ? t('shop_orders_track_with_number').replace('{number}', o.trackingNumber)
                         : t('shop_orders_track')}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 )}
 
                 {HIDEABLE.has(o.status) && (
@@ -159,7 +154,7 @@ export default function OrdersScreen() {
                     <Text style={styles.deleteTxt}>{t('shop_orders_delete')}</Text>
                   </Pressable>
                 )}
-              </View>
+              </Reveal>
             );
           })}
         </ScrollView>
@@ -170,38 +165,40 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  back: { fontSize: 24, color: colors.brandSoft },
-  title: { ...typography.h3, color: colors.textPrimary },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.xl },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { ...typography.h3, color: colors.textPrimary },
-  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
-  shopBtn: { marginTop: spacing.md, backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: 24, paddingVertical: 12 },
-  shopBtnTxt: { color: '#fff', fontWeight: '700' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  shopBtn: { marginTop: spacing.md, alignSelf: 'stretch' },
 
-  card: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
+  card: {
+    backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.10)', padding: spacing.md, gap: spacing.md,
+  },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm },
-  reference: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
-  date: { fontSize: 11, color: colors.textMuted },
-  statusPill: { borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
-  statusTxt: { fontSize: 11, fontWeight: '700' },
+  reference: { fontSize: 16, fontWeight: '900', color: colors.textPrimary, letterSpacing: 0.3 },
+  date: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '600' },
+  statusPill: { borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 5 },
+  statusTxt: { fontSize: 12, fontWeight: '800' },
 
   items: { gap: spacing.sm },
-  item: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
-  itemImage: { width: 52, height: 52, borderRadius: radius.sm, backgroundColor: colors.surfaceElevated },
+  item: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
+  itemImage: { width: 60, height: 70, borderRadius: radius.md, backgroundColor: colors.surfaceElevated },
   itemPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  itemTitle: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
-  itemVariant: { fontSize: 11, color: colors.textMuted },
-  itemQty: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  itemTitle: { fontSize: 14, color: colors.textPrimary, fontWeight: '700', lineHeight: 19 },
+  itemVariant: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+  itemQty: { fontSize: 13, color: colors.textSecondary, marginTop: 3, fontWeight: '600' },
 
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
-  totalLabel: { fontSize: 13, color: colors.textSecondary },
-  totalValue: { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+  cardFooter: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)',
+  },
+  totalLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase' },
+  totalValue: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.5 },
 
-  trackBtn: { backgroundColor: colors.surfaceElevated, borderRadius: radius.pill, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  trackTxt: { color: colors.brandSoft, fontWeight: '700', fontSize: 13 },
-  deleteBtn: { alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 12 },
+  trackBtn: {
+    borderRadius: radius.pill, paddingVertical: 13, paddingHorizontal: spacing.md, alignItems: 'center',
+    backgroundColor: 'rgba(31,31,42,0.72)', borderWidth: 1, borderColor: colors.brand,
+  },
+  trackTxt: { color: colors.textPrimary, fontWeight: '800', fontSize: 14 },
+  deleteBtn: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 12 },
   deleteTxt: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
 });

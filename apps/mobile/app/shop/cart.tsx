@@ -1,13 +1,21 @@
-/** Panier — quantités, indisponibilités, récapitulatif et accès au paiement. */
+/**
+ * Panier — quantités, indisponibilités, récapitulatif et accès au paiement.
+ * Style boutique haut de gamme (17/11/2026) : cartes à grande vignette,
+ * sélecteur de quantité en verre, total qui rebondit quand il change,
+ * bouton de paiement au dégradé de marque.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, motion, radius, spacing } from '../../theme/tokens';
 import { shopApi, formatPrice, type CartSummary } from '../../lib/shop-api';
 import { haptics } from '../../lib/useHaptics';
+import { GradientButton, PricePop, ShopEmpty, ShopHeader } from '../../components/shop/ShopChrome';
+import { PressableScale, Reveal } from '../../components/ui';
 import { useI18n } from '../../lib/useI18n';
 
 export default function CartScreen() {
@@ -63,37 +71,35 @@ export default function CartScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('gs_back')}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('shop_cart_title')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ShopHeader
+        title={t('shop_cart_title')}
+        onBack={() => router.back()}
+        backLabel={t('gs_back')}
+      />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
       ) : isEmpty ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🛒</Text>
-          <Text style={styles.emptyTitle}>{t('shop_cart_empty_title')}</Text>
-          <Text style={styles.emptyText}>{t('shop_cart_empty_text')}</Text>
-          <Pressable style={styles.shopBtn} onPress={() => router.replace('/shop' as never)}>
-            <Text style={styles.shopBtnTxt}>{t('shop_cart_discover_shop')}</Text>
-          </Pressable>
-        </View>
+        <ShopEmpty emoji="🛒" title={t('shop_cart_empty_title')} text={t('shop_cart_empty_text')}>
+          <GradientButton size="md" style={styles.shopBtn} label={t('shop_cart_discover_shop')} onPress={() => router.replace('/shop' as never)} />
+        </ShopEmpty>
       ) : (
         <>
-          <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, paddingBottom: 200 }}>
-            {cart!.lines.map((line) => (
-              <View key={line.id} style={[styles.line, !line.available && styles.lineUnavailable]}>
-                <Pressable onPress={() => router.push(`/shop/product/${line.slug}` as never)}>
+          <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 280 }}>
+            {cart!.lines.map((line, i) => (
+              <Animated.View
+                key={line.id}
+                layout={LinearTransition.duration(motion.duration.normal)}
+                exiting={FadeOut.duration(motion.duration.fast)}
+              >
+              <Reveal index={Math.min(i, 6)} style={[styles.line, !line.available && styles.lineUnavailable]}>
+                <PressableScale onPress={() => router.push(`/shop/product/${line.slug}` as never)} scaleTo={0.95}>
                   {line.imageUrl ? (
                     <Image source={{ uri: line.imageUrl }} style={styles.lineImage} contentFit="cover" />
                   ) : (
-                    <View style={[styles.lineImage, styles.linePlaceholder]}><Text>🛍️</Text></View>
+                    <View style={[styles.lineImage, styles.linePlaceholder]}><Text style={{ fontSize: 28 }}>🛍️</Text></View>
                   )}
-                </Pressable>
+                </PressableScale>
 
                 <View style={styles.lineBody}>
                   <Text style={styles.lineTitle} numberOfLines={2}>{line.title}</Text>
@@ -101,7 +107,7 @@ export default function CartScreen() {
                   {!line.available && <Text style={styles.unavailable}>{t('shop_cart_line_unavailable')}</Text>}
 
                   <View style={styles.lineFooter}>
-                    <Text style={styles.linePrice}>{formatPrice(line.lineTotalCents, cart!.currency)}</Text>
+                    <PricePop style={styles.linePrice} text={formatPrice(line.lineTotalCents, cart!.currency)} />
                     <View style={styles.qtyRow}>
                       <Pressable
                         style={styles.qtyBtn}
@@ -125,7 +131,8 @@ export default function CartScreen() {
                     </View>
                   </View>
                 </View>
-              </View>
+              </Reveal>
+              </Animated.View>
             ))}
           </ScrollView>
 
@@ -143,15 +150,15 @@ export default function CartScreen() {
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>{t('sor_total')}</Text>
-              <Text style={styles.totalValue}>{formatPrice(cart!.totalCents, cart!.currency)}</Text>
+              <PricePop style={styles.totalValue} text={formatPrice(cart!.totalCents, cart!.currency)} />
             </View>
-            <Pressable
-              style={[styles.checkoutBtn, !hasBuyable && styles.checkoutBtnDisabled]}
+            <GradientButton
+              style={styles.checkoutBtn}
+              icon="🔒"
+              label={t('shop_cart_checkout')}
               onPress={() => router.push('/shop/checkout' as never)}
               disabled={!hasBuyable}
-            >
-              <Text style={styles.checkoutTxt}>{t('shop_cart_checkout')}</Text>
-            </Pressable>
+            />
           </View>
         </>
       )}
@@ -161,50 +168,49 @@ export default function CartScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  back: { fontSize: 24, color: colors.brandSoft },
-  title: { ...typography.h3, color: colors.textPrimary },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.xl },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { ...typography.h3, color: colors.textPrimary },
-  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
-  shopBtn: { marginTop: spacing.md, backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: 24, paddingVertical: 12 },
-  shopBtnTxt: { color: '#fff', fontWeight: '700' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  shopBtn: { marginTop: spacing.md, alignSelf: 'stretch' },
 
   line: {
-    flexDirection: 'row', gap: spacing.sm, backgroundColor: colors.surface,
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm,
+    flexDirection: 'row', gap: spacing.md, backgroundColor: colors.surface,
+    borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.10)',
+    padding: spacing.sm,
   },
   lineUnavailable: { opacity: 0.6, borderColor: colors.danger },
-  lineImage: { width: 84, height: 84, borderRadius: radius.sm, backgroundColor: colors.surfaceElevated },
+  lineImage: { width: 96, height: 112, borderRadius: radius.md, backgroundColor: colors.surfaceElevated },
   linePlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  lineBody: { flex: 1, justifyContent: 'space-between' },
-  lineTitle: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
-  lineVariant: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  unavailable: { fontSize: 11, color: colors.danger, marginTop: 2 },
-  lineFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
-  linePrice: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  qtyBtn: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surfaceElevated,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border,
+  lineBody: { flex: 1, justifyContent: 'space-between', paddingVertical: 2 },
+  lineTitle: { fontSize: 14, color: colors.textPrimary, fontWeight: '700', lineHeight: 19 },
+  lineVariant: { fontSize: 12, color: colors.textMuted, marginTop: 3, fontWeight: '600' },
+  unavailable: { fontSize: 12, color: colors.danger, marginTop: 3, fontWeight: '700' },
+  lineFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  linePrice: { fontSize: 18, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.3 },
+  qtyRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, padding: 3, borderRadius: radius.pill,
+    backgroundColor: 'rgba(31,31,42,0.72)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
   },
-  qtyBtnTxt: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
-  qty: { color: colors.textPrimary, fontSize: 14, fontWeight: '700', minWidth: 18, textAlign: 'center' },
+  qtyBtn: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceElevated,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  qtyBtnTxt: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  qty: { color: colors.textPrimary, fontSize: 15, fontWeight: '900', minWidth: 22, textAlign: 'center' },
 
   summary: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.surface,
-    borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.md, gap: 6,
+    position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(14,14,18,0.97)',
+    borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+    padding: spacing.lg, paddingBottom: spacing.md, gap: 8,
   },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryLabel: { fontSize: 13, color: colors.textSecondary },
-  summaryValue: { fontSize: 14, color: colors.textPrimary, fontWeight: '600' },
+  summaryLabel: { fontSize: 14, color: colors.textSecondary, fontWeight: '600' },
+  summaryValue: { fontSize: 15, color: colors.textPrimary, fontWeight: '700' },
   free: { color: colors.success },
-  totalRow: { marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  totalLabel: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  totalValue: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
-  checkoutBtn: { marginTop: spacing.sm, backgroundColor: colors.brand, borderRadius: radius.pill, paddingVertical: 15, alignItems: 'center' },
-  checkoutBtnDisabled: { opacity: 0.5 },
-  checkoutTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  totalRow: {
+    marginTop: 4, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.14)',
+  },
+  totalLabel: { fontSize: 13, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.4, textTransform: 'uppercase' },
+  totalValue: { fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.8 },
+  checkoutBtn: { marginTop: spacing.sm },
 });

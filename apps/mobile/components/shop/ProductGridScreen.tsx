@@ -2,18 +2,26 @@
  * Écran de listing produits — mutualisé entre un rayon (`/shop/category/[slug]`)
  * et la recherche (`/shop/search`) : même grille, mêmes filtres, même tri, seule
  * la source du titre et le filtre initial changent.
+ *
+ * Style boutique haut de gamme (17/11/2026) : en-tête et boutons en verre,
+ * onglets et tri au dégradé de marque (seule couleur d'accent), grille aérée
+ * à grandes photos, feuille de filtres sombre.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Modal, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, radius, spacing } from '../../theme/tokens';
 import { shopApi, type ProductListItem, type ProductQuery } from '../../lib/shop-api';
 import { ProductCard } from './ProductCard';
+import { GlassIconButton, GhostButton, GradientButton, ShopEmpty } from './ShopChrome';
+import { PressableScale, Reveal } from '../ui';
+import { haptics } from '../../lib/useHaptics';
 import { useI18n } from '../../lib/useI18n';
 
 const PAGE_SIZE = 20;
@@ -140,34 +148,25 @@ export function ProductGridScreen({
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <View style={{ flex: 1 }}>
+        <GlassIconButton icon="←" onPress={() => router.back()} accessibilityLabel={t('gs_back')} />
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
           {/* Taille du catalogue : indicateur de pilotage, réservé à l'admin. */}
           {!loading && user?.isAdmin && <Text style={styles.count}>{t(total > 1 ? 'shop_grid_count_other' : 'shop_grid_count_one').replace('{n}', String(total))}</Text>}
         </View>
         {searchScopeLabel && !showSearchInput && (
-          <Pressable
+          <GlassIconButton
+            icon="🔍"
+            active={searchOpen}
             onPress={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
-            hitSlop={8}
-            style={[styles.headerBtn, searchOpen && styles.headerBtnActive]}
-            accessibilityRole="button"
             accessibilityLabel={searchOpen ? t('shop_grid_close_search') : t('shop_grid_search_in').replace('{scope}', searchScopeLabel)}
-          >
-            <Text style={styles.headerIcon}>🔍</Text>
-          </Pressable>
+          />
         )}
-        <Pressable
+        <GlassIconButton
+          icon="🛒"
           onPress={() => router.push('/shop/cart' as never)}
-          hitSlop={8}
-          style={styles.headerBtn}
-          accessibilityRole="button"
           accessibilityLabel={t('shop_grid_cart_a11y')}
-        >
-          <Text style={styles.headerIcon}>🛒</Text>
-        </Pressable>
+        />
       </View>
 
       {searchVisible && (
@@ -196,67 +195,72 @@ export function ProductGridScreen({
 
       {tabs && tabs.length > 0 && (
         <View style={styles.tabRow}>
-          {tabs.map((tab) => (
-            <Pressable
-              key={tab.key}
-              style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-              onPress={() => onTabChange?.(tab.key)}
-            >
-              <Text style={[styles.tabTxt, activeTab === tab.key && styles.tabTxtActive]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          ))}
+          {tabs.map((tab) => {
+            const on = activeTab === tab.key;
+            return (
+              <PressableScale
+                key={tab.key}
+                style={[styles.tab, on && styles.tabActive]}
+                onPress={() => { haptics.select(); onTabChange?.(tab.key); }}
+                scaleTo={0.94}
+              >
+                {on ? <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} /> : null}
+                <Text style={[styles.tabTxt, on && styles.tabTxtActive]} numberOfLines={1}>
+                  {tab.label}
+                </Text>
+              </PressableScale>
+            );
+          })}
         </View>
       )}
 
       {/* Tri + filtres */}
       <View style={styles.toolbar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRow}>
-          {SORTS.map((s) => (
-            <Pressable
-              key={s.key}
-              style={[styles.sortChip, sort === s.key && styles.sortChipActive]}
-              onPress={() => setSort(s.key)}
-            >
-              <Text style={[styles.sortTxt, sort === s.key && styles.sortTxtActive]}>{s.label}</Text>
-            </Pressable>
-          ))}
+          {SORTS.map((s) => {
+            const on = sort === s.key;
+            return (
+              <PressableScale
+                key={s.key}
+                style={[styles.sortChip, on && styles.sortChipActive]}
+                onPress={() => { haptics.select(); setSort(s.key); }}
+                scaleTo={0.94}
+              >
+                {on ? <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} /> : null}
+                <Text style={[styles.sortTxt, on && styles.sortTxtActive]}>{s.label}</Text>
+              </PressableScale>
+            );
+          })}
         </ScrollView>
-        <Pressable style={styles.filterBtn} onPress={() => setFiltersOpen(true)}>
+        <PressableScale style={[styles.filterBtn, activeFilters > 0 && styles.filterBtnOn]} onPress={() => setFiltersOpen(true)} scaleTo={0.94}>
           <Text style={styles.filterTxt}>
-            {activeFilters
+            ⚙︎ {activeFilters
               ? t('shop_grid_filters_count').replace('{n}', String(activeFilters))
               : t('shop_grid_filters')}
           </Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
       ) : items.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🔍</Text>
-          <Text style={styles.emptyTitle}>{t('shop_grid_empty_title')}</Text>
+        <ShopEmpty
+          emoji="🔍"
+          title={t('shop_grid_empty_title')}
+          text={searchScopeLabel && search.trim()
+            ? t('shop_grid_empty_in_scope').replace('{q}', search.trim()).replace('{scope}', searchScopeLabel)
+            : t('shop_grid_empty_text')}
+        >
+          {/* Le produit existe peut-être, mais rangé dans un autre rayon. */}
           {searchScopeLabel && search.trim() ? (
-            <>
-              <Text style={styles.emptyText}>
-                {t('shop_grid_empty_in_scope')
-                  .replace('{q}', search.trim())
-                  .replace('{scope}', searchScopeLabel)}
-              </Text>
-              {/* Le produit existe peut-être, mais rangé dans un autre rayon. */}
-              <Pressable
-                style={styles.widenBtn}
-                onPress={() => router.push(`/shop/search?q=${encodeURIComponent(search.trim())}` as never)}
-              >
-                <Text style={styles.widenTxt}>{t('shop_grid_widen')}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Text style={styles.emptyText}>{t('shop_grid_empty_text')}</Text>
-          )}
-        </View>
+            <GradientButton
+              size="md"
+              style={styles.widenBtn}
+              label={t('shop_grid_widen')}
+              onPress={() => router.push(`/shop/search?q=${encodeURIComponent(search.trim())}` as never)}
+            />
+          ) : undefined}
+        </ShopEmpty>
       ) : (
         <FlatList
           data={items}
@@ -264,10 +268,12 @@ export function ProductGridScreen({
           numColumns={2}
           columnWrapperStyle={styles.column}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.xl }]}
-          renderItem={({ item }) => (
-            <View style={styles.gridCell}>
+          renderItem={({ item, index }) => (
+            // Cascade sur le premier écran seulement : plus bas, les cartes
+            // arrivent hors champ, un délai ne ferait que ralentir.
+            <Reveal index={index < 6 ? index : 0} from={index < 6 ? 'below' : 'fade'} style={styles.gridCell}>
               <ProductCard product={item} variant="grid" onPress={() => router.push(`/shop/product/${item.slug}` as never)} />
-            </View>
+            </Reveal>
           )}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -281,6 +287,7 @@ export function ProductGridScreen({
       <Modal visible={filtersOpen} animationType="slide" transparent onRequestClose={() => setFiltersOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setFiltersOpen(false)}>
           <Pressable style={[styles.modalSheet, { paddingBottom: insets.bottom + spacing.lg }]} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.modalTitle}>{t('shop_grid_filters')}</Text>
 
             <Text style={styles.fieldLabel}>{t('shop_grid_price_label')}</Text>
@@ -306,29 +313,31 @@ export function ProductGridScreen({
 
             <Text style={styles.fieldLabel}>{t('shop_grid_min_rating')}</Text>
             <View style={styles.ratingRow}>
-              {[undefined, 3, 4, 4.5].map((r) => (
-                <Pressable
-                  key={String(r)}
-                  style={[styles.ratingChip, minRating === r && styles.ratingChipActive]}
-                  onPress={() => setMinRating(r)}
-                >
-                  <Text style={[styles.ratingTxt, minRating === r && styles.ratingTxtActive]}>
-                    {r ? `★ ${r}+` : t('shop_grid_rating_all')}
-                  </Text>
-                </Pressable>
-              ))}
+              {[undefined, 3, 4, 4.5].map((r) => {
+                const on = minRating === r;
+                return (
+                  <PressableScale
+                    key={String(r)}
+                    style={[styles.ratingChip, on && styles.ratingChipActive]}
+                    onPress={() => { haptics.select(); setMinRating(r); }}
+                    scaleTo={0.94}
+                  >
+                    {on ? <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} /> : null}
+                    <Text style={[styles.ratingTxt, on && styles.ratingTxtActive]}>
+                      {r ? `★ ${r}+` : t('shop_grid_rating_all')}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
             </View>
 
             <View style={styles.modalActions}>
-              <Pressable
+              <GhostButton
                 style={styles.resetBtn}
+                label={t('shop_grid_reset')}
                 onPress={() => { setMinPrice(''); setMaxPrice(''); setMinRating(undefined); }}
-              >
-                <Text style={styles.resetTxt}>{t('shop_grid_reset')}</Text>
-              </Pressable>
-              <Pressable style={styles.applyBtn} onPress={() => setFiltersOpen(false)}>
-                <Text style={styles.applyTxt}>{t('shop_grid_apply')}</Text>
-              </Pressable>
+              />
+              <GradientButton style={styles.applyBtn} label={t('shop_grid_apply')} onPress={() => setFiltersOpen(false)} />
             </View>
           </Pressable>
         </Pressable>
@@ -340,96 +349,87 @@ export function ProductGridScreen({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  back: { fontSize: 24, color: colors.brandSoft },
-  title: { ...typography.h3, color: colors.textPrimary },
-  count: { fontSize: 12, color: colors.textMuted },
-  headerBtn: {
-    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
-  },
-  headerBtnActive: { backgroundColor: colors.surfaceElevated },
-  headerIcon: { fontSize: 20 },
+  title: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
+  count: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
 
   searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.pill, borderWidth: 1,
-    borderColor: colors.border, paddingHorizontal: spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.md, marginBottom: spacing.xs,
+    backgroundColor: 'rgba(31,31,42,0.72)', borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: spacing.md, minHeight: 48,
   },
   searchIcon: { fontSize: 14 },
-  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 10 },
+  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 11 },
   clearIcon: { fontSize: 14, color: colors.textMuted, paddingHorizontal: 4 },
 
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.md, paddingVertical: spacing.sm },
-  sortRow: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.md },
+  sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md },
   // Les onglets se partagent la largeur : trois ou quatre sous-rayons tiennent
   // toujours sur une ligne, sans défilement horizontal.
   tabRow: {
     flexDirection: 'row', gap: spacing.xs,
-    paddingHorizontal: spacing.md, paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xs,
   },
   tab: {
-    flex: 1, alignItems: 'center', paddingVertical: 7,
-    borderRadius: radius.pill, borderWidth: 1,
-    borderColor: colors.border, backgroundColor: colors.surface,
+    flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, paddingHorizontal: 4,
+    borderRadius: radius.pill, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: colors.surface,
   },
-  tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  tabActive: { borderColor: 'transparent' },
   tabTxt: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
-  tabTxtActive: { color: '#fff' },
+  tabTxtActive: { color: '#fff', fontWeight: '900' },
   sortChip: {
-    backgroundColor: colors.surface, borderRadius: radius.pill, borderWidth: 1,
-    borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: colors.surface, borderRadius: radius.pill, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 14, paddingVertical: 8,
   },
-  sortChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  sortTxt: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  sortTxtActive: { color: '#fff' },
+  sortChipActive: { borderColor: 'transparent' },
+  sortTxt: { fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  sortTxtActive: { color: '#fff', fontWeight: '900' },
   filterBtn: {
-    backgroundColor: colors.surfaceElevated, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: 'rgba(31,31,42,0.72)', borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 14, paddingVertical: 8,
   },
-  filterTxt: { fontSize: 12, fontWeight: '700', color: colors.textPrimary },
+  filterBtnOn: { borderColor: colors.brand, borderWidth: 1.5 },
+  filterTxt: { fontSize: 12, fontWeight: '800', color: colors.textPrimary },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: spacing.xl },
-  emptyEmoji: { fontSize: 44 },
-  emptyTitle: { ...typography.h3, color: colors.textPrimary },
-  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
-  widenBtn: {
-    marginTop: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: 12,
-    borderRadius: radius.pill, backgroundColor: colors.brand,
-  },
-  widenTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  widenBtn: { marginTop: spacing.md, alignSelf: 'stretch' },
 
-  list: { paddingHorizontal: spacing.md, gap: spacing.sm },
-  column: { gap: spacing.sm },
-  gridCell: { flex: 1, marginBottom: spacing.sm },
+  list: { paddingHorizontal: spacing.md, paddingTop: spacing.xs, gap: spacing.md },
+  column: { gap: spacing.md },
+  gridCell: { flex: 1, marginBottom: spacing.xs },
 
-  modalBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg,
-    padding: spacing.lg, gap: spacing.sm,
+    backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+    padding: spacing.lg, paddingTop: spacing.md, gap: spacing.sm,
   },
-  modalTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.sm },
-  fieldLabel: { ...typography.label, color: colors.textSecondary, marginTop: spacing.sm },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.brand, marginBottom: spacing.sm },
+  modalTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', letterSpacing: -0.3, marginBottom: spacing.xs },
+  fieldLabel: {
+    color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.4,
+    textTransform: 'uppercase', marginTop: spacing.md,
+  },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   priceInput: {
-    flex: 1, backgroundColor: colors.surfaceElevated, borderRadius: radius.sm,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md,
-    paddingVertical: 10, color: colors.textPrimary,
+    flex: 1, backgroundColor: colors.surfaceElevated, borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: spacing.md,
+    paddingVertical: 12, color: colors.textPrimary, fontSize: 15, fontWeight: '700',
   },
   priceSep: { color: colors.textMuted },
-  ratingRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  ratingRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   ratingChip: {
-    backgroundColor: colors.surfaceElevated, borderRadius: radius.pill, borderWidth: 1,
-    borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: colors.surfaceElevated, borderRadius: radius.pill, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 14, paddingVertical: 8,
   },
-  ratingChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  ratingTxt: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  ratingTxtActive: { color: '#fff' },
+  ratingChipActive: { borderColor: 'transparent' },
+  ratingTxt: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+  ratingTxtActive: { color: '#fff', fontWeight: '900' },
 
   modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
-  resetBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  resetTxt: { color: colors.textSecondary, fontWeight: '700' },
-  applyBtn: { flex: 2, alignItems: 'center', paddingVertical: 14, borderRadius: radius.pill, backgroundColor: colors.brand },
-  applyTxt: { color: '#fff', fontWeight: '800' },
+  resetBtn: { flex: 1 },
+  applyBtn: { flex: 2 },
 });

@@ -1,19 +1,27 @@
 /**
  * BOUTIQUE — accueil.
- * Rayons, sélection mise en avant, meilleures ventes et nouveautés.
+ * Vitrine (sélection mise en avant) en grand carrousel photo, rayons,
+ * meilleures ventes et nouveautés.
  * Les prix arrivent en centimes (voir shop-api) et ne sont formatés qu'ici.
+ *
+ * Style boutique haut de gamme (17/11/2026) : une seule couleur d'accent (le
+ * dégradé de marque), verre sobre, typographie forte, apparition en cascade.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView,
+  ActivityIndicator, FlatList, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, radius, spacing } from '../../theme/tokens';
 import { shopApi, type ProductListItem, type ShopCategory } from '../../lib/shop-api';
 import { ProductCard } from '../../components/shop/ProductCard';
+import { ShowcaseCarousel } from '../../components/shop/ShowcaseCarousel';
+import { GlassIconButton, SectionHeader, ShopEmpty } from '../../components/shop/ShopChrome';
+import { GradientText, PressableScale, Reveal } from '../../components/ui';
 import { FeatureTip } from '../../components/FeatureTip';
 import { useI18n } from '../../lib/useI18n';
 import { shopCategoryName } from '../../lib/shop-category-name';
@@ -74,43 +82,27 @@ export default function ShopHomeScreen() {
     if (q) router.push(`/shop/search?q=${encodeURIComponent(q)}` as never);
   }
 
+  const openProduct = (p: ProductListItem) => router.push(`/shop/product/${p.slug}` as never);
   const isEmpty = !loading && !featured.length && !bestsellers.length && !newest.length;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* En-tête : retour, recherche, panier */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('shop_home_search_placeholder')}
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={submitSearch}
-            returnKeyType="search"
+      {/* Barre du haut : retour, commandes, panier */}
+      <View style={styles.topBar}>
+        <GlassIconButton icon="←" onPress={() => router.back()} accessibilityLabel={t('gs_back')} />
+        <View style={styles.topRight}>
+          <GlassIconButton
+            icon="📦"
+            onPress={() => router.push('/shop/orders' as never)}
+            accessibilityLabel={t('shop_home_orders_a11y')}
+          />
+          <GlassIconButton
+            icon="🛒"
+            badge={cartCount}
+            onPress={() => router.push('/shop/cart' as never)}
+            accessibilityLabel={t('shop_grid_cart_a11y')}
           />
         </View>
-        <Pressable
-          onPress={() => router.push('/shop/orders' as never)}
-          hitSlop={8}
-          style={styles.cartBtn}
-          accessibilityLabel={t('shop_home_orders_a11y')}
-        >
-          <Text style={styles.cartIcon}>📦</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/shop/cart' as never)} hitSlop={8} style={styles.cartBtn}>
-          <Text style={styles.cartIcon}>🛒</Text>
-          {cartCount > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeTxt}>{cartCount > 9 ? '9+' : cartCount}</Text>
-            </View>
-          )}
-        </Pressable>
       </View>
 
       {loading ? (
@@ -118,41 +110,91 @@ export default function ShopHomeScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />
           }
         >
-          {isEmpty ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🛍️</Text>
-              <Text style={styles.emptyTitle}>{t('shop_home_empty_title')}</Text>
-              <Text style={styles.emptyText}>{t('shop_home_empty_text')}</Text>
+          {/* Titre + recherche */}
+          <Reveal index={0} style={styles.hero}>
+            <GradientText style={styles.heroTitle}>{t('explorer_action_shop_label')}</GradientText>
+            <View style={styles.searchBox}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder={t('shop_home_search_placeholder')}
+                placeholderTextColor={colors.textMuted}
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={submitSearch}
+                returnKeyType="search"
+              />
+              {search.trim() ? (
+                <PressableScale style={styles.searchGo} onPress={submitSearch} scaleTo={0.9}>
+                  <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                  <Text style={styles.searchGoTxt}>→</Text>
+                </PressableScale>
+              ) : null}
             </View>
+          </Reveal>
+
+          {isEmpty ? (
+            <ShopEmpty emoji="🛍️" title={t('shop_home_empty_title')} text={t('shop_home_empty_text')} />
           ) : (
             <>
+              {/* Vitrine */}
+              {featured.length > 0 ? (
+                <Reveal index={1} style={styles.section}>
+                  <SectionHeader
+                    title={t('shop_home_featured')}
+                    actionLabel={t('shop_home_see_all')}
+                    onAction={() => router.push('/shop/search?featured=true')}
+                  />
+                  <ShowcaseCarousel products={featured} onOpen={openProduct} />
+                </Reveal>
+              ) : null}
+
               {/* Rayons */}
-              {categories.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>{t('shop_home_categories')}</Text>
+              {categories.length > 0 ? (
+                <Reveal index={2} style={styles.section}>
+                  <SectionHeader title={t('shop_home_categories')} />
                   <View style={styles.categoryGrid}>
                     {categories.map((c) => (
-                      <Pressable
+                      <PressableScale
                         key={c.id}
                         style={styles.categoryTile}
                         onPress={() => router.push(`/shop/category/${c.slug}` as never)}
+                        scaleTo={0.92}
                       >
-                        <Text style={styles.categoryEmoji}>{c.emoji}</Text>
+                        <View style={styles.categoryMedal}>
+                          <LinearGradient colors={gradients.brandSoft} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                          <Text style={styles.categoryEmoji}>{c.emoji}</Text>
+                        </View>
                         <Text style={styles.categoryName} numberOfLines={2}>{shopCategoryName(t, c.slug, c.nameFr)}</Text>
-                      </Pressable>
+                      </PressableScale>
                     ))}
                   </View>
-                </View>
-              )}
+                </Reveal>
+              ) : null}
 
-              <ProductRow title={t('shop_home_featured')} products={featured} onSeeAll={() => router.push('/shop/search?featured=true')} />
-              <ProductRow title={t('shop_home_bestsellers')} products={bestsellers} onSeeAll={() => router.push('/shop/search?sort=bestsellers')} />
-              <ProductRow title={t('shop_home_newest')} products={newest} onSeeAll={() => router.push('/shop/search?sort=newest')} />
+              {/* Le rang n'est affiché que sur les meilleures ventes : c'est la
+                  seule liste dont l'ordre est un classement. */}
+              <ProductRow
+                index={3}
+                title={t('shop_home_bestsellers')}
+                products={bestsellers}
+                ranked
+                onSeeAll={() => router.push('/shop/search?sort=bestsellers')}
+                onOpen={openProduct}
+              />
+              <ProductRow
+                index={4}
+                title={t('shop_home_newest')}
+                products={newest}
+                onSeeAll={() => router.push('/shop/search?sort=newest')}
+                onOpen={openProduct}
+              />
             </>
           )}
         </ScrollView>
@@ -162,79 +204,74 @@ export default function ShopHomeScreen() {
   );
 }
 
-function ProductRow({ title, products, onSeeAll }: { title: string; products: ProductListItem[]; onSeeAll: () => void }) {
-  const router = useRouter();
+function ProductRow({ index, title, products, ranked, onSeeAll, onOpen }: {
+  index: number;
+  title: string;
+  products: ProductListItem[];
+  ranked?: boolean;
+  onSeeAll: () => void;
+  onOpen: (p: ProductListItem) => void;
+}) {
   const { t } = useI18n();
   if (!products.length) return null;
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <Text style={[styles.sectionTitle, styles.sectionTitleInHead]}>{title}</Text>
-        <Pressable onPress={onSeeAll} hitSlop={8}>
-          <Text style={styles.seeAll}>{t('shop_home_see_all')}</Text>
-        </Pressable>
-      </View>
+    <Reveal index={index} style={styles.section}>
+      <SectionHeader title={title} actionLabel={t('shop_home_see_all')} onAction={onSeeAll} />
       <FlatList
         horizontal
         data={products}
         keyExtractor={(p) => p.id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
-        renderItem={({ item }) => (
-          <ProductCard product={item} onPress={() => router.push(`/shop/product/${item.slug}` as never)} />
+        renderItem={({ item, index: i }) => (
+          <ProductCard product={item} rank={ranked ? i + 1 : undefined} onPress={() => onOpen(item)} />
         )}
       />
-    </View>
+    </Reveal>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
   },
-  back: { fontSize: 24, color: colors.brandSoft, paddingRight: 4 },
-  searchBox: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.surface, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md,
-  },
-  searchIcon: { fontSize: 14 },
-  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 10 },
-  cartBtn: { position: 'relative', padding: 4 },
-  cartIcon: { fontSize: 22 },
-  cartBadge: {
-    position: 'absolute', top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
-  },
-  cartBadgeTxt: { color: '#fff', fontSize: 9, fontWeight: '800' },
-
+  topRight: { flexDirection: 'row', gap: spacing.sm },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: { alignItems: 'center', gap: 10, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { ...typography.h3, color: colors.textPrimary, textAlign: 'center' },
-  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
 
-  section: { marginTop: spacing.lg },
-  sectionHead: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.md, marginBottom: spacing.sm,
+  hero: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md },
+  heroTitle: { fontSize: 38, fontWeight: '900', letterSpacing: -1.2 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(31,31,42,0.72)', borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
+    paddingLeft: spacing.md, paddingRight: 6, minHeight: 50,
   },
-  sectionTitle: { ...typography.title, color: colors.textPrimary, paddingHorizontal: spacing.md, marginBottom: spacing.sm },
-  /// Dans sectionHead, le conteneur porte deja le padding et la marge.
-  sectionTitleInHead: { paddingHorizontal: 0, marginBottom: 0 },
-  seeAll: { ...typography.caption, color: colors.brandSoft },
-  row: { gap: spacing.sm, paddingHorizontal: spacing.md },
+  searchIcon: { fontSize: 15 },
+  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 12 },
+  searchGo: {
+    width: 38, height: 38, borderRadius: 19, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  searchGoTxt: { color: '#fff', fontSize: 17, fontWeight: '900' },
 
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.md },
+  section: { marginTop: spacing.xl },
+  row: { gap: spacing.md, paddingHorizontal: spacing.md },
+
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.md },
   // Quatre par ligne : avec 25 rayons, trois colonnes imposaient neuf lignes et
   // reléguaient la moitié du magasin sous la ligne de flottaison.
   categoryTile: {
-    width: '23.5%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, paddingVertical: spacing.sm, paddingHorizontal: 2,
-    alignItems: 'center', gap: 2,
+    width: '23%', backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.10)',
+    paddingVertical: spacing.md, paddingHorizontal: 3, alignItems: 'center', gap: 6,
   },
-  categoryEmoji: { fontSize: 18 },
-  categoryName: { ...typography.label, color: colors.textPrimary, fontSize: 9, textAlign: 'center' },
+  categoryMedal: {
+    width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+  },
+  categoryEmoji: { fontSize: 21 },
+  categoryName: { color: colors.textPrimary, fontSize: 10, fontWeight: '700', textAlign: 'center', lineHeight: 13 },
 });

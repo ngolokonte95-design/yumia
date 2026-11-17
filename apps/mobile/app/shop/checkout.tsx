@@ -6,6 +6,11 @@
  * @stripe/stripe-react-native, un module natif absent d'Expo Go. Le paiement
  * est confirmé côté serveur par le webhook Stripe, jamais par le retour de
  * l'app — un client qui ferme le navigateur ne casse donc rien.
+ *
+ * Style boutique haut de gamme (17/11/2026) : adresses en cartes sélectionnables
+ * (liseré et pastille au dégradé de marque), formulaire et récapitulatif sur
+ * panneaux sobres, barre de paiement vitrée. Aucun changement du parcours de
+ * paiement lui-même.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -13,13 +18,17 @@ import {
   Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, radius, spacing } from '../../theme/tokens';
 import { shopApi, formatPrice, type CartSummary, type ShippingAddress } from '../../lib/shop-api';
 import { CGV_URL } from '../../lib/legal';
 import { isHttpsUrl, openExternalHttps } from '../../lib/external-link';
 import { useI18n } from '../../lib/useI18n';
+import { GhostButton, GradientButton, PricePop, ShopHeader } from '../../components/shop/ShopChrome';
+import { PressableScale, Reveal } from '../../components/ui';
+import { haptics } from '../../lib/useHaptics';
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
@@ -136,24 +145,27 @@ export default function CheckoutScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('shop_checkout_title')}</Text>
-        <View style={{ width: 24 }} />
+      <View style={{ paddingTop: insets.top }}>
+        <ShopHeader title={t('shop_checkout_title')} onBack={() => router.back()} backLabel={t('gs_back')} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 180 }} keyboardShouldPersistTaps="handled">
         <Text style={styles.sectionTitle}>{t('shop_checkout_shipping_address')}</Text>
 
-        {addresses.map((a) => (
-          <Pressable
-            key={a.id}
+        {addresses.map((a, i) => (
+          <Reveal key={a.id} index={Math.min(i, 5)}>
+          <PressableScale
             style={[styles.addressCard, selectedId === a.id && styles.addressCardActive]}
-            onPress={() => setSelectedId(a.id)}
+            onPress={() => { haptics.select(); setSelectedId(a.id); }}
+            scaleTo={0.98}
           >
-            <View style={styles.radio}>{selectedId === a.id && <View style={styles.radioDot} />}</View>
+            <View style={[styles.radio, selectedId === a.id && styles.radioOn]}>
+              {selectedId === a.id ? (
+                <View style={styles.radioDot}>
+                  <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                </View>
+              ) : null}
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.addressName}>{a.fullName}</Text>
               <Text style={styles.addressLine}>
@@ -165,7 +177,8 @@ export default function CheckoutScreen() {
             <Pressable onPress={() => confirmDeleteAddress(a)} hitSlop={10} accessibilityLabel={t('shop_checkout_delete_address_a11y')}>
               <Text style={styles.addressDelete}>{t('shop_checkout_delete')}</Text>
             </Pressable>
-          </Pressable>
+          </PressableScale>
+          </Reveal>
         ))}
 
         {showForm ? (
@@ -194,19 +207,15 @@ export default function CheckoutScreen() {
             ))}
             <View style={styles.formActions}>
               {addresses.length > 0 && (
-                <Pressable style={styles.cancelBtn} onPress={() => setShowForm(false)}>
-                  <Text style={styles.cancelTxt}>{t('cancel')}</Text>
-                </Pressable>
+                <GhostButton style={styles.cancelBtn} label={t('cancel')} onPress={() => setShowForm(false)} />
               )}
-              <Pressable style={styles.saveBtn} onPress={saveAddress}>
-                <Text style={styles.saveTxt}>{t('shop_checkout_save')}</Text>
-              </Pressable>
+              <GradientButton size="md" style={styles.saveBtn} label={t('shop_checkout_save')} onPress={saveAddress} />
             </View>
           </View>
         ) : (
-          <Pressable style={styles.addAddressBtn} onPress={() => setShowForm(true)}>
-            <Text style={styles.addAddressTxt}>{t('shop_checkout_add_address')}</Text>
-          </Pressable>
+          <PressableScale style={styles.addAddressBtn} onPress={() => setShowForm(true)} scaleTo={0.97}>
+            <Text style={styles.addAddressTxt}>＋  {t('shop_checkout_add_address')}</Text>
+          </PressableScale>
         )}
 
         {cart && (
@@ -249,19 +258,18 @@ export default function CheckoutScreen() {
 
       {cart && (
         <View style={[styles.payBar, { paddingBottom: insets.bottom + spacing.md }]}>
-          <View>
+          <View style={styles.payCol}>
             <Text style={styles.payLabel}>{t('shop_checkout_total')}</Text>
-            <Text style={styles.payTotal}>{formatPrice(cart.totalCents, cart.currency)}</Text>
+            <PricePop style={styles.payTotal} text={formatPrice(cart.totalCents, cart.currency)} />
           </View>
-          <Pressable
-            style={[styles.payBtn, (!selectedId || paying) && styles.payBtnDisabled]}
+          <GradientButton
+            style={styles.payBtn}
+            icon="🔒"
+            label={t('shop_checkout_pay')}
             onPress={pay}
-            disabled={!selectedId || paying}
-          >
-            {paying
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={styles.payTxt}>{t('shop_checkout_pay')}</Text>}
-          </Pressable>
+            loading={paying}
+            disabled={!selectedId}
+          />
         </View>
       )}
     </KeyboardAvoidingView>
@@ -271,48 +279,54 @@ export default function CheckoutScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   center: { alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  back: { fontSize: 24, color: colors.brandSoft },
-  title: { ...typography.h3, color: colors.textPrimary },
-  sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.sm },
+  sectionTitle: {
+    color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 1.6,
+    textTransform: 'uppercase', marginBottom: spacing.md,
+  },
 
   addressCard: {
-    flexDirection: 'row', gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm,
+    flexDirection: 'row', gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)', padding: spacing.md, marginBottom: spacing.sm,
   },
-  addressCardActive: { borderColor: colors.brand },
+  addressCardActive: { borderColor: colors.brand, borderWidth: 1.5 },
   radio: {
-    width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center', marginTop: 2,
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.brand },
-  addressName: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  addressLine: { fontSize: 13, color: colors.textSecondary },
-  addressPhone: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  radioOn: { borderColor: colors.brandSoft },
+  radioDot: { width: 12, height: 12, borderRadius: 6, overflow: 'hidden' },
+  addressName: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
+  addressLine: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
+  addressPhone: { fontSize: 12, color: colors.textMuted, marginTop: 3 },
   addressDelete: { fontSize: 12, fontWeight: '700', color: colors.danger, marginLeft: spacing.sm },
 
   addAddressBtn: {
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
-    borderStyle: 'dashed', paddingVertical: 14, alignItems: 'center',
+    borderRadius: radius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+    borderStyle: 'dashed', paddingVertical: 16, alignItems: 'center',
   },
-  addAddressTxt: { color: colors.brandSoft, fontWeight: '600' },
+  addAddressTxt: { color: colors.brandSoft, fontWeight: '800', fontSize: 14 },
 
-  form: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
-  formTitle: { ...typography.caption, color: colors.textPrimary, fontWeight: '700' },
+  form: {
+    backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)', padding: spacing.md, gap: spacing.sm,
+  },
+  formTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '900', marginBottom: 2 },
   input: {
-    backgroundColor: colors.surfaceElevated, borderRadius: radius.sm, borderWidth: 1,
-    borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: 11, color: colors.textPrimary,
+    backgroundColor: colors.surfaceElevated, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: spacing.md, paddingVertical: 13,
+    color: colors.textPrimary, fontSize: 15,
   },
-  formActions: { flexDirection: 'row', gap: spacing.sm, marginTop: 4 },
-  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
-  cancelTxt: { color: colors.textSecondary, fontWeight: '600' },
-  saveBtn: { flex: 2, alignItems: 'center', paddingVertical: 12, borderRadius: radius.pill, backgroundColor: colors.brand },
-  saveTxt: { color: '#fff', fontWeight: '700' },
+  formActions: { flexDirection: 'row', gap: spacing.sm, marginTop: 6 },
+  cancelBtn: { flex: 1, minHeight: 44 },
+  saveBtn: { flex: 2 },
 
-  recap: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: 8 },
+  recap: {
+    backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)', padding: spacing.md, gap: 10,
+  },
   recapRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
-  recapItem: { flex: 1, fontSize: 13, color: colors.textSecondary },
-  recapPrice: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
+  recapItem: { flex: 1, fontSize: 14, color: colors.textSecondary },
+  recapPrice: { fontSize: 14, color: colors.textPrimary, fontWeight: '800' },
   free: { color: colors.success },
 
   legal: { fontSize: 11, color: colors.textMuted, lineHeight: 17, marginTop: spacing.lg, textAlign: 'center' },
@@ -320,12 +334,12 @@ const styles = StyleSheet.create({
 
   payBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface,
-    borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.md,
+    alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(14,14,18,0.97)',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.md,
   },
-  payLabel: { fontSize: 11, color: colors.textMuted },
-  payTotal: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
-  payBtn: { flex: 1, maxWidth: 200, alignItems: 'center', backgroundColor: colors.brand, borderRadius: radius.pill, paddingVertical: 15 },
-  payBtnDisabled: { opacity: 0.5 },
-  payTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  payCol: { flexShrink: 1 },
+  payLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase' },
+  payTotal: { fontSize: 26, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.7 },
+  payBtn: { flex: 1, maxWidth: 220 },
 });
