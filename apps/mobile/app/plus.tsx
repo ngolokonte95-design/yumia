@@ -14,6 +14,11 @@
  * La page proposait autrefois les formules UNIQUEMENT aux comptes gratuits :
  * un abonné Plus qui voulait Gold tombait sur « tu es déjà abonné ». Elle
  * propose désormais tous les paliers au-dessus du palier courant.
+ *
+ * Mise en scène (17/11/2026) : fond spatial de l'Accueil, badge du palier
+ * regardé en grand dans un halo, cartes de forfait vitrées (liseré au
+ * dégradé de marque sur la choisie), bouton d'achat dégradé. Une seule
+ * couleur d'accent : `TIER_ACCENT` n'est plus utilisé à l'affichage.
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -23,7 +28,6 @@ import {
   Pressable,
   ScrollView,
   Alert,
-  ActivityIndicator,
   Linking,
   Platform,
 } from 'react-native';
@@ -46,6 +50,13 @@ import {
   type DisplayCap,
   type LimitedFeature,
 } from '../lib/constants/plan-limits';
+import { GradientText, PressableScale, Reveal } from '../components/ui';
+import { GlassGroup, SectionLabel, BrandFrame } from '../components/profile/ProfileChrome';
+import { GlassCircle } from '../components/chat/ChatChrome';
+import { SPACE_BLACK } from '../components/space/SpaceBackground';
+import {
+  BACK_ARROW, BuyButton, ChangeRow, Glass, PlusBackdrop, TierCard, TierHalo,
+} from '../components/plus/PlusVisuals';
 
 type PaidTier = Exclude<Plan, 'free'>;
 
@@ -245,293 +256,224 @@ export default function PlusScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('plus_hero_title').replace('\n', ' ')}</Text>
-        <Text style={styles.sub}>{t('plus_hero_sub')}</Text>
-      </View>
+    <View style={styles.screen}>
+      {/* Fond spatial de l'Accueil (fixe), animé tant que l'écran est affiché. */}
+      <PlusBackdrop />
 
-      <View style={styles.currentRow}>
-        <PlanBadgeIcon plan={currentPlan} size={24} />
-        <Text style={styles.currentName}>{PLAN_NAME[currentPlan]}</Text>
-        <Text style={styles.currentTag}>{t('plus_current_plan')}</Text>
-      </View>
-
-      {trialLeft > 0 ? (
-        <View style={styles.trialBanner}>
-          <PlanBadgeIcon plan="gold" size={20} />
-          <Text style={styles.trialText}>
-            {(trialLeft <= 1 ? t('plus_trial_banner_last') : t('plus_trial_banner')).replace('{n}', String(trialLeft))}
-          </Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
+          <GlassCircle onPress={() => router.back()}>
+            <Text style={styles.backText}>{BACK_ARROW}</Text>
+          </GlassCircle>
         </View>
-      ) : null}
 
-      {upgrades.length === 0 ? (
-        <Text style={styles.topTier}>{t('plus_top_tier')}</Text>
-      ) : (
-        <>
-          {/* Choix du palier — des lignes, pas des cartes : trois formules se
-              comparent d'un regard vertical. */}
-          {upgrades.map((tier) => {
-            const selected = tier === selectedTier;
-            return (
-              <Pressable
-                key={tier}
-                style={[
-                  styles.tierRow,
-                  selected && { borderColor: TIER_ACCENT[tier], backgroundColor: `${TIER_ACCENT[tier]}14` },
-                ]}
-                onPress={() => setSelectedTier(tier)}
-              >
-                <View style={[styles.radio, selected && { borderColor: TIER_ACCENT[tier] }]}>
-                  {selected ? <View style={[styles.radioDot, { backgroundColor: TIER_ACCENT[tier] }]} /> : null}
-                </View>
-                <PlanBadgeIcon plan={tier} size={26} />
-                <Text style={styles.tierName}>{PLAN_NAME[tier]}</Text>
-                <Text style={styles.tierPrice}>
-                  {priceOf(tier)}
-                  <Text style={styles.tierPer}>{t('plus_per_month')}</Text>
-                </Text>
-              </Pressable>
-            );
-          })}
+        {/* En-tête : le badge du palier regardé, en grand, dans son halo. */}
+        <Reveal index={0} style={styles.hero}>
+          <TierHalo plan={selectedTier ?? currentPlan} />
+          <GradientText style={styles.title}>{t('plus_hero_title').replace('\n', ' ')}</GradientText>
+          <Text style={styles.sub}>{t('plus_hero_sub')}</Text>
+          <View style={styles.currentPill}>
+            <PlanBadgeIcon plan={currentPlan} size={18} />
+            <Text style={styles.currentName}>{PLAN_NAME[currentPlan]}</Text>
+            <Text style={styles.currentTag}>· {t('plus_current_plan')}</Text>
+          </View>
+        </Reveal>
 
-          {/* L'écart, déjà calculé : la comparaison n'est plus à la charge du
-              lecteur, et seules les lignes qui changent apparaissent. */}
-          {selectedTier ? (
-            <>
-              <Text style={styles.sectionTitle}>
-                {t('plus_changes_title').replace('{tier}', PLAN_NAME[selectedTier])}
+        {trialLeft > 0 ? (
+          <Reveal index={1} style={styles.block}>
+            <BrandFrame innerStyle={styles.trialInner}>
+              <PlanBadgeIcon plan="gold" size={22} />
+              <Text style={styles.trialText}>
+                {(trialLeft <= 1 ? t('plus_trial_banner_last') : t('plus_trial_banner')).replace('{n}', String(trialLeft))}
               </Text>
+            </BrandFrame>
+          </Reveal>
+        ) : null}
 
-              {changes.length === 0 ? (
-                <Text style={styles.topTier}>{t('plus_nothing_more')}</Text>
-              ) : (
-                <View style={styles.changes}>
-                  {changes.map(({ row, from, to, unlocked }) => (
-                    <View key={row.key} style={styles.changeRow}>
-                      <Text style={styles.changeLabel} numberOfLines={2}>{label(row)}</Text>
-                      {unlocked ? (
-                        <Text style={[styles.changeUnlocked, { color: accent }]}>
-                          ✓ {t('plus_unlocked')}
+        {upgrades.length === 0 ? (
+          <Text style={styles.topTier}>{t('plus_top_tier')}</Text>
+        ) : (
+          <>
+            {/* Choix du palier : cartes vitrées, la choisie au liseré de marque. */}
+            <Reveal index={2} style={styles.block}>
+              {upgrades.map((tier) => (
+                <TierCard
+                  key={tier}
+                  plan={tier}
+                  name={PLAN_NAME[tier]}
+                  price={priceOf(tier)}
+                  per={t('plus_per_month')}
+                  selected={tier === selectedTier}
+                  onPress={() => setSelectedTier(tier)}
+                />
+              ))}
+            </Reveal>
+
+            {/* L'écart, déjà calculé : seules les lignes qui changent. */}
+            {selectedTier ? (
+              <Reveal index={3} style={styles.block}>
+                <SectionLabel label={t('plus_changes_title').replace('{tier}', PLAN_NAME[selectedTier])} />
+                {changes.length === 0 ? (
+                  <Text style={styles.topTier}>{t('plus_nothing_more')}</Text>
+                ) : (
+                  <GlassGroup>
+                    {changes.map(({ row, from, to, unlocked }) => (
+                      <ChangeRow
+                        key={row.key}
+                        label={label(row)}
+                        from={format(from)}
+                        to={format(to)}
+                        unlocked={unlocked}
+                        unlockedLabel={t('plus_unlocked')}
+                      />
+                    ))}
+                  </GlassGroup>
+                )}
+              </Reveal>
+            ) : null}
+
+            <Reveal index={4} style={styles.block}>
+              <BuyButton
+                label={t('plus_cta_start').replace('{tier}', selectedTier ? PLAN_NAME[selectedTier] : '')}
+                loading={loading}
+                disabled={loading || !selectedTier}
+                onPress={handleSubscribe}
+              />
+
+              {/* Information obligatoire avant achat (App Store 3.1.2) :
+                  renouvellement automatique, débit, résiliation, puis les
+                  liens vers les conditions d'utilisation (EULA) et la
+                  confidentialité. */}
+              {selectedTier ? (
+                <Text style={styles.legal}>
+                  {t(Platform.OS === 'android' ? 'plus_autorenew_android' : 'plus_autorenew_ios')
+                    .replace('{tier}', PLAN_NAME[selectedTier])
+                    .replace('{price}', priceOf(selectedTier))}
+                </Text>
+              ) : null}
+              <View style={styles.legalLinks}>
+                <Pressable onPress={() => void Linking.openURL(TERMS_URL)} hitSlop={8}>
+                  <Text style={styles.legalLink}>{t('plus_terms_eula')}</Text>
+                </Pressable>
+                <Text style={styles.legalSep}>·</Text>
+                <Pressable onPress={() => void Linking.openURL(PRIVACY_URL)} hitSlop={8}>
+                  <Text style={styles.legalLink}>{t('settings_privacy_policy')}</Text>
+                </Pressable>
+              </View>
+            </Reveal>
+
+            {/* La grille complète, repliée par défaut. */}
+            <PressableScale onPress={() => setCompareOpen((v) => !v)} style={styles.compareToggle} scaleTo={0.97}>
+              <Text style={styles.compareToggleText}>
+                {compareOpen ? t('plus_compare_hide') : t('plus_compare_show')}
+              </Text>
+            </PressableScale>
+
+            {compareOpen ? (
+              <Reveal from="fade" style={styles.block}>
+                <Glass>
+                  <View style={[styles.tr, styles.thead]}>
+                    <Text style={[styles.th, styles.cellLabel]} />
+                    {PLANS.map((p) => (
+                      <Text
+                        key={p}
+                        style={[styles.th, styles.cell, p === currentPlan && styles.cellCurrent]}
+                        numberOfLines={1}
+                      >
+                        {PLAN_SHORT[p]}
+                      </Text>
+                    ))}
+                  </View>
+
+                  {ROWS.map((row, i) => (
+                    <View key={row.key} style={[styles.tr, i % 2 === 1 && styles.trAlt]}>
+                      <Text style={[styles.td, styles.cellLabel]} numberOfLines={2}>{label(row)}</Text>
+                      {PLANS.map((p) => (
+                        <Text
+                          key={p}
+                          style={[styles.td, styles.cell, p === currentPlan && styles.cellCurrent]}
+                        >
+                          {format(valueOf(row, p))}
                         </Text>
-                      ) : (
-                        <View style={styles.changeValues}>
-                          <Text style={styles.changeFrom}>{format(from)}</Text>
-                          <Text style={styles.changeArrow}>→</Text>
-                          <Text style={[styles.changeTo, { color: accent }]}>{format(to)}</Text>
-                        </View>
-                      )}
+                      ))}
                     </View>
                   ))}
-                </View>
-              )}
-            </>
-          ) : null}
+                </Glass>
+              </Reveal>
+            ) : null}
 
-          <Pressable
-            style={[styles.cta, { backgroundColor: accent }, loading && styles.ctaDisabled]}
-            onPress={handleSubscribe}
-            disabled={loading || !selectedTier}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.ctaText}>
-                {t('plus_cta_start').replace('{tier}', selectedTier ? PLAN_NAME[selectedTier] : '')}
-              </Text>
-            )}
-          </Pressable>
-
-          {/* Information obligatoire avant achat (App Store 3.1.2) :
-              renouvellement automatique, débit, résiliation, puis les liens
-              vers les conditions d'utilisation (EULA) et la confidentialité. */}
-          {selectedTier ? (
-            <Text style={styles.legal}>
-              {t(Platform.OS === 'android' ? 'plus_autorenew_android' : 'plus_autorenew_ios')
-                .replace('{tier}', PLAN_NAME[selectedTier])
-                .replace('{price}', priceOf(selectedTier))}
-            </Text>
-          ) : null}
-          <View style={styles.legalLinks}>
-            <Pressable onPress={() => void Linking.openURL(TERMS_URL)} hitSlop={8}>
-              <Text style={[styles.legalLink, { color: accent }]}>{t('plus_terms_eula')}</Text>
-            </Pressable>
-            <Text style={styles.legalSep}>·</Text>
-            <Pressable onPress={() => void Linking.openURL(PRIVACY_URL)} hitSlop={8}>
-              <Text style={[styles.legalLink, { color: accent }]}>{t('settings_privacy_policy')}</Text>
-            </Pressable>
-          </View>
-
-          {/* La grille complète reste là pour qui veut tout voir — repliée par
-              défaut, car elle demande un effort que l'écart ci-dessus évite. */}
-          <Pressable onPress={() => setCompareOpen((v) => !v)} style={styles.compareToggle}>
-            <Text style={[styles.compareToggleText, { color: accent }]}>
-              {compareOpen ? t('plus_compare_hide') : t('plus_compare_show')}
-            </Text>
-          </Pressable>
-
-          {compareOpen ? (
-            <View style={styles.table}>
-              <View style={[styles.tr, styles.thead]}>
-                <Text style={[styles.th, styles.cellLabel]} />
-                {PLANS.map((p) => (
-                  <Text
-                    key={p}
-                    style={[styles.th, styles.cell, p === currentPlan && styles.cellCurrent]}
-                    numberOfLines={1}
-                  >
-                    {PLAN_SHORT[p]}
-                  </Text>
-                ))}
-              </View>
-
-              {ROWS.map((row, i) => (
-                <View key={row.key} style={[styles.tr, i % 2 === 1 && styles.trAlt]}>
-                  <Text style={[styles.td, styles.cellLabel]} numberOfLines={2}>{label(row)}</Text>
-                  {PLANS.map((p) => (
-                    <Text
-                      key={p}
-                      style={[styles.td, styles.cell, p === currentPlan && styles.cellCurrent]}
-                    >
-                      {format(valueOf(row, p))}
-                    </Text>
-                  ))}
-                </View>
-              ))}
+            <View style={styles.restoreWrap}>
+              <PressableScale onPress={handleRestore} disabled={loading} style={styles.restoreBtn} scaleTo={0.96}>
+                <Text style={styles.restoreText}>{t('plus_restore_purchases')}</Text>
+              </PressableScale>
             </View>
-          ) : null}
-
-          <Pressable onPress={handleRestore} disabled={loading} style={styles.restoreBtn}>
-            <Text style={styles.restoreText}>{t('plus_restore_purchases')}</Text>
-          </Pressable>
-        </>
-      )}
-    </ScrollView>
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: SPACE_BLACK },
+  scroll: { flex: 1 },
 
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
-  backBtn: { alignSelf: 'flex-start', paddingVertical: spacing.sm },
-  backText: { fontSize: 22, color: colors.brandSoft, fontWeight: '700' },
-  title: { ...typography.title, color: colors.textPrimary, marginTop: spacing.xs },
-  sub: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
+  topBar: { paddingHorizontal: spacing.lg, flexDirection: 'row' },
+  backText: { fontSize: 20, color: '#fff', fontWeight: '800' },
 
-  currentRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    marginHorizontal: spacing.lg, marginBottom: spacing.lg,
-    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
+  hero: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  title: { fontSize: 30, fontWeight: '900', letterSpacing: -0.7, textAlign: 'center', lineHeight: 36 },
+  sub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, lineHeight: 21 },
+  currentPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.md,
+    paddingVertical: 6, paddingHorizontal: 14, borderRadius: radius.pill,
+    backgroundColor: 'rgba(20,20,30,0.82)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
   },
-  currentName: { ...typography.label, color: colors.textPrimary, flex: 1 },
-  currentTag: { ...typography.caption, color: colors.textMuted },
-  trialBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E3B34155',
-    backgroundColor: '#E3B34114',
-  },
+  currentName: { color: colors.textPrimary, fontSize: 13, fontWeight: '800' },
+  currentTag: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+
+  block: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
+
+  trialInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
   trialText: { ...typography.body, color: colors.textPrimary, flex: 1, lineHeight: 21 },
 
-  sectionTitle: {
-    ...typography.label, color: colors.textSecondary,
-    marginHorizontal: spacing.lg, marginBottom: spacing.sm, marginTop: spacing.lg,
-  },
-
-  tierRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    marginHorizontal: spacing.lg, marginBottom: spacing.sm,
-    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
-  },
-  radio: {
-    width: 18, height: 18, borderRadius: 9,
-    borderWidth: 2, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  radioDot: { width: 8, height: 8, borderRadius: 4 },
-  tierName: { ...typography.label, color: colors.textPrimary, flex: 1 },
-  tierPrice: { ...typography.label, color: colors.textPrimary },
-  tierPer: { ...typography.caption, color: colors.textMuted },
-
-  changes: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-  },
-  changeRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 11,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
-  },
-  changeLabel: { ...typography.body, fontSize: 13, color: colors.textSecondary, flex: 1, paddingRight: spacing.sm },
-  changeValues: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  changeFrom: { ...typography.body, fontSize: 13, color: colors.textMuted },
-  changeArrow: { ...typography.body, fontSize: 12, color: colors.textMuted },
-  // Le chiffre gagné est le seul élément en gras de la ligne : l'œil le trouve
-  // sans lire le reste.
-  changeTo: { ...typography.heading, fontSize: 16 },
-  changeUnlocked: { ...typography.label, fontSize: 13 },
-
-  cta: {
-    marginHorizontal: spacing.lg, marginTop: spacing.lg,
-    borderRadius: radius.pill, paddingVertical: 15, alignItems: 'center',
-  },
-  ctaDisabled: { opacity: 0.6 },
-  ctaText: { ...typography.label, color: '#fff', fontSize: 15 },
-
   legal: {
-    ...typography.caption, color: colors.textMuted, textAlign: 'center',
-    marginHorizontal: spacing.lg, marginTop: spacing.sm,
+    ...typography.caption, color: colors.textSecondary, textAlign: 'center',
+    marginTop: spacing.md, lineHeight: 18,
   },
-
   legalLinks: {
     flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center',
-    gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.sm,
+    gap: spacing.sm, marginTop: spacing.sm,
   },
-  legalLink: { ...typography.caption, textDecorationLine: 'underline' },
+  legalLink: { ...typography.caption, color: colors.brandSoft, fontWeight: '700', textDecorationLine: 'underline' },
   legalSep: { ...typography.caption, color: colors.textMuted },
 
-  compareToggle: { alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.xs },
-  compareToggleText: { ...typography.label, fontSize: 13 },
+  compareToggle: { alignSelf: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  compareToggleText: { color: colors.brandSoft, fontSize: 13, fontWeight: '800' },
 
-  table: {
-    marginHorizontal: spacing.lg,
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg,
-    overflow: 'hidden',
-  },
-  tr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: spacing.sm },
-  trAlt: { backgroundColor: colors.surface },
-  thead: { backgroundColor: colors.surfaceElevated },
-  th: { ...typography.label, fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
-  td: { ...typography.body, fontSize: 12, color: colors.textPrimary, textAlign: 'center' },
+  tr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: spacing.sm },
+  trAlt: { backgroundColor: 'rgba(255,255,255,0.03)' },
+  thead: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  th: { fontSize: 11, fontWeight: '800', color: colors.textSecondary, textAlign: 'center', letterSpacing: 0.4 },
+  td: { fontSize: 12, color: colors.textPrimary, textAlign: 'center', fontVariant: ['tabular-nums'] },
   // Le libellé prend la place restante, les quatre colonnes une part fixe en
   // pourcentage : la grille tient sur n'importe quelle largeur d'écran.
   cellLabel: { flex: 1, textAlign: 'left', color: colors.textSecondary, paddingRight: 4 },
   cell: { width: '13%' },
-  cellCurrent: { color: colors.brand, fontWeight: '700' },
+  cellCurrent: { color: colors.brandSoft, fontWeight: '900' },
 
-  restoreBtn: { alignItems: 'center', paddingVertical: spacing.md },
-  restoreText: { ...typography.caption, color: colors.brandSoft },
+  restoreWrap: { alignItems: 'center', marginTop: spacing.xs },
+  restoreBtn: {
+    paddingVertical: 10, paddingHorizontal: spacing.lg, borderRadius: radius.pill,
+    backgroundColor: 'rgba(20,20,30,0.82)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+  },
+  restoreText: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
 
   topTier: {
     ...typography.body, color: colors.textSecondary, textAlign: 'center',

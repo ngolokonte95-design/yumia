@@ -1,12 +1,22 @@
 import { useCallback, useRef, useState } from 'react';
+/**
+ * ASSISTANT YUMIA — conversation avec l'IA.
+ *
+ * Mise en scène (17/11/2026) : fond sombre uni, orbe IA animé dans l'en-tête
+ * (anneaux au dégradé de marque, arrêtés hors focus), bulles de l'utilisateur
+ * au dégradé, réponses en verre sombre, indicateur « réfléchit… » animé,
+ * suggestions en pastilles vitrées. Seul l'affichage a changé : envoi,
+ * consentement IA, quota et historique sont ceux d'avant.
+ */
 import {
-  FlatList, KeyboardAvoidingView, Platform, Pressable,
-  StyleSheet, Text, TextInput, View, ActivityIndicator,
+  FlatList, I18nManager, KeyboardAvoidingView, Platform, Pressable,
+  StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, gradients, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import { usePlanLimits } from '../lib/usePlanLimits';
@@ -14,6 +24,9 @@ import { useLocation } from '../lib/useLocation';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import { FeatureTip } from '../components/FeatureTip';
 import { ensureAiConsent, openAiConsentSettings } from '../lib/ai-consent';
+import { PressableScale, Reveal } from '../components/ui';
+import { GlassCircle } from '../components/chat/ChatChrome';
+import { AiOrb, BOT_BG, Bubble, TypingBubble, chatbotGlass } from '../components/chatbot/ChatbotVisuals';
 
 const API = API_BASE_URL;
 
@@ -87,16 +100,16 @@ export default function ChatbotScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
-      {/* Header */}
+      {/* En-tête : orbe IA animé, titre, accord IA. */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>←</Text>
-        </Pressable>
+        <GlassCircle onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>{I18nManager.isRTL ? '→' : '←'}</Text>
+        </GlassCircle>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerEmoji}>🤖</Text>
-          <View>
-            <Text style={styles.headerTitle}>YUMIA Assistant</Text>
-            <Text style={styles.headerSub}>{t('chatbot_header_sub')}</Text>
+          <AiOrb size={36} />
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle} numberOfLines={1}>YUMIA Assistant</Text>
+            <Text style={styles.headerSub} numberOfLines={1}>{t('chatbot_header_sub')}</Text>
           </View>
         </View>
         {/* Réglage « Fonctions IA (Anthropic) » : retirer ou redonner l'accord. */}
@@ -117,34 +130,32 @@ export default function ChatbotScreen() {
           data={messages}
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={styles.messageList}
-          renderItem={({ item }) => (
-            <View style={[styles.bubble, item.role === 'user' ? styles.bubbleUser : styles.bubbleBot]}>
-              {item.role === 'assistant' && <Text style={styles.botEmoji}>🤖</Text>}
-              <View style={[styles.bubbleContent, item.role === 'user' ? styles.bubbleContentUser : styles.bubbleContentBot]}>
-                <Text style={[styles.bubbleText, item.role === 'user' && styles.bubbleTextUser]}>{item.content}</Text>
-              </View>
-            </View>
+          renderItem={({ item, index }) => (
+            <Bubble
+              role={item.role}
+              content={item.content}
+              // Seul le dernier message, arrivé pendant la conversation, glisse.
+              animate={index > 0 && index === messages.length - 1}
+            />
           )}
-          ListFooterComponent={loading ? (
-            <View style={styles.typing}>
-              <Text style={styles.typingDots}>●●●</Text>
-            </View>
-          ) : undefined}
+          ListFooterComponent={loading ? <TypingBubble /> : undefined}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         />
 
-        {/* Quick suggestions */}
+        {/* Suggestions de départ, en pastilles vitrées. */}
         {messages.length === 1 && (
           <View style={styles.suggestions}>
-            {SUGGESTIONS.map((s) => (
-              <Pressable key={s} style={styles.suggestionChip} onPress={() => send(s)}>
-                <Text style={styles.suggestionText}>{s}</Text>
-              </Pressable>
+            {SUGGESTIONS.map((s, i) => (
+              <Reveal key={s} index={i} from="fade">
+                <PressableScale style={styles.suggestionChip} onPress={() => send(s)} scaleTo={0.95}>
+                  <Text style={styles.suggestionText}>{s}</Text>
+                </PressableScale>
+              </Reveal>
             ))}
           </View>
         )}
 
-        {/* Input */}
+        {/* Saisie */}
         <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
           <TextInput
             style={styles.input}
@@ -156,9 +167,16 @@ export default function ChatbotScreen() {
             maxLength={500}
             onSubmitEditing={() => send(input)}
           />
-          <Pressable style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]} onPress={() => send(input)}>
+          <PressableScale
+            style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
+            onPress={() => send(input)}
+            scaleTo={0.9}
+          >
+            {input.trim() ? (
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            ) : null}
             <Text style={styles.sendIcon}>↑</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </KeyboardAvoidingView>
       <FeatureTip feature="chatbot" />
@@ -167,38 +185,47 @@ export default function ChatbotScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  backBtn: { marginRight: 8 },
-  backBtnText: { fontSize: 22, color: colors.brand },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  aiBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border },
-  aiBtnText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
-  headerEmoji: { fontSize: 28 },
-  headerTitle: { ...typography.h3, color: colors.text },
-  headerSub: { fontSize: 12, color: colors.textMuted },
-  messageList: { padding: spacing.md, paddingBottom: 16 },
-  bubble: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
-  bubbleUser: { justifyContent: 'flex-end' },
-  bubbleBot: { justifyContent: 'flex-start', gap: 6 },
-  botEmoji: { fontSize: 20, marginBottom: 2 },
-  bubbleContent: { maxWidth: '80%', borderRadius: radius.lg, padding: 12 },
-  bubbleContentBot: { backgroundColor: colors.surface },
-  bubbleContentUser: { backgroundColor: colors.brand },
-  bubbleText: { fontSize: 15, color: colors.text, lineHeight: 21 },
-  bubbleTextUser: { color: '#fff' },
-  typing: { paddingLeft: spacing.md, paddingBottom: 8 },
-  typingDots: { color: colors.textMuted, fontSize: 18, letterSpacing: 4 },
-  suggestions: { paddingHorizontal: spacing.md, paddingBottom: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  suggestionChip: { backgroundColor: colors.brand + '22', borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 6 },
-  suggestionText: { color: colors.brand, fontSize: 13, fontWeight: '600' },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: spacing.md, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  input: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: 12, color: colors.text, fontSize: 15, maxHeight: 100,
-    borderWidth: 1, borderColor: colors.border,
+  container: { flex: 1, backgroundColor: BOT_BG },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.10)',
   },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { opacity: 0.4 },
-  sendIcon: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  backBtnText: { fontSize: 18, color: '#fff', fontWeight: '800' },
+  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  headerText: { flexShrink: 1 },
+  headerTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
+  headerSub: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+  aiBtn: {
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full,
+    backgroundColor: chatbotGlass.backgroundColor,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
+  },
+  aiBtnText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  messageList: { padding: spacing.md, paddingBottom: 16 },
+  suggestions: { paddingHorizontal: spacing.md, paddingBottom: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  suggestionChip: {
+    borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: chatbotGlass.backgroundColor,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(240,138,75,0.45)',
+  },
+  suggestionText: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
+  inputRow: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: spacing.md, paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: BOT_BG,
+  },
+  input: {
+    flex: 1, backgroundColor: chatbotGlass.backgroundColor, borderRadius: 22,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12,
+    color: colors.textPrimary, fontSize: 15, maxHeight: 110,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  sendBtn: {
+    width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  sendBtnDisabled: { opacity: 0.5 },
+  sendIcon: { color: '#fff', fontSize: 20, fontWeight: '900' },
 });
