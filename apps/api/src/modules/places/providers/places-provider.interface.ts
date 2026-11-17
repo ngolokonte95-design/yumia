@@ -26,6 +26,11 @@ export interface ProviderPlace {
   providerPlaceId: string;
   name: string;
   universe: Universe;
+  /**
+   * Trouvé par la recherche textuelle dédiée à son univers : rien dans ses
+   * types ne dit qu'il lui appartient (rooftop typé `bar`).
+   */
+  forced?: boolean;
   lat: number;
   lng: number;
   city: string;
@@ -59,7 +64,13 @@ export interface PlacesProvider {
   readonly isEnabled: boolean;
   searchNearby(params: ProviderNearbyParams): Promise<ProviderPlace[]>;
   /** Recherche textuelle (par ville, sans géoloc). Optionnelle selon le provider. */
-  searchByText?(textQuery: string, universe?: Universe, limit?: number): Promise<ProviderPlace[]>;
+  searchByText?(
+    textQuery: string,
+    universe?: Universe,
+    limit?: number,
+    /** Recherche dédiée à l'univers : il s'impose aux résultats. */
+    forceUniverse?: boolean,
+  ): Promise<ProviderPlace[]>;
   /**
    * Recherche textuelle **géolocalisée** (ex. plat précis « couscous » autour de
    * l'utilisateur). Biaisée par un cercle lat/lng/rayon. Optionnelle.

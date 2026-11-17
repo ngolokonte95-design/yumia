@@ -1,9 +1,10 @@
 import { Logger } from '@nestjs/common';
 import type { Universe } from '@yumia/shared';
 import {
-  googleTypesToUniverse,
+  classifyGooglePlace,
   universeToGoogleTypes,
   UNIVERSE_TEXT_QUERIES,
+  TEXT_ALSO_UNIVERSES,
   TEXT_FIRST_UNIVERSES,
 } from './place-types';
 import type {
@@ -32,6 +33,9 @@ const FIELD_MASK = [
   'places.displayName',
   'places.location',
   'places.types',
+  // Palier Pro, comme `types` : le type principal, que Google ne place pas
+  // toujours en tête de `types` et dont dépend le classement par univers.
+  'places.primaryType',
   'places.formattedAddress',
   'places.addressComponents',
   'places.photos',
@@ -60,6 +64,7 @@ interface GooglePlace {
   rating?: number;
   priceLevel?: string;
   types?: string[];
+  primaryType?: string;
   formattedAddress?: string;
   addressComponents?: GoogleAddressComponent[];
   // `authorAttributions` arrive avec le champ `photos` (même palier, aucun
@@ -70,6 +75,20 @@ interface GooglePlace {
 
 /** Erreur interne : `includedTypes` refusé par Google (400 INVALID_ARGUMENT). */
 class InvalidArgumentError extends Error {}
+
+/**
+ * Types que Google a refusés depuis le démarrage (« Unsupported types: x »).
+ * Un seul type inconnu fait échouer TOUTE la requête : on le retire, on
+ * rejoue, et on ne le redemande plus. Sa liste change côté Google sans
+ * préavis — mieux vaut s'en apercevoir dans les logs que vider un univers.
+ */
+const unsupportedTypes = new Set<string>();
+
+/** Extrait les types refusés du message d'erreur Google. */
+export function parseUnsupportedTypes(message: string): string[] {
+  const match = /Unsupported types?:\s*([a-z0-9_,\s]+)/i.exec(message);
+  return match ? match[1].split(',').map((t) => t.trim()).filter(Boolean) : [];
+}
 
 /**
  * Fournisseur Google Places API (« New ») — `places:searchNearby`.
@@ -85,21 +104,34 @@ export class GooglePlacesProvider implements PlacesProvider {
   async searchNearby(params: ProviderNearbyParams): Promise<ProviderPlace[]> {
     // Univers « niche » : recherche textuelle directe (types Google absents ou
     // trop génériques) avec forceUniverse pour ne pas être reclassés.
-    if (params.universe && TEXT_FIRST_UNIVERSES.has(params.universe)) {
-      const textQuery = UNIVERSE_TEXT_QUERIES[params.universe];
-      if (textQuery) {
-        return this.searchTextNearbyMulti(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit);
-      }
+    const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
+    const includedTypes = universeToGoogleTypes(params.universe).filter((t) => !unsupportedTypes.has(t));
+    // Un univers sans type Google utilisable n'a que sa requête textuelle.
+    if (params.universe && textQuery && (TEXT_FIRST_UNIVERSES.has(params.universe) || includedTypes.length === 0)) {
+      return this.searchTextNearbyMulti(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit);
     }
-    const includedTypes = universeToGoogleTypes(params.universe);
+    // Types ET texte (épiceries de quartier) : deux recherches fusionnées.
+    // Les lieux trouvés par le texte passent devant — ce sont eux que la
+    // recherche par type, dominée par les grandes enseignes, ne remonte pas.
+    if (params.universe && textQuery && TEXT_ALSO_UNIVERSES.has(params.universe)) {
+      const [byText, byType] = await Promise.all([
+        this.searchTextNearbyMulti(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit)
+          .catch(() => [] as ProviderPlace[]),
+        this.requestTypes(params, includedTypes).catch(() => [] as ProviderPlace[]),
+      ]);
+      const byId = new Map<string, ProviderPlace>();
+      for (const place of [...byText, ...byType]) {
+        if (!byId.has(place.providerPlaceId)) byId.set(place.providerPlaceId, place);
+      }
+      return [...byId.values()];
+    }
     try {
-      return await this.request(params, includedTypes);
+      return await this.requestTypes(params, includedTypes);
     } catch (err) {
       // Type Google refusé → repli en recherche large puis filtrage local.
       if (err instanceof InvalidArgumentError && includedTypes.length > 0) {
         this.logger.warn(`includedTypes refusé, repli large : ${err.message}`);
         // Univers avec requête textuelle dédiée (types Google invalides ex: cannabis_store)
-        const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
         if (textQuery) {
           return this.searchTextNearbyMulti(textQuery, params.lat, params.lng, params.radius, params.universe!, params.limit);
         }
@@ -132,6 +164,25 @@ export class GooglePlacesProvider implements PlacesProvider {
     return [...byId.values()].slice(0, limit);
   }
 
+  /**
+   * Recherche par types, rejouée sans ceux que Google refuse. S'il n'en reste
+   * aucun, l'erreur remonte : l'appelant bascule sur la requête textuelle.
+   */
+  private async requestTypes(params: ProviderNearbyParams, includedTypes: string[]): Promise<ProviderPlace[]> {
+    try {
+      return await this.request(params, includedTypes);
+    } catch (err) {
+      if (!(err instanceof InvalidArgumentError)) throw err;
+      const refused = parseUnsupportedTypes(err.message).filter((t) => includedTypes.includes(t));
+      if (refused.length === 0) throw err;
+      refused.forEach((t) => unsupportedTypes.add(t));
+      this.logger.warn(`Types refusés par Google, retirés des recherches : ${refused.join(', ')}`);
+      const remaining = includedTypes.filter((t) => !refused.includes(t));
+      if (remaining.length === 0) throw err;
+      return this.request(params, remaining);
+    }
+  }
+
   private async request(
     params: ProviderNearbyParams,
     includedTypes: string[],
@@ -161,7 +212,7 @@ export class GooglePlacesProvider implements PlacesProvider {
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       if (res.status === 400 && text.includes('INVALID_ARGUMENT')) {
-        throw new InvalidArgumentError(text.slice(0, 200));
+        throw new InvalidArgumentError(text.slice(0, 400));
       }
       throw new Error(`Google Places ${res.status} : ${text.slice(0, 200)}`);
     }
@@ -174,28 +225,26 @@ export class GooglePlacesProvider implements PlacesProvider {
     // boutique de vêtements classée « chocolatier »).
     const fallbackUniverse = includedTypes.length > 0 ? params.universe : undefined;
     return (data.places ?? []).flatMap((g) => {
-      const mapped = this.mapPlace(g, fallbackUniverse, includedTypes);
+      const mapped = this.mapPlace(g, fallbackUniverse);
       return mapped ? [mapped] : [];
     });
   }
 
   /**
-   * @param requested    univers demandé — sert de repli au classement.
-   * @param matchedTypes types réellement filtrés par Google, le cas échéant.
-   *   Quand le lieu porte l'un d'eux, l'univers demandé l'emporte sur le
-   *   classement générique : sans cela, un rayon ciblé peut ne jamais se
-   *   remplir. Une épicerie parisienne est typée `supermarket` AVANT
-   *   `grocery_store` ; notre classement parcourt les types dans l'ordre de
-   *   Google et la rangeait donc en Supermarchés, laissant Épiceries
-   *   désespérément vide alors que Google, lui, avait bien répondu.
+   * @param requested univers de la recherche — repli quand rien ne classe le lieu.
+   * @param forced    recherche textuelle dédiée : l'univers demandé s'impose.
+   *   Hors de ce cas, l'univers ne dépend que du lieu (nom, types), jamais de
+   *   la recherche qui l'a trouvé : voir `classifyGooglePlace`.
    */
-  private mapPlace(g: GooglePlace, requested?: Universe, matchedTypes: string[] = []): ProviderPlace | null {
+  private mapPlace(g: GooglePlace, requested?: Universe, forced = false): ProviderPlace | null {
     const name = g.displayName?.text;
     const lat = g.location?.latitude;
     const lng = g.location?.longitude;
     if (!g.id || !name || typeof lat !== 'number' || typeof lng !== 'number') return null;
 
-    const types = g.types ?? [];
+    const types = g.primaryType
+      ? [g.primaryType, ...(g.types ?? []).filter((t) => t !== g.primaryType)]
+      : g.types ?? [];
     const { city, countryCode } = extractLocality(g.addressComponents ?? [], g.formattedAddress);
 
     const { refs: photoRefs, attributions: photoAttributions } = extractPhotos(g.photos);
@@ -204,9 +253,8 @@ export class GooglePlacesProvider implements PlacesProvider {
     return {
       providerPlaceId: g.id,
       name,
-      universe: requested && matchedTypes.some((t) => types.includes(t))
-        ? requested
-        : googleTypesToUniverse(types, requested ?? 'restaurant'),
+      universe: classifyGooglePlace({ name, types, requested, forced }),
+      ...(forced ? { forced: true } : {}),
       lat,
       lng,
       city,
@@ -225,7 +273,12 @@ export class GooglePlacesProvider implements PlacesProvider {
    * Recherche textuelle (Text Search) — ex. « restaurant in Tokyo ». Permet la
    * recherche par ville sans géolocalisation. Mappe vers {@link ProviderPlace}.
    */
-  async searchByText(textQuery: string, universe?: Universe, limit = MAX_RESULTS): Promise<ProviderPlace[]> {
+  async searchByText(
+    textQuery: string,
+    universe?: Universe,
+    limit = MAX_RESULTS,
+    forceUniverse = false,
+  ): Promise<ProviderPlace[]> {
     const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
       headers: {
@@ -242,7 +295,7 @@ export class GooglePlacesProvider implements PlacesProvider {
     }
     const data = (await res.json()) as { places?: GooglePlace[] };
     return (data.places ?? []).flatMap((g) => {
-      const mapped = this.mapPlace(g, universe);
+      const mapped = this.mapPlace(g, universe, forceUniverse && !!universe);
       return mapped ? [mapped] : [];
     });
   }
@@ -289,13 +342,11 @@ export class GooglePlacesProvider implements PlacesProvider {
     const rawCount = data.places?.length ?? 0;
     this.logger.log(`[textNearby] "${textQuery.slice(0, 40)}" @${lat.toFixed(2)},${lng.toFixed(2)} r=${radius} → ${rawCount} bruts Google`);
     return (data.places ?? []).flatMap((g) => {
-      const mapped = this.mapPlace(g, universe);
-      if (!mapped) return [];
-      // Recherche textuelle dédiée : on force l'univers demandé, car les types
+      // Recherche textuelle dédiée : l'univers demandé s'impose, car les types
       // Google génériques (un coffeeshop d'Amsterdam typé `cafe`) reclasseraient
       // à tort le lieu (→ `cafe` au lieu de `cannabis`), le faisant disparaître.
-      if (forceUniverse && universe) mapped.universe = universe;
-      return [mapped];
+      const mapped = this.mapPlace(g, universe, forceUniverse && !!universe);
+      return mapped ? [mapped] : [];
     });
   }
 

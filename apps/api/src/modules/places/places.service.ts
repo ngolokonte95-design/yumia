@@ -13,7 +13,12 @@ import {
   type ProviderPhotos,
   type ProviderPlace,
 } from './providers/places-provider.interface';
-import { isBlockedPlace, UNIVERSE_TEXT_QUERIES } from './providers/place-types';
+import {
+  hydrationVersion,
+  isBlockedPlace,
+  KEYWORD_UNIVERSES,
+  UNIVERSE_TEXT_QUERIES,
+} from './providers/place-types';
 
 const TRENDING_CACHE_TTL_SECONDS = 2 * 60; // 2 min — assez frais, réduit la pression DB
 const PLACE_STATS_CACHE_TTL_SECONDS = 60; // 1 min — les avis communautaires sont peu fréquents
@@ -492,10 +497,10 @@ export class PlacesService {
     const tile = hydrationTile(params.lat, params.lng, params.radius);
     const tileKey = [
       'places:hydrated',
-      // Version de schéma d'hydratation : incrémenter invalide les tuiles
-      // anciennes (ex. densité v1) et force une ré-hydratation plus riche.
+      // Version de schéma d'hydratation, par univers : changer la recherche
+      // Google d'un univers ne recharge que ses zones (voir hydrationVersion).
       // v6 : filtre rating abaissé 3.0 → 2.5 pour densifier les univers peu fournis
-      'v6',
+      hydrationVersion(params.universe),
       params.universe ?? 'all',
       tile.lat.toFixed(2),
       tile.lng.toFixed(2),
@@ -600,7 +605,27 @@ export class PlacesService {
   private async persistProviderPlaces(places: ProviderPlace[]): Promise<Place[]> {
     const saved: Place[] = [];
 
-    const persistOne = async (p: ProviderPlace): Promise<void> => {
+    // Un lieu rangé dans un univers « mot-clé » (rooftop, tabac, brunch…) y
+    // reste : ses types Google ne disent rien de cet univers, et la première
+    // recherche par type (bars, cafés…) l'en ressortirait aussitôt.
+    const pinned = new Map<string, Place['universe']>();
+    try {
+      const known = await this.prisma.place.findMany({
+        where: { providerPlaceId: { in: places.map((p) => p.providerPlaceId) } },
+        select: { providerPlaceId: true, universe: true },
+      });
+      for (const k of known) {
+        if (k.providerPlaceId && KEYWORD_UNIVERSES.has(k.universe as Universe)) {
+          pinned.set(k.providerPlaceId, k.universe);
+        }
+      }
+    } catch {
+      // best-effort : sans cette lecture, on classe comme un lieu neuf
+    }
+
+    const persistOne = async (incoming: ProviderPlace): Promise<void> => {
+      const kept = pinned.get(incoming.providerPlaceId);
+      const p = kept && kept !== incoming.universe ? { ...incoming, universe: kept as Universe } : incoming;
       // Ignore épiceries, banques, stations… (sauf univers de service). Le
       // filtre sur la note Google a disparu avec elle : on ne la demande plus.
       if (isBlockedPlace(p.tags, p.universe)) return;
@@ -838,22 +863,21 @@ export class PlacesService {
     await this.redis.setJson(cacheKey, true, HYDRATE_LOCK_TTL_SECONDS).catch(() => undefined);
 
     try {
-      // Pour les univers dont le type Google est invalide (cannabis, hookah…), on
-      // utilise la requête textuelle dédiée + on force l'univers sur les résultats.
-      // Sans ça, un coffeeshop d'Amsterdam typé `coffee_shop` par Google est reclassé
-      // en `cafe` par googleTypesToUniverse et disparaît de l'univers cannabis.
+      // Pour les univers « mot-clé » (cannabis, hookah, tabac…), on utilise la
+      // requête textuelle dédiée et l'univers s'impose aux résultats. Sans ça,
+      // un coffeeshop d'Amsterdam typé `coffee_shop` par Google est classé
+      // en `cafe` et disparaît de l'univers cannabis. Les autres univers
+      // restent classés par leurs types (voir classifyGooglePlace).
       const textQuery = params.universe ? UNIVERSE_TEXT_QUERIES[params.universe] : undefined;
+      const forced = !!textQuery && !!params.universe && KEYWORD_UNIVERSES.has(params.universe);
       const queries = textQuery
         ? (Array.isArray(textQuery) ? textQuery : [textQuery]).map((q) => `${q} in ${params.city}`)
         : [params.universe ? `${params.universe} in ${params.city}` : params.city];
       const byProviderId = new Map<string, ProviderPlace>();
-      for (const results of await Promise.all(queries.map((q) => this.provider.searchByText!(q, params.universe, 20)))) {
+      for (const results of await Promise.all(queries.map((q) => this.provider.searchByText!(q, params.universe, 20, forced)))) {
         for (const p of results) byProviderId.set(p.providerPlaceId, p);
       }
-      let found = [...byProviderId.values()];
-      if (textQuery && params.universe) {
-        found = found.map((p) => ({ ...p, universe: params.universe! }));
-      }
+      const found = [...byProviderId.values()];
       if (found.length === 0) {
         await this.redis.setJson(cacheKey, true, HYDRATE_EMPTY_RETRY_TTL_SECONDS).catch(() => undefined);
         return local;
