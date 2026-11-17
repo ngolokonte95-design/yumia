@@ -1,22 +1,41 @@
-import { useCallback, useEffect, useState } from 'react';
+/**
+ * SOUVENIRS — album personnel : publications YUMIA, flashbacks, photos
+ * gardées depuis l'appareil.
+ *
+ * Mise en scène (17/11/2026) : galerie façon album photo. Les publications
+ * sont regroupées PAR MOIS (seule donnée de regroupement fiable : la date de
+ * publication), chaque mois ouvre sur une grande photo puis une mosaïque à
+ * coins arrondis, et les blocs apparaissent en cascade. Une seule couleur
+ * d'accent, le dégradé de marque.
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Dimensions, FlatList, Image, Pressable, RefreshControl,
+  ActivityIndicator, Dimensions, FlatList, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/auth-context';
 import { feedApi, type FeedPost } from '../lib/feed-api';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, elevation, gradients, radius, spacing } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
+import { PressableScale, Reveal } from '../components/ui';
+import { haptics } from '../lib/useHaptics';
+import {
+  BrandButton, BrandChip, GlassIconButton, SectionTitle, SocialEmpty, SocialHeader,
+} from '../components/social/SocialChrome';
 
 const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
 
 const { width: SW } = Dimensions.get('window');
-const GRID_ITEM = (SW - 4) / 3;
+const GAP = 4;
+const PAD = spacing.md;
+const GRID_ITEM = (SW - PAD * 2 - GAP * 2) / 3;
 const MEMORIES_KEY = 'yumia:memories';
 
 type MemTab = 'accueil' | 'appareil' | 'ia' | 'stories';
@@ -29,13 +48,12 @@ interface LocalMemory {
   createdAt: string;
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
 function isSameMonthDay(a: Date, b: Date) {
   return a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function isVideoPost(p: FeedPost) {
+  return !!p.videoUrl || !!p.mediaUrls[0]?.includes('.mp4');
 }
 
 // ── Carte Flashback ───────────────────────────────────────────────────────────
@@ -45,34 +63,82 @@ function FlashbackCard({ post }: { post: FeedPost }) {
   const year = d.getFullYear();
   const dayLabel = d.toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { day: 'numeric', month: 'long' });
   return (
-    <Pressable style={styles.flashCard}>
+    <PressableScale style={styles.flashCard} scaleTo={0.96}>
       {post.mediaUrls[0] ? (
-        <Image source={{ uri: post.mediaUrls[0] }} style={styles.flashImage} />
+        <Image source={{ uri: post.mediaUrls[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
-        <View style={[styles.flashImage, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
-          <Text style={{ fontSize: 36 }}>📷</Text>
-        </View>
+        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.center]}>
+          <Text style={{ fontSize: 44 }}>📷</Text>
+        </LinearGradient>
       )}
+      {/* Voile de lecture confiné à la carte. */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
+        locations={[0.45, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
       <View style={styles.flashOverlay}>
-        <View style={styles.flashBar} />
-        <Text style={styles.flashTitle}>{t('mem_flashback_of').replace('{day}', dayLabel)}</Text>
         <Text style={styles.flashYear}>{year}</Text>
+        <Text style={styles.flashTitle} numberOfLines={2}>{t('mem_flashback_of').replace('{day}', dayLabel)}</Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
-// ── Tuile grille ─────────────────────────────────────────────────────────────
-function GridTile({ uri, isVideo, onPress }: { uri: string; isVideo?: boolean; onPress?: () => void }) {
+// ── Tuile de mosaïque ────────────────────────────────────────────────────────
+function GridTile({
+  uri, isVideo, onPress, size = GRID_ITEM, height,
+}: {
+  uri: string;
+  isVideo?: boolean;
+  onPress?: () => void;
+  size?: number;
+  height?: number;
+}) {
   return (
-    <Pressable onPress={onPress} style={styles.gridTile}>
-      <Image source={{ uri }} style={styles.gridImg} />
+    <PressableScale onPress={onPress} scaleTo={0.95} style={[styles.gridTile, { width: size, height: height ?? size }]}>
+      {uri ? <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} recyclingKey={uri} /> : null}
       {isVideo && (
         <View style={styles.gridVideoBadge}>
-          <Text style={{ color: '#fff', fontSize: 12 }}>▶</Text>
+          <Text style={styles.gridVideoText}>▶</Text>
         </View>
       )}
-    </Pressable>
+    </PressableScale>
+  );
+}
+
+// ── Mois d'album : grande photo d'ouverture + mosaïque ──────────────────────
+function MonthAlbum({
+  label, posts, index, onOpen,
+}: {
+  label: string;
+  posts: FeedPost[];
+  index: number;
+  onOpen: (p: FeedPost) => void;
+}) {
+  const [hero, ...rest] = posts;
+  return (
+    <Reveal index={Math.min(index, 5)} style={styles.month}>
+      <SectionTitle title={label} right={<Text style={styles.monthCount}>{posts.length}</Text>} />
+      <View style={styles.mosaic}>
+        <GridTile
+          uri={hero.mediaUrls[0] ?? hero.videoUrl ?? ''}
+          isVideo={isVideoPost(hero)}
+          onPress={() => onOpen(hero)}
+          size={SW - PAD * 2}
+          height={Math.round((SW - PAD * 2) * 0.62)}
+        />
+        {rest.map((p) => (
+          <GridTile
+            key={p.id}
+            uri={p.mediaUrls[0] ?? p.videoUrl ?? ''}
+            isVideo={isVideoPost(p)}
+            onPress={() => onOpen(p)}
+          />
+        ))}
+      </View>
+    </Reveal>
   );
 }
 
@@ -81,11 +147,10 @@ export default function MemoriesScreen() {
   const { accessToken, user: me } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [activeTab, setActiveTab] = useState<MemTab>('accueil');
   const [myPosts, setMyPosts] = useState<FeedPost[]>([]);
   const [localMems, setLocalMems] = useState<LocalMemory[]>([]);
-  const [devicePhotos, setDevicePhotos] = useState<{ uri: string; type: 'photo' | 'video' }[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -118,6 +183,7 @@ export default function MemoriesScreen() {
       };
       const updated = [newMem, ...localMems];
       setLocalMems(updated);
+      haptics.success();
       await AsyncStorage.setItem(MEMORIES_KEY, JSON.stringify(updated));
     }
   };
@@ -130,12 +196,37 @@ export default function MemoriesScreen() {
   });
 
   // Posts depuis le début, les plus récents en premier
-  const recentYumiaPosts = [...myPosts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const recentYumiaPosts = useMemo(
+    () => [...myPosts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [myPosts],
+  );
   const recentLocal = [...localMems].slice(0, 8);
+
+  // Regroupement par mois (ordre déjà antichronologique).
+  const months = useMemo(() => {
+    const out: { key: string; label: string; posts: FeedPost[] }[] = [];
+    for (const p of recentYumiaPosts) {
+      const d = new Date(p.createdAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      let bucket = out[out.length - 1];
+      if (!bucket || bucket.key !== key) {
+        let label: string;
+        try {
+          label = d.toLocaleDateString(INTL_LOCALE[locale] ?? locale ?? 'fr-FR', { month: 'long', year: 'numeric' });
+        } catch {
+          label = `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        }
+        bucket = { key, label, posts: [] };
+        out.push(bucket);
+      }
+      bucket.posts.push(p);
+    }
+    return out;
+  }, [recentYumiaPosts, locale]);
 
   if (loading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.brand} size="large" />
       </View>
     );
@@ -151,30 +242,25 @@ export default function MemoriesScreen() {
   // ── Contenu de l'onglet "Appareil" ──────────────────────────────────────────
   const renderAppareil = () => (
     <View style={{ flex: 1 }}>
-      <Pressable style={styles.galleryBanner} onPress={pickFromGallery}>
-        <Text style={styles.galleryBannerIcon}>🖼️</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.galleryBannerTitle}>{t('mem_gallery_photos_title')}</Text>
-          <Text style={styles.galleryBannerSub}>{t('mem_gallery_photos_sub')}</Text>
-        </View>
-        <Text style={styles.galleryBannerArrow}>›</Text>
-      </Pressable>
+      <ActionBanner
+        icon="🖼️"
+        title={t('mem_gallery_photos_title')}
+        sub={t('mem_gallery_photos_sub')}
+        onPress={() => void pickFromGallery()}
+      />
       {localMems.length === 0 ? (
-        <View style={styles.emptySection}>
-          <Text style={{ fontSize: 40, marginBottom: 12 }}>📁</Text>
-          <Text style={styles.emptyTitle}>{t('mem_empty_local_title')}</Text>
-          <Text style={styles.emptySub}>{t('mem_empty_local_sub')}</Text>
-        </View>
+        <SocialEmpty emoji="📁" title={t('mem_empty_local_title')} text={t('mem_empty_local_sub')} />
       ) : (
         <FlatList
           data={localMems}
           keyExtractor={(_, i) => String(i)}
           numColumns={3}
+          contentContainerStyle={{ paddingHorizontal: PAD, paddingBottom: insets.bottom + 40 }}
           renderItem={({ item }) => (
             <GridTile uri={item.uri} isVideo={item.type === 'video'} />
           )}
-          columnWrapperStyle={{ gap: 2 }}
-          ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
+          columnWrapperStyle={{ gap: GAP }}
+          ItemSeparatorComponent={() => <View style={{ height: GAP }} />}
         />
       )}
     </View>
@@ -187,72 +273,67 @@ export default function MemoriesScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.brand} />}
     >
       {/* Créer une vidéo */}
-      <Pressable style={styles.createVideoBanner} onPress={() => router.push('/camera?mode=reel' as never)}>
-        <Text style={styles.createVideoBannerIcon}>🎬</Text>
-        <Text style={styles.createVideoBannerTxt}>{t('mem_create_video')}</Text>
-        <Text style={styles.createVideoBannerArrow}>›</Text>
-      </Pressable>
+      <ActionBanner
+        icon="🎬"
+        title={t('mem_create_video')}
+        onPress={() => router.push('/camera?mode=reel' as never)}
+      />
 
       {/* Flashbacks */}
       {flashbacks.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('mem_flashbacks')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: spacing.md }}>
+        <Reveal index={0} style={styles.section}>
+          <SectionTitle title={t('mem_flashbacks')} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: PAD }}>
             {flashbacks.map((p) => <FlashbackCard key={p.id} post={p} />)}
           </ScrollView>
-        </View>
+        </Reveal>
       )}
 
       {/* Photos récentes de la galerie locale */}
       {recentLocal.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('mem_recent_gallery_photos')}</Text>
-            <Pressable onPress={() => setActiveTab('appareil')}>
-              <Text style={styles.seeAll}>{t('mem_see_all')}</Text>
-            </Pressable>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4, paddingHorizontal: spacing.md }}>
+        <Reveal index={1} style={styles.section}>
+          <SectionTitle
+            title={t('mem_recent_gallery_photos')}
+            right={(
+              <Pressable onPress={() => setActiveTab('appareil')} hitSlop={8}>
+                <Text style={styles.seeAll}>{t('mem_see_all')}</Text>
+              </Pressable>
+            )}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: PAD }}>
             {recentLocal.map((m, i) => (
-              <Image key={i} source={{ uri: m.uri }} style={styles.recentThumb} />
+              <Image key={i} source={{ uri: m.uri }} style={styles.recentThumb} contentFit="cover" />
             ))}
-            <Pressable style={styles.recentMore} onPress={pickFromGallery}>
-              <Text style={{ color: colors.brand, fontSize: 24 }}>+</Text>
-            </Pressable>
+            <PressableScale style={styles.recentMore} onPress={() => void pickFromGallery()} scaleTo={0.92}>
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <Text style={styles.recentMoreText}>+</Text>
+            </PressableScale>
           </ScrollView>
-        </View>
+        </Reveal>
       )}
 
-      {/* Mes publications Yumia */}
+      {/* Mes publications YUMIA, en album par mois */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('mem_yumia_memories_count').replace('{n}', String(recentYumiaPosts.length))}</Text>
+        <View style={styles.albumHead}>
+          <Text style={styles.albumTitle}>{t('mem_yumia_memories_count').replace('{n}', String(recentYumiaPosts.length))}</Text>
         </View>
         {recentYumiaPosts.length === 0 ? (
-          <View style={styles.emptySection}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>📸</Text>
-            <Text style={styles.emptyTitle}>{t('mem_empty_posts_title')}</Text>
-            <Text style={styles.emptySub}>{t('mem_empty_posts_sub')}</Text>
-            <Pressable style={styles.emptyBtn} onPress={() => router.push('/camera' as never)}>
-              <Text style={styles.emptyBtnTxt}>{t('mem_open_camera')}</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <FlatList
-            data={recentYumiaPosts}
-            keyExtractor={(p) => p.id}
-            numColumns={3}
-            scrollEnabled={false}
-            renderItem={({ item }) => (
-              <GridTile
-                uri={item.mediaUrls[0] ?? item.videoUrl ?? ''}
-                isVideo={!!item.videoUrl || item.mediaUrls[0]?.includes('.mp4')}
-                onPress={() => router.push(`/post/${item.id}` as never)}
-              />
-            )}
-            columnWrapperStyle={{ gap: 2 }}
-            ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
+          <SocialEmpty
+            emoji="📸"
+            title={t('mem_empty_posts_title')}
+            text={t('mem_empty_posts_sub')}
+            action={<BrandButton label={t('mem_open_camera')} onPress={() => router.push('/camera' as never)} />}
           />
+        ) : (
+          months.map((m, i) => (
+            <MonthAlbum
+              key={m.key}
+              label={m.label}
+              posts={m.posts}
+              index={i + 2}
+              onOpen={(p) => router.push(`/post/${p.id}` as never)}
+            />
+          ))
         )}
       </View>
 
@@ -261,46 +342,39 @@ export default function MemoriesScreen() {
     </ScrollView>
   );
 
-  // ── Onglets Stories ────────────────────────────────────────────────────────
+  // ── Onglet Stories ─────────────────────────────────────────────────────────
   const renderStories = () => (
-    <View style={styles.emptySection}>
-      <Text style={{ fontSize: 40, marginBottom: 12 }}>⭕</Text>
-      <Text style={styles.emptyTitle}>{t('mem_stories_title')}</Text>
-      <Text style={styles.emptySub}>{t('mem_stories_sub')}</Text>
-      <Pressable style={styles.emptyBtn} onPress={() => router.push('/camera?mode=story' as never)}>
-        <Text style={styles.emptyBtnTxt}>{t('mem_new_story')}</Text>
-      </Pressable>
-    </View>
+    <SocialEmpty
+      emoji="⭕"
+      title={t('mem_stories_title')}
+      text={t('mem_stories_sub')}
+      action={<BrandButton label={t('mem_new_story')} onPress={() => router.push('/camera?mode=story' as never)} />}
+    />
   );
 
   // ── Onglet IA ──────────────────────────────────────────────────────────────
   const renderIA = () => (
-    <View style={styles.emptySection}>
-      <Text style={{ fontSize: 40, marginBottom: 12 }}>🤖</Text>
-      <Text style={styles.emptyTitle}>{t('mem_ai_title')}</Text>
-      <Text style={styles.emptySub}>{t('mem_ai_sub')}</Text>
-    </View>
+    <SocialEmpty emoji="🤖" title={t('mem_ai_title')} text={t('mem_ai_sub')} />
   );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* ── Header ────────────────────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <Pressable style={styles.headerBack} onPress={() => router.back()}>
-          <Text style={styles.headerBackTxt}>∨</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('mem_header_title')}</Text>
-        <View style={styles.headerRight}>
-          <Pressable style={styles.headerIconBtn}>
-            <Text style={styles.headerIconTxt}>🔍</Text>
-          </Pressable>
-          <Pressable style={styles.headerSelectBtn}>
-            <Text style={styles.headerSelectTxt}>{t('mem_select')}</Text>
-          </Pressable>
-        </View>
-      </View>
+      {/* ── En-tête ──────────────────────────────────────────────────────────── */}
+      <SocialHeader
+        title={t('mem_header_title')}
+        backIcon="∨"
+        onBack={() => router.back()}
+        right={(
+          <>
+            <GlassIconButton icon="🔍" size={38} />
+            <View style={styles.selectPill}>
+              <Text style={styles.selectText}>{t('mem_select')}</Text>
+            </View>
+          </>
+        )}
+      />
 
-      {/* ── Onglets ────────────────────────────────────────────────────────────── */}
+      {/* ── Onglets ──────────────────────────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -308,13 +382,16 @@ export default function MemoriesScreen() {
         contentContainerStyle={styles.tabBarContent}
       >
         {TABS.map((tab) => (
-          <Pressable key={tab.id} style={[styles.tabBtn, activeTab === tab.id && styles.tabBtnActive]} onPress={() => setActiveTab(tab.id)}>
-            <Text style={[styles.tabTxt, activeTab === tab.id && styles.tabTxtActive]}>{t(tab.labelKey)}</Text>
-          </Pressable>
+          <BrandChip
+            key={tab.id}
+            label={t(tab.labelKey)}
+            active={activeTab === tab.id}
+            onPress={() => { haptics.select(); setActiveTab(tab.id); }}
+          />
         ))}
       </ScrollView>
 
-      {/* ── Contenu ─────────────────────────────────────────────────────────── */}
+      {/* ── Contenu ───────────────────────────────────────────────────────────── */}
       <View style={{ flex: 1 }}>
         {activeTab === 'accueil' && renderAccueil()}
         {activeTab === 'appareil' && renderAppareil()}
@@ -325,79 +402,92 @@ export default function MemoriesScreen() {
   );
 }
 
+/** Bandeau d'action premium : médaillon dégradé, titre, flèche. */
+function ActionBanner({
+  icon, title, sub, onPress,
+}: { icon: string; title: string; sub?: string; onPress: () => void }) {
+  return (
+    <PressableScale style={styles.banner} onPress={onPress} scaleTo={0.97}>
+      <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bannerMedal}>
+        <Text style={styles.bannerIcon}>{icon}</Text>
+      </LinearGradient>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.bannerTitle} numberOfLines={1}>{title}</Text>
+        {sub ? <Text style={styles.bannerSub} numberOfLines={2}>{sub}</Text> : null}
+      </View>
+      <Text style={styles.bannerArrow}>›</Text>
+    </PressableScale>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: { alignItems: 'center', justifyContent: 'center' },
 
-  // Header
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 12 },
-  headerBack: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerBackTxt: { fontSize: 20, color: colors.text, fontWeight: '700' },
-  headerTitle: { ...typography.h3, color: colors.text, flex: 1, textAlign: 'center' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerIconBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerIconTxt: { fontSize: 20 },
-  headerSelectBtn: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
-  headerSelectTxt: { color: colors.text, fontSize: 13, fontWeight: '600' },
-
-  // Tabs
-  tabBar: { maxHeight: 48, marginBottom: 4 },
-  tabBarContent: { paddingHorizontal: spacing.md, gap: 8, alignItems: 'center' },
-  tabBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.surface },
-  tabBtnActive: { backgroundColor: colors.brand },
-  tabTxt: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
-  tabTxtActive: { color: '#fff' },
-
-  // Create video banner
-  createVideoBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginHorizontal: spacing.md, marginVertical: 12,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, borderWidth: 1, borderColor: colors.border,
+  selectPill: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill,
+    backgroundColor: 'rgba(31,31,42,0.72)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
   },
-  createVideoBannerIcon: { fontSize: 28 },
-  createVideoBannerTxt: { ...typography.body, color: colors.text, fontWeight: '700', flex: 1 },
-  createVideoBannerArrow: { fontSize: 22, color: colors.textMuted },
+  selectText: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
 
-  // Section
-  section: { marginBottom: spacing.lg },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: 10 },
-  sectionTitle: { ...typography.heading, color: colors.text },
-  seeAll: { fontSize: 13, color: colors.brand, fontWeight: '600' },
+  // Onglets
+  tabBar: { maxHeight: 52, marginBottom: spacing.xs, flexGrow: 0 },
+  tabBarContent: { paddingHorizontal: PAD, gap: 8, alignItems: 'center' },
 
-  // Flashback card
-  flashCard: { width: 180, height: 240, borderRadius: radius.xl, overflow: 'hidden', position: 'relative' },
-  flashImage: { width: '100%', height: '100%' },
-  flashOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: 'rgba(0,0,0,0.45)' },
-  flashBar: { height: 3, backgroundColor: colors.brand, borderRadius: 2, marginBottom: 6, width: '70%' },
-  flashTitle: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  flashYear: { color: 'rgba(255,255,255,0.65)', fontSize: 11 },
-
-  // Recent thumbs
-  recentThumb: { width: 80, height: 80, borderRadius: radius.md },
-  recentMore: { width: 80, height: 80, borderRadius: radius.md, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed' },
-
-  // Gallery banner
-  galleryBanner: {
+  // Bandeau d'action
+  banner: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    margin: spacing.md, backgroundColor: colors.surface,
-    borderRadius: radius.lg, padding: spacing.md,
-    borderWidth: 1, borderColor: colors.border,
+    marginHorizontal: PAD, marginVertical: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
-  galleryBannerIcon: { fontSize: 32 },
-  galleryBannerTitle: { color: colors.text, fontWeight: '700', fontSize: 15 },
-  galleryBannerSub: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
-  galleryBannerArrow: { fontSize: 22, color: colors.textMuted },
+  bannerMedal: {
+    width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    ...elevation.glowBrand,
+  },
+  bannerIcon: { fontSize: 26 },
+  bannerTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '900' },
+  bannerSub: { color: colors.textSecondary, fontSize: 13, marginTop: 2, lineHeight: 18 },
+  bannerArrow: { fontSize: 26, color: colors.brandSoft, fontWeight: '300' },
 
-  // Grid
-  gridTile: { width: GRID_ITEM, height: GRID_ITEM, position: 'relative' },
-  gridImg: { width: '100%', height: '100%' },
-  gridVideoBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  // Sections
+  section: { marginBottom: spacing.lg },
+  seeAll: { fontSize: 13, color: colors.brandSoft, fontWeight: '800' },
+  albumHead: { paddingHorizontal: PAD, marginBottom: spacing.md },
+  albumTitle: { color: colors.textPrimary, fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
 
-  // Empty states
-  emptySection: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: spacing.xl },
-  emptyTitle: { ...typography.heading, color: colors.text, textAlign: 'center', marginBottom: 8 },
-  emptySub: { color: colors.textMuted, textAlign: 'center', fontSize: 14, lineHeight: 20, marginBottom: 24 },
-  emptyBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: 28, paddingVertical: 13 },
-  emptyBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  // Mois d'album
+  month: { marginBottom: spacing.lg },
+  monthCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  mosaic: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP, paddingHorizontal: PAD },
+
+  // Flashback
+  flashCard: {
+    width: 210, height: 290, borderRadius: radius.xl, overflow: 'hidden',
+    backgroundColor: colors.surface, ...elevation.medium,
+  },
+  flashOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.md, gap: 2 },
+  flashYear: {
+    color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: -1,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 },
+  },
+  flashTitle: { color: 'rgba(255,255,255,0.9)', fontWeight: '700', fontSize: 13 },
+
+  // Vignettes récentes
+  recentThumb: { width: 92, height: 92, borderRadius: radius.md },
+  recentMore: {
+    width: 92, height: 92, borderRadius: radius.md, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  recentMoreText: { color: '#fff', fontSize: 32, fontWeight: '300' },
+
+  // Mosaïque
+  gridTile: { borderRadius: 10, overflow: 'hidden', backgroundColor: colors.surface },
+  gridVideoBadge: {
+    position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(14,14,18,0.6)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  gridVideoText: { color: '#fff', fontSize: 10, marginLeft: 1 },
 });

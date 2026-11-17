@@ -1,13 +1,23 @@
+/**
+ * TIND — découverte de personnes à proximité, en paquet de cartes à glisser.
+ *
+ * Mise en scène (17/11/2026) : grandes cartes profil, photo plein cadre,
+ * infos posées sur la photo (voile confiné à la carte), boutons ronds en verre
+ * et cœur au dégradé de marque. Pas de pastille de compatibilité : l'API ne
+ * renvoie pas cette donnée, on n'en invente pas.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, Image, PanResponder,
-  Pressable, StyleSheet, Text, View,
+  ActivityIndicator, Animated, PanResponder,
+  StyleSheet, Text, View, useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, elevation, gradients, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
 import { PlanBadgeIcon } from '../components/Avatar';
@@ -18,6 +28,11 @@ import type { TranslationKey } from '../lib/translations';
 import { FeatureTip } from '../components/FeatureTip';
 import { AdultsOnlyNotice } from '../components/AdultsOnlyNotice';
 import { isAdultYear } from '../lib/dating-age';
+import { PressableScale, Reveal } from '../components/ui';
+import { haptics } from '../lib/useHaptics';
+import {
+  BrandChip, GlassIconButton, OutlineButton, SocialEmpty, SocialHeader,
+} from '../components/social/SocialChrome';
 
 const API = API_BASE_URL;
 
@@ -48,6 +63,7 @@ export default function DiscoverPeopleScreen() {
   const { accessToken, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const adult = isAdultYear(user?.birthYear);
   const { t } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -62,6 +78,11 @@ export default function DiscoverPeopleScreen() {
   const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
   const [upsell, setUpsell] = useState<string | null>(null);
   const { checkLimit, recordUsage, remaining, quotaMessage } = usePlanLimits();
+
+  // Carte aussi grande que l'écran le permet (en-tête, filtres et boutons
+  // retirés), plafonnée pour rester élégante sur tablette.
+  const cardW = Math.min(screenW - spacing.md * 2, 460);
+  const cardH = Math.min(Math.max(screenH - insets.top - insets.bottom - 300, 380), 640);
 
   const load = useCallback(async (interestedIn: FilterValue = 'everyone') => {
     if (!accessToken) return;
@@ -118,6 +139,7 @@ export default function DiscoverPeopleScreen() {
     onPanResponderRelease: (_, gesture) => {
       const current = profiles[idx];
       if (Math.abs(gesture.dx) > SWIPE_THRESHOLD) {
+        haptics.light();
         Animated.timing(pan, { toValue: { x: gesture.dx > 0 ? 500 : -500, y: gesture.dy }, duration: 200, useNativeDriver: false }).start(() => {
           if (current) {
             // À droite, le badge dit « J'aime » : c'est le même geste que ❤️,
@@ -139,47 +161,63 @@ export default function DiscoverPeopleScreen() {
   const rotate = pan.x.interpolate({ inputRange: [-200, 0, 200], outputRange: ['-10deg', '0deg', '10deg'] });
   const likeOpacity = pan.x.interpolate({ inputRange: [0, 80], outputRange: [0, 1] });
   const passOpacity = pan.x.interpolate({ inputRange: [-80, 0], outputRange: [1, 0] });
+  // La carte suivante grandit à mesure que la première s'en va.
+  const nextScale = pan.x.interpolate({ inputRange: [-200, 0, 200], outputRange: [1, 0.94, 1], extrapolate: 'clamp' });
 
   const current = profiles[idx];
   const next = profiles[idx + 1];
+
+  const header = <SocialHeader title={t('dp_title')} onBack={() => router.back()} />;
 
   // Tind est réservé aux majeurs (le serveur refuse aussi, cf. DiscoverService).
   if (!adult) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-          <Text style={styles.title}>{t('dp_title')}</Text>
-          <View style={{ width: 32 }} />
-        </View>
+        {header}
         <AdultsOnlyNotice birthYearMissing={user?.birthYear == null} />
       </View>
     );
   }
 
   if (loading) {
-    return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} size="large" /></View>;
+    return (
+      <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator color={colors.brand} size="large" />
+      </View>
+    );
   }
+
+  const pass = () => {
+    if (!current) return;
+    haptics.select();
+    void markSeen(current.id);
+    setIdx((i) => i + 1);
+    pan.setValue({ x: 0, y: 0 });
+  };
+
+  const like = async () => {
+    if (!current) return;
+    haptics.success();
+    await fetch(`${API}/social/follow/${current.id}`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
+    await markSeen(current.id);
+    setIdx((i) => i + 1);
+    pan.setValue({ x: 0, y: 0 });
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('dp_title')}</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      {header}
 
-      {/* Gender filter */}
+      {/* Filtre de genre */}
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
-          <Pressable
+          <BrandChip
             key={f.value}
-            style={[styles.filterChip, filter === f.value && styles.filterChipActive]}
-            onPress={() => setFilter(f.value)}
-          >
-            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>{t(f.labelKey)}</Text>
-          </Pressable>
+            label={t(f.labelKey)}
+            active={filter === f.value}
+            onPress={() => { haptics.select(); setFilter(f.value); }}
+          />
         ))}
       </View>
 
@@ -189,68 +227,60 @@ export default function DiscoverPeopleScreen() {
            donne souvent zéro résultat — afficher 🎉 laissait croire à tort
            qu'on avait parcouru tous les profils. */
         filter !== 'everyone' ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>🔍</Text>
-            <Text style={styles.emptyTitle}>{t('dp_empty_filtered_title')}</Text>
-            <Text style={styles.emptyText}>{t('dp_empty_filtered_text')}</Text>
-            <Pressable style={styles.reloadBtn} onPress={() => { setFilter('everyone'); void load('everyone'); }}>
-              <Text style={styles.reloadBtnText}>{t('dp_filter_everyone')}</Text>
-            </Pressable>
-          </View>
+          <SocialEmpty
+            emoji="🔍"
+            title={t('dp_empty_filtered_title')}
+            text={t('dp_empty_filtered_text')}
+            action={<OutlineButton label={t('dp_filter_everyone')} onPress={() => { setFilter('everyone'); void load('everyone'); }} />}
+          />
         ) : (
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>🎉</Text>
-            <Text style={styles.emptyTitle}>{t('dp_empty_title')}</Text>
-            <Text style={styles.emptyText}>{t('dp_empty_text')}</Text>
-            <Pressable style={styles.reloadBtn} onPress={() => load(filter)}>
-              <Text style={styles.reloadBtnText}>{t('dp_reload')}</Text>
-            </Pressable>
-          </View>
+          <SocialEmpty
+            emoji="🎉"
+            title={t('dp_empty_title')}
+            text={t('dp_empty_text')}
+            action={<OutlineButton label={t('dp_reload')} onPress={() => load(filter)} />}
+          />
         )
       ) : (
         <View style={styles.deck}>
-          {/* Next card (static behind) */}
+          {/* Carte suivante, derrière */}
           {next && (
-            <View style={[styles.card, styles.cardBehind]}>
+            <Animated.View style={[styles.card, { width: cardW, height: cardH, transform: [{ scale: nextScale }], opacity: 0.85 }]}>
               <ProfileCard profile={next} />
-            </View>
+            </Animated.View>
           )}
 
-          {/* Current card (draggable) */}
+          {/* Carte courante, à glisser */}
           <Animated.View
             {...panResponder.panHandlers}
-            style={[styles.card, { transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate }] }]}
+            style={[styles.card, styles.cardFront, { width: cardW, height: cardH, transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate }] }]}
           >
-            {/* Like / Pass badges */}
-            <Animated.View style={[styles.badge, styles.badgeLike, { opacity: likeOpacity }]}>
-              <Text style={styles.badgeText}>{t('dp_like_badge')}</Text>
-            </Animated.View>
-            <Animated.View style={[styles.badge, styles.badgePass, { opacity: passOpacity }]}>
-              <Text style={styles.badgeText}>{t('dp_pass_badge')}</Text>
-            </Animated.View>
             <ProfileCard profile={current} />
+            {/* Tampons « J'aime » / « Passer » */}
+            <Animated.View style={[styles.stamp, styles.stampLike, { opacity: likeOpacity }]}>
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <Text style={styles.stampText}>{t('dp_like_badge')}</Text>
+            </Animated.View>
+            <Animated.View style={[styles.stamp, styles.stampPass, { opacity: passOpacity }]}>
+              <Text style={styles.stampText}>{t('dp_pass_badge')}</Text>
+            </Animated.View>
           </Animated.View>
         </View>
       )}
 
-      {/* Buttons */}
+      {/* Actions */}
       {current && (
-        <View style={[styles.buttons, { paddingBottom: insets.bottom + 16 }]}>
-          <Pressable style={styles.passBtn} onPress={() => { void markSeen(current.id); setIdx((i) => i + 1); pan.setValue({ x: 0, y: 0 }); }}>
-            <Text style={styles.passIcon}>👋</Text>
-          </Pressable>
-          <Pressable style={styles.profileBtn} onPress={() => router.push(`/user/${current.id}`)}>
-            <Text style={styles.profileBtnText}>{t('dp_see_profile')}</Text>
-          </Pressable>
-          <Pressable style={styles.likeActionBtn} onPress={async () => {
-            await fetch(`${API}/social/follow/${current.id}`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } });
-            await markSeen(current.id);
-            setIdx((i) => i + 1);
-            pan.setValue({ x: 0, y: 0 });
-          }}>
+        <Reveal index={1} style={[styles.buttons, { paddingBottom: insets.bottom + spacing.md }]}>
+          <GlassIconButton icon="👋" size={64} onPress={pass} style={styles.roundShadow} />
+          <PressableScale style={styles.profileBtn} onPress={() => router.push(`/user/${current.id}`)} scaleTo={0.95}>
+            <Text style={styles.profileBtnText} numberOfLines={1}>{t('dp_see_profile')}</Text>
+          </PressableScale>
+          <PressableScale style={styles.likeBtn} onPress={() => void like()} scaleTo={0.88}>
+            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={gradients.glassSheen} style={StyleSheet.absoluteFill} />
             <Text style={styles.likeIcon}>❤️</Text>
-          </Pressable>
-        </View>
+          </PressableScale>
+        </Reveal>
       )}
       <FeatureTip feature="tind" />
     </View>
@@ -259,104 +289,115 @@ export default function DiscoverPeopleScreen() {
 
 function ProfileCard({ profile }: { profile: Profile }) {
   const { t } = useI18n();
+  const age = profile.birthYear ? new Date().getFullYear() - profile.birthYear : null;
+  const gender = profile.gender
+    ? profile.gender === 'male' ? t('dp_gender_male') : profile.gender === 'female' ? t('dp_gender_female') : t('dp_gender_other')
+    : null;
+  const distance = profile.distanceKm !== undefined
+    ? profile.distanceKm < 1 ? `${Math.round(profile.distanceKm * 1000)} m` : `${profile.distanceKm} km`
+    : null;
+
   return (
-    <View style={cardStyles.container}>
+    <View style={StyleSheet.absoluteFill}>
       {profile.photoUrl ? (
-        <Image source={{ uri: profile.photoUrl }} style={cardStyles.photo} />
+        <Image source={{ uri: profile.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
-        <View style={[cardStyles.photo, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
-          <Text style={{ color: '#fff', fontSize: 64, fontWeight: '700' }}>{profile.displayName[0]}</Text>
-        </View>
+        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, cardStyles.initialBox]}>
+          <Text style={cardStyles.initial}>{profile.displayName[0]}</Text>
+        </LinearGradient>
       )}
+
+      {/* Voile de lecture, confiné à la carte (bas de la photo seulement). */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
+        locations={[0.35, 0.6, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+
+      {/* Niveau, en haut, en verre. */}
+      <View style={cardStyles.topRow}>
+        <View style={cardStyles.glassPill}>
+          <Text style={cardStyles.glassPillText}>⚡ {t('dp_level_short')} {profile.level}</Text>
+        </View>
+        {distance ? (
+          <View style={cardStyles.glassPill}>
+            <Text style={cardStyles.glassPillText}>📍 {distance}</Text>
+          </View>
+        ) : null}
+      </View>
+
       <View style={cardStyles.info}>
         <View style={cardStyles.nameRow}>
-          <Text style={cardStyles.name}>{profile.displayName}</Text>
-          <PlanBadgeIcon plan={profile.plan} size={36} />
-          <Text style={cardStyles.level}>{t('dp_level_short')} {profile.level}</Text>
+          <Text style={cardStyles.name} numberOfLines={1}>
+            {profile.displayName}{age !== null ? <Text style={cardStyles.age}>{`, ${age}`}</Text> : null}
+          </Text>
+          <PlanBadgeIcon plan={profile.plan} size={30} />
         </View>
-        {(profile.gender || profile.birthYear) && (
-          <View style={cardStyles.metaRow}>
-            {profile.gender && <Text style={cardStyles.meta}>{profile.gender === 'male' ? t('dp_gender_male') : profile.gender === 'female' ? t('dp_gender_female') : t('dp_gender_other')}</Text>}
-            {profile.birthYear && <Text style={cardStyles.meta}>{t('dp_age_years').replace('{age}', String(new Date().getFullYear() - profile.birthYear))}</Text>}
-          </View>
-        )}
-        {profile.bio && <Text style={cardStyles.bio} numberOfLines={3}>{profile.bio}</Text>}
-        {profile.distanceKm !== undefined && (
-          <View style={cardStyles.distRow}>
-            <Text style={cardStyles.dist}>📍 {profile.distanceKm < 1 ? `${Math.round(profile.distanceKm * 1000)}m` : `${profile.distanceKm}km`}</Text>
-          </View>
-        )}
+        {gender ? <Text style={cardStyles.meta}>{gender}</Text> : null}
+        {profile.bio ? <Text style={cardStyles.bio} numberOfLines={3}>{profile.bio}</Text> : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12 },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  filterRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, marginBottom: spacing.md },
   deck: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   card: {
-    width: 340, height: 500, borderRadius: radius.xl,
-    backgroundColor: colors.surface, position: 'absolute',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
-    overflow: 'hidden',
+    position: 'absolute', borderRadius: radius.xl, overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
-  cardBehind: { transform: [{ scale: 0.95 }], top: 16 },
-  badge: {
-    position: 'absolute', top: 40, zIndex: 10, borderWidth: 3,
-    borderRadius: radius.lg, paddingHorizontal: 16, paddingVertical: 8,
+  cardFront: { ...elevation.high },
+  stamp: {
+    position: 'absolute', top: 54, zIndex: 10, overflow: 'hidden',
+    borderRadius: radius.md, paddingHorizontal: 18, paddingVertical: 8,
+    borderWidth: 2, borderColor: '#fff',
   },
-  badgeLike: { left: 20, borderColor: '#4ade80', transform: [{ rotate: '-15deg' }] },
-  badgePass: { right: 20, borderColor: '#f87171', transform: [{ rotate: '15deg' }] },
-  badgeText: { fontWeight: '900', fontSize: 18, color: colors.text },
-  buttons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, paddingTop: 16, paddingHorizontal: spacing.md },
-  passBtn: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
+  stampLike: { left: 18, transform: [{ rotate: '-14deg' }] },
+  stampPass: { right: 18, transform: [{ rotate: '14deg' }], backgroundColor: 'rgba(14,14,18,0.7)' },
+  stampText: { color: '#fff', fontWeight: '900', fontSize: 20, letterSpacing: 1.5, textTransform: 'uppercase' },
+  buttons: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md,
+    paddingTop: spacing.md, paddingHorizontal: spacing.md,
   },
-  passIcon: { fontSize: 26 },
+  roundShadow: { ...elevation.medium },
   profileBtn: {
-    flex: 1, backgroundColor: colors.brand, borderRadius: radius.lg,
-    paddingVertical: 14, alignItems: 'center',
+    flex: 1, height: 52, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(31,31,42,0.72)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)',
   },
-  profileBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  likeActionBtn: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5',
-    alignItems: 'center', justifyContent: 'center',
+  profileBtnText: { color: colors.textPrimary, fontWeight: '800', fontSize: 15 },
+  likeBtn: {
+    width: 68, height: 68, borderRadius: 34, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', ...elevation.glowBrand,
   },
-  likeIcon: { fontSize: 26 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
-  emptyEmoji: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: { ...typography.h2, color: colors.text, textAlign: 'center', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', marginBottom: 24 },
-  reloadBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12 },
-  reloadBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, marginBottom: 8 },
-  filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: colors.surface, borderRadius: radius.full,
-    borderWidth: 1.5, borderColor: colors.border,
-  },
-  filterChipActive: { backgroundColor: colors.brand + '22', borderColor: colors.brand },
-  filterText: { color: colors.textMuted, fontWeight: '600', fontSize: 13 },
-  filterTextActive: { color: colors.brand },
+  likeIcon: { fontSize: 28 },
 });
 
 const cardStyles = StyleSheet.create({
-  container: { flex: 1 },
-  photo: { width: '100%', height: 340 },
-  info: { padding: spacing.md },
-  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  name: { ...typography.h2, color: colors.text },
-  level: { backgroundColor: colors.brand + '22', color: colors.brand, fontWeight: '700', fontSize: 13, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
-  metaRow: { flexDirection: 'row', gap: 10, marginBottom: 6 },
-  meta: { fontSize: 13, color: colors.brand, fontWeight: '600' },
-  bio: { fontSize: 14, color: colors.textMuted, lineHeight: 20, marginBottom: 8 },
-  distRow: { flexDirection: 'row', alignItems: 'center' },
-  dist: { fontSize: 13, color: colors.textMuted },
+  initialBox: { alignItems: 'center', justifyContent: 'center' },
+  initial: { color: '#fff', fontSize: 110, fontWeight: '900', opacity: 0.9 },
+  topRow: {
+    position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md,
+    flexDirection: 'row', justifyContent: 'space-between',
+  },
+  glassPill: {
+    paddingVertical: 6, paddingHorizontal: 12, borderRadius: radius.pill,
+    backgroundColor: 'rgba(14,14,18,0.55)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  glassPillText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  info: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, gap: 6 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: {
+    flexShrink: 1, color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: -0.8,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 12, textShadowOffset: { width: 0, height: 2 },
+  },
+  age: { fontWeight: '500', fontSize: 30 },
+  meta: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '700' },
+  bio: { color: 'rgba(255,255,255,0.92)', fontSize: 15, lineHeight: 21 },
 });
