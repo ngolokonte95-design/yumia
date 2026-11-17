@@ -1,44 +1,54 @@
 /**
  * EXPLORER — hub de découverte & catalogue. Distinct de Home (« quoi faire
- * maintenant ») : ici on parcourt, on cherche, on accède aux univers, aux
- * guides, aux sorties, au mode groupe et au classement. Contient aussi les
- * sections « Tendances » et « Top 3 / Itinéraire » (déménagées depuis Home,
- * qui ne montre plus que la grille d'univers).
+ * maintenant ») : ici on parcourt, on cherche, on réserve.
+ *
+ * Mise en scène (17/11/2026) : le haut de l'écran est le CIEL RÉEL de
+ * l'endroit où l'on se trouve (pluie, soleil, étoiles — WeatherSky, le même
+ * que l'écran Météo), qui glisse en parallaxe au défilement. Viennent ensuite
+ * le Top 3 de l'IA en grand carrousel photo, les Tendances, puis une grille
+ * « Réserver » (Guides, Boutique, Cadeaux, partenaires).
+ *
+ * Les rangées Restaurants / Desserts / Lieux de culte ont été retirées : leur
+ * choix était arbitraire, elles doublaient la grille d'univers de Home et
+ * coûtaient trois recherches Google par nouveau quartier.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image as RNImage, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
-import { Image } from 'expo-image';
+import {
+  ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View, useWindowDimensions,
+} from 'react-native';
+import Animated, {
+  Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MODE_META, UNIVERSE_META } from '@yumia/shared';
-import type { Mode, Universe } from '@yumia/shared';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { UNIVERSE_META, type Suggestion } from '@yumia/shared';
+import { colors, gradients, radius, spacing, typography } from '../../theme/tokens';
 import { universeLabel } from '../../lib/universeMeta';
-import { modeLabel } from '../../lib/labelHelpers';
 import { useLocation } from '../../lib/useLocation';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { useAuth } from '../../lib/auth-context';
-import { SuggestionCard } from '../../components/SuggestionCard';
-import { ExperienceCard } from '../../components/ExperienceCard';
 import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
+import { PlacePhoto } from '../../components/PlacePhoto';
+import { PressableScale, Reveal, GradientText } from '../../components/ui';
+import { WeatherSky } from '../../components/weather/WeatherSky';
 import { useTop3 } from '../../lib/useTop3';
-import { useExperience } from '../../lib/useExperience';
-import { recordVisit } from '../../lib/passport-api';
 import { useSaved } from '../../lib/useSaved';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { placeStore } from '../../lib/place-store';
 import { useWeather } from '../../lib/useWeather';
-import { SkeletonCard } from '../../components/SkeletonCard';
+import { useWeatherReport } from '../../lib/useWeatherReport';
+import { dayMomentAt, kindEmoji } from '../../lib/services/weather';
 import { useTrending } from '../../lib/useTrending';
 import { usePlanLimits } from '../../lib/usePlanLimits';
-import type { TrendingPlace, NearbyPlace } from '../../lib/places-api';
-import { useNearbyUniverse } from '../../lib/useNearbyUniverse';
-import { universeSearchRadius } from '../../lib/universeRadius';
+import type { TrendingPlace } from '../../lib/places-api';
 import { fetchGenericAffiliateLink, fetchGenericCategories } from '../../lib/affiliates-api';
 import { ratingSuffix } from '../../lib/place-rating';
 import { TOUR_THEME_KEYS } from '../../lib/tour-themes';
 import { openExternalHttps } from '../../lib/external-link';
+import { haptics } from '../../lib/useHaptics';
 import { FeatureTip } from '../../components/FeatureTip';
 
 // Favoris, Surprise Me et Classement vivent déjà dans Home
@@ -53,17 +63,11 @@ import { FeatureTip } from '../../components/FeatureTip';
 // L'affiliation elle-même est intacte — onglets génériques ci-dessous et
 // bouton "Réserver" sur chaque fiche lieu. L'écran app/deals.tsx et la route
 // GET /affiliates/deals restent en place, simplement sans accès depuis l'UI.
-const QUICK_ACTIONS: { key: string; emoji: string; labelKey: TranslationKey; subKey: TranslationKey; route: string }[] = [
-  { key: 'guides', emoji: '🧭', labelKey: 'explorer_action_guides_label', subKey: 'explorer_action_guides_sub', route: '/guides' },
-  { key: 'shop', emoji: '🛍️', labelKey: 'explorer_action_shop_label', subKey: 'explorer_action_shop_sub', route: '/shop' },
-  { key: 'gifts', emoji: '🎁', labelKey: 'explorer_action_gifts_label', subKey: 'explorer_action_gifts_sub', route: '/shop/gift-ideas' },
-];
 
 // Onglets génériques (liens trackés vers la page d'accueil/recherche d'un
 // partenaire — pas de lieu précis, l'utilisateur cherche lui-même une fois
 // sur place). `category` doit correspondre exactement à une clé de
-// GENERIC_CATEGORIES côté API (affiliates.service.ts). Rendues en grille
-// compacte façon Home (voir styles genericGrid/genericTile).
+// GENERIC_CATEGORIES côté API (affiliates.service.ts).
 const GENERIC_DEAL_TABS: { category: string; emoji: string; labelKey: TranslationKey }[] = [
   { category: 'activities', emoji: '🎟️', labelKey: 'explorer_generic_activities' },
   { category: 'skip_the_line', emoji: '🎫', labelKey: 'explorer_generic_skip_the_line' },
@@ -80,32 +84,47 @@ const GENERIC_DEAL_TABS: { category: string; emoji: string; labelKey: Translatio
   { category: 'flights', emoji: '✈️', labelKey: 'explorer_generic_flights' },
 ];
 
-const ITINERARY_MODES: Mode[] = ['solo', 'surprise', 'date', 'family', 'group', 'travel'];
+/** Hauteur du ciel, hors encoche. */
+const HERO_HEIGHT = 300;
+/** Écart entre deux cartes du carrousel Top 3. */
+const CARD_GAP = 12;
+
+function distanceText(m: number): string {
+  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+}
 
 export default function ExplorerScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { accessToken, user } = useAuth();
   const { t } = useI18n();
   const { coords, resolving, isFallback, city, refreshIfMoved } = useLocation();
+
   // Explorer reste monté quand on change d'onglet : sans relecture, ses lieux
   // restaient ceux du point de départ. Au retour sur l'onglet, on relit la
   // position, et les lieux ne se rechargent que si l'on a bougé de 1 km.
+  // Le ciel animé ne tourne que tant que l'onglet est affiché (batterie).
   const explorerFocused = useRef(false);
+  const [focused, setFocused] = useState(true);
   useFocusEffect(
     useCallback(() => {
-      if (!explorerFocused.current) { explorerFocused.current = true; return; }
-      void refreshIfMoved(1000);
+      setFocused(true);
+      if (explorerFocused.current) void refreshIfMoved(1000);
+      explorerFocused.current = true;
+      return () => setFocused(false);
     }, [refreshIfMoved]),
   );
+
   const weather = useWeather(coords.lat, coords.lng);
-  // Aucune sélection de mode dans Explorer (les boutons Date/Famille/Voyage
-  // restent sur Home mais n'agissent plus sur cette section) : la section
-  // Top 3 affiche donc toujours les suggestions générales, jamais l'itinéraire.
-  const [selectedMode] = useState<Mode | null>(null);
-  const [upsell, setUpsell] = useState<string | null>(null);
+  const { report } = useWeatherReport(coords.lat, coords.lng);
+  const moment = useMemo(
+    () => (report ? dayMomentAt(new Date(), report.astro, report.coordinates.lat) : 'day'),
+    [report],
+  );
+
   const { savedIds, save, unsave, limitError, clearLimitError } = useSaved(accessToken);
-  const { checkLimit, recordUsage, savedLimitMessage } = usePlanLimits();
+  const { savedLimitMessage } = usePlanLimits();
 
   const [genericLinkLoading, setGenericLinkLoading] = useState<string | null>(null);
 
@@ -113,10 +132,6 @@ export default function ExplorerScreen() {
    * Catégories réellement ouvertes côté serveur. `null` tant que la réponse
    * n'est pas arrivée : on affiche alors la liste complète plutôt qu'une
    * grille vide qui clignoterait à chaque ouverture de l'écran.
-   *
-   * Sans ce filtre, les onglets étaient codés en dur et affichés quoi qu'il
-   * arrive : Hôtel, Location et Vols apparaissaient alors que l'API refusait
-   * de générer leur lien, et l'appui ne faisait rien du tout.
    */
   const [openCategories, setOpenCategories] = useState<Set<string> | null>(null);
 
@@ -166,12 +181,6 @@ export default function ExplorerScreen() {
     }
   }
 
-  const isItinerary = selectedMode !== null && ITINERARY_MODES.includes(selectedMode);
-  const prefs = {
-    favoriteUniverses: user?.preferences?.favoriteUniverses,
-    restrictions: user?.preferences?.restrictions,
-  };
-
   const trending = useTrending({
     lat: coords.lat,
     lng: coords.lng,
@@ -193,7 +202,6 @@ export default function ExplorerScreen() {
         lng: coords.lng,
         locale: user?.locale ?? 'fr',
         localTimeIso: hour.toISOString(),
-        mode: selectedMode ?? undefined,
         weather: weather ?? undefined,
         city: city ?? undefined,
         favoriteUniverses: user?.preferences?.favoriteUniverses,
@@ -204,7 +212,6 @@ export default function ExplorerScreen() {
       coords.lat,
       coords.lng,
       user?.locale,
-      selectedMode,
       weather?.tempC,
       weather?.condition,
       city,
@@ -213,334 +220,415 @@ export default function ExplorerScreen() {
     ],
   );
 
-  const top3 = useTop3(top3Params, !resolving && !isItinerary);
+  const top3 = useTop3(top3Params, !resolving);
 
-  const experience = useExperience(
-    {
-      lat: coords.lat,
-      lng: coords.lng,
-      mode: (selectedMode ?? 'date') as Mode,
-      locale: 'fr',
-      ...prefs,
-    },
-    !resolving && isItinerary,
-  );
+  // ── Parallaxe du ciel ─────────────────────────────────────────────────────
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const heroTotal = HERO_HEIGHT + insets.top;
+  const skyStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(scrollY.value, [-200, 0, heroTotal], [-100, 0, heroTotal * 0.45], Extrapolation.CLAMP) },
+      { scale: interpolate(scrollY.value, [-200, 0], [1.35, 1], Extrapolation.CLAMP) },
+    ],
+  }));
+  const heroContentStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, heroTotal * 0.6], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, [0, heroTotal], [0, -30], Extrapolation.CLAMP) }],
+  }));
 
-  const sectionTitle = isItinerary
-    ? `${MODE_META[selectedMode!].emoji} ${modeLabel(t, selectedMode!, MODE_META[selectedMode!].labelFr)}`
-    : t('top3_title');
+  const openSuggestion = (s: Suggestion) => { placeStore.set(s); router.push('/place'); };
+  const openTrending = (place: TrendingPlace) => {
+    placeStore.set({
+      place: {
+        id: place.id,
+        name: place.name,
+        universe: place.universe,
+        location: { lat: place.lat, lng: place.lng },
+        city: place.city,
+        countryCode: place.countryCode,
+        rating: place.rating,
+        priceTier: place.priceTier as 1 | 2 | 3 | 4,
+        photoUrls: place.photoUrls,
+        tags: place.tags,
+      },
+      compatibility: 0,
+      distanceMeters: Math.round(place.distanceMeters),
+      reason: t('explorer_trending_reason').replace('{n}', String(place.visitCount)),
+      engine: 'mood',
+    });
+    router.push('/place');
+  };
+
+  const cardWidth = width - spacing.lg * 2;
+  const current = report?.current;
 
   return (
-    <>
-    <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.xxl }}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={top3.loading && !resolving}
-          onRefresh={() => top3.refetch()}
-          tintColor={colors.brand}
+    <View style={styles.screen}>
+      <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
+
+      {/* ── Ciel réel, en fond, sous le défilement ─────────────────────── */}
+      <Animated.View style={[styles.sky, { height: heroTotal + 80 }, skyStyle]} pointerEvents="none">
+        {current && focused ? (
+          <WeatherSky kind={current.kind} moment={moment} />
+        ) : (
+          <LinearGradient colors={gradients.brand} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
+        )}
+        <LinearGradient
+          colors={['transparent', 'rgba(14,14,18,0.55)', colors.bg]}
+          locations={[0.35, 0.75, 1]}
+          style={StyleSheet.absoluteFill}
         />
-      }
-    >
-      {/* Logo Yumia — bien visible */}
-      <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
-        <YumiaLogo height={110} />
-      </View>
+      </Animated.View>
 
-      {/* Titre */}
-      <View style={styles.section}>
-        <Text style={styles.h1}>{t('explorer_title')}</Text>
-        <Text style={styles.sub}>{t('explorer_sub')}</Text>
-      </View>
-
-      {/* Recherche */}
-      <View style={styles.section}>
-        <Pressable style={styles.search} onPress={() => router.push('/search')}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <Text style={styles.searchText}>{t('explorer_search_placeholder')}</Text>
-        </Pressable>
-      </View>
-
-      {/* Accès rapides */}
-      <View style={styles.section}>
-        <View style={styles.grid}>
-          {QUICK_ACTIONS.map((a) => (
-            <Pressable key={a.key} style={styles.actionCard} onPress={() => router.push(a.route as never)}>
-              <Text style={styles.actionEmoji}>{a.emoji}</Text>
-              <Text style={styles.actionLabel}>{t(a.labelKey)}</Text>
-              <Text style={styles.actionSub}>{t(a.subKey)}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* Réservations partenaires — même grille compacte que les raccourcis
-          de Home (Swipe/Assistant/Itinéraire...) : petites tuiles carrées,
-          5 par ligne. Lien tracké générique, pas de lieu précis — voir
-          GENERIC_DEAL_TABS et affiliates.service.ts côté API. */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('explorer_action_deals_sub')}</Text>
-        <View style={styles.genericGrid}>
-          {visibleDealTabs.map((d) => (
-            <Pressable
-              key={d.category}
-              style={styles.genericTile}
-              onPress={() => void openGenericDeal(d.category)}
-              disabled={genericLinkLoading === d.category}
-            >
-              {genericLinkLoading === d.category ? (
-                <ActivityIndicator size="small" color={colors.brand} />
-              ) : (
-                <Text style={styles.genericTileEmoji}>{d.emoji}</Text>
-              )}
-              <Text style={styles.genericTileLabel} numberOfLines={1}>{t(d.labelKey)}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* "Sorties à la une" retiré temporairement avec le reste de la
-          fonctionnalité billetterie — voir sorties.tsx et le commentaire sur
-          QUICK_ACTIONS plus haut. */}
-
-      {/* "Personnes à suivre" retiré — déjà présent dans le mode Social
-          (découverte de profils), doublon inutile ici. */}
-
-      {/* Pipeline lieux : rangées horizontales par univers clé */}
-      {(['restaurant', 'dessert', 'place_of_worship'] as Universe[]).map((u) => (
-        <UniverseRow
-          key={u}
-          universe={u}
-          lat={coords.lat}
-          lng={coords.lng}
-          enabled={!resolving}
-          onCardPress={(p) => {
-            placeStore.set({
-              place: {
-                id: p.id, name: p.name, universe: p.universe,
-                location: { lat: p.lat, lng: p.lng },
-                city: p.city, countryCode: p.countryCode,
-                rating: p.rating, priceTier: p.priceTier as 1 | 2 | 3 | 4,
-                photoUrls: p.photoUrls, tags: p.tags,
-              },
-              compatibility: 0,
-              distanceMeters: Math.round(p.distanceMeters),
-              reason: `${UNIVERSE_META[p.universe]?.emoji ?? '📍'} ${universeLabel(t, p.universe)}`,
-              engine: 'mood',
-            });
-            router.push('/place');
-          }}
-        />
-      ))}
-
-      {/* Tendances près de toi */}
-      {(trending.places.length > 0 || trending.loading) && !resolving ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('explorer_trending_near_you')}</Text>
-          {trending.loading ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <View key={i} style={styles.trendingSkeletonCard} />
-              ))}
-            </ScrollView>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
-              {trending.places.map((place) => (
-                <TrendingCard
-                  key={place.id}
-                  place={place}
-                  onPress={() => {
-                    placeStore.set({
-                      place: {
-                        id: place.id,
-                        name: place.name,
-                        universe: place.universe,
-                        location: { lat: place.lat, lng: place.lng },
-                        city: place.city,
-                        countryCode: place.countryCode,
-                        rating: place.rating,
-                        priceTier: place.priceTier as 1 | 2 | 3 | 4,
-                        photoUrls: place.photoUrls,
-                        tags: place.tags,
-                      },
-                      compatibility: 0,
-                      distanceMeters: Math.round(place.distanceMeters),
-                      reason: t('explorer_trending_reason').replace('{n}', String(place.visitCount)),
-                      engine: 'mood',
-                    });
-                    router.push('/place');
-                  }}
-                />
-              ))}
-            </ScrollView>
-          )}
-        </View>
-      ) : null}
-
-      {/* Section principale : Top 3 ou Itinéraire selon le mode */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{sectionTitle}</Text>
-
-        {!isItinerary && top3.data?.reason ? (
-          <Text style={styles.top3Reason}>{top3.data.reason}</Text>
-        ) : null}
-        {isFallback && !resolving ? (
-          <Text style={styles.fallbackHint}>{t('location_fallback')}</Text>
-        ) : null}
-
-        <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
-
-        {resolving ? (
-          <View style={{ gap: spacing.md }}>
-            <SkeletonCard /><SkeletonCard /><SkeletonCard />
+      <Animated.ScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
+        refreshControl={
+          <RefreshControl
+            refreshing={top3.loading && !resolving}
+            onRefresh={() => top3.refetch()}
+            tintColor="#fff"
+            progressViewOffset={insets.top}
+          />
+        }
+      >
+        {/* ── En-tête sur le ciel ─────────────────────────────────────── */}
+        <Animated.View style={[styles.hero, { height: heroTotal, paddingTop: insets.top + spacing.sm }, heroContentStyle]}>
+          <View style={styles.heroTop}>
+            <YumiaLogo height={44} />
+            {current ? (
+              <View style={styles.weatherChip}>
+                <Text style={styles.weatherChipEmoji}>{kindEmoji(current.kind, current.isDay)}</Text>
+                <Text style={styles.weatherChipTemp}>{Math.round(current.tempC)}°</Text>
+                {city ? <Text style={styles.weatherChipCity} numberOfLines={1}>{city}</Text> : null}
+              </View>
+            ) : null}
           </View>
-        ) : isItinerary ? (
-          experience.loading ? (
-            <StateBox loading text={t('ai_planning')} />
-          ) : experience.error ? (
-            <StateBox text={experience.error} onRetry={experience.refetch} />
-          ) : experience.data ? (
-            <ExperienceCard
-              result={experience.data}
+
+          <View style={styles.heroBottom}>
+            <Text style={styles.heroTitle}>{t('explorer_title')}</Text>
+            <Text style={styles.heroSub}>{t('explorer_sub')}</Text>
+            <PressableScale style={styles.search} onPress={() => router.push('/search')} scaleTo={0.98}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <Text style={styles.searchText} numberOfLines={1}>{t('explorer_search_placeholder')}</Text>
+              <View style={styles.searchGo}>
+                <Text style={styles.searchGoText}>→</Text>
+              </View>
+            </PressableScale>
+          </View>
+        </Animated.View>
+
+        {/* ── Top 3 : carrousel photo plein cadre ─────────────────────── */}
+        <Reveal index={0} style={styles.block}>
+          <View style={styles.sectionHead}>
+            <GradientText style={styles.sectionTitle}>{t('top3_title')}</GradientText>
+            {top3.data?.reason ? <Text style={styles.sectionSub}>{top3.data.reason}</Text> : null}
+            {isFallback && !resolving ? <Text style={styles.fallbackHint}>{t('location_fallback')}</Text> : null}
+          </View>
+
+          {resolving || top3.loading ? (
+            <View style={[styles.top3Skeleton, { width: cardWidth }]}>
+              <ActivityIndicator color={colors.brand} />
+            </View>
+          ) : top3.error ? (
+            <StateBox text={top3.error} onRetry={top3.refetch} />
+          ) : top3.data && top3.data.suggestions.length > 0 ? (
+            <Top3Carousel
+              suggestions={top3.data.suggestions}
+              cardWidth={cardWidth}
               savedIds={savedIds}
-              onSave={accessToken ? (id, willSave) => willSave ? save(id) : unsave(id) : undefined}
-              onVisit={
-                accessToken
-                  ? (placeId, feedback) => recordVisit(accessToken, placeId, feedback)
-                  : undefined
-              }
-              onStepPress={(step) => { placeStore.set({ place: step.place, compatibility: 0, reason: step.reason, engine: 'mood' }); router.push('/place'); }}
+              onOpen={openSuggestion}
+              onToggleSave={accessToken ? (id, willSave) => (willSave ? save(id) : unsave(id)) : undefined}
             />
-          ) : null
-        ) : top3.loading ? (
-          <View style={{ gap: spacing.md }}>
-            <SkeletonCard /><SkeletonCard /><SkeletonCard />
+          ) : (
+            <StateBox text={t('no_results')} />
+          )}
+        </Reveal>
+
+        {/* ── Tendances près de toi ───────────────────────────────────── */}
+        {(trending.places.length > 0 || trending.loading) && !resolving ? (
+          <Reveal index={1} style={styles.block}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitlePlain}>{t('explorer_trending_near_you')}</Text>
+            </View>
+            <Animated.ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.trendingRow}
+            >
+              {trending.loading
+                ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.trendingSkeleton} />)
+                : trending.places.map((place, i) => (
+                  <Reveal key={place.id} index={i} from="fade">
+                    <TrendingCard place={place} rank={i + 1} onPress={() => openTrending(place)} />
+                  </Reveal>
+                ))}
+            </Animated.ScrollView>
+          </Reveal>
+        ) : null}
+
+        {/* ── Réserver & découvrir : grille « bento » ─────────────────── */}
+        <Reveal index={2} style={[styles.block, styles.padded]}>
+          <Text style={[styles.sectionTitlePlain, styles.bentoTitle]}>{t('explorer_action_deals_sub')}</Text>
+
+          <BentoTile
+            colors={gradients.brand}
+            emoji="🧭"
+            label={t('explorer_action_guides_label')}
+            sub={t('explorer_action_guides_sub')}
+            big
+            onPress={() => router.push('/guides' as never)}
+          />
+          <View style={styles.bentoRow}>
+            <BentoTile
+              colors={gradients.shop}
+              emoji="🛍️"
+              label={t('explorer_action_shop_label')}
+              sub={t('explorer_action_shop_sub')}
+              onPress={() => router.push('/shop' as never)}
+            />
+            <BentoTile
+              colors={gradients.gift}
+              emoji="🎁"
+              label={t('explorer_action_gifts_label')}
+              sub={t('explorer_action_gifts_sub')}
+              onPress={() => router.push('/shop/gift-ideas' as never)}
+            />
           </View>
-        ) : top3.error ? (
-          <StateBox text={top3.error} onRetry={top3.refetch} />
-        ) : top3.data && top3.data.suggestions.length > 0 ? (
-          <View style={{ gap: spacing.md }}>
-            {top3.data.suggestions.map((s) => (
-              <SuggestionCard
-                key={s.place.id}
-                suggestion={s}
-                isSaved={savedIds.has(s.place.id)}
-                onPress={() => { placeStore.set(s); router.push('/place'); }}
-                onSave={accessToken ? (id, willSave) => willSave ? save(id) : unsave(id) : undefined}
-                onVisit={
-                  accessToken
-                    ? async (feedback) => recordVisit(accessToken, s.place.id, feedback)
-                    : undefined
-                }
-              />
+
+          <View style={styles.partnerGrid}>
+            {visibleDealTabs.map((d) => (
+              <PressableScale
+                key={d.category}
+                style={styles.partnerTile}
+                onPress={() => void openGenericDeal(d.category)}
+                disabled={genericLinkLoading === d.category}
+              >
+                <View style={styles.partnerIcon}>
+                  {genericLinkLoading === d.category ? (
+                    <ActivityIndicator size="small" color={colors.brand} />
+                  ) : (
+                    <Text style={styles.partnerEmoji}>{d.emoji}</Text>
+                  )}
+                </View>
+                <Text style={styles.partnerLabel} numberOfLines={2}>{t(d.labelKey)}</Text>
+              </PressableScale>
             ))}
           </View>
-        ) : (
-          <StateBox text={t('no_results')} />
-        )}
-      </View>
-    </ScrollView>
+        </Reveal>
+      </Animated.ScrollView>
       <FeatureTip feature="explorer" />
-    </>
-  );
-}
-
-function UniverseRow({
-  universe, lat, lng, enabled, onCardPress,
-}: {
-  universe: Universe;
-  lat: number;
-  lng: number;
-  enabled: boolean;
-  onCardPress: (p: NearbyPlace) => void;
-}) {
-  const { t } = useI18n();
-  const { displayCap } = usePlanLimits();
-  const { places: allPlaces, loading } = useNearbyUniverse({ lat, lng, universe, radius: universeSearchRadius(universe), limit: 8, enabled });
-  // Pas de « Voir tout », quel que soit le forfait : la rangée est un aperçu,
-  // sans écran univers ni chargement en plus depuis ici.
-  const places = allPlaces.slice(0, displayCap('explorerSectionPlaces'));
-  const meta = UNIVERSE_META[universe];
-  if (!loading && places.length === 0) return null;
-  return (
-    <View style={styles.uniSection}>
-      <View style={styles.uniHeader}>
-        <Text style={styles.uniTitle}>{meta.emoji}  {universeLabel(t, universe)}</Text>
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.uniRow}>
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => <View key={i} style={styles.uniSkeleton} />)
-          : places.map((p) => <PlaceCard key={p.id} place={p} onPress={() => onCardPress(p)} />)
-        }
-      </ScrollView>
     </View>
   );
 }
 
-function PlaceCard({ place, onPress }: { place: NearbyPlace; onPress: () => void }) {
-  const meta = UNIVERSE_META[place.universe];
-  const distText = place.distanceMeters < 1000
-    ? `${Math.round(place.distanceMeters)} m`
-    : `${(place.distanceMeters / 1000).toFixed(1)} km`;
-  return (
-    <Pressable style={styles.uniCard} onPress={onPress}>
-      {place.photoUrls?.[0] ? (
-        <Image source={{ uri: place.photoUrls[0] }} style={styles.uniImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
-      ) : (
-        <View style={[styles.uniImg, styles.uniImgPlaceholder]}>
-          <Text style={{ fontSize: 22 }}>{meta?.emoji ?? '📍'}</Text>
-        </View>
-      )}
-      <View style={styles.uniInfo}>
-        <Text style={styles.uniName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.uniMeta} numberOfLines={1}>{distText}{ratingSuffix(place.rating)}</Text>
-      </View>
-    </Pressable>
-  );
-}
+// ── Top 3 ────────────────────────────────────────────────────────────────────
 
-function TrendingCard({ place, onPress }: { place: TrendingPlace; onPress: () => void }) {
-  const { t } = useI18n();
-  const meta = UNIVERSE_META[place.universe];
-  const distKm = place.distanceMeters < 1000
-    ? `${Math.round(place.distanceMeters)} m`
-    : `${(place.distanceMeters / 1000).toFixed(1)} km`;
-  return (
-    <Pressable style={styles.trendingCard} onPress={onPress}>
-      {place.photoUrls?.[0] ? (
-        <Image source={{ uri: place.photoUrls[0] }} style={styles.trendingImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={place.photoUrls[0]} />
-      ) : (
-        <View style={styles.trendingImgPlaceholder}>
-          <Text style={{ fontSize: 32 }}>{meta?.emoji ?? '📍'}</Text>
-        </View>
-      )}
-      <View style={styles.trendingVisitBadge}>
-        <Text style={styles.trendingVisitText}>{t('explorer_visits_badge').replace('{n}', String(place.visitCount))}</Text>
-      </View>
-      <View style={styles.trendingInfo}>
-        <Text style={styles.trendingName} numberOfLines={1}>{place.name}</Text>
-        <Text style={styles.trendingMeta}>{distKm}{ratingSuffix(place.rating)}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function StateBox({
-  loading = false,
-  text,
-  onRetry,
+function Top3Carousel({
+  suggestions, cardWidth, savedIds, onOpen, onToggleSave,
 }: {
-  loading?: boolean;
-  text?: string;
-  onRetry?: () => void;
+  suggestions: Suggestion[];
+  cardWidth: number;
+  savedIds: Set<string>;
+  onOpen: (s: Suggestion) => void;
+  onToggleSave?: (placeId: string, willSave: boolean) => Promise<void>;
+}) {
+  const scrollX = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => { scrollX.value = e.contentOffset.x; });
+  const step = cardWidth + CARD_GAP;
+
+  return (
+    <View>
+      <Animated.ScrollView
+        horizontal
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        snapToInterval={step}
+        decelerationRate="fast"
+        disableIntervalMomentum
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: CARD_GAP }}
+      >
+        {suggestions.map((s, i) => (
+          <Top3Card
+            key={s.place.id}
+            suggestion={s}
+            rank={i + 1}
+            index={i}
+            width={cardWidth}
+            step={step}
+            scrollX={scrollX}
+            saved={savedIds.has(s.place.id)}
+            onPress={() => onOpen(s)}
+            onToggleSave={onToggleSave}
+          />
+        ))}
+      </Animated.ScrollView>
+      <View style={styles.dots}>
+        {suggestions.map((s, i) => <Dot key={s.place.id} index={i} step={step} scrollX={scrollX} />)}
+      </View>
+    </View>
+  );
+}
+
+function Dot({ index, step, scrollX }: { index: number; step: number; scrollX: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => {
+    const d = Math.abs(scrollX.value / step - index);
+    return {
+      width: interpolate(d, [0, 1], [22, 7], Extrapolation.CLAMP),
+      opacity: interpolate(d, [0, 1], [1, 0.35], Extrapolation.CLAMP),
+    };
+  });
+  return <Animated.View style={[styles.dot, style]} />;
+}
+
+function Top3Card({
+  suggestion, rank, index, width, step, scrollX, saved, onPress, onToggleSave,
+}: {
+  suggestion: Suggestion;
+  rank: number;
+  index: number;
+  width: number;
+  step: number;
+  scrollX: SharedValue<number>;
+  saved: boolean;
+  onPress: () => void;
+  onToggleSave?: (placeId: string, willSave: boolean) => Promise<void>;
 }) {
   const { t } = useI18n();
+  const { place, compatibility, distanceMeters, reason } = suggestion;
+  const meta = UNIVERSE_META[place.universe];
+  const [isSaved, setIsSaved] = useState(saved);
+  useEffect(() => setIsSaved(saved), [saved]);
+
+  // La carte voisine recule un peu : profondeur pendant le glissement.
+  const cardStyle = useAnimatedStyle(() => {
+    const d = Math.abs(scrollX.value / step - index);
+    return {
+      transform: [{ scale: interpolate(d, [0, 1], [1, 0.92], Extrapolation.CLAMP) }],
+      opacity: interpolate(d, [0, 1], [1, 0.7], Extrapolation.CLAMP),
+    };
+  });
+  // La photo glisse moins vite que la carte : parallaxe dans le cadre.
+  const photoStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(scrollX.value, [(index - 1) * step, index * step, (index + 1) * step], [-40, 0, 40]) }],
+  }));
+
+  async function toggleSave() {
+    if (!onToggleSave) return;
+    const next = !isSaved;
+    haptics.light();
+    setIsSaved(next);
+    try { await onToggleSave(place.id, next); } catch { setIsSaved(!next); }
+  }
+
   return (
-    <View style={styles.stateBox}>
-      {loading && <ActivityIndicator color={colors.brand} />}
+    <Animated.View style={[{ width }, cardStyle]}>
+      <PressableScale style={styles.top3Card} onPress={onPress} scaleTo={0.97}>
+        <Animated.View style={[styles.top3Photo, photoStyle]}>
+          <PlacePhoto photoUrls={place.photoUrls} emoji={meta?.emoji ?? '📍'} emojiSize={90} />
+        </Animated.View>
+        <LinearGradient
+          colors={['rgba(0,0,0,0.35)', 'transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.92)']}
+          locations={[0, 0.3, 0.6, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <View style={styles.top3Head}>
+          <GradientText style={styles.top3Rank}>{String(rank)}</GradientText>
+          <View style={styles.top3HeadRight}>
+            {compatibility > 0 ? (
+              <View style={[styles.compatPill, { backgroundColor: compatibility >= 85 ? colors.compatHigh : colors.compatMid }]}>
+                <Text style={styles.compatText}>{Math.round(compatibility)}%</Text>
+              </View>
+            ) : null}
+            {onToggleSave ? (
+              <Pressable style={styles.heartBtn} onPress={toggleSave} hitSlop={10}>
+                <Text style={styles.heartText}>{isSaved ? '❤️' : '🤍'}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.top3Body}>
+          <View style={styles.universeChip}>
+            <Text style={styles.universeChipText}>{meta?.emoji ?? '📍'} {universeLabel(t, place.universe)}</Text>
+          </View>
+          <Text style={styles.top3Name} numberOfLines={2}>{place.name}</Text>
+          {reason ? <Text style={styles.top3Reason} numberOfLines={2}>{reason}</Text> : null}
+          {typeof distanceMeters === 'number' ? (
+            <Text style={styles.top3Meta}>📍 {distanceText(distanceMeters)}{ratingSuffix(place.rating)}</Text>
+          ) : null}
+        </View>
+      </PressableScale>
+    </Animated.View>
+  );
+}
+
+// ── Tendances ────────────────────────────────────────────────────────────────
+
+function TrendingCard({ place, rank, onPress }: { place: TrendingPlace; rank: number; onPress: () => void }) {
+  const { t } = useI18n();
+  const meta = UNIVERSE_META[place.universe];
+  return (
+    <PressableScale style={styles.trendingCard} onPress={onPress}>
+      <PlacePhoto photoUrls={place.photoUrls} emoji={meta?.emoji ?? '📍'} emojiSize={40} />
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.85)']}
+        locations={[0.4, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.trendingRank}>
+        <Text style={styles.trendingRankText}>🔥 {rank}</Text>
+      </View>
+      <View style={styles.trendingInfo}>
+        <Text style={styles.trendingName} numberOfLines={2}>{place.name}</Text>
+        <Text style={styles.trendingMeta} numberOfLines={1}>
+          {t('explorer_visits_badge').replace('{n}', String(place.visitCount))} · {distanceText(place.distanceMeters)}
+        </Text>
+      </View>
+    </PressableScale>
+  );
+}
+
+// ── Grille « Réserver » ──────────────────────────────────────────────────────
+
+function BentoTile({
+  colors: tileColors, emoji, label, sub, big = false, onPress,
+}: {
+  colors: readonly string[];
+  emoji: string;
+  label: string;
+  sub: string;
+  big?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale style={[styles.bentoTile, big ? styles.bentoBig : styles.bentoHalf]} onPress={onPress} haptic>
+      <LinearGradient
+        colors={tileColors as [string, string, ...string[]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Grand emoji en filigrane, débordant du coin : profondeur sans image. */}
+      <Text style={[styles.bentoWatermark, big && styles.bentoWatermarkBig]}>{emoji}</Text>
+      <Text style={styles.bentoEmoji}>{emoji}</Text>
+      <View style={styles.bentoText}>
+        <Text style={[styles.bentoLabel, big && styles.bentoLabelBig]} numberOfLines={1}>{label}</Text>
+        <Text style={styles.bentoSub} numberOfLines={2}>{sub}</Text>
+      </View>
+    </PressableScale>
+  );
+}
+
+function StateBox({ text, onRetry }: { text?: string; onRetry?: () => void }) {
+  const { t } = useI18n();
+  return (
+    <View style={[styles.stateBox, styles.padded]}>
       {text ? <Text style={styles.stateText}>{text}</Text> : null}
       {onRetry ? (
         <Pressable style={styles.retryBtn} onPress={onRetry}>
@@ -551,130 +639,133 @@ function StateBox({
   );
 }
 
+const TEXT_SHADOW = {
+  textShadowColor: 'rgba(0,0,0,0.45)',
+  textShadowOffset: { width: 0, height: 2 },
+  textShadowRadius: 10,
+} as const;
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
-  h1: { ...typography.display, color: colors.textPrimary },
-  sub: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
+  padded: { paddingHorizontal: spacing.lg },
+  block: { marginBottom: spacing.xl },
+
+  // Ciel
+  sky: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
+  hero: { paddingHorizontal: spacing.lg, justifyContent: 'space-between', paddingBottom: spacing.lg },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  weatherChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '60%',
+    backgroundColor: 'rgba(14,14,18,0.35)', borderColor: 'rgba(255,255,255,0.22)', borderWidth: 1,
+    borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12,
+  },
+  weatherChipEmoji: { fontSize: 16 },
+  weatherChipTemp: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  weatherChipCity: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 13, flexShrink: 1 },
+  heroBottom: { gap: 6 },
+  heroTitle: { fontSize: 46, fontWeight: '900', color: '#fff', letterSpacing: -1.5, ...TEXT_SHADOW },
+  heroSub: { ...typography.body, color: 'rgba(255,255,255,0.88)', marginBottom: spacing.sm, ...TEXT_SHADOW },
   search: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.pill, paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+    backgroundColor: 'rgba(14,14,18,0.6)', borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1,
+    borderRadius: radius.pill, paddingVertical: 6, paddingLeft: spacing.lg, paddingRight: 6,
   },
   searchIcon: { fontSize: 16 },
-  searchText: { ...typography.body, color: colors.textMuted },
+  searchText: { ...typography.body, color: 'rgba(255,255,255,0.7)', flex: 1 },
+  searchGo: {
+    width: 38, height: 38, borderRadius: 19, backgroundColor: colors.brand,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  searchGoText: { color: '#fff', fontSize: 18, fontWeight: '800' },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  actionCard: {
-    width: '31.5%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, padding: spacing.md, gap: 2, minHeight: 96, justifyContent: 'center',
-  },
-  actionEmoji: { fontSize: 26 },
-  actionLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '700', marginTop: 4 },
-  actionSub: { ...typography.label, color: colors.textMuted, fontSize: 10 },
+  // Titres de section
+  sectionHead: { paddingHorizontal: spacing.lg, marginBottom: spacing.md, gap: 4 },
+  sectionTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  sectionTitlePlain: { fontSize: 22, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.4 },
+  sectionSub: { ...typography.caption, color: colors.textSecondary },
+  fallbackHint: { ...typography.caption, color: colors.textMuted },
 
-  // Même gabarit que les raccourcis de Home (Swipe/Assistant/Itinéraire...) —
-  // grille 5 colonnes, tuiles carrées compactes, cf. app/(tabs)/index.tsx.
-  genericGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  genericTile: {
-    width: '18%', backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, paddingVertical: 7, alignItems: 'center', gap: 3,
+  // Top 3
+  top3Skeleton: {
+    height: 420, alignSelf: 'center', borderRadius: radius.xl, backgroundColor: colors.surfaceElevated,
+    alignItems: 'center', justifyContent: 'center',
   },
-  genericTileEmoji: { fontSize: 20 },
-  genericTileLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
+  top3Card: {
+    height: 420, borderRadius: radius.xl, overflow: 'hidden', backgroundColor: colors.surfaceElevated,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  top3Photo: { position: 'absolute', top: 0, bottom: 0, left: -40, right: -40 },
+  top3Head: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingHorizontal: spacing.lg, paddingTop: spacing.sm,
+  },
+  top3Rank: { fontSize: 96, fontWeight: '900', lineHeight: 104, letterSpacing: -4 },
+  top3HeadRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+  compatPill: { borderRadius: radius.pill, paddingVertical: 5, paddingHorizontal: 10 },
+  compatText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  heartBtn: {
+    width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(14,14,18,0.5)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  heartText: { fontSize: 18 },
+  top3Body: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, gap: 6 },
+  universeChip: {
+    alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: radius.pill,
+    paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  universeChipText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  top3Name: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: -0.6, ...TEXT_SHADOW },
+  top3Reason: { ...typography.body, color: 'rgba(255,255,255,0.85)', lineHeight: 21 },
+  top3Meta: { ...typography.caption, color: 'rgba(255,255,255,0.75)', fontWeight: '700' },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: spacing.md },
+  dot: { height: 7, borderRadius: 4, backgroundColor: colors.brand },
 
-  sectionTitle: { ...typography.title, color: colors.textPrimary, marginBottom: spacing.md },
-  eventCard: {
-    width: 180, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, padding: spacing.md, gap: 4,
-  },
-  eventTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  hot: { fontSize: 13 },
-  eventVenue: { ...typography.label, color: colors.textMuted, flex: 1 },
-  eventName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  eventMeta: { ...typography.caption, color: colors.brandSoft, marginTop: 2 },
-
-
-  top3Reason: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: -spacing.sm,
-    marginBottom: spacing.md,
-  },
-  fallbackHint: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.md },
-  stateBox: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  stateText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  retryText: { ...typography.caption, color: colors.textPrimary },
-  rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
-  rowSeeAll: { ...typography.caption, color: colors.brand, fontWeight: '600' },
-  trendingRow: { gap: spacing.md, paddingRight: spacing.md },
+  // Tendances
+  trendingRow: { gap: spacing.md, paddingHorizontal: spacing.lg },
   trendingCard: {
-    width: 148,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    overflow: 'hidden',
+    width: 156, height: 210, borderRadius: radius.lg, overflow: 'hidden',
+    backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
   },
-  trendingImg: { width: '100%', height: 96 },
-  trendingImgPlaceholder: {
-    width: '100%',
-    height: 96,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
+  trendingSkeleton: { width: 156, height: 210, borderRadius: radius.lg, backgroundColor: colors.surfaceElevated },
+  trendingRank: {
+    position: 'absolute', top: spacing.sm, left: spacing.sm, borderRadius: radius.pill,
+    backgroundColor: 'rgba(14,14,18,0.6)', paddingVertical: 3, paddingHorizontal: 9,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  trendingVisitBadge: {
-    position: 'absolute',
-    top: spacing.xs,
-    right: spacing.xs,
-    backgroundColor: `${colors.brand}CC`,
-    borderRadius: radius.pill,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+  trendingRankText: { color: '#fff', fontWeight: '900', fontSize: 13 },
+  trendingInfo: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.sm + 2, gap: 3 },
+  trendingName: { color: '#fff', fontWeight: '800', fontSize: 15, lineHeight: 19 },
+  trendingMeta: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' },
+
+  // Bento
+  bentoTitle: { marginBottom: spacing.md },
+  bentoRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
+  bentoTile: { borderRadius: radius.lg, overflow: 'hidden', padding: spacing.md, justifyContent: 'space-between' },
+  bentoBig: { height: 132 },
+  bentoHalf: { flex: 1, height: 150 },
+  bentoWatermark: {
+    position: 'absolute', right: -14, bottom: -18, fontSize: 96, opacity: 0.18,
+    transform: [{ rotate: '-14deg' }],
   },
-  trendingVisitText: { ...typography.label, color: '#fff', fontSize: 11 },
-  trendingInfo: { padding: spacing.sm, gap: 2 },
-  trendingName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  trendingMeta: { ...typography.caption, color: colors.textSecondary },
-  // Rangées Restaurant / Dessert / Lieu de culte : volontairement plus
-  // compactes que les Tendances, pour laisser le Top 3 remonter à l'écran.
-  uniSection: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
-  uniHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  uniTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  uniRow: { gap: spacing.sm, paddingRight: spacing.md },
-  uniCard: {
-    width: 112,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    overflow: 'hidden',
+  bentoWatermarkBig: { fontSize: 130, right: -6, bottom: -30 },
+  bentoEmoji: { fontSize: 28 },
+  bentoText: { gap: 2 },
+  bentoLabel: { color: '#fff', fontWeight: '900', fontSize: 17, letterSpacing: -0.3 },
+  bentoLabelBig: { fontSize: 22 },
+  bentoSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
+  partnerGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.lg, rowGap: spacing.md },
+  partnerTile: { width: '20%', alignItems: 'center', gap: 6 },
+  partnerIcon: {
+    width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border,
   },
-  uniImg: { width: '100%', height: 68 },
-  uniImgPlaceholder: { backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
-  uniInfo: { paddingHorizontal: 6, paddingVertical: 5, gap: 1 },
-  uniName: { fontSize: 12, fontWeight: '600', color: colors.textPrimary },
-  uniMeta: { fontSize: 10, color: colors.textSecondary },
-  uniSkeleton: { width: 112, height: 104, backgroundColor: colors.surfaceElevated, borderRadius: radius.sm },
-  trendingSkeletonCard: {
-    width: 148,
-    height: 148,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.md,
-  },
+  partnerEmoji: { fontSize: 24 },
+  partnerLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '600', textAlign: 'center', paddingHorizontal: 2 },
+
+  // États
+  stateBox: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
+  stateText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
+  retryText: { ...typography.caption, color: colors.textPrimary },
 });

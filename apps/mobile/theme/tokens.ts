@@ -82,6 +82,9 @@ export const gradients = {
   brand: ['#E8621A', '#8B4FD6', '#5C4ECC'] as const,
   /** Version douce pour les grandes surfaces (fonds de carte). */
   brandSoft: ['rgba(232,98,26,0.22)', 'rgba(92,78,204,0.18)'] as const,
+  /** Tuiles d'Explorer : Boutique (violet profond) et Cadeaux (rose → orange). */
+  shop: ['#3B2F9E', '#5C4ECC', '#8B4FD6'] as const,
+  gift: ['#9C1C5B', '#D23A6E', '#E8621A'] as const,
   /** Voile sombre bas d'écran — lisibilité du texte sur média. */
   scrim: ['transparent', 'rgba(14,14,18,0.85)', '#0E0E12'] as const,
   /**
