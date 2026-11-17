@@ -273,7 +273,7 @@ export default function SocialProfileScreen() {
       <View style={styles.bioSection}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={styles.displayName}>{displayName}</Text>
-          <PlanBadgeIcon plan={user?.plan} size={30} />
+          <PlanBadgeIcon plan={user?.plan} size={22} />
         </View>
         {bio ? <Text style={styles.bioText}>{bio}</Text> : null}
       </View>

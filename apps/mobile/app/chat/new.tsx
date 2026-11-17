@@ -154,7 +154,7 @@ export default function NewMessageScreen() {
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Text style={styles.name} numberOfLines={1}>{item.displayName}</Text>
-                    <PlanBadgeIcon plan={item.plan} size={26} />
+                    <PlanBadgeIcon plan={item.plan} size={18} />
                   </View>
                   {item.bio ? <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text> : null}
                 </View>

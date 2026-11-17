@@ -332,7 +332,7 @@ function ProfileCard({ profile }: { profile: Profile }) {
           <Text style={cardStyles.name} numberOfLines={1}>
             {profile.displayName}{age !== null ? <Text style={cardStyles.age}>{`, ${age}`}</Text> : null}
           </Text>
-          <PlanBadgeIcon plan={profile.plan} size={30} />
+          <PlanBadgeIcon plan={profile.plan} size={22} />
         </View>
         {gender ? <Text style={cardStyles.meta}>{gender}</Text> : null}
         {profile.bio ? <Text style={cardStyles.bio} numberOfLines={3}>{profile.bio}</Text> : null}

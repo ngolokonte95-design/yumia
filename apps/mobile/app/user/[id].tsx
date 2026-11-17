@@ -207,7 +207,7 @@ export default function UserProfileScreen() {
       <View style={styles.nameSection}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={styles.displayName}>{profile.displayName}</Text>
-          <PlanBadgeIcon plan={profile.plan} size={42} />
+          <PlanBadgeIcon plan={profile.plan} size={22} />
         </View>
         {profile.bio ? <TranslatableText text={profile.bio} style={styles.bio} /> : null}
         <Text style={styles.levelBadge}>{t('up_level_xp').replace('{level}', String(profile.level)).replace('{xp}', String(profile.totalXp))}</Text>

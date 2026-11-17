@@ -703,7 +703,7 @@ export default function ChatRoomScreen() {
           <View style={{ flexShrink: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.partnerName} numberOfLines={1}>{partner?.displayName ?? '...'}</Text>
-              <PlanBadgeIcon plan={partner?.plan} size={24} />
+              <PlanBadgeIcon plan={partner?.plan} size={16} />
             </View>
             {e2eActive && <Text style={styles.encLabel}>{t('chat_encrypted_badge')}</Text>}
           </View>
