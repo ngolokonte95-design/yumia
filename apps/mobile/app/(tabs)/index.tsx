@@ -9,8 +9,8 @@
  *    fixe et sans dégradé (un voile dégradé dessinait une barre grise) ;
  *  - logo en grand au centre, salutation et recherche par-dessus ;
  *  - raccourcis en tuiles à pastille dégradée ;
- *  - univers : tuiles d'origine, sobres ; seul le titre de chaque catégorie
- *    prend sa couleur (tokens.categoryGradients).
+ *  - univers : tuiles d'origine, sobres ; titres de catégorie sans couleur,
+ *    en petites capitales espacées + filet fin + nombre d'univers.
  * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
 import { useCallback, useMemo, useState } from 'react';
@@ -24,7 +24,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode, UniverseCategory } from '@yumia/shared';
 import { colors, gradients, radius, spacing, typography } from '../../theme/tokens';
-import { categoryGradient } from '../../lib/universeTheme';
 import { UniverseGlyph } from '../../components/UniverseGlyph';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PlanBadgeIcon } from '../../components/Avatar';
@@ -265,12 +264,17 @@ function CategorySection({
   labelOf: (u: string) => string;
   onOpen: (u: string) => void;
 }) {
-  const grad = categoryGradient(cat.key);
   return (
     // Au-delà des premières catégories, plus de délai : elles apparaissent
     // hors écran, un retard ne ferait que ralentir le défilement.
     <Reveal index={Math.min(index, 5)} style={styles.section}>
-      <Text style={[styles.catTitle, { color: grad[1] }]} numberOfLines={1}>{cat.emoji} {title}</Text>
+      {/* En-tête façon éditorial de luxe : petites capitales espacées, filet
+          fin qui file jusqu'au nombre d'univers. Aucune couleur. */}
+      <View style={styles.catHead}>
+        <Text style={styles.catTitle} numberOfLines={1}>{title}</Text>
+        <View style={styles.catRule} />
+        <Text style={styles.catCount}>{String(cat.universes.length).padStart(2, '0')}</Text>
+      </View>
       <View style={styles.universeGrid}>
         {cat.universes.map((u) => (
           <PressableScale key={u} style={styles.universeTile} onPress={() => onOpen(u)} scaleTo={0.92}>
@@ -355,7 +359,13 @@ const styles = StyleSheet.create({
 
   // Catégories
   // Titre de catégorie : seul élément en couleur (couleur posée en ligne).
-  catTitle: { ...typography.title, fontWeight: '800', marginBottom: spacing.md },
+  catHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  catTitle: {
+    color: colors.textPrimary, fontSize: 12, fontWeight: '700',
+    letterSpacing: 2.4, textTransform: 'uppercase', flexShrink: 1,
+  },
+  catRule: { flex: 1, minWidth: 16, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.28)' },
+  catCount: { color: colors.textMuted, fontSize: 11, fontWeight: '600', letterSpacing: 1.5, fontVariant: ['tabular-nums'] },
   universeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   // Tuile d'origine. Largeur en % : 4 colonnes quelle que soit la largeur
   // de l'écran (Android inclus).
