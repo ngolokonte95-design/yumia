@@ -1,18 +1,29 @@
 /**
  * Générateur d'itinéraire IA — Date, Famille, Voyage, Amis, Solo.
- * Chaque mode a son identité visuelle et un prompt contextuel côté backend.
- * Les étapes sont liées aux vrais lieux YUMIA quand disponibles.
+ * Chaque mode a un prompt contextuel côté backend. Les étapes sont liées aux
+ * vrais lieux YUMIA quand disponibles.
+ *
+ * Mise en scène (17/11/2026) : une seule couleur d'accent, le dégradé de
+ * marque (plus de couleur par humeur) ; grandes cartes d'humeur, attente IA
+ * animée (GeneratingView), résultat en frise verticale dont la ligne se
+ * dessine étape après étape (ItineraryTimeline).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Pressable, ScrollView,
+  ActivityIndicator, Alert, Pressable, ScrollView,
   Share, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import type { ScrollViewInstance } from 'react-native';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, elevation, gradients, radius, spacing, typography } from '../theme/tokens';
+import { GradientText, PressableScale, Reveal } from '../components/ui';
+import { haptics } from '../lib/useHaptics';
+import { BUDGETS, DURATIONS, WEEK_DURATION, findBudget, type Budget, type Duration } from '../components/itinerary/options';
+import { ItinerarySummary, ItineraryTimeline, stepsTimeRange } from '../components/itinerary/ItineraryTimeline';
+import { GeneratingView } from '../components/itinerary/GeneratingView';
 import { API_BASE_URL } from '../lib/config';
 import { placeStore } from '../lib/place-store';
 import { resolvePlaceByName } from '../lib/places-api';
@@ -31,9 +42,6 @@ import { ensureAiConsent } from '../lib/ai-consent';
 
 const API = API_BASE_URL;
 
-type Duration = 'soirée' | 'journée' | 'demi-journée' | 'weekend' | 'semaine';
-type Budget = 'économique' | 'moyen' | 'premium';
-
 interface Step {
   time: string;
   type: string;
@@ -49,24 +57,6 @@ interface Step {
   placeLng?: number;
   moments?: DayMoment[];
 }
-
-const DURATIONS: Array<{ key: Duration; labelKey: string; emoji: string }> = [
-  { key: 'demi-journée', labelKey: 'itin_duration_halfday', emoji: '🌤️' },
-  { key: 'soirée', labelKey: 'itin_duration_evening', emoji: '🌆' },
-  { key: 'journée', labelKey: 'itin_duration_fullday', emoji: '☀️' },
-  { key: 'weekend', labelKey: 'itin_duration_weekend', emoji: '🗓️' },
-];
-
-// "Semaine" n'a de sens que pour le mode Voyage — un itinéraire d'une
-// semaine pour un date ou une sortie entre amis n'est pas un cas d'usage
-// réaliste. Ajoutée à la liste uniquement quand mood === 'touriste'.
-const WEEK_DURATION: { key: Duration; labelKey: string; emoji: string } = { key: 'semaine', labelKey: 'itin_duration_week', emoji: '🧳' };
-
-const BUDGETS: Array<{ key: Budget; emoji: string; labelKey: string; desc: string }> = [
-  { key: 'économique', emoji: '💸', labelKey: 'itin_budget_cheap', desc: '< 30€/pers.' },
-  { key: 'moyen', emoji: '💶', labelKey: 'itin_budget_medium', desc: '30-80€/pers.' },
-  { key: 'premium', emoji: '💎', labelKey: 'itin_budget_premium', desc: '80€+/pers.' },
-];
 
 export default function ItineraryScreen() {
   const { accessToken } = useAuth();
@@ -305,38 +295,37 @@ export default function ItineraryScreen() {
     router.push('/place');
   };
 
+  const stepsLabel = tr('si_steps_count').replace('{n}', '').trim();
+  const budgetOpt = findBudget(budget);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
-      {/* Header coloré par mode */}
-      <View style={[styles.header, { backgroundColor: meta.color }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerEmoji}>{meta.emoji}</Text>
-          {/* flex: 1 : quand le bouton « partager » apparaît après la
-              génération, le texte doit rétrécir au lieu de passer sous
-              « Mes itinéraires ». */}
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle} numberOfLines={1}>{itineraryMoodLabel(tr, mood, meta.label)}</Text>
-            <Text style={styles.headerSub} numberOfLines={2}>{itineraryMoodSub(tr, mood, meta.sub)}</Text>
-          </View>
+
+      {/* En-tête sobre : retour, humeur en grand, accès aux itinéraires
+          enregistrés et partage. Une seule couleur : celle de la marque. */}
+      <View style={styles.header}>
+        <PressableScale onPress={() => router.back()} style={styles.glassBtn} hitSlop={6}>
+          <Text style={styles.glassBtnText}>←</Text>
+        </PressableScale>
+        <View style={styles.headerText}>
+          <Text style={styles.headerKicker} numberOfLines={1}>{meta.emoji}  {itineraryMoodSub(tr, mood, meta.sub)}</Text>
+          <GradientText style={styles.headerTitle}>{itineraryMoodLabel(tr, mood, meta.label)}</GradientText>
         </View>
-        <Pressable onPress={() => router.push('/saved-itineraries' as never)} style={styles.savedLink} hitSlop={6}>
-          <View style={styles.shareBtn}>
-            <Text style={styles.shareIcon}>📚</Text>
+        <PressableScale onPress={() => router.push('/saved-itineraries' as never)} style={styles.savedLink} hitSlop={6}>
+          <View style={styles.glassBtn}>
+            <Text style={styles.glassBtnText}>📚</Text>
           </View>
           {/* Même libellé que le titre de l'écran, sans son emoji. */}
           <Text style={styles.savedLinkTxt} numberOfLines={1}>
             {tr('si_title').replace(/^[^\p{L}]+/u, '')}
           </Text>
-        </Pressable>
-        {result && result.steps.length > 0 && (
-          <Pressable onPress={() => void shareItinerary()} style={[styles.shareBtn, { marginLeft: 8 }]}>
-            <Text style={styles.shareIcon}>↑</Text>
-          </Pressable>
-        )}
+        </PressableScale>
+        {result && result.steps.length > 0 ? (
+          <PressableScale onPress={() => void shareItinerary()} style={styles.glassBtn} hitSlop={6}>
+            <Text style={styles.glassBtnText}>↑</Text>
+          </PressableScale>
+        ) : null}
       </View>
 
       <ScrollView
@@ -347,250 +336,260 @@ export default function ItineraryScreen() {
         contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 100 + kb.bottomInset }}
       >
 
-        {/* Sélection du mood */}
-        <Text style={styles.label}>{tr('itin_label_forwho')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          {MOODS.map((m) => {
-            const mm = MOOD_META[m];
-            return (
-              <Pressable
-                key={m}
-                style={[styles.moodChip, mood === m && { backgroundColor: MOOD_META[m].color, borderColor: MOOD_META[m].color }]}
-                onPress={() => {
-                  setMood(m);
-                  setCitySuggestOpen(false);
-                  // "Semaine" n'a de sens que pour le Voyage — on retombe sur
-                  // "journée" si l'utilisateur change de mood en l'ayant choisie.
-                  if (m !== 'touriste' && duration === 'semaine') setDuration('journée');
-                }}
-              >
-                <Text style={styles.moodEmoji}>{mm.emoji}</Text>
-                <Text style={[styles.moodLabel, mood === m && styles.moodLabelActive]}>{m === 'touriste'
-                  // « Mode Voyage » : le premier mot serait « Mode ».
-                  ? tr('itinmood_touriste_short')
-                  : itineraryMoodLabel(tr, m, mm.label).split(' ')[0]}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {/* Pour qui ? — grandes cartes, l'active au dégradé de marque. */}
+        <Reveal index={0}>
+          <Text style={styles.label}>{tr('itin_label_forwho')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moodRow}>
+            {MOODS.map((m) => {
+              const mm = MOOD_META[m];
+              const active = mood === m;
+              return (
+                <PressableScale
+                  key={m}
+                  style={[styles.moodCard, active && styles.moodCardActive]}
+                  scaleTo={0.94}
+                  onPress={() => {
+                    if (m !== mood) haptics.select();
+                    setMood(m);
+                    setCitySuggestOpen(false);
+                    // "Semaine" n'a de sens que pour le Voyage — on retombe sur
+                    // "journée" si l'utilisateur change de mood en l'ayant choisie.
+                    if (m !== 'touriste' && duration === 'semaine') setDuration('journée');
+                  }}
+                >
+                  {active ? (
+                    <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                  ) : null}
+                  <Text style={styles.moodEmoji}>{mm.emoji}</Text>
+                  <Text style={[styles.moodLabel, active && styles.labelActive]} numberOfLines={1}>{m === 'touriste'
+                    // « Mode Voyage » : le premier mot serait « Mode ».
+                    ? tr('itinmood_touriste_short')
+                    : itineraryMoodLabel(tr, m, mm.label).split(' ')[0]}</Text>
+                </PressableScale>
+              );
+            })}
+          </ScrollView>
+        </Reveal>
 
         {/* Durée */}
-        <Text style={styles.label}>{tr('itin_label_duration')}</Text>
-        <View style={styles.chipGrid}>
-          {(mood === 'touriste' ? [...DURATIONS, WEEK_DURATION] : DURATIONS).map((d) => (
-            <Pressable
-              key={d.key}
-              style={[styles.durationChip, duration === d.key && { backgroundColor: meta.color, borderColor: meta.color }]}
-              onPress={() => { setDuration(d.key); setCitySuggestOpen(false); }}
-            >
-              <Text style={styles.durationEmoji}>{d.emoji}</Text>
-              <Text style={[styles.durationLabel, duration === d.key && styles.chipLabelActive]}>{tr(d.labelKey as never)}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Reveal index={1}>
+          <Text style={styles.label}>{tr('itin_label_duration')}</Text>
+          <View style={styles.chipGrid}>
+            {(mood === 'touriste' ? [...DURATIONS, WEEK_DURATION] : DURATIONS).map((d) => {
+              const active = duration === d.key;
+              return (
+                <PressableScale
+                  key={d.key}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => { if (!active) haptics.select(); setDuration(d.key); setCitySuggestOpen(false); }}
+                >
+                  {active ? (
+                    <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                  ) : null}
+                  <Text style={styles.chipEmoji}>{d.emoji}</Text>
+                  <Text style={[styles.chipLabel, active && styles.labelActive]}>{tr(d.labelKey as never)}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
+        </Reveal>
 
         {/* Budget */}
-        <Text style={styles.label}>{tr('itin_label_budget')}</Text>
-        <View style={styles.chipGrid}>
-          {BUDGETS.map((b) => (
-            <Pressable
-              key={b.key}
-              style={[styles.budgetChip, budget === b.key && { backgroundColor: meta.color, borderColor: meta.color }]}
-              onPress={() => { setBudget(b.key); setCitySuggestOpen(false); }}
-            >
-              <Text style={styles.budgetEmoji}>{b.emoji}</Text>
-              <View style={styles.budgetTextCol}>
-                <Text
-                  style={[styles.budgetLabel, budget === b.key && styles.chipLabelActive]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
+        <Reveal index={2}>
+          <Text style={styles.label}>{tr('itin_label_budget')}</Text>
+          <View style={styles.chipGrid}>
+            {BUDGETS.map((b) => {
+              const active = budget === b.key;
+              return (
+                <PressableScale
+                  key={b.key}
+                  style={[styles.budgetCard, active && styles.chipActive]}
+                  onPress={() => { if (!active) haptics.select(); setBudget(b.key); setCitySuggestOpen(false); }}
                 >
-                  {tr(b.labelKey as never)}
-                </Text>
-                <Text style={[styles.budgetDesc, budget === b.key && { color: 'rgba(255,255,255,0.8)' }]}>{b.desc}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
+                  {active ? (
+                    <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                  ) : null}
+                  <Text style={styles.budgetEmoji}>{b.emoji}</Text>
+                  <Text
+                    style={[styles.budgetLabel, active && styles.labelActive]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
+                    {tr(b.labelKey as never)}
+                  </Text>
+                  <Text style={[styles.budgetDesc, active && { color: 'rgba(255,255,255,0.85)' }]}>{b.desc}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
+        </Reveal>
 
         {/* Ville */}
-        <Text
-          style={styles.label}
-          onLayout={(e) => { cityFieldY.current = e.nativeEvent.layout.y; }}
-        >
-          {tr('itin_label_city')}
-        </Text>
-        <View>
-          <TextInput
-            style={styles.input}
-            value={city}
-            onChangeText={(t) => { setCity(t); setCitySuggestOpen(true); }}
-            onFocus={() => setCitySuggestOpen(true)}
-            placeholder={tr('itin_city_placeholder')}
-            placeholderTextColor={colors.textMuted}
-            returnKeyType="done"
-            onSubmitEditing={() => setCitySuggestOpen(false)}
-            autoCorrect={false}
-          />
-          {citySuggestOpen && city.trim().length >= 2 ? (
-            <View style={styles.citySuggestBox}>
-              {citySearching ? (
-                <ActivityIndicator color={meta.color} size="small" style={{ padding: 12 }} />
-              ) : citySuggestions.length === 0 ? (
-                <Text style={styles.citySuggestEmpty}>{tr('itin_no_city_found')}</Text>
-              ) : (
-                citySuggestions.map((c: CitySuggestion) => (
-                  <Pressable
-                    key={c.id}
-                    style={styles.citySuggestRow}
-                    onPress={() => { setCity(c.name); setCitySuggestOpen(false); }}
-                  >
-                    <Text style={styles.citySuggestName}>{c.name}</Text>
-                    <Text style={styles.citySuggestRegion} numberOfLines={1}>
-                      {[c.admin1, c.country].filter(Boolean).join(', ')}
-                    </Text>
-                  </Pressable>
-                ))
-              )}
+        <Reveal index={3}>
+          <Text
+            style={styles.label}
+            onLayout={(e) => { cityFieldY.current = e.nativeEvent.layout.y; }}
+          >
+            {tr('itin_label_city')}
+          </Text>
+          <View>
+            <View style={styles.inputWrap}>
+              <Text style={styles.inputIcon}>📍</Text>
+              <TextInput
+                style={styles.input}
+                value={city}
+                onChangeText={(t) => { setCity(t); setCitySuggestOpen(true); }}
+                onFocus={() => setCitySuggestOpen(true)}
+                placeholder={tr('itin_city_placeholder')}
+                placeholderTextColor={colors.textMuted}
+                returnKeyType="done"
+                onSubmitEditing={() => setCitySuggestOpen(false)}
+                autoCorrect={false}
+              />
             </View>
-          ) : null}
-        </View>
+            {citySuggestOpen && city.trim().length >= 2 ? (
+              <View style={styles.citySuggestBox}>
+                {citySearching ? (
+                  <ActivityIndicator color={colors.brand} size="small" style={{ padding: 12 }} />
+                ) : citySuggestions.length === 0 ? (
+                  <Text style={styles.citySuggestEmpty}>{tr('itin_no_city_found')}</Text>
+                ) : (
+                  citySuggestions.map((c: CitySuggestion) => (
+                    <Pressable
+                      key={c.id}
+                      style={styles.citySuggestRow}
+                      onPress={() => { setCity(c.name); setCitySuggestOpen(false); }}
+                    >
+                      <Text style={styles.citySuggestName}>{c.name}</Text>
+                      <Text style={styles.citySuggestRegion} numberOfLines={1}>
+                        {[c.admin1, c.country].filter(Boolean).join(', ')}
+                      </Text>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            ) : null}
+          </View>
+        </Reveal>
 
         {/* Contraintes */}
-        <Text style={styles.label}>{tr('itin_label_constraints')}</Text>
-        <TextInput
-          style={[styles.input, { height: 64 }]}
-          value={constraints}
-          onChangeText={setConstraints}
-          onFocus={() => setCitySuggestOpen(false)}
-          placeholder={tr('itin_constraints_placeholder')}
-          placeholderTextColor={colors.textMuted}
-          multiline
-        />
+        <Reveal index={4}>
+          <Text style={styles.label}>{tr('itin_label_constraints')}</Text>
+          <TextInput
+            style={[styles.inputBox, { height: 72 }]}
+            value={constraints}
+            onChangeText={setConstraints}
+            onFocus={() => setCitySuggestOpen(false)}
+            placeholder={tr('itin_constraints_placeholder')}
+            placeholderTextColor={colors.textMuted}
+            multiline
+          />
+        </Reveal>
 
         {/* Bouton générer */}
-        <Pressable
-          style={[styles.generateBtn, { backgroundColor: meta.color }, loading && { opacity: 0.7 }]}
-          onPress={() => void generate()}
-          disabled={loading}
-        >
-          {loading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color="#fff" />
-              <Text style={styles.generateBtnText}>{tr('itin_generating')}</Text>
-            </View>
-          ) : (
-            <Text style={styles.generateBtnText}>{tr('itin_generate_btn')}</Text>
-          )}
-        </Pressable>
+        <Reveal index={5}>
+          <PressableScale
+            style={[styles.generateBtn, loading && { opacity: 0.75 }]}
+            onPress={() => void generate()}
+            disabled={loading}
+            scaleTo={0.97}
+            haptic
+          >
+            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={gradients.glassSheen} style={StyleSheet.absoluteFill} />
+            {loading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.generateBtnText}>{tr('itin_generating')}</Text>
+              </View>
+            ) : (
+              <Text style={styles.generateBtnText}>{tr('itin_generate_btn')}</Text>
+            )}
+          </PressableScale>
+        </Reveal>
+
+        {/* Attente de l'IA */}
+        {loading ? <GeneratingView label={tr('itin_generating')} /> : null}
 
         {/* Résultat */}
         {result?.error ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>⚠️ {result.error}</Text>
-            <Pressable onPress={() => void generate()} style={[styles.retryBtn, { backgroundColor: meta.color }]}>
+            <PressableScale onPress={() => void generate()} style={styles.retryBtn}>
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
               <Text style={styles.retryText}>{tr('itin_retry')}</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         ) : result && result.steps.length > 0 ? (
           <View style={styles.result}>
-            {/* Résumé */}
-            <View style={[styles.summaryBox, { borderLeftColor: meta.color }]}>
-              <Text style={styles.summaryText}>{result.itinerary}</Text>
-            </View>
+            <ItinerarySummary
+              summary={result.itinerary}
+              stepCount={result.steps.length}
+              timeRange={stepsTimeRange(result.steps)}
+              stepsLabel={stepsLabel}
+              budget={budgetOpt ? { emoji: budgetOpt.emoji, label: tr(budgetOpt.labelKey as never) } : undefined}
+            />
 
-            {/* Étapes */}
-            {result.steps.map((step, i) => (
-              <View key={i} style={styles.step}>
-                {/* Ligne timeline */}
-                <View style={styles.timeline}>
-                  <View style={[styles.dot, { backgroundColor: meta.color }]}>
-                    <Text style={styles.dotEmoji}>{step.emoji}</Text>
-                  </View>
-                  {i < result.steps.length - 1 && (
-                    <View style={[styles.line, { backgroundColor: meta.color + '30' }]} />
-                  )}
-                </View>
-
-                {/* Contenu */}
-                <View style={styles.stepCard}>
-                  {/* Photo du lieu si disponible */}
-                  {step.placePhoto ? (
-                    <Image source={{ uri: step.placePhoto }} style={styles.stepPhoto} resizeMode="cover" />
+            <ItineraryTimeline
+              steps={result.steps}
+              renderActions={(step) => (
+                <>
+                  {/* Journée de séjour (mode semaine) : ce n'est pas un lieu,
+                      on n'en propose pas — « voir la journée complète » mène à
+                      ses moments, qui eux en sont. */}
+                  {!step.moments?.length ? (
+                    <PressableScale
+                      style={[styles.placeBtn, openingStep !== null && { opacity: 0.6 }]}
+                      onPress={() => void openStepPlace(step)}
+                      disabled={openingStep !== null}
+                    >
+                      {openingStep === `${step.time}-${step.name}` ? (
+                        <ActivityIndicator size="small" color={colors.brand} />
+                      ) : (
+                        <Text style={styles.placeBtnText}>{tr('itin_see_place')}  →</Text>
+                      )}
+                    </PressableScale>
                   ) : null}
 
-                  <View style={styles.stepBody}>
-                    <View style={styles.stepTopRow}>
-                      <Text style={[styles.stepTime, { color: meta.color }]}>{step.time}</Text>
-                      <Text style={styles.stepDuration}>{step.duration}</Text>
-                    </View>
-                    <Text style={styles.stepName}>{step.name}</Text>
-                    <Text style={styles.stepDesc}>{step.description}</Text>
-
-                    {step.placeRating ? (
-                      <Text style={styles.stepRating}>⭐ {step.placeRating.toFixed(1)}</Text>
-                    ) : null}
-
-                    {step.tips ? (
-                      <View style={[styles.tipBox, { borderLeftColor: meta.color }]}>
-                        <Text style={styles.tipText}>💡 {step.tips}</Text>
-                      </View>
-                    ) : null}
-
-                    {/* Journée de séjour (mode semaine) : ce n'est pas un
-                        lieu, on n'en propose pas — « voir la journée
-                        complète » juste en dessous mène à ses moments, qui
-                        eux en sont. */}
-                    {!step.moments?.length ? (
-                      <Pressable
-                        style={[styles.placeBtn, { borderColor: meta.color }, openingStep !== null && { opacity: 0.6 }]}
-                        onPress={() => void openStepPlace(step)}
-                        disabled={openingStep !== null}
-                      >
-                        {openingStep === `${step.time}-${step.name}` ? (
-                          <ActivityIndicator size="small" color={meta.color} />
-                        ) : (
-                          <Text style={[styles.placeBtnText, { color: meta.color }]}>{tr('itin_see_place')}</Text>
-                        )}
-                      </Pressable>
-                    ) : null}
-
-                    {/* Mode semaine : la description couvre la journée entière,
-                        ce bouton la déroule moment par moment. */}
-                    {step.moments?.length ? (
-                      <Pressable
-                        style={[styles.dayBtn, { backgroundColor: meta.color }]}
-                        onPress={() => setOpenDay(step)}
-                      >
-                        <Text style={styles.dayBtnText}>{tr('itin_see_full_day')}</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </View>
-              </View>
-            ))}
+                  {/* Mode semaine : la description couvre la journée entière,
+                      ce bouton la déroule moment par moment. */}
+                  {step.moments?.length ? (
+                    <PressableScale style={styles.dayBtn} onPress={() => setOpenDay(step)}>
+                      <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                      <Text style={styles.dayBtnText}>{tr('itin_see_full_day')}</Text>
+                    </PressableScale>
+                  ) : null}
+                </>
+              )}
+            />
 
             {/* Actions en bas */}
             <View style={styles.bottomActions}>
-              <Pressable
-                style={[styles.actionBtn, { backgroundColor: saved ? colors.success : meta.color }, saving && { opacity: 0.7 }]}
+              <PressableScale
+                style={[styles.actionBtn, saving && { opacity: 0.7 }]}
                 onPress={() => void handleSave()}
                 disabled={saving || saved}
+                haptic
               >
+                {saved ? (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.success }]} />
+                ) : (
+                  <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                )}
                 {saving ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.actionBtnText}>{saved ? tr('itin_saved') : tr('itin_save')}</Text>
                 )}
-              </Pressable>
-              <Pressable style={[styles.actionBtn, { backgroundColor: meta.color }]} onPress={() => void shareItinerary()}>
+              </PressableScale>
+              <PressableScale style={[styles.actionBtn, styles.actionBtnGlass]} onPress={() => void shareItinerary()}>
                 <Text style={styles.actionBtnText}>{tr('itin_share')}</Text>
-              </Pressable>
+              </PressableScale>
             </View>
-            <Pressable style={[styles.actionBtnOutline, { marginTop: spacing.sm }]} onPress={() => { setResult(null); void generate(); }}>
-              <Text style={[styles.actionBtnOutlineText, { color: meta.color }]}>{tr('itin_new')}</Text>
-            </Pressable>
+            <PressableScale style={styles.actionBtnOutline} onPress={() => { setResult(null); void generate(); }}>
+              <GradientText style={styles.actionBtnOutlineText}>{tr('itin_new')}</GradientText>
+            </PressableScale>
           </View>
         ) : null}
       </ScrollView>
@@ -599,7 +598,7 @@ export default function ItineraryScreen() {
         onClose={() => { setOpenDay(null); setReopenScrollY(0); }}
         restoreScrollY={reopenScrollY}
         day={openDay}
-        accent={meta.color}
+        accent={colors.brand}
         seePlaceLabel={tr('itin_see_place')}
         closeLabel={tr('itin_close_day')}
         onOpenPlace={async (moment, scrollY) => {
@@ -639,156 +638,127 @@ export default function ItineraryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
+  // En-tête
   header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md,
-    paddingVertical: 14, gap: spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  backBtn: { padding: 4 },
-  backText: { fontSize: 22, color: '#fff', fontWeight: '700' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerEmoji: { fontSize: 26 },
-  headerText: { flex: 1, minWidth: 0 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
-  headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
-  shareBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
+  glassBtn: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
   },
-  shareIcon: { fontSize: 18, color: '#fff', fontWeight: '700' },
-  savedLink: { alignItems: 'center', gap: 3, maxWidth: 84, marginLeft: 8 },
-  savedLinkTxt: { fontSize: 10, color: '#fff', fontWeight: '600', textAlign: 'center' },
+  glassBtnText: { fontSize: 18, color: colors.textPrimary, fontWeight: '800' },
+  headerText: { flex: 1, minWidth: 0, gap: 2 },
+  headerKicker: { ...typography.caption, color: colors.textSecondary },
+  headerTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  savedLink: { alignItems: 'center', gap: 3, maxWidth: 84 },
+  savedLinkTxt: { fontSize: 10, color: colors.textSecondary, fontWeight: '700', textAlign: 'center' },
 
-  label: { fontWeight: '700', color: colors.text, fontSize: 14, marginTop: spacing.lg, marginBottom: 8 },
-
-  chipRow: { gap: 8, paddingRight: spacing.md },
-  moodChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.surface, borderRadius: radius.full,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1.5, borderColor: colors.border,
+  label: {
+    ...typography.label, color: colors.textSecondary, fontSize: 12, letterSpacing: 1.6,
+    textTransform: 'uppercase', marginTop: spacing.lg, marginBottom: 10,
   },
-  moodEmoji: { fontSize: 16 },
-  moodLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  moodLabelActive: { color: '#fff' },
+  labelActive: { color: '#fff' },
 
+  // Pour qui ?
+  moodRow: { gap: 10, paddingRight: spacing.md },
+  moodCard: {
+    width: 92, height: 92, borderRadius: radius.lg, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
+  },
+  moodCardActive: { borderColor: 'rgba(255,255,255,0.35)', ...elevation.glowBrand },
+  moodEmoji: { fontSize: 28 },
+  moodLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '800', paddingHorizontal: 4 },
+
+  // Durée & budget
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  durationChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 1.5, borderColor: colors.border,
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'hidden',
+    backgroundColor: colors.surface, borderRadius: radius.pill,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
   },
-  durationEmoji: { fontSize: 16 },
-  durationLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  budgetChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+  chipActive: { borderColor: 'rgba(255,255,255,0.35)' },
+  chipEmoji: { fontSize: 16 },
+  chipLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '700' },
+  budgetCard: {
+    flexGrow: 1, flexBasis: '30%', overflow: 'hidden',
+    alignItems: 'center', gap: 3, paddingVertical: 12, paddingHorizontal: 8,
     backgroundColor: colors.surface, borderRadius: radius.md,
-    paddingHorizontal: 10, paddingVertical: 10,
-    borderWidth: 1.5, borderColor: colors.border,
-    flexGrow: 1, flexBasis: '30%',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
   },
-  budgetEmoji: { fontSize: 16 },
-  // flex:1 est indispensable : sans lui, cette colonne prend sa largeur
-  // naturelle et « Économique » (bien plus long que « Moyen »/« Premium »)
-  // déborde du cadre de la case au lieu de s'y adapter.
-  budgetTextCol: { flex: 1 },
-  budgetLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '700' },
+  budgetEmoji: { fontSize: 22 },
+  budgetLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '800' },
   budgetDesc: { fontSize: 10, color: colors.textMuted },
-  chipLabelActive: { color: '#fff' },
 
-  input: {
-    backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12,
-    color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border,
+  // Champs
+  inputWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
-
+  inputIcon: { fontSize: 15 },
+  input: { flex: 1, paddingVertical: 13, paddingRight: 12, color: colors.text, fontSize: 15 },
+  inputBox: {
+    backgroundColor: colors.surface, borderRadius: radius.lg, padding: 13,
+    color: colors.text, fontSize: 15, textAlignVertical: 'top',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
   citySuggestBox: {
-    marginTop: 4,
-    backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
-    maxHeight: 220, overflow: 'hidden',
+    marginTop: 6, maxHeight: 220, overflow: 'hidden',
+    backgroundColor: colors.surfaceElevated, borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
   citySuggestEmpty: { padding: 12, fontSize: 13, color: colors.textMuted },
-  citySuggestRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  citySuggestName: { fontSize: 14, fontWeight: '600', color: colors.text },
+  citySuggestRow: {
+    paddingHorizontal: 14, paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  citySuggestName: { fontSize: 14, fontWeight: '700', color: colors.text },
   citySuggestRegion: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
 
+  // Générer
   generateBtn: {
-    marginTop: spacing.lg, borderRadius: radius.lg,
-    padding: 16, alignItems: 'center',
+    marginTop: spacing.xl, borderRadius: radius.pill, overflow: 'hidden',
+    paddingVertical: 17, alignItems: 'center', justifyContent: 'center',
+    ...elevation.glowBrand,
   },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  generateBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  generateBtnText: { color: '#fff', fontWeight: '900', fontSize: 16, letterSpacing: 0.2 },
 
+  // Erreur
   errorBox: {
-    marginTop: spacing.lg, backgroundColor: '#FFF0F0',
-    borderRadius: radius.md, padding: spacing.md, gap: 12,
-    borderWidth: 1, borderColor: '#FFCCCC',
+    marginTop: spacing.lg, padding: spacing.md, gap: 12, borderRadius: radius.lg,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: `${colors.danger}66`,
   },
-  errorText: { color: '#C0392B', fontSize: 14, lineHeight: 20 },
-  retryBtn: { borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' },
-  retryText: { color: '#fff', fontWeight: '700' },
+  errorText: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
+  retryBtn: { borderRadius: radius.pill, paddingVertical: 12, alignItems: 'center', overflow: 'hidden' },
+  retryText: { color: '#fff', fontWeight: '800' },
 
-  result: { marginTop: spacing.lg, gap: 0 },
-
-  summaryBox: {
-    borderLeftWidth: 4, paddingLeft: 14, marginBottom: spacing.lg,
-  },
-  summaryText: { fontSize: 15, color: colors.text, lineHeight: 22, fontStyle: 'italic' },
-
-  step: { flexDirection: 'row', gap: 12, marginBottom: 0 },
-
-  timeline: { alignItems: 'center', width: 44 },
-  dot: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
-  },
-  dotEmoji: { fontSize: 20 },
-  line: { width: 2, flex: 1, minHeight: 20 },
-
-  stepCard: {
-    flex: 1, marginBottom: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  stepPhoto: { width: '100%', height: 120 },
-  stepBody: { padding: 12, gap: 4 },
-  stepTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  stepTime: { fontSize: 12, fontWeight: '700' },
-  stepDuration: { fontSize: 11, color: colors.textMuted, backgroundColor: colors.background, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  stepName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  // Texte généré par l'IA (description de l'étape) : en blanc pour rester
-  // bien lisible sur le fond sombre — le gris atténué (textMuted) passait
-  // moins bien pour un vrai contenu à lire que pour un simple libellé.
-  stepDesc: { fontSize: 13, color: colors.text, lineHeight: 18 },
-  stepRating: { fontSize: 12, color: colors.textMuted },
-  tipBox: {
-    borderLeftWidth: 3, paddingLeft: 10, marginTop: 4,
-    backgroundColor: colors.background, paddingVertical: 4, borderRadius: 4,
-  },
-  // Idem : le conseil (💡) est aussi une réponse générée par l'IA, pas un
-  // simple libellé d'interface.
-  tipText: { fontSize: 12, color: colors.text, fontStyle: 'italic', lineHeight: 16 },
-
+  // Résultat
+  result: { marginTop: spacing.xl },
   placeBtn: {
-    marginTop: 8, borderWidth: 1.5, borderRadius: radius.md,
-    paddingVertical: 8, alignItems: 'center',
+    marginTop: 6, borderRadius: radius.pill, paddingVertical: 10, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: `${colors.brand}88`,
   },
-  placeBtnText: { fontSize: 13, fontWeight: '700' },
-  dayBtn: { borderRadius: radius.pill, paddingVertical: 11, alignItems: 'center', marginTop: 8 },
-  dayBtnText: { ...typography.label, color: '#fff', fontSize: 13 },
+  placeBtnText: { fontSize: 13, fontWeight: '800', color: colors.brandSoft },
+  dayBtn: { borderRadius: radius.pill, paddingVertical: 12, alignItems: 'center', marginTop: 6, overflow: 'hidden' },
+  dayBtnText: { ...typography.label, color: '#fff', fontSize: 13, fontWeight: '800' },
 
-  bottomActions: {
-    flexDirection: 'row', gap: 12, marginTop: spacing.md, marginBottom: spacing.lg,
-  },
+  bottomActions: { flexDirection: 'row', gap: 12, marginTop: spacing.sm },
   actionBtn: {
-    flex: 1, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center',
+    flex: 1, borderRadius: radius.pill, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  actionBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  actionBtnGlass: {
+    backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  actionBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   actionBtnOutline: {
-    flex: 1, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface,
+    marginTop: spacing.sm, marginBottom: spacing.lg, borderRadius: radius.pill, paddingVertical: 15, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: colors.surface,
   },
-  actionBtnOutlineText: { fontWeight: '700', fontSize: 15 },
+  actionBtnOutlineText: { fontWeight: '800', fontSize: 15 },
 });

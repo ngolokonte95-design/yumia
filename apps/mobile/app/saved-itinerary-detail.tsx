@@ -1,12 +1,19 @@
 /**
  * Détail d'un itinéraire enregistré — vue lecture seule des étapes déjà
  * générées (pas de régénération), avec suppression et accès aux fiches lieu.
+ *
+ * Mise en scène (17/11/2026) : grande photo de couverture (photo de la
+ * première étape qui en a une), boutons vitrés, résumé chiffré, puis la même
+ * frise animée que l'écran de génération. Une seule couleur d'accent : le
+ * dégradé de marque.
  */
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, spacing } from '../theme/tokens';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { deleteSavedItinerary, type ItineraryStep } from '../lib/itinerary-api';
 import { safeMoodMeta } from '../lib/itinerary-meta';
@@ -14,6 +21,11 @@ import { savedItineraryStore } from '../lib/saved-itinerary-store';
 import { placeStore } from '../lib/place-store';
 import { useI18n } from '../lib/useI18n';
 import { itineraryMoodLabel } from '../lib/labelHelpers';
+import { GradientText, PressableScale, Reveal } from '../components/ui';
+import { ItinerarySummary, ItineraryTimeline, stepsTimeRange } from '../components/itinerary/ItineraryTimeline';
+import { findBudget } from '../components/itinerary/options';
+
+const COVER_HEIGHT = 240;
 
 export default function SavedItineraryDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -27,9 +39,9 @@ export default function SavedItineraryDetailScreen() {
     return (
       <View style={[styles.container, styles.center, { paddingTop: insets.top }]}>
         <Text style={styles.errorText}>{t('sid_not_found')}</Text>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <PressableScale onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>{t('place_back')}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     );
   }
@@ -37,6 +49,8 @@ export default function SavedItineraryDetailScreen() {
   const meta = safeMoodMeta(item.mood);
 
   const moodLabel = itineraryMoodLabel(t, item.mood, meta.label);
+  const cover = item.steps.find((s) => s.placePhoto)?.placePhoto;
+  const budgetOpt = findBudget(item.budget);
 
   const shareItinerary = async () => {
     const text = [
@@ -96,64 +110,60 @@ export default function SavedItineraryDetailScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={[styles.header, { backgroundColor: meta.color }]}>
-        <Pressable onPress={() => router.back()} style={styles.headerBackBtn}>
-          <Text style={styles.headerBackText}>←</Text>
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerEmoji}>{meta.emoji}</Text>
-          <View>
-            <Text style={styles.headerTitle}>{moodLabel}</Text>
-            <Text style={styles.headerSub}>{item.city}</Text>
+    <View style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
+      >
+        {/* Couverture : vraie photo d'étape, ou aplat sobre avec l'emoji. */}
+        <View style={[styles.cover, { height: COVER_HEIGHT + insets.top }]}>
+          {cover ? (
+            <Image source={{ uri: cover }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+          ) : (
+            <View style={styles.coverEmpty}>
+              <Text style={styles.coverEmoji}>{meta.emoji}</Text>
+            </View>
+          )}
+          <View style={[styles.coverBar, { top: insets.top + spacing.sm }]}>
+            <PressableScale onPress={() => router.back()} style={styles.glassBtn} hitSlop={6}>
+              <Text style={styles.glassBtnText}>←</Text>
+            </PressableScale>
+            <PressableScale onPress={() => void shareItinerary()} style={styles.glassBtn} hitSlop={6}>
+              <Text style={styles.glassBtnText}>↑</Text>
+            </PressableScale>
           </View>
         </View>
-        <Pressable onPress={() => void shareItinerary()} style={styles.iconBtn}>
-          <Text style={styles.iconBtnText}>↑</Text>
-        </Pressable>
-      </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}>
-        <View style={[styles.summaryBox, { borderLeftColor: meta.color }]}>
-          <Text style={styles.summaryText}>{item.summary}</Text>
+        <View style={styles.content}>
+          <Reveal index={0} style={styles.titleBlock}>
+            <View style={styles.moodPill}>
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <Text style={styles.moodPillText} numberOfLines={1}>{meta.emoji}  {moodLabel}</Text>
+            </View>
+            <GradientText style={styles.title}>{item.city}</GradientText>
+          </Reveal>
+
+          <ItinerarySummary
+            summary={item.summary}
+            stepCount={item.steps.length}
+            timeRange={stepsTimeRange(item.steps)}
+            stepsLabel={t('si_steps_count').replace('{n}', '').trim()}
+            budget={budgetOpt ? { emoji: budgetOpt.emoji, label: t(budgetOpt.labelKey as never) } : undefined}
+          />
+
+          <ItineraryTimeline
+            steps={item.steps}
+            renderActions={(step) => (step.placeId ? (
+              <PressableScale style={styles.placeBtn} onPress={() => navigateToPlace(step)}>
+                <Text style={styles.placeBtnText}>{t('itin_see_place')}  →</Text>
+              </PressableScale>
+            ) : null)}
+          />
+
+          <PressableScale style={[styles.deleteBtn, deleting && { opacity: 0.6 }]} onPress={handleDelete} disabled={deleting}>
+            <Text style={styles.deleteBtnText}>{deleting ? t('sid_deleting') : t('sid_delete_btn')}</Text>
+          </PressableScale>
         </View>
-
-        {item.steps.map((step, i) => (
-          <View key={i} style={styles.step}>
-            <View style={styles.timeline}>
-              <View style={[styles.dot, { backgroundColor: meta.color }]}>
-                <Text style={styles.dotEmoji}>{step.emoji}</Text>
-              </View>
-              {i < item.steps.length - 1 && <View style={[styles.line, { backgroundColor: meta.color + '30' }]} />}
-            </View>
-
-            <View style={styles.stepCard}>
-              {step.placePhoto ? <Image source={{ uri: step.placePhoto }} style={styles.stepPhoto} resizeMode="cover" /> : null}
-              <View style={styles.stepBody}>
-                <View style={styles.stepTopRow}>
-                  <Text style={[styles.stepTime, { color: meta.color }]}>{step.time}</Text>
-                  <Text style={styles.stepDuration}>{step.duration}</Text>
-                </View>
-                <Text style={styles.stepName}>{step.name}</Text>
-                <Text style={styles.stepDesc}>{step.description}</Text>
-                {step.tips ? (
-                  <View style={[styles.tipBox, { borderLeftColor: meta.color }]}>
-                    <Text style={styles.tipText}>💡 {step.tips}</Text>
-                  </View>
-                ) : null}
-                {step.placeId ? (
-                  <Pressable style={[styles.placeBtn, { borderColor: meta.color }]} onPress={() => navigateToPlace(step)}>
-                    <Text style={[styles.placeBtnText, { color: meta.color }]}>{t('itin_see_place')}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        ))}
-
-        <Pressable style={[styles.deleteBtn, deleting && { opacity: 0.6 }]} onPress={handleDelete} disabled={deleting}>
-          <Text style={styles.deleteBtnText}>{deleting ? t('sid_deleting') : t('sid_delete_btn')}</Text>
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -166,38 +176,42 @@ const styles = StyleSheet.create({
   backBtn: { padding: 8 },
   backText: { color: colors.brand, fontWeight: '700' },
 
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 14, gap: spacing.sm },
-  headerBackBtn: { padding: 4 },
-  headerBackText: { fontSize: 22, color: '#fff', fontWeight: '700' },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerEmoji: { fontSize: 26 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
-  headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
-  iconBtnText: { fontSize: 18, color: '#fff', fontWeight: '700' },
+  cover: { backgroundColor: colors.surfaceElevated },
+  coverEmpty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  coverEmoji: { fontSize: 72 },
+  coverBar: {
+    position: 'absolute', left: spacing.md, right: spacing.md,
+    flexDirection: 'row', justifyContent: 'space-between',
+  },
+  glassBtn: {
+    width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(14,14,18,0.6)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  glassBtnText: { fontSize: 18, color: '#fff', fontWeight: '800' },
 
-  summaryBox: { borderLeftWidth: 4, paddingLeft: 14, marginBottom: spacing.lg },
-  summaryText: { fontSize: 15, color: colors.text, lineHeight: 22, fontStyle: 'italic' },
+  // La fiche remonte légèrement sur la photo, bord arrondi.
+  content: {
+    marginTop: -radius.xl, paddingTop: spacing.lg, paddingHorizontal: spacing.md,
+    borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    backgroundColor: colors.background,
+  },
+  titleBlock: { gap: spacing.sm, marginBottom: spacing.lg },
+  moodPill: {
+    alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.pill,
+    paddingVertical: 5, paddingHorizontal: 12,
+  },
+  moodPillText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  title: { fontSize: 32, fontWeight: '900', letterSpacing: -0.8 },
 
-  step: { flexDirection: 'row', gap: 12 },
-  timeline: { alignItems: 'center', width: 44 },
-  dot: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  dotEmoji: { fontSize: 20 },
-  line: { width: 2, flex: 1, minHeight: 20 },
+  placeBtn: {
+    marginTop: 6, borderRadius: radius.pill, paddingVertical: 10, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: `${colors.brand}88`,
+  },
+  placeBtnText: { fontSize: 13, fontWeight: '800', color: colors.brandSoft },
 
-  stepCard: { flex: 1, marginBottom: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  stepPhoto: { width: '100%', height: 120 },
-  stepBody: { padding: 12, gap: 4 },
-  stepTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  stepTime: { fontSize: 12, fontWeight: '700' },
-  stepDuration: { fontSize: 11, color: colors.textMuted, backgroundColor: colors.background, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  stepName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  stepDesc: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
-  tipBox: { borderLeftWidth: 3, paddingLeft: 10, marginTop: 4, backgroundColor: colors.background, paddingVertical: 4, borderRadius: 4 },
-  tipText: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic', lineHeight: 16 },
-  placeBtn: { marginTop: 8, borderWidth: 1.5, borderRadius: radius.md, paddingVertical: 8, alignItems: 'center' },
-  placeBtnText: { fontSize: 13, fontWeight: '700' },
-
-  deleteBtn: { marginTop: spacing.md, alignItems: 'center', paddingVertical: 14, borderRadius: radius.md, borderWidth: 1, borderColor: colors.danger },
-  deleteBtnText: { color: colors.danger, fontWeight: '700', fontSize: 14 },
+  deleteBtn: {
+    marginTop: spacing.sm, alignItems: 'center', paddingVertical: 14, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: `${colors.danger}88`, backgroundColor: colors.surface,
+  },
+  deleteBtnText: { ...typography.body, color: colors.danger, fontWeight: '800', fontSize: 14 },
 });
