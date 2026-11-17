@@ -35,7 +35,8 @@ import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { WeatherSky } from '../../components/weather/WeatherSky';
 import { useWeatherReport } from '../../lib/useWeatherReport';
-import { dayMomentAt, kindEmoji } from '../../lib/services/weather';
+import { dayMomentAt } from '../../lib/services/weather';
+import { WeatherCard } from '../../components/weather/WeatherCard';
 import { GradientText, PressableScale, Reveal } from '../../components/ui';
 import { FeatureTip } from '../../components/FeatureTip';
 
@@ -159,17 +160,10 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
       >
         {/* ── En-tête sur le ciel ─────────────────────────────────────── */}
-        <Animated.View style={[styles.hero, { height: heroTotal, paddingTop: insets.top + spacing.sm }, heroContentStyle]}>
-          {/* Météo du moment, en haut à droite — ouvre l'écran Météo. */}
-          <View style={styles.heroTop}>
-            {current ? (
-              <PressableScale style={styles.weatherChip} onPress={() => go('/weather')}>
-                <Text style={styles.weatherChipEmoji}>{kindEmoji(current.kind, current.isDay)}</Text>
-                <Text style={styles.weatherChipTemp}>{Math.round(current.tempC)}°</Text>
-                {city ? <Text style={styles.weatherChipCity} numberOfLines={1}>{city}</Text> : null}
-              </PressableScale>
-            ) : null}
-          </View>
+        <Animated.View style={[styles.hero, { minHeight: heroTotal, paddingTop: insets.top + spacing.sm }, heroContentStyle]}>
+          {/* Barre météo d'origine, tout en haut (préférée par l'utilisateur
+              à la pastille compacte, 17/11) — ouvre l'écran Météo. */}
+          <WeatherCard lat={coords.lat} lng={coords.lng} />
 
           {/* Logo en grand, au centre. */}
           <View style={styles.logoWrap}>
@@ -307,16 +301,7 @@ const styles = StyleSheet.create({
 
   // En-tête
   hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
-  heroTop: { flexDirection: 'row', justifyContent: 'flex-end', minHeight: 34 },
-  weatherChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '70%',
-    backgroundColor: 'rgba(0,0,0,0.30)', borderColor: 'rgba(255,255,255,0.22)', borderWidth: 1,
-    borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12,
-  },
-  weatherChipEmoji: { fontSize: 16 },
-  weatherChipTemp: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  weatherChipCity: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 13, flexShrink: 1 },
-  logoWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  logoWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md },
   heroBottom: { gap: spacing.sm },
   greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   // flexShrink borne le texte à la largeur restante après le badge, en LTR comme en RTL.
