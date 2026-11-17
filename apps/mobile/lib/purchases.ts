@@ -14,7 +14,7 @@ import Purchases, {
   type CustomerInfo,
 } from 'react-native-purchases';
 import { Linking, Platform } from 'react-native';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { APPLE_MANAGE_SUBSCRIPTIONS_URL, GOOGLE_MANAGE_SUBSCRIPTIONS_URL } from './legal';
 
 const IOS_KEY =
@@ -33,6 +33,11 @@ export function initPurchases(): void {
   if (initialized) return;
   const apiKey = Platform.select({ ios: IOS_KEY, android: ANDROID_KEY, default: '' });
   if (!apiKey) return;
+  // Expo Go : react-native-purchases ≥ 10 refuse une vraie clé (« Invalid API
+  // key… not available inside Expo Go ») et l'erreur remonte à l'ouverture de
+  // l'app. Les achats n'y fonctionnent de toute façon pas : on reste en no-op,
+  // comme sans clé. Les vrais builds (TestFlight, Play) ne sont pas concernés.
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return;
   Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
   Purchases.configure({ apiKey });
   initialized = true;
