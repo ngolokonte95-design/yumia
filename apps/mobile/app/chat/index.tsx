@@ -1,3 +1,10 @@
+/**
+ * Messagerie — liste des conversations.
+ *
+ * Mise en scène (17/11/2026) : fond profond uni, grand titre, avatars à
+ * anneau au dégradé de marque pour les conversations non lues, aperçu clair
+ * du dernier message, apparition en cascade. Logique inchangée.
+ */
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Alert, FlatList, Image, Modal, Pressable,
@@ -6,15 +13,26 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, elevation, radius, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { FeatureTip } from '../../components/FeatureTip';
+import { PressableScale, Reveal } from '../../components/ui';
+import {
+  BrandFill, CHAT_BG, CHAT_GLASS, CHAT_HAIRLINE, GlassCircle, GradientRing, ringInner,
+} from '../../components/chat/ChatChrome';
 
 const API = API_BASE_URL;
+
+/** Diamètre de l'anneau d'avatar d'une conversation. */
+const ROW_RING = 58;
+/** Diamètre de l'anneau d'avatar d'une note. */
+const NOTE_RING = 62;
+/** Au-delà, plus de cascade : ces lignes apparaissent hors écran. */
+const CASCADE_MAX = 10;
 
 interface Conversation {
   id: string;
@@ -47,6 +65,11 @@ function formatAgo(iso: string, t: (key: TranslationKey) => string): string {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}${t('social_time_hour')}`;
   return `${Math.floor(h / 24)}${t('social_time_day')}`;
+}
+
+/** Initiale (ou emoji) affichée quand il n'y a pas de photo. */
+function Initial({ text, size }: { text: string; size: number }) {
+  return <Text style={{ color: '#fff', fontWeight: '800', fontSize: size * 0.38 }}>{text}</Text>;
 }
 
 export default function ChatListScreen() {
@@ -98,14 +121,20 @@ export default function ChatListScreen() {
     void load();
   };
 
+  const noteAvatarSize = ringInner(NOTE_RING);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* ── En-tête : retour en verre, grand titre, nouveau message ──────── */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('ci_title')}</Text>
-        <Pressable onPress={() => router.push('/chat/new' as never)} hitSlop={8}>
-          <Text style={styles.newBtn}>+</Text>
-        </Pressable>
+        <GlassCircle onPress={() => router.back()}>
+          <Text style={styles.headerIcon}>←</Text>
+        </GlassCircle>
+        <Text style={styles.title} numberOfLines={1}>{t('ci_title')}</Text>
+        <PressableScale style={styles.newBtn} onPress={() => router.push('/chat/new' as never)} scaleTo={0.9} hitSlop={8} haptic>
+          <BrandFill />
+          <Text style={styles.newBtnTxt}>+</Text>
+        </PressableScale>
       </View>
 
       {loading ? (
@@ -119,43 +148,47 @@ export default function ChatListScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ marginVertical: 10 }}
-              contentContainerStyle={{ paddingHorizontal: spacing.md, gap: 14 }}
+              style={styles.notesScroll}
+              contentContainerStyle={styles.notesRow}
             >
               {/* Ma note */}
-              <Pressable style={styles.noteItem} onPress={() => { setNoteText(myNote?.text ?? ''); setNoteModal(true); }}>
-                {myNote ? (
-                  <View style={styles.noteBubble}><Text style={styles.noteBubbleTxt} numberOfLines={2}>{myNote.text}</Text></View>
-                ) : (
-                  <View style={styles.noteBubble}><Text style={[styles.noteBubbleTxt, { color: colors.textMuted }]}>{t('ci_your_note_placeholder')}</Text></View>
-                )}
-                {me?.photoUrl ? (
-                  <Image source={{ uri: me.photoUrl }} style={styles.noteAvatar} />
-                ) : (
-                  <View style={[styles.noteAvatar, styles.noteAvatarFallback]}>
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>{(me?.displayName ?? 'M')[0]}</Text>
-                  </View>
-                )}
+              <PressableScale style={styles.noteItem} onPress={() => { setNoteText(myNote?.text ?? ''); setNoteModal(true); }}>
+                <View style={styles.noteBubble}>
+                  <Text style={[styles.noteBubbleTxt, !myNote && { color: colors.textMuted }]} numberOfLines={2}>
+                    {myNote ? myNote.text : t('ci_your_note_placeholder')}
+                  </Text>
+                </View>
+                <GradientRing size={NOTE_RING} active={!!myNote}>
+                  {me?.photoUrl ? (
+                    <Image source={{ uri: me.photoUrl }} style={{ width: noteAvatarSize, height: noteAvatarSize, borderRadius: noteAvatarSize / 2 }} />
+                  ) : (
+                    <View style={[styles.noteFallback, { width: noteAvatarSize, height: noteAvatarSize, borderRadius: noteAvatarSize / 2 }]}>
+                      <Initial text={(me?.displayName ?? 'M')[0]} size={noteAvatarSize} />
+                    </View>
+                  )}
+                </GradientRing>
                 <Text style={styles.noteName} numberOfLines={1}>{t('ci_your_note')}</Text>
-              </Pressable>
+              </PressableScale>
 
               {/* Notes des gens que je suis */}
               {otherNotes.map((n) => (
-                <Pressable key={n.id} style={styles.noteItem} onPress={() => n.user && router.push(`/user/${n.user.id}` as never)}>
+                <PressableScale key={n.id} style={styles.noteItem} onPress={() => n.user && router.push(`/user/${n.user.id}` as never)}>
                   <View style={styles.noteBubble}><Text style={styles.noteBubbleTxt} numberOfLines={2}>{n.text}</Text></View>
-                  {n.user?.photoUrl ? (
-                    <Image source={{ uri: n.user.photoUrl }} style={styles.noteAvatar} />
-                  ) : (
-                    <View style={[styles.noteAvatar, styles.noteAvatarFallback]}>
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>{n.user?.displayName?.[0] ?? '?'}</Text>
-                    </View>
-                  )}
+                  <GradientRing size={NOTE_RING} active>
+                    {n.user?.photoUrl ? (
+                      <Image source={{ uri: n.user.photoUrl }} style={{ width: noteAvatarSize, height: noteAvatarSize, borderRadius: noteAvatarSize / 2 }} />
+                    ) : (
+                      <View style={[styles.noteFallback, { width: noteAvatarSize, height: noteAvatarSize, borderRadius: noteAvatarSize / 2 }]}>
+                        <Initial text={n.user?.displayName?.[0] ?? '?'} size={noteAvatarSize} />
+                      </View>
+                    )}
+                  </GradientRing>
                   <Text style={styles.noteName} numberOfLines={1}>{n.user?.displayName?.split(' ')[0]}</Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </ScrollView>
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const isGroup = item.isGroup;
             const name = isGroup ? (item.title ?? t('ci_group_default')) : (item.otherUser?.displayName ?? t('ci_unknown'));
             const photo = isGroup ? item.photoUrl : item.otherUser?.photoUrl;
@@ -175,46 +208,51 @@ export default function ChatListScreen() {
                 : last.callStatus === 'declined' ? t('ci_call_declined')
                 : t('ci_call_answered')
               : last?.content ?? t('ci_new_conversation');
-            return (
-              <Pressable style={styles.convRow} onPress={() => router.push(`/chat/${item.id}`)}>
-                <View>
+            const avatarSize = ringInner(ROW_RING);
+
+            const row = (
+              <PressableScale style={[styles.convRow, isUnread && styles.convRowUnread]} onPress={() => router.push(`/chat/${item.id}`)} scaleTo={0.98}>
+                <GradientRing size={ROW_RING} active={isUnread}>
                   <Avatar
                     uri={photo}
-                    size={52}
-                    placeholderColor={colors.brand}
-                    fallback={
-                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>
-                        {isGroup ? '👥' : name[0]}
-                      </Text>
-                    }
+                    size={avatarSize}
+                    placeholderColor={colors.surfaceElevated}
+                    fallback={<Initial text={isGroup ? '👥' : name[0]} size={avatarSize} />}
                   />
-                  {isUnread && <View style={styles.unreadDot} />}
-                </View>
+                </GradientRing>
                 <View style={styles.convBody}>
                   <View style={styles.convTop}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 }}>
-                      <Text style={[styles.convName, isUnread && styles.convNameUnread]}>
+                    <View style={styles.convNameRow}>
+                      <Text style={[styles.convName, isUnread && styles.convNameUnread]} numberOfLines={1}>
                         {name}{isGroup && item.participantsCount ? `  ·  ${item.participantsCount}` : ''}
                       </Text>
-                      {!isGroup && <PlanBadgeIcon plan={item.otherUser?.plan} size={32} />}
+                      {!isGroup && <PlanBadgeIcon plan={item.otherUser?.plan} size={26} />}
                     </View>
                     <Text style={[styles.convTime, isUnread && styles.convTimeUnread]}>{formatAgo(item.updatedAt, t)}</Text>
                   </View>
-                  <Text style={[styles.convLast, isUnread && styles.convLastUnread]} numberOfLines={1}>
-                    {previewText}
-                  </Text>
+                  <View style={styles.convBottom}>
+                    <Text style={[styles.convLast, isUnread && styles.convLastUnread]} numberOfLines={1}>
+                      {previewText}
+                    </Text>
+                    {isUnread ? (
+                      <View style={styles.unreadDot}><BrandFill /></View>
+                    ) : null}
+                  </View>
                 </View>
-              </Pressable>
+              </PressableScale>
             );
+            return index < CASCADE_MAX ? <Reveal index={index} from="fade">{row}</Reveal> : row;
           }}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+          contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingBottom: insets.bottom + 80 }}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💬</Text>
+            <Reveal style={styles.empty}>
+              <View style={styles.emptyMedal}>
+                <BrandFill />
+                <Text style={styles.emptyEmoji}>💬</Text>
+              </View>
               <Text style={styles.emptyTitle}>{t('ci_empty_title')}</Text>
               <Text style={styles.emptyText}>{t('ci_empty_text')}</Text>
-            </View>
+            </Reveal>
           }
         />
       )}
@@ -223,6 +261,7 @@ export default function ChatListScreen() {
       <Modal visible={noteModal} transparent animationType="slide" onRequestClose={() => setNoteModal(false)}>
         <Pressable style={styles.noteOverlay} onPress={() => setNoteModal(false)}>
           <Pressable style={styles.noteSheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.noteSheetTitle}>{t('ci_note_title')}</Text>
             <TextInput
               style={styles.noteInput}
@@ -236,13 +275,14 @@ export default function ChatListScreen() {
             <Text style={styles.noteCount}>{noteText.length}/60</Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {myNote ? (
-                <Pressable style={styles.noteDeleteBtn} onPress={() => { setNoteText(''); void saveNote(); }}>
-                  <Text style={{ color: colors.danger, fontWeight: '700' }}>{t('ci_delete')}</Text>
-                </Pressable>
+                <PressableScale style={styles.noteDeleteBtn} onPress={() => { setNoteText(''); void saveNote(); }}>
+                  <Text style={{ color: colors.danger, fontWeight: '800' }}>{t('ci_delete')}</Text>
+                </PressableScale>
               ) : null}
-              <Pressable style={styles.noteSaveBtn} onPress={() => void saveNote()}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{t('ci_share')}</Text>
-              </Pressable>
+              <PressableScale style={styles.noteSaveBtn} onPress={() => void saveNote()} haptic>
+                <BrandFill />
+                <Text style={{ color: '#fff', fontWeight: '800' }}>{t('ci_share')}</Text>
+              </PressableScale>
             </View>
           </Pressable>
         </Pressable>
@@ -253,49 +293,83 @@ export default function ChatListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: CHAT_BG },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text },
-  newBtn: { fontSize: 26, color: colors.brand, fontWeight: '300' },
-  convRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: 12 },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
-  convBody: { flex: 1 },
-  convTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  convName: { fontWeight: '700', color: colors.text, fontSize: 15 },
-  convNameUnread: { color: colors.text }, // déjà en gras — la pastille + le texte ci-dessous suffisent à distinguer
-  convTime: { fontSize: 12, color: colors.textMuted },
-  convTimeUnread: { color: colors.brand, fontWeight: '700' },
-  convLast: { fontSize: 14, color: colors.textMuted },
-  convLastUnread: { color: colors.text, fontWeight: '600' },
-  // Petit repère plein sur l'avatar — façon Snapchat/WhatsApp — plutôt qu'un
-  // simple changement de graisse du texte, facile à manquer d'un coup d'œil
-  // dans une longue liste de conversations.
-  unreadDot: {
-    position: 'absolute', top: 0, right: 0, width: 14, height: 14, borderRadius: 7,
-    backgroundColor: colors.brand, borderWidth: 2, borderColor: colors.background,
+
+  // En-tête
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs,
   },
-  separator: { height: 1, backgroundColor: colors.border, marginLeft: 76 },
-  empty: { alignItems: 'center', paddingTop: 80 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { ...typography.h3, color: colors.text, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: colors.textMuted },
+  headerIcon: { fontSize: 20, color: '#fff', fontWeight: '700' },
+  title: { flex: 1, color: colors.textPrimary, fontSize: 30, fontWeight: '900', letterSpacing: -0.8 },
+  newBtn: {
+    width: 42, height: 42, borderRadius: 21, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', ...elevation.glowBrand,
+  },
+  newBtnTxt: { color: '#fff', fontSize: 26, fontWeight: '400', marginTop: -2 },
+
   // Notes
-  noteItem: { alignItems: 'center', width: 76 },
+  notesScroll: { marginTop: spacing.sm, marginBottom: spacing.sm },
+  notesRow: { paddingHorizontal: spacing.sm, gap: 14 },
+  noteItem: { alignItems: 'center', width: 80 },
   noteBubble: {
-    backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 8, paddingVertical: 6, marginBottom: -6, zIndex: 2, maxWidth: 82, minHeight: 32,
+    backgroundColor: CHAT_GLASS, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: 8, paddingVertical: 6, marginBottom: -8, zIndex: 2, maxWidth: 86, minHeight: 32,
+    justifyContent: 'center',
   },
-  noteBubbleTxt: { fontSize: 10, color: colors.text, textAlign: 'center' },
-  noteAvatar: { width: 56, height: 56, borderRadius: 28 },
-  noteAvatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  noteName: { fontSize: 11, color: colors.textMuted, marginTop: 4, textAlign: 'center' },
-  noteOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  noteSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: 40, gap: 10 },
-  noteSheetTitle: { color: colors.text, fontWeight: '800', fontSize: 16 },
-  noteInput: { backgroundColor: colors.background, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
+  noteBubbleTxt: { fontSize: 10.5, color: colors.textPrimary, textAlign: 'center', fontWeight: '600' },
+  noteFallback: { backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  noteName: { fontSize: 11, color: colors.textSecondary, marginTop: 6, textAlign: 'center', fontWeight: '600' },
+
+  // Conversations
+  convRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: spacing.sm, paddingVertical: 10, borderRadius: radius.lg,
+  },
+  // Non lu : un léger verre derrière la ligne, en plus de l'anneau.
+  convRowUnread: { backgroundColor: 'rgba(255,255,255,0.035)' },
+  convBody: { flex: 1, minWidth: 0 },
+  convTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3, gap: 8 },
+  convNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  convName: { fontWeight: '700', color: colors.textPrimary, fontSize: 16, flexShrink: 1 },
+  convNameUnread: { fontWeight: '900' },
+  convTime: { fontSize: 12, color: colors.textMuted },
+  convTimeUnread: { color: colors.brandSoft, fontWeight: '800' },
+  convBottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  convLast: { flex: 1, fontSize: 14, color: colors.textMuted },
+  convLastUnread: { color: colors.textPrimary, fontWeight: '700' },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, overflow: 'hidden' },
+
+  // Vide
+  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: spacing.xl, gap: 8 },
+  emptyMedal: {
+    width: 84, height: 84, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    marginBottom: spacing.sm, ...elevation.glowBrand,
+  },
+  emptyEmoji: { fontSize: 40 },
+  emptyTitle: { fontSize: 20, fontWeight: '900', color: colors.textPrimary, textAlign: 'center' },
+  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
+
+  // Feuille « ma note »
+  noteOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  noteSheet: {
+    backgroundColor: colors.surfaceElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    padding: spacing.lg, paddingBottom: 40, gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
+  },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.brand, marginBottom: 4 },
+  noteSheetTitle: { color: colors.textPrimary, fontWeight: '900', fontSize: 18 },
+  noteInput: {
+    backgroundColor: CHAT_BG, borderRadius: radius.lg, padding: 14, color: colors.textPrimary, fontSize: 15,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
+  },
   noteCount: { fontSize: 11, color: colors.textMuted, textAlign: 'right' },
-  noteDeleteBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
-  noteSaveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: radius.lg, backgroundColor: colors.brand },
+  noteDeleteBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: radius.pill,
+    borderWidth: 1, borderColor: 'rgba(229,72,77,0.5)',
+  },
+  noteSaveBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: radius.pill, overflow: 'hidden',
+  },
 });

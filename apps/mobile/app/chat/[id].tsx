@@ -11,9 +11,13 @@ import {
 } from 'expo-audio';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../../lib/auth-context';
 import { encryptMessage, decryptMessage, getLocalPublicKey, isE2EAvailable } from '../../lib/e2e-crypto';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, elevation, motion, radius, spacing } from '../../theme/tokens';
+import {
+  BrandFill, CHAT_BG, CHAT_GLASS, CHAT_HAIRLINE, DatePill, GlassCircle, GradientRing, ringInner,
+} from '../../components/chat/ChatChrome';
 import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
@@ -32,6 +36,17 @@ import { promptReport } from '../../lib/report-content';
 
 const API = API_BASE_URL;
 const POLL_INTERVAL = 2000;
+
+/** Fond (uni) de l'en-tête et de la barre de saisie : verre sombre opaque. */
+const HEADER_BG = '#101016';
+/** Anneau de l'avatar de l'interlocuteur dans l'en-tête. */
+const HEADER_RING = 42;
+/**
+ * Fenêtre pendant laquelle un message qui arrive en bas de liste fait une
+ * entrée discrète (glissé + fondu). Seul le DERNIER message est concerné :
+ * l'historique, lui, s'affiche d'un bloc, sans animation par bulle.
+ */
+const FRESH_MS = 8000;
 
 // Mappe la locale interne YUMIA vers un tag Intl pour le formatage date/heure.
 const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
@@ -93,7 +108,8 @@ function VoiceBubble({ audioUrl, duration, isMe, onLongPress }: { audioUrl: stri
   const progress = total > 0 ? pos / total : 0;
 
   return (
-    <Pressable onPress={toggle} onLongPress={onLongPress} style={[styles.voiceBubble, isMe && styles.voiceBubbleMe]}>
+    <Pressable onPress={toggle} onLongPress={onLongPress} style={[styles.voiceBubble, isMe ? styles.voiceBubbleMe : styles.voiceBubbleOther]}>
+      {isMe ? <BrandFill /> : null}
       <Text style={[styles.voicePlayIcon, isMe && { color: '#fff' }]}>{playing ? '⏸' : '▶'}</Text>
       <View style={styles.voiceWave}>
         <View style={[styles.voiceTrack, { backgroundColor: isMe ? 'rgba(255,255,255,0.25)' : colors.border }]}>
@@ -153,6 +169,7 @@ function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => 
       </View>
       {isMissed && (
         <Pressable style={styles.callbackBtn} onPress={onCallback}>
+          <BrandFill />
           <Text style={styles.callbackBtnTxt}>{t('chat_callback')}</Text>
         </Pressable>
       )}
@@ -664,46 +681,50 @@ export default function ChatRoomScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* En-tête en verre : retour, interlocuteur (anneau de marque), appels. */}
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+        <GlassCircle onPress={() => router.back()} size={38}>
           <Text style={styles.backTxt}>←</Text>
-        </Pressable>
+        </GlassCircle>
 
         <Pressable style={styles.partnerInfo} onPress={() => partner && router.push(`/user/${partner.id}` as never)}>
-          <Avatar
-            uri={partner?.photoUrl}
-            size={38}
-            placeholderColor={colors.brand}
-            fallback={
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
-                {(partner?.displayName ?? '?')[0].toUpperCase()}
-              </Text>
-            }
-          />
-          <View>
+          <GradientRing size={HEADER_RING} active ring={2} background={HEADER_BG}>
+            <Avatar
+              uri={partner?.photoUrl}
+              size={ringInner(HEADER_RING, 2, 1.5)}
+              placeholderColor={colors.surfaceElevated}
+              fallback={
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>
+                  {(partner?.displayName ?? '?')[0].toUpperCase()}
+                </Text>
+              }
+            />
+          </GradientRing>
+          <View style={{ flexShrink: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={styles.partnerName}>{partner?.displayName ?? '...'}</Text>
-              <PlanBadgeIcon plan={partner?.plan} size={28} />
+              <Text style={styles.partnerName} numberOfLines={1}>{partner?.displayName ?? '...'}</Text>
+              <PlanBadgeIcon plan={partner?.plan} size={24} />
             </View>
             {e2eActive && <Text style={styles.encLabel}>{t('chat_encrypted_badge')}</Text>}
           </View>
         </Pressable>
 
         <View style={styles.headerActions}>
-          <Pressable style={styles.headerActionBtn} onPress={() => startCall('voice')}>
+          <GlassCircle onPress={() => startCall('voice')} size={38}>
             <Text style={styles.headerActionIcon}>📞</Text>
-          </Pressable>
-          <Pressable style={styles.headerActionBtn} onPress={() => startCall('video')}>
+          </GlassCircle>
+          <GlassCircle onPress={() => startCall('video')} size={38}>
             <Text style={styles.headerActionIcon}>📹</Text>
-          </Pressable>
-          {/* Messages éphémères — actif = sablier plein, sinon barré. */}
-          <Pressable
-            style={styles.headerActionBtn}
+          </GlassCircle>
+          {/* Messages éphémères — actif = sablier plein sur pastille de marque. */}
+          <GlassCircle
             onPress={() => setShowEphemeral(true)}
+            size={38}
+            active={!!ephemeralTtl}
             accessibilityLabel={t('chat_ephemeral_title')}
           >
             <Text style={styles.headerActionIcon}>{ephemeralTtl ? '⏳' : '⌛'}</Text>
-          </Pressable>
+          </GlassCircle>
         </View>
       </View>
 
@@ -739,21 +760,27 @@ export default function ChatRoomScreen() {
             const isCall = item.type === 'call';
             const isEnc = item.type === 'encrypted';
             const translation = translations.get(item.id);
+            // Entrée discrète réservée au message qui vient d'arriver en bas
+            // de liste (envoyé ou reçu) : jamais sur l'historique, pour qu'une
+            // longue conversation s'ouvre et défile sans saccade.
+            const fresh = index === messages.length - 1
+              && Date.now() - new Date(item.createdAt).getTime() < FRESH_MS;
+            const entering = fresh ? FadeInDown.duration(motion.duration.fast) : undefined;
 
             return (
               <>
                 {showDate && (
-                  <Text style={styles.dateSep}>
-                    {new Date(item.createdAt).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
-                  </Text>
+                  <DatePill
+                    label={new Date(item.createdAt).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
+                  />
                 )}
                 {isCall ? (
-                  <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
+                  <Animated.View entering={entering} style={[styles.msgRow, isMe && styles.msgRowMe]}>
                     {isMe && <View style={styles.meBar} />}
                     <CallEventBubble msg={item} onCallback={callback} />
-                  </View>
+                  </Animated.View>
                 ) : (
-                  <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
+                  <Animated.View entering={entering} style={[styles.msgRow, isMe && styles.msgRowMe]}>
                     {isAudio ? (
                       <VoiceBubble
                         audioUrl={(item.audioUrl ?? item.mediaUrl)!}
@@ -776,6 +803,8 @@ export default function ChatRoomScreen() {
                         onLongPress={() => setActionMsg(item)}
                         style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}
                       >
+                        {/* Mes bulles : dégradé de marque ; les siennes : verre sombre. */}
+                        {isMe ? <BrandFill /> : null}
                         {/* Message cité (réponse) */}
                         {item.replyTo ? (
                           <View style={[styles.quoteBox, isMe && styles.quoteBoxMe]}>
@@ -842,7 +871,7 @@ export default function ChatRoomScreen() {
                         )}
                       </Pressable>
                     )}
-                  </View>
+                  </Animated.View>
                 )}
               </>
             );
@@ -863,6 +892,7 @@ export default function ChatRoomScreen() {
             </View>
             {/* Arrête l'enregistrement et passe en écoute avant envoi (pas d'envoi direct). */}
             <Pressable style={styles.voiceSendBtn} onPress={() => void stopVoiceToPreview()}>
+              <BrandFill />
               <Text style={{ fontSize: 20, color: '#fff' }}>⏹</Text>
             </Pressable>
           </View>
@@ -878,6 +908,7 @@ export default function ChatRoomScreen() {
               <Text style={styles.voiceRecLabel}>{previewPlaying ? t('chat_playing_label') : t('chat_listen_label')}</Text>
             </Pressable>
             <Pressable style={styles.voiceSendBtn} onPress={() => void confirmSendVoice()} disabled={sending}>
+              <BrandFill />
               {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: 22, color: '#fff' }}>↑</Text>}
             </Pressable>
           </View>
@@ -940,6 +971,7 @@ export default function ChatRoomScreen() {
             </View>
             {input.trim() ? (
               <Pressable style={[styles.sendBtn, sending && styles.sendBtnDisabled]} onPress={send}>
+                <BrandFill />
                 <Text style={styles.sendIcon}>↑</Text>
               </Pressable>
             ) : (
@@ -1125,40 +1157,43 @@ export default function ChatRoomScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: CHAT_BG },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10,
+    paddingHorizontal: spacing.md, paddingVertical: 10, gap: 10,
+    backgroundColor: HEADER_BG,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: CHAT_HAIRLINE,
   },
-  backBtn: { padding: 4 },
-  backTxt: { fontSize: 22, color: colors.brand },
-  partnerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backTxt: { fontSize: 19, color: '#fff', fontWeight: '700' },
+  partnerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
   headerAvatar: { width: 38, height: 38, borderRadius: 19 },
   headerAvatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  partnerName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  encLabel: { fontSize: 11, color: colors.brand, fontWeight: '600', marginTop: 1 },
-  headerActions: { flexDirection: 'row', gap: 4 },
-  headerActionBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderRadius: 20 },
-  headerActionIcon: { fontSize: 20 },
+  partnerName: { fontSize: 17, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.3, flexShrink: 1 },
+  encLabel: { fontSize: 11, color: colors.brandSoft, fontWeight: '700', marginTop: 1 },
+  headerActions: { flexDirection: 'row', gap: 6 },
+  headerActionIcon: { fontSize: 17 },
 
   // Messages
-  messageList: { padding: spacing.md },
-  dateSep: { textAlign: 'center', fontSize: 11, color: colors.textMuted, marginVertical: 14, fontWeight: '700', letterSpacing: 0.5 },
+  messageList: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   msgRow: { flexDirection: 'row', marginBottom: 6, alignItems: 'flex-end' },
   msgRowMe: { justifyContent: 'flex-end' },
   meBar: { width: 3, borderRadius: 2, backgroundColor: colors.brand, marginRight: 8, alignSelf: 'stretch' },
-  bubble: { maxWidth: '75%', borderRadius: radius.lg, padding: 10, paddingHorizontal: 14 },
-  bubbleMe: { backgroundColor: colors.brand },
-  bubbleOther: { backgroundColor: colors.surface },
-  bubbleTxt: { fontSize: 15, color: colors.text, lineHeight: 20 },
+  // Coin « queue » côté expéditeur ; start/end suivent le sens de lecture
+  // (RTL inclus). overflow hidden : le dégradé épouse les coins.
+  bubble: { maxWidth: '76%', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 14, overflow: 'hidden' },
+  bubbleMe: { backgroundColor: colors.brand, borderBottomEndRadius: 6 },
+  bubbleOther: {
+    backgroundColor: CHAT_GLASS, borderBottomStartRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
+  },
+  bubbleTxt: { fontSize: 15.5, color: colors.textPrimary, lineHeight: 21 },
   bubbleTxtMe: { color: '#fff' },
   bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 },
   encIcon: { fontSize: 10, color: 'rgba(255,255,255,0.4)' },
   bubbleTime: { fontSize: 10, color: colors.textMuted },
-  bubbleTimeMe: { color: 'rgba(255,255,255,0.65)' },
+  bubbleTimeMe: { color: 'rgba(255,255,255,0.75)' },
 
   // Traduction à la demande
   translationBox: { marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)' },
@@ -1168,7 +1203,10 @@ const styles = StyleSheet.create({
   translationTxtMe: { color: 'rgba(255,255,255,0.92)' },
 
   // Bulle média (photo / vidéo)
-  mediaBubble: { width: 220, height: 260, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceElevated, position: 'relative' },
+  mediaBubble: {
+    width: 224, height: 270, borderRadius: 20, overflow: 'hidden', backgroundColor: colors.surfaceElevated, position: 'relative',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
+  },
   mediaContent: { width: '100%', height: '100%' },
   mediaPlayOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -1176,49 +1214,60 @@ const styles = StyleSheet.create({
   },
 
   // Call event
-  callEvent: { maxWidth: '85%', borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 4 },
+  callEvent: {
+    maxWidth: '85%', borderRadius: 20, backgroundColor: CHAT_GLASS, overflow: 'hidden', marginBottom: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
   callEventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
-  callIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  callIconBox: { width: 40, height: 40, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
   callIconBoxMissed: { backgroundColor: 'rgba(229,72,77,0.12)' },
   missedArrow: { position: 'absolute', bottom: 2, right: 2 },
-  callEventLabel: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
+  callEventLabel: { fontSize: 14, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
   callEventLabelMissed: { color: '#E5484D' },
   callEventTime: { fontSize: 12, color: colors.textMuted },
-  callbackBtn: { marginHorizontal: 12, marginBottom: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, paddingVertical: 10, alignItems: 'center' },
-  callbackBtnTxt: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  callbackBtn: { marginHorizontal: 12, marginBottom: 12, borderRadius: radius.pill, paddingVertical: 10, alignItems: 'center', overflow: 'hidden' },
+  callbackBtnTxt: { fontWeight: '800', color: '#fff', fontSize: 14 },
 
   // Input — style Apple : pill translucide, boutons circulaires flottants
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: spacing.md, paddingTop: 10, backgroundColor: colors.background },
+  inputRow: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: spacing.md, paddingTop: 10,
+    backgroundColor: HEADER_BG, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CHAT_HAIRLINE,
+  },
   inputIconBtn: {
-    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.surface, marginBottom: 4,
+    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CHAT_GLASS, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', marginBottom: 3,
   },
   inputPill: {
     flex: 1, flexDirection: 'row', alignItems: 'flex-end',
-    backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: CHAT_BG, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
     paddingLeft: 16, paddingRight: 6, minHeight: 44,
   },
-  input: { flex: 1, color: colors.text, fontSize: 16, maxHeight: 110, paddingVertical: 11 },
+  input: { flex: 1, color: colors.textPrimary, fontSize: 16, maxHeight: 110, paddingVertical: 11 },
   emojiToggleBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   sendBtn: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: colors.brand,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
-    shadowColor: colors.brand, shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    width: 38, height: 38, borderRadius: 19, backgroundColor: colors.brand, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 3,
   },
   sendBtnDisabled: { opacity: 0.4 },
-  sendIcon: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  sendIcon: { color: '#fff', fontSize: 19, fontWeight: '900' },
   micBtn: {
-    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.surface, marginBottom: 4,
+    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CHAT_GLASS, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', marginBottom: 3,
   },
 
   // Feuille "+" pièces jointes
-  attachSheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, width: '82%', gap: 4 },
-  attachTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, textAlign: 'center', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.4 },
+  attachSheet: {
+    backgroundColor: colors.surfaceElevated, borderRadius: radius.xl, padding: spacing.md, width: '84%', gap: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE, ...elevation.high,
+  },
+  attachTitle: { fontSize: 12, fontWeight: '800', color: colors.textSecondary, textAlign: 'center', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1.6 },
   attachRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 6 },
-  attachIconBox: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
-  attachRowTxt: { fontSize: 15, fontWeight: '600', color: colors.text },
-  attachCancelBtn: { marginTop: 8, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
+  attachIconBox: {
+    width: 42, height: 42, borderRadius: 14, backgroundColor: CHAT_BG, alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  attachRowTxt: { fontSize: 15.5, fontWeight: '700', color: colors.textPrimary },
+  attachCancelBtn: { marginTop: 8, paddingVertical: 12, alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CHAT_HAIRLINE },
   attachCancelTxt: { fontSize: 15, fontWeight: '700', color: colors.danger },
 
   // Choix de langue de traduction
@@ -1227,24 +1276,37 @@ const styles = StyleSheet.create({
     width: '31%', aspectRatio: 1.3, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 4,
   },
-  langTileActive: { borderColor: colors.brand, backgroundColor: `${colors.brand}14` },
+  langTileActive: { borderColor: colors.brand, backgroundColor: `${colors.brand}22` },
   langTileLabel: { fontSize: 11, fontWeight: '600', color: colors.text, textAlign: 'center' },
 
   // Voice bar
-  voiceBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background },
-  voiceCancelBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  voiceBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CHAT_HAIRLINE, backgroundColor: HEADER_BG,
+  },
+  voiceCancelBtn: {
+    width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CHAT_GLASS, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
+  },
   voiceCancelTxt: { fontSize: 20, color: colors.textMuted },
   voiceIndicator: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   voiceRecDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FF3040' },
-  voiceRecTime: { fontSize: 16, fontWeight: '700', color: colors.text },
+  voiceRecTime: { fontSize: 17, fontWeight: '900', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
   voiceRecLabel: { fontSize: 13, color: colors.textMuted },
-  voiceSendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  voiceSendBtn: {
+    width: 46, height: 46, borderRadius: 23, backgroundColor: colors.brand, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   // Réponse / citation
-  replyBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.md, marginTop: 6, backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 7, borderLeftWidth: 3, borderLeftColor: colors.brand },
+  replyBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.md, marginTop: 6,
+    backgroundColor: CHAT_GLASS, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 8,
+    borderStartWidth: 3, borderStartColor: colors.brand,
+  },
   replyBannerTxt: { flex: 1, fontSize: 12, color: colors.textMuted },
-  quoteBox: { backgroundColor: 'rgba(0,0,0,0.15)', borderLeftWidth: 3, borderLeftColor: colors.brand, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 6 },
-  quoteBoxMe: { backgroundColor: 'rgba(255,255,255,0.15)', borderLeftColor: '#fff' },
+  quoteBox: { backgroundColor: 'rgba(0,0,0,0.22)', borderStartWidth: 3, borderStartColor: colors.brand, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 6 },
+  quoteBoxMe: { backgroundColor: 'rgba(0,0,0,0.18)', borderStartColor: '#fff' },
   quoteTxt: { fontSize: 12, color: colors.textMuted },
   // Story reply / post partagé
   storyReplyLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 4, fontStyle: 'italic' },
@@ -1254,23 +1316,36 @@ const styles = StyleSheet.create({
   sharedPostCaption: { fontSize: 12, color: colors.text, padding: 8 },
   // Réactions
   reactionsRow: { flexDirection: 'row', gap: 4, marginTop: 6, alignSelf: 'flex-end' },
-  reactionChip: { backgroundColor: colors.surfaceElevated, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, fontSize: 12, color: colors.text, overflow: 'hidden' },
-  actionOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  actionSheet: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, width: '80%', gap: 10 },
-  ephemeralBanner: {
-    backgroundColor: colors.surface, paddingVertical: 6, alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+  reactionChip: {
+    backgroundColor: 'rgba(14,14,18,0.7)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, fontSize: 12,
+    color: colors.textPrimary, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
   },
-  ephemeralBannerTxt: { color: colors.textSecondary, fontSize: 12 },
+  actionOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.62)', alignItems: 'center', justifyContent: 'center' },
+  actionSheet: {
+    backgroundColor: colors.surfaceElevated, borderRadius: radius.xl, padding: spacing.md, width: '82%', gap: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE, ...elevation.high,
+  },
+  ephemeralBanner: {
+    backgroundColor: HEADER_BG, paddingVertical: 6, alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: CHAT_HAIRLINE,
+  },
+  ephemeralBannerTxt: { color: colors.brandSoft, fontSize: 12, fontWeight: '700' },
   ephemeralHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   reactionPicker: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6 },
   reactionPickerEmoji: { fontSize: 30 },
-  actionRow: { paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
-  actionRowTxt: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  actionRow: { paddingVertical: 12, alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: CHAT_HAIRLINE },
+  actionRowTxt: { color: colors.textPrimary, fontWeight: '800', fontSize: 15 },
   // Voice bubble
-  voiceBubble: { flexDirection: 'row', alignItems: 'center', gap: 10, maxWidth: '75%', borderRadius: radius.lg, padding: 10, paddingHorizontal: 14, backgroundColor: colors.surface },
-  voiceBubbleMe: { backgroundColor: colors.brand },
-  voicePlayIcon: { fontSize: 20, color: colors.brand, width: 24, textAlign: 'center' },
+  voiceBubble: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, width: 230, maxWidth: '76%', borderRadius: 20,
+    paddingVertical: 10, paddingHorizontal: 14, overflow: 'hidden',
+  },
+  voiceBubbleMe: { backgroundColor: colors.brand, borderBottomEndRadius: 6 },
+  voiceBubbleOther: {
+    backgroundColor: CHAT_GLASS, borderBottomStartRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
+  },
+  voicePlayIcon: { fontSize: 20, color: colors.brandSoft, width: 24, textAlign: 'center' },
   voiceWave: { flex: 1 },
   voiceTrack: { height: 4, borderRadius: 2, overflow: 'hidden' },
   voiceFill: { height: '100%', borderRadius: 2 },

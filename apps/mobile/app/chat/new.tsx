@@ -4,17 +4,24 @@
  * Ouvert par le « + » de la messagerie. Liste les personnes que je suis et
  * celles qui me suivent (dédoublonnées), filtrables par nom ; toucher une
  * personne ouvre la conversation existante avec elle, ou la crée.
+ *
+ * Mise en scène (17/11/2026) : même habillage que la messagerie — fond
+ * profond uni, grand titre, recherche en verre, lignes en cascade.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, elevation, radius, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import type { Plan } from '../../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { useI18n } from '../../lib/useI18n';
+import { PressableScale, Reveal } from '../../components/ui';
+import {
+  BrandFill, CHAT_BG, CHAT_GLASS, CHAT_HAIRLINE, GlassCircle, GradientRing, ringInner,
+} from '../../components/chat/ChatChrome';
 
 const API = API_BASE_URL;
 
@@ -93,11 +100,10 @@ export default function NewMessageScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('newmsg_title')}</Text>
-        <View style={{ width: 24 }} />
+        <GlassCircle onPress={() => router.back()}>
+          <Text style={styles.headerIcon}>←</Text>
+        </GlassCircle>
+        <Text style={styles.title} numberOfLines={1}>{t('newmsg_title')}</Text>
       </View>
 
       <View style={styles.searchBox}>
@@ -118,68 +124,90 @@ export default function NewMessageScreen() {
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
       ) : shown.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>💬</Text>
+        <Reveal style={styles.center}>
+          <View style={styles.emptyMedal}>
+            <BrandFill />
+            <Text style={styles.emptyEmoji}>💬</Text>
+          </View>
           <Text style={styles.emptyText}>
             {people.length === 0 ? t('newmsg_empty') : t('newmsg_no_match')}
           </Text>
-        </View>
+        </Reveal>
       ) : (
         <FlatList
           data={shown}
           keyExtractor={(p) => p.id}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
-          renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => void openConversation(item.id)}>
-              <Avatar
-                uri={item.photoUrl}
-                size={48}
-                placeholderColor={colors.brand}
-                fallback={<Text style={styles.avatarLetter}>{item.displayName[0]}</Text>}
-              />
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={styles.name} numberOfLines={1}>{item.displayName}</Text>
-                  <PlanBadgeIcon plan={item.plan} size={32} />
+          contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingBottom: insets.bottom + spacing.xl }}
+          renderItem={({ item, index }) => {
+            const row = (
+              <PressableScale style={styles.row} onPress={() => void openConversation(item.id)} scaleTo={0.98}>
+                <GradientRing size={RING} active={false}>
+                  <Avatar
+                    uri={item.photoUrl}
+                    size={ringInner(RING)}
+                    placeholderColor={colors.surfaceElevated}
+                    fallback={<Text style={styles.avatarLetter}>{item.displayName[0]}</Text>}
+                  />
+                </GradientRing>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={styles.name} numberOfLines={1}>{item.displayName}</Text>
+                    <PlanBadgeIcon plan={item.plan} size={26} />
+                  </View>
+                  {item.bio ? <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text> : null}
                 </View>
-                {item.bio ? <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text> : null}
-              </View>
-              {openingId === item.id ? <ActivityIndicator color={colors.brand} /> : <Text style={styles.chevron}>›</Text>}
-            </Pressable>
-          )}
+                {openingId === item.id ? (
+                  <ActivityIndicator color={colors.brand} />
+                ) : (
+                  <View style={styles.chevronBox}><Text style={styles.chevron}>›</Text></View>
+                )}
+              </PressableScale>
+            );
+            return index < 10 ? <Reveal index={index} from="fade">{row}</Reveal> : row;
+          }}
         />
       )}
     </View>
   );
 }
 
+const RING = 54;
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: CHAT_BG },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm,
   },
-  back: { fontSize: 24, color: colors.brandSoft },
-  title: { ...typography.h3, color: colors.textPrimary },
+  headerIcon: { fontSize: 20, color: '#fff', fontWeight: '700' },
+  title: { flex: 1, color: colors.textPrimary, fontSize: 28, fontWeight: '900', letterSpacing: -0.7 },
   searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: spacing.md, marginBottom: spacing.sm,
-    backgroundColor: colors.surface, borderRadius: radius.pill, borderWidth: 1,
-    borderColor: colors.border, paddingHorizontal: spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.md, marginBottom: spacing.sm,
+    backgroundColor: CHAT_GLASS, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)', paddingHorizontal: spacing.md,
   },
   searchIcon: { fontSize: 14 },
-  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 10 },
+  searchInput: { flex: 1, color: colors.textPrimary, fontSize: 15, paddingVertical: 12 },
   error: { color: colors.danger, fontSize: 13, textAlign: 'center', marginBottom: spacing.sm },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: spacing.xl },
-  emptyEmoji: { fontSize: 40 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.xl },
+  emptyMedal: {
+    width: 76, height: 76, borderRadius: 26, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    ...elevation.glowBrand,
+  },
+  emptyEmoji: { fontSize: 36 },
   emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    paddingHorizontal: spacing.md, paddingVertical: 10,
+    paddingHorizontal: spacing.sm, paddingVertical: 10, borderRadius: radius.lg,
   },
   avatarLetter: { color: '#fff', fontWeight: '800', fontSize: 18 },
-  name: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, flexShrink: 1 },
-  bio: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  chevron: { fontSize: 22, color: colors.textMuted },
+  name: { fontSize: 16, fontWeight: '800', color: colors.textPrimary, flexShrink: 1 },
+  bio: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  chevronBox: {
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: CHAT_GLASS, borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
+  },
+  chevron: { fontSize: 20, color: colors.brandSoft, marginTop: -2 },
 });
