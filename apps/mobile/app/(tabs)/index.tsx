@@ -25,9 +25,9 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSE_META, UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode, UniverseCategory } from '@yumia/shared';
-import {
-  categoryGradients, colors, gradients, motion, radius, spacing, typography,
-} from '../../theme/tokens';
+import { colors, gradients, motion, radius, spacing, typography } from '../../theme/tokens';
+import { CATEGORY_OF, categoryGradient } from '../../lib/universeTheme';
+import { UniverseGlyph } from '../../components/UniverseGlyph';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PlanBadgeIcon } from '../../components/Avatar';
 import { universeLabel } from '../../lib/universeMeta';
@@ -40,7 +40,6 @@ import { WeatherSky } from '../../components/weather/WeatherSky';
 import { useWeatherReport } from '../../lib/useWeatherReport';
 import { dayMomentAt, kindEmoji } from '../../lib/services/weather';
 import type { WeatherKind } from '../../lib/services/weather/types';
-import { universeIcon } from '../../components/icons/universeIcons';
 import { PressableScale, Reveal, GradientText } from '../../components/ui';
 import { haptics } from '../../lib/useHaptics';
 import { FeatureTip } from '../../components/FeatureTip';
@@ -95,21 +94,7 @@ function universeRoute(u: string): string {
   return UNIVERSE_ROUTE_OVERRIDES[u] ?? `/universe?u=${u}`;
 }
 
-/** Catégorie de chaque univers, pour lui donner la couleur de sa famille. */
-const CATEGORY_OF: Record<string, string> = Object.fromEntries(
-  UNIVERSE_CATEGORIES.flatMap((c) => c.universes.map((u) => [u, c.key] as const)),
-);
-function gradientOf(categoryKey: string | undefined): readonly [string, string] {
-  return categoryGradients[categoryKey ?? 'other'] ?? categoryGradients.other;
-}
-
-function UniverseGlyph({ u, size }: { u: string; size: number }) {
-  // Le registre partagé décide : un univers dessiné rend son icône, les
-  // autres leur emoji.
-  return universeIcon(u, size) ?? (
-    <Text style={{ fontSize: size * 0.85 }}>{UNIVERSE_META[u as keyof typeof UNIVERSE_META]?.emoji ?? '📍'}</Text>
-  );
-}
+const gradientOf = categoryGradient;
 
 // ── « Parfait maintenant » ───────────────────────────────────────────────────
 
