@@ -16,6 +16,7 @@ import {
   ActivityIndicator, Alert, FlatList, Keyboard, Modal, Platform, Pressable,
   StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming,
@@ -82,7 +83,7 @@ export function CommentsSheet({
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState<SheetComment | null>(null);
   const [openReplies, setOpenReplies] = useState<Set<string>>(() => new Set());
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   // ── Géométrie animée ────────────────────────────────────────────────────
   const top = useSharedValue(screenH);          // bord haut de la fenêtre

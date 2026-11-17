@@ -1,7 +1,16 @@
-import MaskedView from '@react-native-masked-view/masked-view';
+import type { ComponentType, ReactElement, ReactNode } from 'react';
+import MaskedViewNative from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text, type StyleProp, type TextStyle } from 'react-native';
 import { gradients } from '../../theme/tokens';
+
+// Les types de masked-view 0.3.2 s'appuient sur `NativeMethods` des anciens
+// types de React Native : avec RN 0.88 la classe n'est plus reconnue comme
+// composant JSX. Le composant natif, lui, n'a pas changé.
+const MaskedView = MaskedViewNative as unknown as ComponentType<{
+  maskElement: ReactElement;
+  children?: ReactNode;
+}>;
 
 /**
  * Texte peint avec un dégradé de marque (orange → violet).

@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_META } from '@yumia/shared';
@@ -57,7 +58,7 @@ export default function SearchScreen() {
   const [error, setError] = useState<string | null>(null);
   const [universeFilter, setUniverseFilter] = useState<Universe | null>(null);
   const [maxPriceTier, setMaxPriceTier] = useState<number | undefined>(undefined);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const { history, push: pushHistory, clear: clearHistory } = useSearchHistory();
   const [upsell, setUpsell] = useState<string | null>(null);
   const { checkLimit, recordUsage, quotaMessage, savedLimitMessage } = usePlanLimits();

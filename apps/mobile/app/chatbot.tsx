@@ -129,7 +129,7 @@ export default function ChatbotScreen() {
             <View style={styles.typing}>
               <Text style={styles.typingDots}>●●●</Text>
             </View>
-          ) : null}
+          ) : undefined}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         />
 

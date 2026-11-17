@@ -136,7 +136,7 @@ export default function VisitsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.brand} />
           }
           ListFooterComponent={
-            loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : null
+            loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : undefined
           }
           renderItem={({ item }) => <VisitRow item={item} onPress={() => openPlace(item)} />}
         />

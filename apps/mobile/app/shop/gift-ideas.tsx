@@ -239,7 +239,7 @@ export default function GiftIdeasScreen() {
                     {t(result.total > 1 ? 'shop_gift_result_count_other' : 'shop_gift_result_count_one')
                       .replace('{n}', String(result.total))}
                   </Text>
-                ) : null
+                ) : undefined
               }
               renderItem={({ item }) => (
                 <View style={styles.cell}>

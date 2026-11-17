@@ -25,11 +25,12 @@ import {
   type NativeSyntheticEvent,
   type ScrollView,
 } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 
 /** Espace laissé entre le bas du champ et le haut du clavier. */
 const GAP = 16;
 
-export function useKeyboardReveal(scrollRef: RefObject<ScrollView | null>) {
+export function useKeyboardReveal(scrollRef: RefObject<ScrollViewInstance | null>) {
   const scrollY = useRef(0);
   const [bottomInset, setBottomInset] = useState(0);
 

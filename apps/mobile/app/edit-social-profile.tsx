@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Image, Pressable, ScrollView, Switch,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -36,7 +37,7 @@ export default function EditSocialProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   // La bio est en bas du formulaire : sans ça, le clavier la recouvrait.
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const kb = useKeyboardReveal(scrollRef);
   const { t } = useI18n();
 

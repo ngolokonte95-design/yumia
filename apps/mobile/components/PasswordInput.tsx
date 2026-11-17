@@ -6,12 +6,13 @@
  */
 import { forwardRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { colors } from '../theme/tokens';
 
 type Props = Omit<TextInputProps, 'secureTextEntry'>;
 
-export const PasswordInput = forwardRef<TextInput, Props>(function PasswordInput({ style, ...props }, ref) {
+export const PasswordInput = forwardRef<TextInputInstance, Props>(function PasswordInput({ style, ...props }, ref) {
   const [visible, setVisible] = useState(false);
 
   return (

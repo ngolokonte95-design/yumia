@@ -28,6 +28,9 @@ try {
   const src = fs.readFileSync(file, 'utf8');
   if (src.includes(AFTER)) {
     // Déjà corrigé.
+  } else if (/toPosixPath\)\(.*relative\(projectRoot/.test(src)) {
+    // @expo/fingerprint >= 0.21 (Expo 58) convertit lui-même le chemin :
+    // plus rien à corriger.
   } else if (src.includes(BEFORE) && src.includes('Path_1')) {
     fs.writeFileSync(file, src.replace(BEFORE, AFTER));
     console.log('[yumia] @expo/fingerprint corrigé (chemins Windows)');

@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, StyleSheet, Text,
   TextInput, View,
 } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedNumber, PressableScale, Reveal } from '../components/ui';
@@ -44,7 +45,7 @@ export default function WeatherScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const { results, loading: searching } = useCitySearch(query);
-  const searchInputRef = useRef<TextInput>(null);
+  const searchInputRef = useRef<TextInputInstance>(null);
 
   function openSearch() {
     setSearchOpen(true);

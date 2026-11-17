@@ -8,6 +8,7 @@ import {
   ActivityIndicator, Alert, Image, Pressable, ScrollView,
   Share, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
@@ -105,7 +106,7 @@ export default function ItineraryScreen() {
   const [city, setCity] = useState('');
   const [citySuggestOpen, setCitySuggestOpen] = useState(false);
   const { results: citySuggestions, loading: citySearching } = useCitySearch(citySuggestOpen ? city : '');
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   // « Contraintes » est en bas du formulaire : sans ça, le clavier le
   // recouvrait et l'on écrivait sans voir le texte.
   const kb = useKeyboardReveal(scrollRef);

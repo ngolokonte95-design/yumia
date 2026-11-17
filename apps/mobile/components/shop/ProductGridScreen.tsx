@@ -273,7 +273,7 @@ export function ProductGridScreen({
           keyboardDismissMode="on-drag"
           onEndReached={loadMore}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : undefined}
         />
       )}
 

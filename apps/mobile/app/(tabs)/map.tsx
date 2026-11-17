@@ -934,7 +934,7 @@ export default function MapScreen() {
               />
             )}
             ListEmptyComponent={
-              loading ? null : (
+              loading ? undefined : (
                 <Text style={styles.empty}>
                   {cityResults !== null
                     ? `${t('map_no_results_city')} (${cityQuery})`

@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors, radius, spacing, typography } from '../theme/tokens';
@@ -23,7 +24,7 @@ export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useI18n();
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
 
   // L'e-mail vient de l'écran précédent ; saisi ici si on arrive par un lien.
   const params = useLocalSearchParams<{ email?: string }>();

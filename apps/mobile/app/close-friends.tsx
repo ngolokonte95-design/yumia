@@ -106,7 +106,7 @@ export default function CloseFriendsScreen() {
           ListHeaderComponent={
             members.length > 0 ? (
               <Text style={styles.count}>{members.length} {members.length > 1 ? t('cf_people_plural') : t('cf_people_singular')}</Text>
-            ) : null
+            ) : undefined
           }
           ListEmptyComponent={
             <View style={styles.empty}>

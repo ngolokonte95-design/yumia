@@ -63,7 +63,10 @@ async function scheduleEveningNotification(): Promise<void> {
 }
 
 export function useDailyDigest(): void {
-  const appState = useRef<AppStateStatus>(AppState.currentState);
+  // RN 0.88 type `currentState` en `string | null | undefined` (inconnu tant
+  // que le natif n'a rien rapporté) : on part de 'active', l'app étant au
+  // premier plan quand ce hook monte.
+  const appState = useRef<AppStateStatus>((AppState.currentState ?? 'active') as AppStateStatus);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {

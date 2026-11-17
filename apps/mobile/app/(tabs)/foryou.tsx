@@ -134,7 +134,7 @@ export default function ForYouScreen() {
           windowSize={5}
           initialNumToRender={2}
           maxToRenderPerBatch={2}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: 24 }} /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: 24 }} /> : undefined}
           renderItem={({ item }) => (
             <FeedCard
               suggestion={item}

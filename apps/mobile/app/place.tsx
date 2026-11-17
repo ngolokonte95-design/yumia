@@ -27,6 +27,7 @@ import {
   I18nManager,
   useWindowDimensions,
 } from 'react-native';
+import type { TextInputInstance } from 'react-native';
 import Animated, {
   FadeInDown, useAnimatedRef, useAnimatedScrollHandler, useSharedValue,
 } from 'react-native-reanimated';
@@ -88,7 +89,7 @@ export default function PlaceScreen() {
   // côté JS pour faire remonter le champ d'avis au-dessus du clavier.
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
-  const reviewInputRef = useRef<TextInput>(null);
+  const reviewInputRef = useRef<TextInputInstance>(null);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const { stats } = usePlaceStats(suggestion?.place.id ?? '');
 

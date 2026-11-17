@@ -115,7 +115,7 @@ export default function NotificationsScreen() {
             <NotifRow item={item} onPress={() => router.push(notificationTarget(item) as never)} />
           )}
           ListFooterComponent={
-            loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : null
+            loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : undefined
           }
         />
       )}

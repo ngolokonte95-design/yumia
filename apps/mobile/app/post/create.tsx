@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Alert, Image,
   Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,7 +33,7 @@ export default function CreatePostScreen() {
   const params = useLocalSearchParams<{ uri?: string; mediaType?: string }>();
   const insets = useSafeAreaInsets();
   // La légende est sous l'aperçu du média : sans ça, le clavier la recouvrait.
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const kb = useKeyboardReveal(scrollRef);
   const { t } = useI18n();
   const [mode, setMode] = useState<MediaMode>('photo');

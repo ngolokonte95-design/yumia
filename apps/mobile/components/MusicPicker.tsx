@@ -568,7 +568,7 @@ export function MusicPickerModal({
                     {source === 'deezer' ? t('mp_source_deezer') : t('mp_source_itunes')}
                   </Text>
                 </View>
-              ) : null
+              ) : undefined
             }
             renderItem={({ item }) => (
               <View style={ms.trackRow}>

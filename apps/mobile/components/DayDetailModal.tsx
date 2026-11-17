@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,7 +55,7 @@ export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, res
   // travaille, la recherche du lieu pouvant prendre une seconde.
   const [opening, setOpening] = useState<number | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const scrollY = useRef(0);
   const viewportH = useRef(0);
   // Position encore à restaurer. Le contenu grandit après l'ouverture (entrée

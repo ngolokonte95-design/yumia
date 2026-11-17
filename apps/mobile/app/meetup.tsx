@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Alert, FlatList, Modal, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
@@ -40,7 +41,7 @@ export default function MeetupScreen() {
   const insets = useSafeAreaInsets();
   // Formulaire de création : les derniers champs (lieu, date, participants)
   // passaient sous le clavier.
-  const createScrollRef = useRef<ScrollView>(null);
+  const createScrollRef = useRef<ScrollViewInstance>(null);
   const kb = useKeyboardReveal(createScrollRef);
   const { t } = useI18n();
   const [meetups, setMeetups] = useState<Meetup[]>([]);

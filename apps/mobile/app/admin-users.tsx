@@ -167,7 +167,7 @@ export default function AdminUsersScreen() {
             ? <ActivityIndicator color={colors.brand} style={{ marginTop: 40 }} />
             : <Text style={styles.empty}>Aucun compte</Text>
         }
-        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: 16 }} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: 16 }} /> : undefined}
       />
     </View>
   );

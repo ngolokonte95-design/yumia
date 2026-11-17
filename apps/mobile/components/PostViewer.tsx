@@ -32,7 +32,7 @@ import {
   StyleSheet,
   Text,
   View,
-  type ViewToken,
+  type ListViewToken as ViewToken,
   useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   ActivityIndicator, Alert, Dimensions, FlatList, Modal, Platform, Pressable, RefreshControl,
-  ScrollView, StyleSheet, Text, TextInput, View, type ViewToken,
+  ScrollView, StyleSheet, Text, TextInput, View, type ListViewToken as ViewToken,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
@@ -982,7 +982,7 @@ export default function SocialTab() {
       onEndReachedThreshold={0.6}
       ListFooterComponent={loadingMore === kind
         ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.lg }} />
-        : null}
+        : undefined}
       viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
       {...scrollHandlers}
       {...FEED_PERF_PROPS}
@@ -995,7 +995,7 @@ export default function SocialTab() {
           onCreate={() => router.push('/camera?mode=story' as never)}
           onOpen={(userId) => router.push(`/story-viewer?userId=${userId}` as never)}
         />
-      ) : null}
+      ) : undefined}
       renderItem={({ item, index }) => (
         <PostCard
           item={item}
@@ -1208,7 +1208,7 @@ export default function SocialTab() {
             <FlatList
               data={encounters}
               keyExtractor={(e) => e.id}
-              ListHeaderComponent={me?.shareEncounters ? <EncountersSettings /> : null}
+              ListHeaderComponent={me?.shareEncounters ? <EncountersSettings /> : undefined}
               contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 80 }}
               renderItem={({ item }) => (
                 <Pressable style={styles.encounterCard} onPress={() => item.otherUser && router.push(`/user/${item.otherUser.id}`)}>
