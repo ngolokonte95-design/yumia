@@ -105,7 +105,7 @@ const UNIVERSE_TO_GOOGLE_TYPES: Record<Universe, string[]> = {
   restaurant:       ['restaurant', 'fast_food_restaurant'], // fast_food fusionné ici
   cafe:             ['cafe', 'coffee_shop'],
   bakery:           ['bakery'],
-  brunch:           ['brunch_restaurant', 'breakfast_restaurant'],
+  brunch:           ['brunch_restaurant'],
   dessert:          ['dessert_shop', 'dessert_restaurant', 'pastry_shop', 'cake_shop', 'donut_shop'],
   ice_cream:        ['ice_cream_shop'],
   chocolatier:      ['chocolate_shop', 'candy_store', 'confectionery'],
@@ -403,7 +403,6 @@ const GOOGLE_TYPE_TO_UNIVERSE: Array<[string, Universe]> = [
   ['bakery',                'bakery'],
   ['butcher_shop',          'butcher'],
   ['brunch_restaurant',     'brunch'],
-  ['breakfast_restaurant',  'brunch'],
   ['fast_food_restaurant',  'restaurant'], // fast_food → restaurant (fusionné)
   ['bubble_tea_store',      'cafe'],  // bubble_tea → cafe (fusionné)
   ['coffee_shop',           'cafe'],
@@ -699,7 +698,7 @@ function fold(text: string): string {
  * Bureau de tabac. Google n'a pas de type pour eux : un bar-tabac est typé
  * `bar`, un tabac-presse `convenience_store` ou `store`. Le nom, lui, le dit.
  */
-const TOBACCO_NAME = /\b(tabacs?|bureau de tabac|tabaccheria|tabacchi|estanco|tobacconist|tabakwaren|civette)\b/;
+const TOBACCO_NAME = /\b(tabacs?|bureau de tabac|tabaccheria|tabacchi|estanco|tobacco|tobacconist|tabakwaren|civette)\b/;
 /** Marchand de journaux (« Tabac & Presse ») — hors cafés « de la Presse ». */
 const PRESS_NAME = /\b(maison de la presse|point presse|tabac presse|presse|kiosque a journaux|newsagent)\b/;
 const FOOD_DRINK_TYPES = new Set(['bar', 'restaurant', 'cafe', 'coffee_shop', 'pub', 'bakery', 'hotel', 'lodging']);
@@ -745,6 +744,23 @@ const SMALL_GROCERY_TYPES = ['convenience_store', 'grocery_store', 'asian_grocer
  *
  * @param otherwise  univers retenu quand ni le nom ni les types ne tranchent.
  */
+/** Le nom dit-il « grande enseigne » ou « épicerie de quartier » ? */
+export function hasGroceryNameEvidence(name: string): boolean {
+  const folded = fold(name);
+  return SUPERMARKET_CHAIN.test(folded) || SMALL_GROCERY_NAME.test(folded);
+}
+
+/** Le lieu porte-t-il un type de commerce alimentaire (grande surface ou quartier) ? */
+export function hasGroceryType(types: string[]): boolean {
+  return types.some((t) => t === 'supermarket' || BIG_STORE_TYPES.includes(t) || SMALL_GROCERY_TYPES.includes(t));
+}
+
+/** Le nom désigne-t-il un tabac ou un marchand de journaux ? */
+export function hasTobaccoNameEvidence(name: string): boolean {
+  const folded = fold(name);
+  return TOBACCO_NAME.test(folded) || PRESS_NAME.test(folded);
+}
+
 function groceryFamily(name: string, types: string[], otherwise: Universe): Universe {
   if (SUPERMARKET_CHAIN.test(fold(name))) return 'supermarket';
   if (types.some((t) => BIG_STORE_TYPES.includes(t))) return 'supermarket';

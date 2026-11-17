@@ -8,13 +8,25 @@
  * grandes surfaces en Épiceries, tous les bars d'un quartier en Rooftops,
  * tous les parcs en Quad, toutes les boutiques en Lingerie…
  *
+ * Piège : `tags` ne garde que les 6 PREMIERS types Google du lieu. Le type
+ * qui justifiait son univers (`night_club` d'un club typé bar, restaurant,
+ * event_venue…) a pu être coupé. Les univers que l'ancienne recherche
+ * remplissait proprement ne sont donc pas rejugés sur leurs types — un
+ * premier essai envoyait 331 night-clubs en Bars.
+ *
  * Règles :
+ *  - partout : un tabac reconnu à son nom va en Tabac & Presse ; une grande
+ *    enseigne ou une épicerie de quartier, reconnue à son nom et à ses types,
+ *    va en Supermarchés ou en Épiceries ;
  *  - univers « mot-clé » rempli par une vraie recherche textuelle (chicha,
- *    coffeeshop, opticien…) : le lieu y reste, sauf si son nom dit « tabac » ;
- *  - univers « mot-clé » que l'ancienne recherche par type avait pollué
- *    (rooftop, brunch, lingerie… : `KEYWORD_NAME_HINTS`) : le lieu n'y reste
- *    que si son nom le justifie ;
- *  - tous les autres : l'univers que donnent le nom et les types.
+ *    coffeeshop, opticien…) : on rejoue la recherche, seul le nom déplace ;
+ *  - univers « mot-clé » pollués par un type compagnon (rooftop, brunch,
+ *    lingerie… : `KEYWORD_NAME_HINTS`) : on n'y reste que si le nom le dit ;
+ *  - Tabac & Presse : on n'y reste que si le nom le dit, sauf lieu sans type
+ *    de commerce alimentaire (l'ancienne recherche y versait des épiceries) ;
+ *  - univers pollués par un type compagnon ({@link REJUDGED_UNIVERSES}) et
+ *    univers disparus : l'univers que donnent le nom et les types ;
+ *  - tous les autres : inchangés.
  * Seuls les lieux importés de Google sont touchés (les types sont dans `tags`).
  *
  * Lecture seule par défaut — il faut `--appliquer` pour écrire.
@@ -24,9 +36,12 @@
  *   node dist/scripts/reclassify-places.js --appliquer
  */
 import { PrismaClient } from '@prisma/client';
-import type { Universe } from '@yumia/shared';
+import { isUniverse, type Universe } from '@yumia/shared';
 import {
   classifyGooglePlace,
+  hasGroceryNameEvidence,
+  hasGroceryType,
+  hasTobaccoNameEvidence,
   KEYWORD_NAME_HINTS,
   KEYWORD_UNIVERSES,
   nameSupportsUniverse,
@@ -37,11 +52,44 @@ const prisma = new PrismaClient();
 const PAGE = 2000;
 const SAMPLES = 4;
 
+/**
+ * Univers que l'ancienne recherche remplissait avec des types appartenant à
+ * d'autres (`bar` pour Pubs, `park` pour Randonnée, `clothing_store` +
+ * `department_store` pour Shopping, `national_park` pour Parcs,
+ * `performing_arts_theater` pour Sorties culturelles…) : rejugés sur leurs
+ * types. Les autres univers ne bougent que sur une preuve par le nom.
+ */
+const REJUDGED_UNIVERSES = new Set<Universe>([
+  'pub', 'live_music', 'dessert', 'tea_house', 'juice_bar',
+  'park', 'hiking', 'botanical_garden', 'picnic_area', 'waterspot',
+  'yoga_studio', 'tanning_studio', 'mental_health', 'alternative_medicine',
+  'shopping', 'vintage_store', 'cultural_outing', 'tourist_activity', 'fuel',
+  'supermarket', 'grocery_store',
+]);
+
 /** Univers où le lieu devrait être rangé. */
 export function targetUniverse(place: { name: string; universe: string; tags: string[] }): Universe {
   const current = place.universe as Universe;
   // `requested: current` : sans type reconnu ni indice de nom, on ne touche à rien.
   const byEvidence = classifyGooglePlace({ name: place.name, types: place.tags, requested: current });
+
+  // Univers disparu de l'app (art_gallery, market, cheese_shop…) : on range.
+  if (!isUniverse(current)) return byEvidence;
+
+  // Preuves par le nom, valables partout.
+  if (byEvidence === 'tobacco' && hasTobaccoNameEvidence(place.name)) return 'tobacco';
+  if ((byEvidence === 'supermarket' || byEvidence === 'grocery_store')
+    && hasGroceryType(place.tags) && hasGroceryNameEvidence(place.name)) {
+    return byEvidence;
+  }
+
+  if (current === 'tobacco') {
+    if (hasTobaccoNameEvidence(place.name)) return 'tobacco';
+    // Versé là par l'ancienne recherche « convenience_store » : une épicerie.
+    return hasGroceryType(place.tags)
+      ? classifyGooglePlace({ name: place.name, types: place.tags, requested: 'grocery_store' })
+      : 'tobacco';
+  }
 
   if (KEYWORD_UNIVERSES.has(current)) {
     if (!KEYWORD_NAME_HINTS[current]) {
@@ -52,7 +100,7 @@ export function targetUniverse(place: { name: string; universe: string; tags: st
     }
     return nameSupportsUniverse(place.name, current) ? current : byEvidence;
   }
-  return byEvidence;
+  return REJUDGED_UNIVERSES.has(current) ? byEvidence : current;
 }
 
 async function main(): Promise<void> {

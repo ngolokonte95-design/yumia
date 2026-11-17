@@ -202,6 +202,26 @@ describe('reclassement des lieux en base', () => {
     expect(KEYWORD_UNIVERSES.has('cannabis')).toBe(true);
   });
 
+  it('ne rejuge pas un univers propre sur des types tronqués (6 en base)', () => {
+    expect(targetUniverse(place('So Night', 'nightclub', ['bar', 'restaurant', 'point_of_interest']))).toBe('nightclub');
+    expect(targetUniverse(place('Dishoom Shoreditch', 'restaurant', ['bar', 'restaurant']))).toBe('restaurant');
+    expect(targetUniverse(place('Restaurant La Boucherie', 'nightclub', ['butcher_shop', 'restaurant']))).toBe('nightclub');
+    expect(targetUniverse(place('Société Générale', 'atm', ['bank', 'atm']))).toBe('atm');
+  });
+
+  it('ne prend pas « Carrefour Spectacles » pour un supermarché', () => {
+    expect(targetUniverse(place('Carrefour Spectacles', 'cinema', ['event_venue', 'point_of_interest']))).toBe('cinema');
+  });
+
+  it('range les univers disparus de l\'app', () => {
+    expect(targetUniverse(place('Châtelet', 'cheese_shop' as Universe, ['subway_station', 'transit_station']))).toBe('gare');
+  });
+
+  it("n'envoie plus un McDonald's en brunch", () => {
+    expect(targetUniverse(place("McDonald's", 'cafe', ['breakfast_restaurant', 'fast_food_restaurant']))).toBe('cafe');
+    expect(googleTypesToUniverse(['breakfast_restaurant', 'fast_food_restaurant'])).toBe('restaurant');
+  });
+
   it('laisse en place un lieu que rien ne permet de reclasser', () => {
     expect(targetUniverse(place('Sans indice', 'laundry', ['point_of_interest']))).toBe('laundry');
   });
