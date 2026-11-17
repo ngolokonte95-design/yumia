@@ -5,15 +5,16 @@
  * à la disposition d'origine — logo au centre, raccourcis, humeurs, puis TOUS
  * les univers visibles par catégorie, accessibles en un toucher — mais en
  * beaucoup plus soigné :
- *  - fond = ciel réel de l'endroit où l'on est (WeatherSky) sur TOUT l'écran,
- *    fixe et sans dégradé (un voile dégradé dessinait une barre grise) ;
+ *  - fond = espace profond sur TOUT l'écran (SpaceBackground) : noir spatial,
+ *    étoiles qui scintillent, étoiles filantes, système solaire animé ; aucun
+ *    dégradé linéaire (ils dessinaient une barre grise) ;
  *  - logo en grand au centre, salutation et recherche par-dessus ;
  *  - raccourcis en tuiles à pastille dégradée ;
  *  - univers : tuiles d'origine, sobres ; en-tête de catégorie = médaillon
  *    et titre au dégradé de marque (le même partout) + filet dégradé.
  * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
@@ -33,9 +34,7 @@ import { useAuth } from '../../lib/auth-context';
 import { request } from '../../lib/api';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
-import { WeatherSky } from '../../components/weather/WeatherSky';
-import { useWeatherReport } from '../../lib/useWeatherReport';
-import { dayMomentAt } from '../../lib/services/weather';
+import { SpaceBackground, SPACE_BLACK } from '../../components/space/SpaceBackground';
 import { WeatherCard } from '../../components/weather/WeatherCard';
 import { GradientText, PressableScale, Reveal } from '../../components/ui';
 import { FeatureTip } from '../../components/FeatureTip';
@@ -126,14 +125,7 @@ export default function HomeScreen() {
 
   const { title: greetTitle, sub: greetSub } = buildGreeting(user?.displayName ?? 'toi', t);
 
-  const { report } = useWeatherReport(coords.lat, coords.lng);
-  const current = report?.current;
-  const moment = useMemo(
-    () => (report ? dayMomentAt(new Date(), report.astro, report.coordinates.lat) : 'day'),
-    [report],
-  );
-
-  // ── Parallaxe du ciel ─────────────────────────────────────────────────────
+  // ── En-tête qui s'efface au défilement ─────────────────────────────────────────────────────
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
   const heroTotal = HERO_HEIGHT + insets.top;
@@ -146,11 +138,10 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* ── Ciel réel en fond de TOUT l'écran, fixe, sans dégradé ──────────
-          (17/11, demande de l'utilisateur : le voile dégradé qui fondait le
-          ciel dans le fond sombre dessinait une barre grise au milieu). */}
+      {/* ── Espace profond en fond de TOUT l'écran, fixe ──────────────────
+          (17/11, demande de l'utilisateur : « un vrai système solaire »). */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {current && focused ? <WeatherSky kind={current.kind} moment={moment} flat /> : null}
+        <SpaceBackground active={focused} />
       </View>
 
       <Animated.ScrollView
@@ -296,7 +287,7 @@ function CategorySection({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: SPACE_BLACK },
 
 
   // En-tête
