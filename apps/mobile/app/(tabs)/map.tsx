@@ -75,10 +75,6 @@ const CARD_STEP = CARD_W + CARD_GAP;
 /** Hauteur réservée en bas de la carte (tiroir replié + carrousel). */
 const BOTTOM_SPACE = DRAWER_COLLAPSED + CARD_H + spacing.sm * 2;
 
-/** Univers proposés en pastilles rapides sous la recherche. */
-const QUICK_UNIVERSES: Universe[] = [
-  'restaurant', 'cafe', 'bar', 'bakery', 'supermarket', 'pharmacy', 'park', 'museum', 'nightclub', 'hotel',
-];
 
 /** Univers du panneau de filtre, triés alphabétiquement (« Tous » reste à part, en tête). */
 const SORTED_UNIVERSES = [...UNIVERSES].sort(
@@ -690,19 +686,15 @@ export default function MapScreen() {
           </View>
         )}
 
-        {/* Pastilles : tous les univers (ouvre la grille), rayon, puis les
-            univers les plus demandés en accès direct, à leur couleur. */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.chipRow}
-        >
+        {/* Univers (ouvre la grille, prend la couleur de l'univers choisi) et
+            rayon. Pas de rangée d'univers en accès direct : elle doublait la
+            grille (retirée le 17/11 à la demande de l'utilisateur). */}
+        <View style={styles.chipRow}>
           <PressableScale
-            style={[styles.chip, universe !== null && !QUICK_UNIVERSES.includes(universe) && { backgroundColor: universeColor(universe), borderColor: 'rgba(255,255,255,0.5)' }]}
+            style={[styles.chip, styles.chipWide, universe !== null && { backgroundColor: universeColor(universe), borderColor: 'rgba(255,255,255,0.5)' }]}
             onPress={() => { setFilterPanelOpen((o) => !o); setRadiusPanelOpen(false); }}
           >
-            {universe !== null && !QUICK_UNIVERSES.includes(universe) ? (
+            {universe !== null ? (
               <>
                 <UniverseGlyph u={universe} size={16} />
                 <Text style={styles.chipText} numberOfLines={1}>{universeLabel(t, universe)}</Text>
@@ -720,22 +712,7 @@ export default function MapScreen() {
             <Text style={styles.chipText} numberOfLines={1}>📏  {radiusKm} km</Text>
             <Text style={styles.chipChevron}>{radiusPanelOpen ? '▲' : '▾'}</Text>
           </PressableScale>
-
-          {QUICK_UNIVERSES.map((u) => {
-            const active = universe === u;
-            return (
-              <PressableScale
-                key={u}
-                style={[styles.chip, active && { backgroundColor: universeColor(u), borderColor: 'rgba(255,255,255,0.5)' }]}
-                // Retoucher la pastille active revient à « Tous ».
-                onPress={() => void selectUniverse(active ? null : u)}
-              >
-                <UniverseGlyph u={u} size={16} />
-                <Text style={styles.chipText} numberOfLines={1}>{universeLabel(t, u)}</Text>
-              </PressableScale>
-            );
-          })}
-        </ScrollView>
+        </View>
 
         {/* Panneau grille — tous les univers, compact et scrollable */}
         {filterPanelOpen ? (
@@ -1336,7 +1313,8 @@ const styles = StyleSheet.create({
 
   // Pastilles sous la recherche (univers, rayon, accès directs)
   topScrim: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 8 },
-  chipRow: { paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm, paddingTop: 2 },
+  chipRow: { flexDirection: 'row', paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm, paddingTop: 2 },
+  chipWide: { flex: 1, justifyContent: 'space-between' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
