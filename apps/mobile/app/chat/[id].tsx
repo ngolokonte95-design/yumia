@@ -633,7 +633,7 @@ export default function ChatRoomScreen() {
     }
   };
 
-  // ─── Suppression (réservée à ses propres messages) ─────────────────────────
+  // ─── Suppression pour tout le monde (mes messages ; tout appel) ─────────────
   const deleteMessage = async (msg: Message) => {
     setActionMsg(null);
     if (!accessToken) return;
@@ -1174,16 +1174,23 @@ export default function ChatRoomScreen() {
                 <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('chat_action_delete_me')}</Text>
               </Pressable>
             ) : null}
-            {actionMsg && actionMsg.senderId === myId && actionMsg.type !== 'call' ? (
+            {/* Pour tout le monde : mes messages, et tout appel (il appartient
+                aux deux côtés). Jamais le message d'un autre. */}
+            {actionMsg && (actionMsg.senderId === myId || actionMsg.type === 'call') ? (
               <Pressable
                 style={styles.actionRow}
                 onPress={() => {
                   const msg = actionMsg;
+                  const isCall = msg.type === 'call';
                   setActionMsg(null);
-                  Alert.alert(t('chat_delete_confirm_title'), t('chat_delete_all_body'), [
-                    { text: t('chat_cancel'), style: 'cancel' },
-                    { text: t('chat_delete'), style: 'destructive', onPress: () => msg && void deleteMessage(msg) },
-                  ]);
+                  Alert.alert(
+                    t(isCall ? 'chat_delete_call_title' : 'chat_delete_confirm_title'),
+                    t(isCall ? 'chat_delete_call_all_body' : 'chat_delete_all_body'),
+                    [
+                      { text: t('chat_cancel'), style: 'cancel' },
+                      { text: t('chat_delete'), style: 'destructive', onPress: () => void deleteMessage(msg) },
+                    ],
+                  );
                 }}
               >
                 <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('chat_action_delete_all')}</Text>

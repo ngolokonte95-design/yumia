@@ -184,7 +184,7 @@ export class ChatController {
     return this.chat.toggleReaction(id, user.sub, dto.emoji);
   }
 
-  /** DELETE /api/chat/messages/:id — supprimer un message (réservé à l'expéditeur) */
+  /** DELETE /api/chat/messages/:id — supprimer pour tout le monde (expéditeur ; tout participant pour un appel) */
   @Delete('messages/:id')
   deleteMessage(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {
     return this.chat.deleteMessage(id, user.sub);

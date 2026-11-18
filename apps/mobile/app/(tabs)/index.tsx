@@ -188,7 +188,15 @@ export default function HomeScreen() {
             {FEATURE_SHORTCUTS.map((s) => (
               <PressableScale key={s.key} style={styles.shortcut} onPress={() => go(s.route)} scaleTo={0.92}>
                 <LinearGradient colors={gradients.brandSoft} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shortcutIcon}>
-                  <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
+                  {s.key === 'chat' ? (
+                    // Messages ET appels passent par cet écran : deux icônes.
+                    <View style={styles.shortcutPair}>
+                      <Text style={styles.shortcutEmojiSmall}>{s.emoji}</Text>
+                      <Text style={styles.shortcutEmojiSmall}>📞</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
+                  )}
                 </LinearGradient>
                 {s.key === 'chat' && unreadChats > 0 ? (
                   <View style={styles.badge}>
@@ -332,6 +340,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
   },
   shortcutEmoji: { fontSize: 20 },
+  shortcutPair: { flexDirection: 'row', alignItems: 'center', gap: 1 },
+  shortcutEmojiSmall: { fontSize: 14 },
   shortcutLabel: { ...typography.label, color: colors.textSecondary, fontSize: 10 },
   badge: {
     position: 'absolute', top: 3, right: 4,

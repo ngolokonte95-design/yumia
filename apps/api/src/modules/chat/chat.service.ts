@@ -401,10 +401,16 @@ export class ChatService {
   async deleteMessage(messageId: string, userId: string) {
     const message = await this.prisma.message.findUnique({
       where: { id: messageId },
-      select: { senderId: true },
+      select: { senderId: true, type: true, conversationId: true },
     });
     if (!message) throw new NotFoundException('Message introuvable');
-    if (message.senderId !== userId) throw new ForbiddenException('Seul l\'expéditeur peut supprimer ce message.');
+    if (message.type === 'call') {
+      // Un événement d'appel n'a pas d'auteur : il appartient aux deux côtés
+      // de l'appel. Tout participant peut le retirer pour tout le monde.
+      await this.assertParticipant(message.conversationId, userId);
+    } else if (message.senderId !== userId) {
+      throw new ForbiddenException('Seul l\'expéditeur peut supprimer ce message.');
+    }
     await this.prisma.message.delete({ where: { id: messageId } });
     return { ok: true };
   }
