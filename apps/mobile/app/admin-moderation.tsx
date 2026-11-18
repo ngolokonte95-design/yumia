@@ -9,23 +9,22 @@
  * Textes en français, sans passer par `useI18n` : cet écran n'est visible que
  * par une seule personne, et traduire une interface d'administration en treize
  * langues coûterait plus que ça ne rapporte.
+ *
+ * Refonte visuelle du 18/11/2026 (sobre : cartes de verre, actions en jaune /
+ * rouge fonctionnels) ; décisions, confirmations et appels d'origine à l'identique.
  */
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { API_BASE_URL } from '../lib/config';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
+import { Reveal } from '../components/ui';
+import { QuietEmpty, QuietHeader } from '../components/pb2/Pb2Chrome';
+import {
+  ADMIN_SPINNER, AdminButton, AdminCard, AdminLoading, AdminSection, AlertCount, InitialAvatar, StatusBadge,
+} from '../components/admin/AdminChrome';
 
 const API = API_BASE_URL;
 
@@ -141,89 +140,85 @@ export default function AdminModerationScreen() {
   }, [accessToken, load]);
 
   if (loading) {
-    return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={colors.brand} size="large" />
-      </View>
-    );
+    return <AdminLoading paddingTop={insets.top} />;
   }
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
-      refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} tintColor={colors.brand} />}
+      contentContainerStyle={{ paddingTop: insets.top, paddingBottom: insets.bottom + spacing.xxl }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={false} onRefresh={() => void load()} tintColor={ADMIN_SPINNER} colors={[colors.brand]} progressViewOffset={insets.top} />}
     >
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Modération</Text>
-      </View>
+      <QuietHeader title="Modération" onBack={() => router.back()} />
 
-      <Text style={styles.sectionTitle}>
-        {reports.length === 0 ? 'Aucun signalement en attente' : `${reports.length} signalement(s) en attente`}
-      </Text>
+      <AdminSection
+        title={reports.length === 0 ? 'Aucun signalement en attente' : `${reports.length} signalement(s) en attente`}
+        right={reports.length > 0 ? <AlertCount count={reports.length} /> : undefined}
+      />
 
-      {reports.map((report) => (
-        <View key={report.id} style={styles.card}>
-          <View style={styles.cardHead}>
-            <Text style={styles.badge}>{TARGET_LABEL[report.targetType] ?? report.targetType}</Text>
-            <Text style={styles.date}>{new Date(report.createdAt).toLocaleDateString('fr-FR')}</Text>
-          </View>
+      {reports.length === 0 ? (
+        <QuietEmpty emoji="🛡️" />
+      ) : null}
 
-          <Text style={styles.reason}>{report.reason}</Text>
-          {report.details ? <Text style={styles.details}>« {report.details} »</Text> : null}
-
-          {report.preview ? (
-            <Text style={styles.preview} numberOfLines={4}>{report.preview}</Text>
-          ) : (
-            <Text style={styles.gone}>Contenu introuvable — déjà supprimé.</Text>
-          )}
-
-          <Text style={styles.meta}>
-            Auteur : {report.author?.displayName ?? 'inconnu'}
-            {report.reporter ? `  ·  Signalé par ${report.reporter.displayName}` : ''}
-          </Text>
-
-          {busy === report.id ? (
-            <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.sm }} />
-          ) : (
-            <View style={styles.actions}>
-              <Pressable style={styles.btnGhost} onPress={() => void resolve(report, 'dismiss')}>
-                <Text style={styles.btnGhostText}>Classer sans suite</Text>
-              </Pressable>
-              <Pressable style={styles.btnWarn} onPress={() => void resolve(report, 'delete')}>
-                <Text style={styles.btnText}>Retirer le contenu</Text>
-              </Pressable>
-              <Pressable style={styles.btnWarn} onPress={() => confirmSuspend(report, 'suspend', 7)}>
-                <Text style={styles.btnText}>Suspendre 7 j</Text>
-              </Pressable>
-              <Pressable style={styles.btnDanger} onPress={() => confirmSuspend(report, 'delete_and_suspend')}>
-                <Text style={styles.btnText}>Retirer + bannir</Text>
-              </Pressable>
+      {reports.map((report, i) => (
+        <Reveal key={report.id} index={Math.min(i, 5)} from="fade">
+          <AdminCard style={styles.card}>
+            <View style={styles.cardHead}>
+              <StatusBadge label={(TARGET_LABEL[report.targetType] ?? report.targetType).toUpperCase()} tone="plan" />
+              <Text style={styles.date}>{new Date(report.createdAt).toLocaleDateString('fr-FR')}</Text>
             </View>
-          )}
-        </View>
+
+            <Text style={styles.reason}>{report.reason}</Text>
+            {report.details ? <Text style={styles.details}>« {report.details} »</Text> : null}
+
+            {report.preview ? (
+              <Text style={styles.preview} numberOfLines={4}>{report.preview}</Text>
+            ) : (
+              <Text style={styles.gone}>Contenu introuvable — déjà supprimé.</Text>
+            )}
+
+            <Text style={styles.meta}>
+              Auteur : {report.author?.displayName ?? 'inconnu'}
+              {report.reporter ? `  ·  Signalé par ${report.reporter.displayName}` : ''}
+            </Text>
+
+            {busy === report.id ? (
+              <ActivityIndicator color={ADMIN_SPINNER} style={{ marginTop: spacing.sm }} />
+            ) : (
+              <View style={styles.actions}>
+                <AdminButton label="Classer sans suite" onPress={() => void resolve(report, 'dismiss')} style={styles.action} />
+                <AdminButton label="Retirer le contenu" tone="warn" onPress={() => void resolve(report, 'delete')} style={styles.action} />
+                <AdminButton label="Suspendre 7 j" tone="warn" onPress={() => confirmSuspend(report, 'suspend', 7)} style={styles.action} />
+                <AdminButton label="Retirer + bannir" tone="danger" onPress={() => confirmSuspend(report, 'delete_and_suspend')} style={styles.action} />
+              </View>
+            )}
+          </AdminCard>
+        </Reveal>
       ))}
 
       {suspended.length > 0 ? (
         <>
-          <Text style={styles.sectionTitle}>{suspended.length} compte(s) suspendu(s)</Text>
+          <AdminSection title={`${suspended.length} compte(s) suspendu(s)`} />
           {suspended.map((user) => (
-            <View key={user.id} style={styles.card}>
-              <Text style={styles.reason}>{user.displayName}</Text>
-              <Text style={styles.meta}>{user.email}</Text>
+            <AdminCard key={user.id} style={styles.card}>
+              <View style={styles.person}>
+                <InitialAvatar name={user.displayName} />
+                <View style={styles.personText}>
+                  <Text style={styles.reason} numberOfLines={1}>{user.displayName}</Text>
+                  <Text style={styles.meta} numberOfLines={1}>{user.email}</Text>
+                </View>
+              </View>
               {user.suspendedReason ? <Text style={styles.details}>{user.suspendedReason}</Text> : null}
               <Text style={styles.meta}>
                 Jusqu'au {new Date(user.suspendedUntil).toLocaleDateString('fr-FR')}
               </Text>
               {busy === user.id ? (
-                <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.sm }} />
+                <ActivityIndicator color={ADMIN_SPINNER} style={{ marginTop: spacing.sm }} />
               ) : (
-                <Pressable style={styles.btnGhost} onPress={() => void unsuspend(user)}>
-                  <Text style={styles.btnGhostText}>Rétablir le compte</Text>
-                </Pressable>
+                <AdminButton label="Rétablir le compte" tone="ok" onPress={() => void unsuspend(user)} style={styles.restore} />
               )}
-            </View>
+            </AdminCard>
           ))}
         </>
       ) : null}
@@ -232,65 +227,23 @@ export default function AdminModerationScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, gap: spacing.sm },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    gap: 6,
-  },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  card: { gap: 8 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  badge: {
-    ...typography.caption,
-    color: colors.brand,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  date: { ...typography.caption, color: colors.textMuted },
-  reason: { ...typography.body, color: colors.text, fontWeight: '700' },
-  details: { ...typography.caption, color: colors.textSecondary, fontStyle: 'italic' },
+  date: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  reason: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  details: { color: colors.textSecondary, fontSize: 13, fontStyle: 'italic', lineHeight: 19 },
   preview: {
-    ...typography.body,
-    color: colors.textSecondary,
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    padding: spacing.sm,
+    color: colors.textSecondary, fontSize: 14, lineHeight: 20,
+    backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: radius.md, padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)',
   },
-  gone: { ...typography.caption, color: colors.textMuted },
-  meta: { ...typography.caption, color: colors.textMuted },
+  gone: { color: colors.textMuted, fontSize: 13 },
+  meta: { color: colors.textMuted, fontSize: 12.5 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  btnGhost: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  btnGhostText: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
-  btnWarn: {
-    backgroundColor: colors.warning,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  btnDanger: {
-    backgroundColor: colors.danger,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  btnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
+  // Deux boutons par ligne, de même largeur.
+  action: { flexGrow: 1, flexBasis: '46%', paddingHorizontal: 10, minHeight: 42 },
+  person: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  personText: { flex: 1, minWidth: 0, gap: 2 },
+  restore: { marginTop: spacing.xs },
 });

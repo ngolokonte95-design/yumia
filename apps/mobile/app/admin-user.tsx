@@ -5,18 +5,25 @@
  * Une sanction ferme aussi les sessions ouvertes côté serveur : la personne
  * est déconnectée dès l'expiration de son jeton, et ne peut plus se
  * reconnecter (mot de passe, Google, Apple) tant qu'elle dure.
+ *
+ * Refonte visuelle du 18/11/2026 (sobre : verre, chiffres forts, sanctions en
+ * jaune / rouge fonctionnels) ; logique et confirmations d'origine à l'identique.
  */
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
-} from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import {
   accountStatus, adminUsersApi, fmtDateTime, PLAN_LABEL, type AdminUserDetail,
 } from '../lib/admin-users';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
+import { GlassGroup } from '../components/profile/ProfileChrome';
+import { QuietHeader, RoundGlassButton } from '../components/pb2/Pb2Chrome';
+import {
+  ADMIN_SPINNER, AdminButton, AdminCard, AdminLoading, AdminSection, ErrorBanner, InfoRow,
+  InitialAvatar, StatGrid, StatTile, StatusBadge,
+} from '../components/admin/AdminChrome';
 
 const DURATIONS: Array<{ days: number; label: string }> = [
   { days: 1, label: '24 h' },
@@ -110,7 +117,7 @@ export default function AdminUserScreen() {
   };
 
   if (loading && !user) {
-    return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} size="large" /></View>;
+    return <AdminLoading paddingTop={insets.top} />;
   }
 
   const status = accountStatus(user?.suspendedUntil ?? null);
@@ -120,76 +127,82 @@ export default function AdminUserScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={() => void load()}
+          tintColor={ADMIN_SPINNER}
+          colors={[colors.brand]}
+          progressViewOffset={insets.top}
+        />
+      }
     >
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Fiche utilisateur</Text>
-        <Pressable onPress={() => void load()} hitSlop={8}><Text style={styles.refresh}>↻</Text></Pressable>
-      </View>
+      <QuietHeader
+        title="Fiche utilisateur"
+        onBack={() => router.back()}
+        right={<RoundGlassButton label="↻" onPress={() => void load()} />}
+      />
 
-      {error ? <Text style={styles.error}>⚠️ {error}</Text> : null}
+      {error ? <ErrorBanner message={error} /> : null}
 
       {user ? (
         <>
-          <View style={styles.card}>
+          <AdminCard>
             <View style={styles.identity}>
-              <View style={styles.avatar}><Text style={styles.avatarTxt}>{user.displayName?.[0]?.toUpperCase() ?? '?'}</Text></View>
-              <View style={{ flex: 1 }}>
+              <InitialAvatar name={user.displayName} size={60} />
+              <View style={styles.identityText}>
                 <Text style={styles.name}>{user.displayName}</Text>
                 <Text style={styles.email} selectable>{user.email}</Text>
               </View>
             </View>
             <View style={styles.badges}>
-              {user.isAdmin ? <Text style={[styles.badge, styles.badgeAdmin]}>ADMIN</Text> : null}
-              <Text style={[styles.badge, user.plan !== 'free' ? styles.badgePlan : styles.badgeFree]}>
-                {PLAN_LABEL[user.plan] ?? user.plan}
-              </Text>
-              {status === 'active' ? <Text style={[styles.badge, styles.badgeOk]}>Actif</Text> : null}
-              {status === 'suspended' ? <Text style={[styles.badge, styles.badgeWarn]}>Suspendu</Text> : null}
-              {status === 'banned' ? <Text style={[styles.badge, styles.badgeDanger]}>Banni</Text> : null}
+              {user.isAdmin ? <StatusBadge label="ADMIN" tone="plan" /> : null}
+              <StatusBadge label={PLAN_LABEL[user.plan] ?? user.plan} tone={user.plan !== 'free' ? 'plan' : 'neutral'} />
+              {status === 'active' ? <StatusBadge label="Actif" tone="ok" /> : null}
+              {status === 'suspended' ? <StatusBadge label="Suspendu" tone="warn" /> : null}
+              {status === 'banned' ? <StatusBadge label="Banni" tone="danger" /> : null}
             </View>
             {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
-          </View>
+          </AdminCard>
 
           {status !== 'active' ? (
-            <View style={[styles.card, styles.sanctionCard]}>
-              <Text style={styles.sectionTitle}>{status === 'banned' ? 'Banni' : 'Suspendu'}</Text>
-              {status === 'suspended' ? <Info label="Jusqu'au" value={fmtDateTime(user.suspendedUntil)} /> : null}
-              <Info label="Motif" value={user.suspendedReason ?? '—'} />
-              <Pressable style={[styles.btn, styles.btnOk, busy && styles.btnBusy]} onPress={lift} disabled={busy}>
-                <Text style={styles.btnTxt}>Lever la sanction</Text>
-              </Pressable>
-            </View>
+            <AdminCard alert>
+              <Text style={styles.sanctionTitle}>{status === 'banned' ? 'Banni' : 'Suspendu'}</Text>
+              {status === 'suspended' ? <InfoRow flush label="Jusqu'au" value={fmtDateTime(user.suspendedUntil)} /> : null}
+              <InfoRow flush label="Motif" value={user.suspendedReason ?? '—'} />
+              <AdminButton label="Lever la sanction" tone="ok" onPress={lift} disabled={busy} style={styles.liftBtn} />
+            </AdminCard>
           ) : null}
 
-          <Text style={styles.sectionHeading}>Compte</Text>
-          <View style={styles.card}>
-            <Info label="Connexion" value={PROVIDER_LABEL[user.authProvider] ?? user.authProvider} />
-            <Info label="Pays" value={user.countryCode ?? '—'} />
-            <Info label="Langue" value={user.locale} />
-            <Info label="Inscrit le" value={fmtDateTime(user.createdAt)} />
-            <Info label="Dernière visite" value={fmtDateTime(user.lastVisitAt)} />
-            <Info label="Premium depuis" value={fmtDateTime(user.premiumSince)} />
-            <Info label="Sessions ouvertes" value={String(user.stats.activeSessions)} />
-          </View>
+          <AdminSection title="Compte" />
+          <GlassGroup style={styles.group}>
+            <InfoRow label="Connexion" value={PROVIDER_LABEL[user.authProvider] ?? user.authProvider} />
+            <InfoRow label="Pays" value={user.countryCode ?? '—'} />
+            <InfoRow label="Langue" value={user.locale} />
+            <InfoRow label="Inscrit le" value={fmtDateTime(user.createdAt)} />
+            <InfoRow label="Dernière visite" value={fmtDateTime(user.lastVisitAt)} />
+            <InfoRow label="Premium depuis" value={fmtDateTime(user.premiumSince)} />
+            <InfoRow label="Sessions ouvertes" value={String(user.stats.activeSessions)} />
+          </GlassGroup>
 
-          <Text style={styles.sectionHeading}>Activité</Text>
-          <View style={styles.statsGrid}>
-            <Stat label="Visites" value={user.stats.visits} />
-            <Stat label="Publications" value={user.stats.posts} />
-            <Stat label="Lieux enregistrés" value={user.stats.savedPlaces} />
-            <Stat label="Itinéraires" value={user.stats.savedItineraries} />
-            <Stat label="Commandes" value={user.stats.orders} />
-            <Stat label="Signalé" value={user.stats.reportsAgainst} danger={user.stats.reportsAgainst > 0} />
-            <Stat label="A signalé" value={user.stats.reportsMade} />
-          </View>
+          <AdminSection title="Activité" />
+          <StatGrid>
+            <StatTile third label="Visites" value={user.stats.visits} />
+            <StatTile third label="Publications" value={user.stats.posts} />
+            <StatTile third label="Lieux enregistrés" value={user.stats.savedPlaces} />
+            <StatTile third label="Itinéraires" value={user.stats.savedItineraries} />
+            <StatTile third label="Commandes" value={user.stats.orders} />
+            <StatTile third label="Signalé" value={user.stats.reportsAgainst} danger={user.stats.reportsAgainst > 0} />
+            <StatTile third label="A signalé" value={user.stats.reportsMade} />
+          </StatGrid>
 
           {user.isAdmin ? (
             <Text style={styles.adminNote}>Compte administrateur : il ne peut pas être suspendu depuis l'app.</Text>
           ) : (
             <>
-              <Text style={styles.sectionHeading}>Sanctions</Text>
-              <View style={styles.card}>
+              <AdminSection title="Sanctions" />
+              <AdminCard>
                 <Text style={styles.hint}>
                   Le motif est montré à la personne quand elle essaie de se connecter.
                 </Text>
@@ -205,20 +218,25 @@ export default function AdminUserScreen() {
                 <Text style={styles.label}>Suspendre</Text>
                 <View style={styles.durations}>
                   {DURATIONS.map((d) => (
-                    <Pressable
+                    <AdminButton
                       key={d.days}
-                      style={[styles.btn, styles.btnWarn, styles.durationBtn, busy && styles.btnBusy]}
+                      label={d.label}
+                      tone="warn"
                       onPress={() => suspend(d.days, d.label)}
                       disabled={busy}
-                    >
-                      <Text style={styles.btnTxtDark}>{d.label}</Text>
-                    </Pressable>
+                      style={styles.durationBtn}
+                    />
                   ))}
                 </View>
-                <Pressable style={[styles.btn, styles.btnDanger, busy && styles.btnBusy]} onPress={ban} disabled={busy}>
-                  {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnTxt}>Bannir définitivement</Text>}
-                </Pressable>
-              </View>
+                <AdminButton
+                  label="Bannir définitivement"
+                  tone="danger"
+                  onPress={ban}
+                  disabled={busy}
+                  loading={busy}
+                  style={styles.banBtn}
+                />
+              </AdminCard>
             </>
           )}
         </>
@@ -227,77 +245,27 @@ export default function AdminUserScreen() {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue} selectable>{value}</Text>
-    </View>
-  );
-}
-
-function Stat({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={[styles.statVal, danger && { color: colors.danger }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 12, gap: spacing.sm },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text, flex: 1 },
-  refresh: { fontSize: 22, color: colors.brand },
-  error: { color: colors.danger, marginHorizontal: spacing.md },
-  card: {
-    marginHorizontal: spacing.md, marginBottom: spacing.sm, backgroundColor: colors.surface,
-    borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md,
-  },
-  sanctionCard: { borderColor: colors.danger + '66' },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { color: '#fff', fontWeight: '800', fontSize: 20 },
-  name: { ...typography.h3, color: colors.text },
-  email: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  bio: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.sm },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm },
-  badge: { fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
-  badgeAdmin: { color: '#fff', backgroundColor: '#6C3FE8' },
-  badgePlan: { color: '#1a1a1a', backgroundColor: '#D4A72C' },
-  badgeFree: { color: colors.textSecondary, backgroundColor: colors.border },
-  badgeOk: { color: '#fff', backgroundColor: colors.success },
-  badgeWarn: { color: '#1a1a1a', backgroundColor: colors.warning },
-  badgeDanger: { color: '#fff', backgroundColor: colors.danger },
-  sectionHeading: { ...typography.h3, color: colors.text, marginHorizontal: spacing.md, marginTop: spacing.md, marginBottom: spacing.sm },
-  sectionTitle: { ...typography.h3, color: colors.danger, marginBottom: spacing.sm },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, gap: spacing.md },
-  infoLabel: { fontSize: 13, color: colors.textMuted },
-  infoValue: { fontSize: 13, color: colors.text, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md },
-  stat: {
-    width: '31%', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1,
-    borderColor: colors.border, paddingVertical: 10, alignItems: 'center',
-  },
-  statVal: { ...typography.h3, color: colors.text },
-  statLabel: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
-  adminNote: { color: colors.textMuted, marginHorizontal: spacing.md, marginTop: spacing.md, fontSize: 13 },
-  hint: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.sm },
+  container: { flex: 1, backgroundColor: colors.bg },
+  group: { marginHorizontal: spacing.md },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  identityText: { flex: 1, minWidth: 0 },
+  name: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
+  email: { color: colors.textSecondary, fontSize: 13.5, marginTop: 2 },
+  bio: { color: colors.textSecondary, fontSize: 13.5, lineHeight: 19, marginTop: spacing.md },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.md },
+  sanctionTitle: { color: colors.danger, fontSize: 17, fontWeight: '900', marginBottom: spacing.xs },
+  liftBtn: { marginTop: spacing.sm },
+  adminNote: { color: colors.textMuted, marginHorizontal: spacing.md, marginTop: spacing.lg, fontSize: 13, lineHeight: 19 },
+  hint: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18, marginBottom: spacing.sm },
   reason: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.sm,
-    color: colors.text, minHeight: 60, textAlignVertical: 'top', fontSize: 14,
+    borderRadius: radius.md, padding: spacing.md, minHeight: 64, textAlignVertical: 'top',
+    color: colors.textPrimary, fontSize: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
-  label: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: spacing.md, marginBottom: 6 },
+  label: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginTop: spacing.md, marginBottom: spacing.sm },
   durations: { flexDirection: 'row', gap: 8 },
-  durationBtn: { flex: 1 },
-  btn: { borderRadius: radius.pill, paddingVertical: 12, alignItems: 'center', marginTop: spacing.sm },
-  btnBusy: { opacity: 0.5 },
-  btnOk: { backgroundColor: colors.success },
-  btnWarn: { backgroundColor: colors.warning, marginTop: 0 },
-  btnDanger: { backgroundColor: colors.danger, marginTop: spacing.md },
-  btnTxt: { color: '#fff', fontWeight: '800' },
-  btnTxtDark: { color: '#1a1a1a', fontWeight: '800' },
+  durationBtn: { flex: 1, paddingHorizontal: 8 },
+  banBtn: { marginTop: spacing.md },
 });

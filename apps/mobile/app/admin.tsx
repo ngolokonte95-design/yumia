@@ -1,6 +1,14 @@
+/**
+ * Tableau de bord admin — pilotage de YUMIA d'un coup d'œil.
+ *
+ * Refonte visuelle du 18/11/2026 (sobre : verre sombre, chiffres forts qui
+ * montent, barres neutres ; le dégradé de marque n'encadre que le chiffre
+ * principal). La logique — chargements, bascule de forfait, complétion des
+ * pays — est celle d'origine, à l'identique.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView,
+  ActivityIndicator, Alert, RefreshControl, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -8,10 +16,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { PLANS, type Plan } from '@yumia/shared';
 import { affiliateProviderLabel } from '../lib/affiliate-labels';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import { FEATURE_LABEL_KEYS, type LimitedFeature } from '../lib/constants/plan-limits';
+import { PressableScale, Reveal } from '../components/ui';
+import { BrandFrame, GlassGroup } from '../components/profile/ProfileChrome';
+import { QuietChip, QuietHeader, RoundGlassButton } from '../components/pb2/Pb2Chrome';
+import {
+  ADMIN_SPINNER, AdminButton, AdminCard, AdminLoading, AdminSection, AlertCount, BarRow, DayBars,
+  ErrorBanner, InitialAvatar, NavRow, StatGrid, StatTile, StatusBadge,
+} from '../components/admin/AdminChrome';
 
 const API = API_BASE_URL;
 
@@ -58,21 +73,6 @@ const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-
 function flagOf(code: string) { return FLAG[code] ?? '🌍'; }
 function fmtDate(iso: string, locale = 'fr') {
   return new Date(iso).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
-function StatCard({ label, value, sub, accent, onPress }: {
-  label: string; value: string | number; sub?: string; accent?: boolean;
-  /** Carte cliquable : ouvre la liste des comptes qu'elle compte. */
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable style={[styles.statCard, accent && styles.statCardAccent]} onPress={onPress} disabled={!onPress}>
-      <Text style={[styles.statVal, accent && styles.statValAccent]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
-      {onPress ? <Text style={styles.statOpen}>Voir ›</Text> : null}
-    </Pressable>
-  );
 }
 
 export default function AdminScreen() {
@@ -192,57 +192,59 @@ export default function AdminScreen() {
   const maxGrowth = growth.length > 0 ? Math.max(...growth.map((g) => g.count), 1) : 1;
   const maxCountry = byCountry.length > 0 ? Math.max(...byCountry.map((c) => c.count), 1) : 1;
 
-  if (loading) {
-    return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} size="large" /></View>;
+  // Premier chargement seulement : au rafraîchissement, le tableau de bord
+  // reste à l'écran (l'indicateur du geste suffit).
+  if (loading && !overview) {
+    return <AdminLoading paddingTop={insets.top} />;
   }
 
-  return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('adm_title')}</Text>
-        <Pressable onPress={load} style={styles.refreshBtn}><Text style={styles.refreshTxt}>↻</Text></Pressable>
-      </View>
+  const toHandle = ordersToHandle ? ordersToHandle.inProgress + ordersToHandle.toTransmit : 0;
 
-      {/* ── Actions ── */}
-      <Pressable style={styles.backfillBtn} onPress={backfillCountries}>
-        <Text style={styles.backfillTxt}>{t('adm_backfill_countries')}</Text>
-      </Pressable>
+  return (
+    <ScrollView
+      style={[styles.container, { paddingTop: insets.top }]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={() => void load()}
+          tintColor={ADMIN_SPINNER}
+          colors={[colors.brand]}
+          progressViewOffset={insets.top}
+        />
+      }
+    >
+      <QuietHeader
+        title={t('adm_title')}
+        onBack={() => router.back()}
+        right={<RoundGlassButton label="↻" onPress={() => void load()} />}
+      />
 
       {/* ── Erreur de chargement ── */}
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      )}
+      {error ? <ErrorBanner message={error} /> : null}
 
-      {/* ── Modération ──
-          En tête avec le compteur : un signalement qui attend est la seule
-          chose de cet écran qui se dégrade avec le temps. La règle 1.2 de
-          l'App Store demande d'agir sous 24 heures. */}
-      <Pressable style={styles.moderationCard} onPress={() => router.push('/admin-moderation')}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.moderationTitle}>Modération</Text>
-          <Text style={styles.planHint}>
-            {pendingReports === null
+      {/* ── À traiter ──
+          En tête, avec leurs compteurs : un signalement ou une commande qui
+          attend est la seule chose de cet écran qui se dégrade avec le temps
+          (règle 1.2 de l'App Store : agir sous 24 heures ; une commande non
+          payée chez AliExpress est annulée). */}
+      <Reveal index={0}>
+        <GlassGroup style={styles.group}>
+          <NavRow
+            icon="🛡️"
+            title="Modération"
+            hint={pendingReports === null
               ? 'Signalements à traiter'
               : pendingReports === 0
                 ? 'Aucun signalement en attente'
                 : `${pendingReports} signalement(s) en attente`}
-          </Text>
-        </View>
-        {pendingReports ? <Text style={styles.moderationBadge}>{pendingReports}</Text> : null}
-        <Text style={styles.moderationChevron}>›</Text>
-      </Pressable>
-
-      {/* ── Commandes de la boutique ──
-          Juste après la modération : une commande transmise à AliExpress y
-          reste « à payer » jusqu'au paiement manuel, sinon elle est annulée. */}
-      <Pressable style={styles.moderationCard} onPress={() => router.push('/admin-orders' as never)}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.moderationTitle}>Commandes</Text>
-          <Text style={styles.planHint}>
-            {ordersToHandle === null
+            trailing={pendingReports ? <AlertCount count={pendingReports} /> : undefined}
+            onPress={() => router.push('/admin-moderation')}
+          />
+          <NavRow
+            icon="📦"
+            title="Commandes"
+            hint={ordersToHandle === null
               ? 'Boutique : paiement AliExpress, suivi, retransmission'
               : ordersToHandle.inProgress + ordersToHandle.toTransmit === 0
                 ? 'Aucune commande en attente'
@@ -250,248 +252,247 @@ export default function AdminScreen() {
                     ordersToHandle.inProgress ? `${ordersToHandle.inProgress} en cours (à payer ou en préparation)` : null,
                     ordersToHandle.toTransmit ? `${ordersToHandle.toTransmit} à transmettre` : null,
                   ].filter(Boolean).join(' · ')}
-          </Text>
+            trailing={toHandle > 0 ? <AlertCount count={toHandle} /> : undefined}
+            onPress={() => router.push('/admin-orders' as never)}
+          />
+          <NavRow
+            icon="👥"
+            title="Utilisateurs"
+            hint="Emails, fiches, suspensions et bannissements"
+            trailing={overview?.users ? <Text style={styles.navCount}>{overview.users.total}</Text> : undefined}
+            onPress={() => router.push('/admin-users' as never)}
+          />
+        </GlassGroup>
+        <View style={styles.quickRow}>
+          <QuietChip label="⏸ Suspendus" active={false} onPress={() => router.push('/admin-users?segment=suspended' as never)} />
+          <QuietChip label="⛔ Bannis" active={false} onPress={() => router.push('/admin-users?segment=banned' as never)} />
         </View>
-        {ordersToHandle && ordersToHandle.inProgress + ordersToHandle.toTransmit > 0 ? (
-          <Text style={styles.moderationBadge}>{ordersToHandle.inProgress + ordersToHandle.toTransmit}</Text>
-        ) : null}
-        <Text style={styles.moderationChevron}>›</Text>
-      </Pressable>
-
-      {/* ── Centre de contrôle des comptes ── */}
-      <Pressable style={styles.moderationCard} onPress={() => router.push('/admin-users' as never)}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.moderationTitle}>Utilisateurs</Text>
-          <Text style={styles.planHint}>Emails, fiches, suspensions et bannissements</Text>
-        </View>
-        {overview?.users ? <Text style={styles.usersCount}>{overview.users.total}</Text> : null}
-        <Text style={styles.moderationChevron}>›</Text>
-      </Pressable>
-      <View style={styles.quickRow}>
-        <Pressable style={styles.quickBtn} onPress={() => router.push('/admin-users?segment=suspended' as never)}>
-          <Text style={styles.quickTxt}>⏸ Suspendus</Text>
-        </Pressable>
-        <Pressable style={styles.quickBtn} onPress={() => router.push('/admin-users?segment=banned' as never)}>
-          <Text style={styles.quickTxt}>⛔ Bannis</Text>
-        </Pressable>
-      </View>
+      </Reveal>
 
       {/* ── Forfait du compte admin ──
           Placé en tête : c'est un outil de test, pas une statistique, et on
           le cherche avant de parcourir les chiffres. */}
-      <Text style={styles.sectionTitle}>{t('adm_my_plan')}</Text>
-      <View style={styles.card}>
-        <Text style={styles.planHint}>{t('adm_my_plan_hint')}</Text>
+      <AdminSection title={t('adm_my_plan')} />
+      <AdminCard>
+        <Text style={styles.hint}>{t('adm_my_plan_hint')}</Text>
         <View style={styles.planRow}>
           {PLANS.map((p) => {
             const active = (user?.plan as Plan | undefined) === p;
             return (
-              <Pressable
+              <PressableScale
                 key={p}
                 style={[styles.planChip, active && styles.planChipActive]}
                 onPress={() => void switchPlan(p)}
                 disabled={switchingPlan !== null}
+                scaleTo={0.94}
               >
                 {switchingPlan === p ? (
-                  <ActivityIndicator size="small" color={colors.brand} />
+                  <ActivityIndicator size="small" color={active ? colors.bg : ADMIN_SPINNER} />
                 ) : (
                   <Text style={[styles.planChipText, active && styles.planChipTextActive]}>
                     {PLAN_LABEL[p]}
                   </Text>
                 )}
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
-      </View>
+      </AdminCard>
 
-      {/* ── Overview ── */}
+      {/* ── Vue d'ensemble ── */}
       {overview?.users && (
         <>
-          <Text style={styles.sectionTitle}>{t('adm_overview')}</Text>
-          <View style={styles.statsGrid}>
-            <StatCard label={t('adm_users')} value={overview.users.total} accent onPress={() => openUsers('all')} />
-            <StatCard label={t('adm_premium')} value={overview.users.premium} sub={`${Math.round((overview.users.premium / Math.max(overview.users.total, 1)) * 100)}%`} onPress={() => openUsers('premium')} />
-            <StatCard label={t('adm_active_7d')} value={overview.users.active7d} onPress={() => openUsers('active7d')} />
-            <StatCard label={t('adm_new_today')} value={overview.users.newToday} onPress={() => openUsers('newToday')} />
-            <StatCard label={t('adm_new_7d')} value={overview.users.newThisWeek} onPress={() => openUsers('new7d')} />
-            <StatCard label={t('adm_new_30d')} value={overview.users.newThisMonth} onPress={() => openUsers('new30d')} />
-          </View>
-          <View style={styles.statsGrid}>
-            <StatCard label={t('adm_places')} value={overview.content.places} />
-            <StatCard label={t('adm_visits')} value={overview.content.visits} />
-          </View>
+          <AdminSection title={t('adm_overview')} />
+          <Reveal index={1}>
+            {/* Le chiffre principal de l'écran : seul élément au dégradé de marque. */}
+            <BrandFrame style={styles.heroFrame}>
+              <StatTile
+                hero
+                label={t('adm_users')}
+                value={overview.users.total}
+                onPress={() => openUsers('all')}
+                style={styles.heroTile}
+              />
+            </BrandFrame>
+            <StatGrid>
+              <StatTile
+                label={t('adm_premium')}
+                value={overview.users.premium}
+                sub={`${Math.round((overview.users.premium / Math.max(overview.users.total, 1)) * 100)}%`}
+                onPress={() => openUsers('premium')}
+              />
+              <StatTile label={t('adm_active_7d')} value={overview.users.active7d} onPress={() => openUsers('active7d')} />
+            </StatGrid>
+            <StatGrid>
+              <StatTile third label={t('adm_new_today')} value={overview.users.newToday} onPress={() => openUsers('newToday')} />
+              <StatTile third label={t('adm_new_7d')} value={overview.users.newThisWeek} onPress={() => openUsers('new7d')} />
+              <StatTile third label={t('adm_new_30d')} value={overview.users.newThisMonth} onPress={() => openUsers('new30d')} />
+            </StatGrid>
+            <StatGrid>
+              <StatTile label={t('adm_places')} value={overview.content.places} />
+              <StatTile label={t('adm_visits')} value={overview.content.visits} />
+            </StatGrid>
+          </Reveal>
         </>
       )}
 
       {/* ── Conversion (7 jours) : de quoi régler les limites du Gratuit ── */}
       {conversion && (
         <>
-          <Text style={styles.sectionTitle}>{t('adm_conversion_title')}</Text>
-          <View style={styles.statsGrid}>
-            <StatCard label={t('adm_conv_trials_active')} value={conversion.trial.active} accent />
-            <StatCard label={t('adm_conv_trials_started')} value={conversion.trial.started} />
-            <StatCard
+          <AdminSection title={t('adm_conversion_title')} />
+          <StatGrid>
+            <StatTile label={t('adm_conv_trials_active')} value={conversion.trial.active} />
+            <StatTile label={t('adm_conv_trials_started')} value={conversion.trial.started} />
+            <StatTile
               label={t('adm_conv_trials_ended')}
               value={conversion.trial.ended}
               sub={`${conversion.trial.converted} ${t('adm_conv_trials_converted')}`}
             />
-            <StatCard
+            <StatTile
               label={t('adm_conv_subscriptions')}
               value={conversion.subscriptions.total}
               sub={`${conversion.subscriptions.duringTrial} ${t('adm_conv_during_trial')}`}
             />
-            <StatCard label={t('adm_conv_paywall')} value={conversion.paywall.users} sub={`${conversion.paywall.views} ${t('adm_conv_views')}`} />
-            <StatCard label={t('adm_conv_limit_users')} value={conversion.limits.users} />
-          </View>
-          <View style={styles.card}>
+            <StatTile label={t('adm_conv_paywall')} value={conversion.paywall.users} sub={`${conversion.paywall.views} ${t('adm_conv_views')}`} />
+            <StatTile label={t('adm_conv_limit_users')} value={conversion.limits.users} />
+          </StatGrid>
+          <AdminCard>
             {conversion.limits.byFeature.length === 0 ? (
-              <Text style={styles.statLabel}>{t('adm_conv_no_limits')}</Text>
+              <Text style={styles.hint}>{t('adm_conv_no_limits')}</Text>
             ) : conversion.limits.byFeature.map((row) => {
               const max = Math.max(...conversion.limits.byFeature.map((r) => r.users), 1);
               const labelKey = FEATURE_LABEL_KEYS[row.feature as LimitedFeature];
               return (
-                <View key={row.feature} style={styles.univRow}>
-                  <Text style={[styles.univName, { width: 140 }]} numberOfLines={1}>
-                    {labelKey ? t(labelKey) : row.feature}
-                  </Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFillGreen, { width: `${(row.users / max) * 100}%` }]} />
-                  </View>
-                  <Text style={styles.univCount}>{row.users}</Text>
-                </View>
+                <BarRow
+                  key={row.feature}
+                  label={labelKey ? t(labelKey) : row.feature}
+                  labelWidth={140}
+                  ratio={row.users / max}
+                  value={row.users}
+                />
               );
             })}
-          </View>
+          </AdminCard>
         </>
       )}
 
       {/* ── Utilisateurs par pays ── */}
       {byCountry.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>{t('adm_users_by_country')}</Text>
-          <View style={styles.card}>
+          <AdminSection title={t('adm_users_by_country')} />
+          <AdminCard>
             {byCountry.slice(0, 20).map((row) => (
-              <Pressable key={row.countryCode} style={styles.countryRow} onPress={() => router.push(`/admin-users?country=${row.countryCode}` as never)}>
-                <Text style={styles.countryFlag}>{flagOf(row.countryCode)}</Text>
-                <Text style={styles.countryCode}>{row.countryCode}</Text>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${(row.count / maxCountry) * 100}%` }]} />
-                </View>
-                <Text style={styles.countryCount}>{row.count}</Text>
-                <Text style={styles.countryPct}>{row.pct}%</Text>
-              </Pressable>
+              <BarRow
+                key={row.countryCode}
+                lead={<Text style={styles.flag}>{flagOf(row.countryCode)}</Text>}
+                label={row.countryCode}
+                labelWidth={30}
+                ratio={row.count / maxCountry}
+                value={row.count}
+                trailing={`${row.pct}%`}
+                onPress={() => router.push(`/admin-users?country=${row.countryCode}` as never)}
+              />
             ))}
-          </View>
+          </AdminCard>
         </>
       )}
 
       {/* ── Croissance inscriptions (30j) ── */}
       {growth.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>{t('adm_registrations_30d')}</Text>
-          <View style={[styles.card, styles.growthChart]}>
-            {growth.map((g) => (
-              <View key={g.date} style={styles.growthBar}>
-                <View style={[styles.growthFill, { height: `${(g.count / maxGrowth) * 100}%` }]} />
-                <Text style={styles.growthLabel}>{g.date.slice(5)}</Text>
-              </View>
-            ))}
-          </View>
+          <AdminSection title={t('adm_registrations_30d')} />
+          <AdminCard>
+            <DayBars data={growth} />
+          </AdminCard>
         </>
       )}
 
       {/* ── Lieux par univers ── */}
       {byUniverse.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>{t('adm_places_by_universe')}</Text>
-          <View style={styles.card}>
+          <AdminSection title={t('adm_places_by_universe')} />
+          <AdminCard>
             {byUniverse.map((row) => (
-              <View key={row.universe} style={styles.univRow}>
-                <Text style={styles.univName}>{row.universe}</Text>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFillGreen, { width: `${(row.count / Math.max(...byUniverse.map((u) => u.count), 1)) * 100}%` }]} />
-                </View>
-                <Text style={styles.univCount}>{row.count}</Text>
-              </View>
+              <BarRow
+                key={row.universe}
+                label={row.universe}
+                ratio={row.count / Math.max(...byUniverse.map((u) => u.count), 1)}
+                value={row.count}
+              />
             ))}
-          </View>
+          </AdminCard>
         </>
       )}
 
       {/* ── Affiliation ── */}
       {affiliateStats && (
         <>
-          <Text style={styles.sectionTitle}>{t('adm_affiliation')}</Text>
-          <View style={styles.statsGrid}>
-            <StatCard label={t('adm_clicks')} value={affiliateStats.totalClicks} accent />
-            <StatCard label={t('adm_conversions')} value={affiliateStats.totalConversions} sub={`${affiliateStats.conversionRate}%`} />
-            <StatCard label={t('adm_revenue')} value={`${(affiliateStats.revenueCents / 100).toFixed(2)} €`} />
-          </View>
+          <AdminSection title={t('adm_affiliation')} />
+          <StatGrid>
+            <StatTile third label={t('adm_clicks')} value={affiliateStats.totalClicks} />
+            <StatTile third label={t('adm_conversions')} value={affiliateStats.totalConversions} sub={`${affiliateStats.conversionRate}%`} />
+            <StatTile third label={t('adm_revenue')} value={`${(affiliateStats.revenueCents / 100).toFixed(2)} €`} />
+          </StatGrid>
 
           {affiliateTrend.length > 0 && (
-            <View style={[styles.card, styles.growthChart]}>
-              {affiliateTrend.map((g) => {
-                const max = Math.max(...affiliateTrend.map((t) => t.count), 1);
-                return (
-                  <View key={g.date} style={styles.growthBar}>
-                    <View style={[styles.growthFill, { height: `${(g.count / max) * 100}%` }]} />
-                    <Text style={styles.growthLabel}>{g.date.slice(5)}</Text>
-                  </View>
-                );
-              })}
-            </View>
+            <AdminCard>
+              <DayBars data={affiliateTrend} />
+            </AdminCard>
           )}
 
-          {affiliateStats.clicksByProvider.length > 0 ? (
-            <View style={styles.card}>
-              {affiliateStats.clicksByProvider.map((row) => {
+          <AdminCard>
+            {affiliateStats.clicksByProvider.length > 0 ? (
+              affiliateStats.clicksByProvider.map((row) => {
                 const max = Math.max(...affiliateStats.clicksByProvider.map((r) => r.count), 1);
                 const conv = affiliateStats.conversionsByProvider.find((c) => c.provider === row.provider)?.count ?? 0;
                 return (
-                  <View key={row.provider} style={styles.univRow}>
-                    <Text style={[styles.univName, { width: 140 }]}>{affiliateProviderLabel(row.provider)}</Text>
-                    <View style={styles.barTrack}>
-                      <View style={[styles.barFillGreen, { width: `${(row.count / max) * 100}%` }]} />
-                    </View>
-                    <Text style={styles.univCount}>{row.count}</Text>
-                    <Text style={[styles.countryPct, { width: 50 }]}>{conv} {t('adm_conv_short')}</Text>
-                  </View>
+                  <BarRow
+                    key={row.provider}
+                    label={affiliateProviderLabel(row.provider)}
+                    labelWidth={128}
+                    ratio={row.count / max}
+                    value={row.count}
+                    trailing={`${conv} ${t('adm_conv_short')}`}
+                  />
                 );
-              })}
-            </View>
-          ) : (
-            <View style={styles.card}>
-              <Text style={styles.statLabel}>{t('adm_no_clicks')}</Text>
-            </View>
-          )}
+              })
+            ) : (
+              <Text style={styles.hint}>{t('adm_no_clicks')}</Text>
+            )}
+          </AdminCard>
         </>
       )}
 
       {/* ── Inscriptions récentes ── */}
       {recentUsers.length > 0 && (
         <>
-          <Text style={styles.sectionTitle}>{t('adm_recent_signups')}</Text>
-          <View style={styles.card}>
+          <AdminSection title={t('adm_recent_signups')} />
+          <GlassGroup style={styles.group}>
             {recentUsers.map((u) => (
-              <Pressable key={u.id} style={styles.userRow} onPress={() => router.push(`/admin-user?id=${u.id}` as never)}>
-                <View style={styles.userAvatar}>
-                  <Text style={styles.userAvatarText}>{u.displayName[0]?.toUpperCase()}</Text>
-                </View>
+              <PressableScale
+                key={u.id}
+                style={styles.userRow}
+                onPress={() => router.push(`/admin-user?id=${u.id}` as never)}
+                scaleTo={0.98}
+              >
+                <InitialAvatar name={u.displayName} size={38} />
                 <View style={styles.userInfo}>
                   <View style={styles.userNameRow}>
-                    <Text style={styles.userName}>{u.displayName}</Text>
-                    {u.isPremium && <Text style={styles.premiumBadge}>{t('adm_plus_badge')}</Text>}
+                    <Text style={styles.userName} numberOfLines={1}>{u.displayName}</Text>
+                    {u.isPremium && <StatusBadge label={t('adm_plus_badge')} tone="plan" />}
                     {u.countryCode && <Text style={styles.userFlag}>{flagOf(u.countryCode)}</Text>}
                   </View>
-                  <Text style={styles.userEmail}>{u.email}</Text>
+                  <Text style={styles.userEmail} numberOfLines={1}>{u.email}</Text>
                 </View>
                 <Text style={styles.userDate}>{fmtDate(u.createdAt, locale)}</Text>
-              </Pressable>
+              </PressableScale>
             ))}
-          </View>
+          </GlassGroup>
         </>
       )}
+
+      {/* ── Maintenance ── tout en bas : une action rare, pas un chiffre. */}
+      <AdminButton label={t('adm_backfill_countries')} onPress={() => void backfillCountries()} style={styles.backfill} />
 
       <View style={{ height: insets.bottom + 40 }} />
     </ScrollView>
@@ -499,91 +500,31 @@ export default function AdminScreen() {
 }
 
 const styles = StyleSheet.create({
-  planHint: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.sm },
-  planRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  planChip: {
-    paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border, minWidth: 84, alignItems: 'center',
-  },
-  planChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  planChipText: { ...typography.label, fontSize: 13, color: colors.textSecondary },
-  planChipTextActive: { color: '#fff' },
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 12 },
-  back: { fontSize: 22, color: colors.brand, marginRight: spacing.sm },
-  title: { ...typography.h2, color: colors.text, flex: 1 },
-  refreshBtn: { padding: 8 },
-  refreshTxt: { fontSize: 22, color: colors.brand },
-  moderationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-  },
-  moderationTitle: { ...typography.h3, color: colors.text },
-  moderationBadge: {
-    ...typography.caption,
-    color: '#fff',
-    fontWeight: '700',
-    backgroundColor: colors.danger,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    overflow: 'hidden',
-  },
-  moderationChevron: { ...typography.h2, color: colors.textMuted },
-  sectionTitle: { ...typography.h3, color: colors.text, marginHorizontal: spacing.md, marginTop: spacing.md, marginBottom: spacing.sm },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md, gap: 10, marginBottom: 4 },
-  statCard: {
-    flex: 1, minWidth: '28%', backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.border,
-  },
-  statCardAccent: { backgroundColor: colors.brand + '15', borderColor: colors.brand + '40' },
-  statVal: { ...typography.h2, color: colors.text, marginBottom: 2 },
-  statValAccent: { color: colors.brand },
-  statLabel: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
-  statSub: { fontSize: 11, color: colors.brand, fontWeight: '700', marginTop: 2 },
-  statOpen: { fontSize: 10, color: colors.brand, fontWeight: '700', marginTop: 4 },
-  usersCount: { ...typography.h3, color: colors.brand },
+  container: { flex: 1, backgroundColor: colors.bg },
+  group: { marginHorizontal: spacing.md },
+  navCount: { color: colors.textSecondary, fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
   quickRow: { flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.sm },
-  quickBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.md,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+  hint: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  planRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  planChip: {
+    minWidth: 84, height: 38, paddingHorizontal: spacing.md, borderRadius: radius.pill,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
-  quickTxt: { fontSize: 13, fontWeight: '700', color: colors.text },
-  card: { marginHorizontal: spacing.md, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
-  countryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 },
-  countryFlag: { fontSize: 18, width: 26 },
-  countryCode: { fontSize: 13, color: colors.textMuted, width: 30, fontWeight: '600' },
-  barTrack: { flex: 1, height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden' },
-  barFill: { height: '100%', backgroundColor: colors.brand, borderRadius: 4 },
-  barFillGreen: { height: '100%', backgroundColor: '#4ade80', borderRadius: 4 },
-  countryCount: { fontSize: 13, color: colors.text, fontWeight: '700', width: 42, textAlign: 'right' },
-  countryPct: { fontSize: 12, color: colors.textMuted, width: 40, textAlign: 'right' },
-  growthChart: { flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 2, paddingBottom: 20 },
-  growthBar: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
-  growthFill: { width: '80%', backgroundColor: colors.brand, borderRadius: 2, minHeight: 2 },
-  growthLabel: { fontSize: 8, color: colors.textMuted, marginTop: 2, transform: [{ rotate: '-45deg' }] },
-  univRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  univName: { fontSize: 12, color: colors.textMuted, width: 120 },
-  univCount: { fontSize: 12, color: colors.text, fontWeight: '700', width: 40, textAlign: 'right' },
-  backfillBtn: { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  backfillTxt: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  errorBox: { marginHorizontal: spacing.md, marginTop: spacing.md, backgroundColor: colors.danger + '22', borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.danger + '55' },
-  errorText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
-  userAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  userAvatarText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  userInfo: { flex: 1 },
+  planChipActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  planChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  planChipTextActive: { color: colors.bg, fontWeight: '900' },
+  heroFrame: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  // Le cadre dégradé fournit déjà fond et liseré.
+  heroTile: { backgroundColor: 'transparent', borderWidth: 0 },
+  flag: { fontSize: 17, width: 24 },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: 11 },
+  userInfo: { flex: 1, minWidth: 0 },
   userNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  userName: { fontWeight: '700', color: colors.text, fontSize: 14 },
-  premiumBadge: { fontSize: 11, color: '#f59e0b', fontWeight: '700' },
+  userName: { color: colors.textPrimary, fontSize: 14.5, fontWeight: '800', flexShrink: 1 },
   userFlag: { fontSize: 14 },
-  userEmail: { fontSize: 12, color: colors.textMuted },
-  userDate: { fontSize: 11, color: colors.textMuted },
+  userEmail: { color: colors.textMuted, fontSize: 12.5, marginTop: 1 },
+  userDate: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
+  backfill: { marginHorizontal: spacing.md, marginTop: spacing.xl },
 });

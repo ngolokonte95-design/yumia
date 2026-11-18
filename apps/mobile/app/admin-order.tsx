@@ -1,16 +1,25 @@
 /**
  * Fiche d'une commande — état en direct chez AliExpress, lien de paiement,
  * suivi, et actions : actualiser, retransmettre.
+ *
+ * Refonte visuelle du 18/11/2026 (sobre : verre, montant en chiffres forts ;
+ * seul le paiement à faire chez AliExpress porte le dégradé de marque) ;
+ * logique et confirmations d'origine à l'identique.
  */
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
 import { adminOrdersApi, euros, STAGE_LABEL, STATUS_LABEL, type AdminOrderDetail } from '../lib/admin-orders';
 import { fmtDateTime } from '../lib/admin-users';
 import { openExternalHttps } from '../lib/external-link';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
+import { BrandButton } from '../components/social/SocialChrome';
+import { QuietHeader } from '../components/pb2/Pb2Chrome';
+import {
+  ADMIN_SPINNER, AdminButton, AdminCard, AdminSection, ErrorBanner, StatusBadge,
+} from '../components/admin/AdminChrome';
 
 export default function AdminOrderScreen() {
   const router = useRouter();
@@ -87,85 +96,87 @@ export default function AdminOrderScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{ref}</Text>
-      </View>
+      <QuietHeader title={ref ?? ''} onBack={() => router.back()} />
 
-      {loading && !order ? <ActivityIndicator color={colors.brand} style={{ marginTop: 40 }} /> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {loading && !order ? <ActivityIndicator color={ADMIN_SPINNER} style={{ marginTop: 40 }} /> : null}
+      {error ? <ErrorBanner message={error} /> : null}
 
       {order ? (
-        <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: insets.bottom + 40 }}>
-          <View style={styles.card}>
-            <Text style={styles.status}>{STATUS_LABEL[order.status] ?? order.status}</Text>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} tintColor={ADMIN_SPINNER} colors={[colors.brand]} />}
+        >
+          <AdminCard style={styles.summary}>
+            <StatusBadge label={STATUS_LABEL[order.status] ?? order.status} tone="plan" />
+            <Text style={styles.total}>{euros(order.totalCents, order.currency)}</Text>
             <Text style={styles.meta}>Commandée le {fmtDateTime(order.createdAt)}</Text>
             {order.paidAt ? <Text style={styles.meta}>Payée par le client le {fmtDateTime(order.paidAt)}</Text> : null}
             {order.shippedAt ? <Text style={styles.meta}>Expédiée le {fmtDateTime(order.shippedAt)}</Text> : null}
-            <Text style={styles.total}>{euros(order.totalCents, order.currency)}</Text>
-          </View>
+          </AdminCard>
 
           {/* ── AliExpress ── */}
-          <Text style={styles.section}>Chez AliExpress</Text>
+          <AdminSection title="Chez AliExpress" />
           {order.aliexpress.length === 0 ? (
-            <View style={styles.card}>
+            <AdminCard style={styles.card}>
               <Text style={styles.meta}>Pas transmise à AliExpress.</Text>
               {order.status === 'paid' ? (
-                <Pressable style={styles.primaryBtn} onPress={retransmit} disabled={busy !== null}>
-                  <Text style={styles.primaryTxt}>{busy === 'retransmit' ? '…' : 'Transmettre à AliExpress'}</Text>
-                </Pressable>
+                <BrandButton
+                  label={busy === 'retransmit' ? '…' : 'Transmettre à AliExpress'}
+                  onPress={retransmit}
+                  disabled={busy !== null}
+                  style={styles.cardBtn}
+                />
               ) : null}
-            </View>
+            </AdminCard>
           ) : (
             order.aliexpress.map((ae) => (
-              <View key={ae.id} style={[styles.card, ae.stage === 'awaiting_payment' && styles.cardAlert]}>
+              <AdminCard key={ae.id} style={styles.card} alert={ae.stage === 'awaiting_payment'}>
                 <Text style={styles.stage}>{STAGE_LABEL[ae.stage]}</Text>
                 <Text style={styles.meta}>N° {ae.id}{ae.amount ? ` · ${ae.amount}` : ''}</Text>
                 {ae.endReason ? <Text style={styles.meta}>Motif : {ae.endReason}</Text> : null}
                 {ae.trackingNumber ? (
                   <Text style={styles.meta}>Suivi : {ae.trackingNumber}{ae.carrier ? ` (${ae.carrier})` : ''}</Text>
                 ) : null}
-                <Pressable
-                  style={ae.stage === 'awaiting_payment' ? styles.primaryBtn : styles.secondaryBtn}
-                  onPress={() => void openExternalHttps(ae.url)}
-                >
-                  <Text style={ae.stage === 'awaiting_payment' ? styles.primaryTxt : styles.secondaryTxt}>
-                    {ae.stage === 'awaiting_payment' ? 'Payer sur AliExpress' : 'Ouvrir chez AliExpress'}
-                  </Text>
-                </Pressable>
-              </View>
+                {ae.stage === 'awaiting_payment' ? (
+                  <BrandButton label="Payer sur AliExpress" onPress={() => void openExternalHttps(ae.url)} style={styles.cardBtn} />
+                ) : (
+                  <AdminButton label="Ouvrir chez AliExpress" onPress={() => void openExternalHttps(ae.url)} style={styles.cardBtn} />
+                )}
+              </AdminCard>
             ))
           )}
 
           <View style={styles.actions}>
             {order.aliexpress.length > 0 ? (
-              <Pressable style={styles.secondaryBtn} onPress={() => void sync()} disabled={busy !== null}>
-                <Text style={styles.secondaryTxt}>{busy === 'sync' ? '…' : '↻ Actualiser le statut'}</Text>
-              </Pressable>
+              <AdminButton
+                label={busy === 'sync' ? '…' : '↻ Actualiser le statut'}
+                onPress={() => void sync()}
+                disabled={busy !== null}
+                style={styles.action}
+              />
             ) : null}
             {order.trackingUrl ? (
-              <Pressable style={styles.secondaryBtn} onPress={() => void openExternalHttps(order.trackingUrl)}>
-                <Text style={styles.secondaryTxt}>Suivre le colis</Text>
-              </Pressable>
+              <AdminButton label="Suivre le colis" onPress={() => void openExternalHttps(order.trackingUrl)} style={styles.action} />
             ) : null}
           </View>
 
           {/* ── Articles ── */}
-          <Text style={styles.section}>Articles</Text>
+          <AdminSection title="Articles" />
           {order.items.map((it, k) => (
-            <View key={k} style={[styles.card, styles.itemRow]}>
+            <AdminCard key={k} style={styles.itemRow}>
               {it.image ? <Image source={{ uri: it.image }} style={styles.itemImg} /> : null}
-              <View style={{ flex: 1, gap: 2 }}>
+              <View style={styles.itemText}>
                 <Text style={styles.itemTitle} numberOfLines={2}>{it.title}</Text>
                 {it.variant ? <Text style={styles.meta}>{it.variant}</Text> : null}
                 <Text style={styles.meta}>{it.quantity} × {euros(it.unitPriceCents, order.currency)}</Text>
               </View>
-            </View>
+            </AdminCard>
           ))}
 
           {/* ── Client ── */}
-          <Text style={styles.section}>Livraison</Text>
-          <View style={styles.card}>
+          <AdminSection title="Livraison" />
+          <AdminCard style={styles.card}>
             {order.customer ? <Text style={styles.itemTitle}>{order.customer.name} · {order.customer.email}</Text> : (
               <Text style={styles.meta}>Compte supprimé</Text>
             )}
@@ -173,7 +184,7 @@ export default function AdminOrderScreen() {
             <Text style={styles.meta}>{[address.line1, address.line2].filter(Boolean).join(', ')}</Text>
             <Text style={styles.meta}>{[address.postalCode, address.city, address.countryCode].filter(Boolean).join(' ')}</Text>
             {address.phone ? <Text style={styles.meta}>{address.phone}</Text> : null}
-          </View>
+          </AdminCard>
         </ScrollView>
       ) : null}
     </View>
@@ -182,23 +193,16 @@ export default function AdminOrderScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  back: { fontSize: 24, color: colors.brandSoft },
-  title: { ...typography.h2, color: colors.text },
-  error: { color: colors.danger, padding: spacing.md },
-  section: { ...typography.h3, color: colors.text, marginTop: spacing.sm },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: 6 },
-  cardAlert: { borderColor: colors.brand },
-  status: { fontSize: 15, fontWeight: '700', color: colors.text },
-  stage: { fontSize: 15, fontWeight: '700', color: colors.text },
-  total: { fontSize: 18, fontWeight: '800', color: colors.brandSoft, marginTop: 4 },
-  meta: { fontSize: 13, color: colors.textSecondary },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  primaryBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginTop: 4 },
-  primaryTxt: { color: '#fff', fontWeight: '700' },
-  secondaryBtn: { borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', marginTop: 4 },
-  secondaryTxt: { color: colors.text, fontWeight: '600' },
+  summary: { gap: 4, alignItems: 'flex-start' },
+  total: { color: colors.textPrimary, fontSize: 40, fontWeight: '900', letterSpacing: -1.2, fontVariant: ['tabular-nums'], marginTop: 6, marginBottom: 2 },
+  card: { gap: 6 },
+  cardBtn: { marginTop: spacing.sm },
+  stage: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  meta: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.xs },
+  action: { flexGrow: 1 },
   itemRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
-  itemImg: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: colors.surfaceElevated },
-  itemTitle: { fontSize: 14, fontWeight: '600', color: colors.text },
+  itemImg: { width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.surfaceElevated },
+  itemText: { flex: 1, minWidth: 0, gap: 2 },
+  itemTitle: { color: colors.textPrimary, fontSize: 14.5, fontWeight: '700' },
 });

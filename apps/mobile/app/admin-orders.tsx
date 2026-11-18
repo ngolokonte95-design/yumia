@@ -5,9 +5,12 @@
  * chez AliExpress, la seule chose de cet écran qui se dégrade avec le temps
  * (sans paiement, AliExpress annule). Textes en français sans i18n, comme le
  * reste de l'administration.
+ *
+ * Refonte visuelle du 18/11/2026 (sobre : cartes de verre, montant en chiffres
+ * forts) ; logique d'origine à l'identique.
  */
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
@@ -15,7 +18,11 @@ import {
   adminOrdersApi, euros, STATUS_LABEL, TAB_LABEL, type AdminOrderRow, type AdminOrdersTab,
 } from '../lib/admin-orders';
 import { fmtDateTime } from '../lib/admin-users';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
+import { PressableScale } from '../components/ui';
+import { CHEVRON, GLASS } from '../components/profile/ProfileChrome';
+import { QuietChip, QuietEmpty, QuietHeader } from '../components/pb2/Pb2Chrome';
+import { ADMIN_SPINNER, ErrorBanner, StatusBadge } from '../components/admin/AdminChrome';
 
 const TABS: AdminOrdersTab[] = ['in_progress', 'to_transmit', 'shipped', 'delivered', 'all'];
 
@@ -49,21 +56,18 @@ export default function AdminOrdersScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>Commandes</Text>
-      </View>
+      <QuietHeader title="Commandes" onBack={() => router.back()} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
         {TABS.map((k) => {
           const n = counts[k];
-          const active = tab === k;
           return (
-            <Pressable key={k} style={[styles.tab, active && styles.tabActive]} onPress={() => setTab(k)}>
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                {TAB_LABEL[k]}{typeof n === 'number' ? ` · ${n}` : ''}
-              </Text>
-            </Pressable>
+            <QuietChip
+              key={k}
+              label={`${TAB_LABEL[k]}${typeof n === 'number' ? ` · ${n}` : ''}`}
+              active={tab === k}
+              onPress={() => setTab(k)}
+            />
           );
         })}
       </ScrollView>
@@ -79,33 +83,37 @@ export default function AdminOrdersScreen() {
         </Text>
       ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <ErrorBanner message={error} /> : null}
 
       <FlatList
         data={orders}
         keyExtractor={(o) => o.reference}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load(tab)} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load(tab)} tintColor={ADMIN_SPINNER} colors={[colors.brand]} />}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, paddingBottom: insets.bottom + 40 }}
         ListEmptyComponent={
-          loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 40 }} />
-          : <Text style={styles.empty}>Aucune commande ici.</Text>
+          loading ? <ActivityIndicator color={ADMIN_SPINNER} style={{ marginTop: 40 }} />
+          : <QuietEmpty emoji="📦" title="Aucune commande ici." />
         }
         renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && { opacity: 0.7 }]}
+          <PressableScale
+            style={[styles.card, GLASS]}
             onPress={() => router.push(`/admin-order?ref=${encodeURIComponent(item.reference)}` as never)}
+            scaleTo={0.98}
           >
             <View style={styles.row}>
-              <Text style={styles.ref}>{item.reference}</Text>
+              <Text style={styles.ref} numberOfLines={1}>{item.reference}</Text>
               <Text style={styles.total}>{euros(item.totalCents, item.currency)}</Text>
             </View>
-            <Text style={styles.status}>{STATUS_LABEL[item.status] ?? item.status}</Text>
+            <View style={styles.row}>
+              <StatusBadge label={STATUS_LABEL[item.status] ?? item.status} tone="plan" />
+              <Text style={styles.chevron}>{CHEVRON}</Text>
+            </View>
             <Text style={styles.meta}>
               {fmtDateTime(item.createdAt)} · {item.itemCount} article{item.itemCount > 1 ? 's' : ''}
               {item.customer ? ` · ${item.customer}` : ''}
             </Text>
             {item.trackingNumber ? <Text style={styles.meta}>Suivi : {item.trackingNumber}</Text> : null}
-          </Pressable>
+          </PressableScale>
         )}
       />
     </View>
@@ -114,22 +122,13 @@ export default function AdminOrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  back: { fontSize: 24, color: colors.brandSoft },
-  title: { ...typography.h2, color: colors.text },
   tabsScroll: { flexGrow: 0, flexShrink: 0 },
-  tabs: { gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  tabText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  tabTextActive: { color: '#fff' },
-  hint: { ...typography.caption, color: colors.textSecondary, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  error: { color: colors.danger, paddingHorizontal: spacing.md },
-  empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: 40 },
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ref: { fontSize: 15, fontWeight: '700', color: colors.text },
-  total: { fontSize: 15, fontWeight: '700', color: colors.brandSoft },
-  status: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
-  meta: { fontSize: 12, color: colors.textMuted },
+  tabs: { gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  hint: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  card: { borderRadius: radius.lg, padding: spacing.md, gap: 6 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  ref: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', flexShrink: 1 },
+  total: { color: colors.textPrimary, fontSize: 18, fontWeight: '900', letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
+  chevron: { color: colors.textMuted, fontSize: 22, fontWeight: '300', marginTop: -2 },
+  meta: { color: colors.textMuted, fontSize: 12.5 },
 });
