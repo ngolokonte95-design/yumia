@@ -15,16 +15,17 @@
  * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
 import { useCallback, useState } from 'react';
-import { I18nManager, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { I18nManager, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
+  Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion,
+  useSharedValue, withSpring, withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UNIVERSE_CATEGORIES } from '@yumia/shared';
 import type { Mode, UniverseCategory } from '@yumia/shared';
-import { colors, elevation, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { colors, elevation, gradients, motion, radius, spacing, typography } from '../../theme/tokens';
 import { UniverseGlyph } from '../../components/UniverseGlyph';
 import { YumiaLogo } from '../../components/YumiaLogo';
 import { PlanBadgeIcon } from '../../components/Avatar';
@@ -331,15 +332,53 @@ function CategorySection({
       />
       <View style={styles.universeGrid}>
         {cat.universes.map((u) => (
-          <PressableScale key={u} style={styles.universeTile} onPress={() => onOpen(u)} scaleTo={0.92}>
-            <UniverseGlyph u={u} size={26} />
-            <Text style={styles.universeLabel} numberOfLines={2}>{labelOf(u)}</Text>
-          </PressableScale>
+          <UniverseTile key={u} u={u} label={labelOf(u)} onPress={() => onOpen(u)} />
         ))}
       </View>
     </Reveal>
   );
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * Tuile d'univers en verre taillé (18/11, demande de l'utilisateur).
+ *
+ * Au repos : verre sombre et liseré cristal très atténué, plus clair sur
+ * l'arête du haut et qui s'efface vers le bas (couleur par côté : aucun
+ * calque opaque, le fond spatial reste visible à travers). Au toucher, le
+ * liseré s'illumine en plein cristal avec un reflet, puis s'éteint en douceur.
+ * Le cristal fort reste réservé à ce qui est choisi ou touché : au repos,
+ * des dizaines de tuiles brillantes ne ressortiraient plus.
+ */
+function UniverseTile({ u, label, onPress }: { u: string; label: string; onPress: () => void }) {
+  const pressed = useSharedValue(0);
+  const reduced = useReducedMotion();
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: reduced ? 1 : withSpring(1 - pressed.value * 0.08, motion.spring.snappy) }],
+  }));
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(pressed.value, { duration: pressed.value ? 90 : 380 }),
+  }));
+
+  return (
+    <AnimatedPressable
+      onPressIn={() => { pressed.value = 1; }}
+      onPressOut={() => { pressed.value = 0; }}
+      onPress={onPress}
+      style={[styles.universeTile, pressStyle]}
+    >
+      <Animated.View pointerEvents="none" style={[styles.tileLit, glowStyle]}>
+        <LinearGradient colors={TILE_SHEEN} start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />
+      </Animated.View>
+      <UniverseGlyph u={u} size={26} />
+      <Text style={styles.universeLabel} numberOfLines={2}>{label}</Text>
+    </AnimatedPressable>
+  );
+}
+
+/** Reflet de la tuile touchée : éclat blanc en haut à gauche qui s'efface. */
+const TILE_SHEEN = ['rgba(255,255,255,0.16)', 'rgba(220,228,240,0.05)', 'rgba(255,255,255,0)'] as const;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: SPACE_BLACK },
@@ -425,15 +464,28 @@ const styles = StyleSheet.create({
   // de l'écran (Android inclus).
   universeTile: {
     width: '22.5%',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: 'rgba(28,28,40,0.58)',
+    // Liseré cristal atténué : la lumière vient d'en haut à gauche.
     borderWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.26)',
+    borderLeftColor: 'rgba(220,228,240,0.16)',
+    borderRightColor: 'rgba(174,187,208,0.09)',
+    borderBottomColor: 'rgba(174,187,208,0.05)',
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
     paddingHorizontal: 3,
     gap: 3,
+  },
+  // Liseré plein cristal + reflet, allumés au toucher.
+  tileLit: {
+    position: 'absolute', top: -1, left: -1, right: -1, bottom: -1,
+    borderRadius: radius.md, overflow: 'hidden', borderWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.95)',
+    borderLeftColor: 'rgba(255,255,255,0.80)',
+    borderRightColor: 'rgba(174,187,208,0.55)',
+    borderBottomColor: 'rgba(174,187,208,0.40)',
   },
   universeLabel: { ...typography.label, color: colors.textSecondary, textAlign: 'center', fontSize: 9, lineHeight: 12 },
 });
