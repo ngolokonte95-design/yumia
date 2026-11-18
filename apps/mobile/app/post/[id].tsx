@@ -1,14 +1,28 @@
+/**
+ * PUBLICATION — une publication en grand et son fil de commentaires.
+ *
+ * Habillage sobre (18/11/2026, « spectaculaire mais simple, peu de couleur ») :
+ * fond noir uni, média bord à bord, verre discret, typographie forte. Le
+ * dégradé de marque n'apparaît qu'à un endroit : le bouton d'envoi d'un
+ * commentaire (et « Enregistrer » dans la feuille d'édition). Micro-animation :
+ * le cœur rebondit. Aucun voile en dégradé.
+ *
+ * La logique (chargement, vue comptée, j'aime, commentaires et réponses,
+ * signalement, édition de légende, musique synchronisée à la vidéo) et le
+ * lecteur `PostVideo` sont inchangés.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
-  ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, I18nManager, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useAuth } from '../../lib/auth-context';
 import { promptReport } from '../../lib/report-content';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, motion, radius, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { PostVideo } from '../../components/PostVideo';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
@@ -19,6 +33,11 @@ import { formatCount } from '../../lib/format-count';
 import { parseMusicTrack, isPlayableAudioUrl } from '../../lib/music-track';
 import { isVideoUrl } from '../../lib/is-video-url';
 import { TranslatableText } from '../../components/TranslatableText';
+import { PressableScale } from '../../components/ui';
+import { haptics } from '../../lib/useHaptics';
+import {
+  BrandFill, CHAT_BG, CHAT_GLASS, CHAT_HAIRLINE, GlassCircle, GradientRing, ringInner,
+} from '../../components/chat/ChatChrome';
 
 const API = API_BASE_URL;
 
@@ -213,8 +232,8 @@ export default function PostDetailScreen() {
     setPosting(false);
   };
 
-  if (loading) return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} /></View>;
-  if (!post) return <View style={[styles.center, { paddingTop: insets.top }]}><Text style={{ color: colors.textMuted }}>{t('pd_not_found')}</Text></View>;
+  if (loading) return <CenterState top={insets.top} onBack={() => router.back()}><ActivityIndicator color="#fff" /></CenterState>;
+  if (!post) return <CenterState top={insets.top} onBack={() => router.back()}><Text style={styles.centerTxt}>{t('pd_not_found')}</Text></CenterState>;
 
   // Même ordre de détection que le feed (social.tsx) : mediaUrls[0] d'abord
   // s'il a une extension vidéo, sinon repli sur `videoUrl`. Sans ce repli, un
@@ -229,29 +248,32 @@ export default function PostDetailScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={insets.top}
     >
+      {/* En-tête : retour en verre + auteur (mène à son profil). */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-      </View>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
-        {/* Author */}
+        <GlassCircle onPress={() => router.back()}>
+          <Text style={styles.backIcon}>{BACK_ICON}</Text>
+        </GlassCircle>
         <Pressable style={styles.author} onPress={() => router.push(`/user/${post.user?.id}`)}>
-          <Avatar
-            uri={post.user?.photoUrl}
-            size={38}
-            placeholderColor={colors.brand}
-            fallback={<Text style={{ color: '#fff', fontWeight: '700' }}>{post.user?.displayName[0]}</Text>}
-          />
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.authorName}>{post.user?.displayName}</Text>
+          <GradientRing size={44} active={false}>
+            <Avatar
+              uri={post.user?.photoUrl}
+              size={ringInner(44)}
+              placeholderColor={colors.surfaceElevated}
+              fallback={<Text style={styles.avatarLetter}>{post.user?.displayName[0]}</Text>}
+            />
+          </GradientRing>
+          <View style={styles.authorText}>
+            <View style={styles.authorNameRow}>
+              <Text style={styles.authorName} numberOfLines={1}>{post.user?.displayName}</Text>
               <PlanBadgeIcon plan={post.user?.plan} size={18} />
             </View>
-            {post.place && <Text style={styles.placeName}>📍 {post.place.name}</Text>}
+            {post.place && <Text style={styles.placeName} numberOfLines={1}>📍 {post.place.name}</Text>}
           </View>
           <Text style={styles.ago}>{formatAgo(post.createdAt, t)}</Text>
         </Pressable>
+      </View>
 
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} showsVerticalScrollIndicator={false}>
         {/* Video player */}
         {videoSrc && (
           <PostVideo
@@ -269,23 +291,7 @@ export default function PostDetailScreen() {
 
         {/* Images carousel */}
         {!videoSrc && post.mediaUrls.length > 0 && (
-          <View>
-            <ScrollView
-              horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(e) => setImgIdx(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))}
-            >
-              {post.mediaUrls.map((uri, i) => (
-                <Image key={i} source={{ uri }} style={styles.postImage} />
-              ))}
-            </ScrollView>
-            {post.mediaUrls.length > 1 && (
-              <View style={styles.dots}>
-                {post.mediaUrls.map((_, i) => (
-                  <View key={i} style={[styles.dot, i === imgIdx && styles.dotActive]} />
-                ))}
-              </View>
-            )}
-          </View>
+          <MediaCarousel uris={post.mediaUrls} index={imgIdx} onIndex={setImgIdx} />
         )}
 
         {/* Music badge — intégrée à la publication, pas de pause/lecture à part
@@ -304,16 +310,17 @@ export default function PostDetailScreen() {
 
         {/* Actions */}
         <View style={styles.actions}>
-          <Pressable style={styles.likeBtn} onPress={toggleLike}>
-            <Text style={[styles.likeIcon, post.likedByMe && styles.likeIconActive]}>
-              {post.likedByMe ? '❤️' : '🤍'}
-            </Text>
-            <Text style={styles.likeCount}>{formatCount(post.likesCount)}</Text>
-          </Pressable>
-          <Text style={styles.commentCount}>💬 {formatCount(post.comments.length)}</Text>
+          <LikeButton liked={post.likedByMe} count={formatCount(post.likesCount)} onPress={() => void toggleLike()} />
+          <View style={styles.stat}>
+            <Text style={styles.statIcon}>💬</Text>
+            <Text style={styles.statTxt}>{formatCount(post.comments.length)}</Text>
+          </View>
           {/* La vue de cet écran vient d'être comptée par le POST ci-dessus :
               le chiffre affiché inclut donc la visite en cours. */}
-          <Text style={styles.commentCount}>👁 {formatCount(post.viewsCount)}</Text>
+          <View style={styles.stat}>
+            <Text style={styles.statIcon}>👁</Text>
+            <Text style={styles.statTxt}>{formatCount(post.viewsCount)}</Text>
+          </View>
         </View>
 
         {post.caption ? (
@@ -327,9 +334,12 @@ export default function PostDetailScreen() {
 
         {/* Comments — en fil, avec likes et réponses */}
         <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>{t('pd_comments_title')}</Text>
+          <View style={styles.commentsHead}>
+            <Text style={styles.commentsTitle}>{t('pd_comments_title')}</Text>
+            <View style={styles.commentsRule} />
+          </View>
           {post.commentsDisabled ? (
-            <Text style={{ color: colors.textMuted, fontSize: 13 }}>{t('pd_comments_disabled')}</Text>
+            <Text style={styles.commentsOff}>{t('pd_comments_disabled')}</Text>
           ) : post.comments.map((c) => (
             <View key={c.id}>
               <CommentRow
@@ -342,7 +352,8 @@ export default function PostDetailScreen() {
                 })}
               />
               {c.replies?.map((r) => (
-                <View key={r.id} style={{ paddingLeft: 38 }}>
+                // Réponse : en retrait, reliée par un filet au commentaire.
+                <View key={r.id} style={styles.replyIndent}>
                   <CommentRow
                     comment={r}
                     onLike={() => void toggleCommentLike(r.id)}
@@ -361,18 +372,18 @@ export default function PostDetailScreen() {
 
       {/* Comment input */}
       {!post.commentsDisabled && (
-        <View style={[styles.commentBox, { paddingBottom: insets.bottom + 8, flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+        <View style={[styles.commentBox, { paddingBottom: insets.bottom + 8 }]}>
           {replyTo ? (
             <View style={styles.replyBanner}>
               <Text style={styles.replyBannerText} numberOfLines={1}>
-                {t('pd_reply_to')} <Text style={{ fontWeight: '700' }}>{replyTo.user?.displayName}</Text> : {replyTo.content}
+                {t('pd_reply_to')} <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{replyTo.user?.displayName}</Text> : {replyTo.content}
               </Text>
               <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
-                <Text style={{ color: colors.textMuted, fontSize: 15 }}>✕</Text>
+                <Text style={styles.replyBannerClose}>✕</Text>
               </Pressable>
             </View>
           ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={styles.commentInputRow}>
             <TextInput
               style={styles.commentInput}
               placeholder={replyTo ? t('pd_reply_placeholder').replace('{name}', replyTo.user?.displayName ?? '') : t('pd_comment_placeholder')}
@@ -380,9 +391,18 @@ export default function PostDetailScreen() {
               value={comment}
               onChangeText={setComment}
             />
-            <Pressable onPress={sendComment} disabled={!comment.trim() || posting} style={styles.sendBtn}>
-              {posting ? <ActivityIndicator color={colors.brand} size="small" /> : <Text style={styles.sendTxt}>{t('pd_send')}</Text>}
-            </Pressable>
+            {/* Seul accent de couleur de l'écran : le bouton d'envoi, quand il y a du texte. */}
+            <PressableScale
+              onPress={() => void sendComment()}
+              disabled={!comment.trim() || posting}
+              scaleTo={0.94}
+              style={[styles.sendBtn, !comment.trim() && styles.sendBtnIdle]}
+            >
+              {comment.trim() ? <BrandFill /> : null}
+              {posting
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={[styles.sendTxt, !comment.trim() && styles.sendTxtIdle]}>{t('pd_send')}</Text>}
+            </PressableScale>
           </View>
         </View>
       )}
@@ -391,6 +411,7 @@ export default function PostDetailScreen() {
       <Modal visible={editing} transparent animationType="slide" onRequestClose={() => setEditing(false)}>
         <View style={styles.editOverlay}>
           <View style={[styles.editSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.editTitle}>{t('pd_edit_caption_title')}</Text>
             <TextInput
               style={styles.editInput}
@@ -402,17 +423,85 @@ export default function PostDetailScreen() {
               autoFocus
             />
             <View style={styles.editActions}>
-              <Pressable style={styles.editCancel} onPress={() => setEditing(false)}>
+              <PressableScale style={styles.editCancel} onPress={() => setEditing(false)} scaleTo={0.97}>
                 <Text style={styles.editCancelTxt}>{t('pd_cancel')}</Text>
-              </Pressable>
-              <Pressable style={styles.editSave} onPress={saveEdit} disabled={savingEdit}>
+              </PressableScale>
+              <PressableScale style={styles.editSave} onPress={() => void saveEdit()} disabled={savingEdit} scaleTo={0.97}>
+                <BrandFill />
                 {savingEdit ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.editSaveTxt}>{t('pd_save')}</Text>}
-              </Pressable>
+              </PressableScale>
             </View>
           </View>
         </View>
       </Modal>
     </KeyboardAvoidingView>
+  );
+}
+
+/** Flèche de retour qui suit le sens de lecture. */
+const BACK_ICON = I18nManager.isRTL ? '→' : '←';
+
+/** Écran d'attente / publication introuvable, avec un retour. */
+function CenterState({ top, onBack, children }: { top: number; onBack: () => void; children: React.ReactNode }) {
+  return (
+    <View style={[styles.container, { paddingTop: top }]}>
+      <View style={styles.header}>
+        <GlassCircle onPress={onBack}>
+          <Text style={styles.backIcon}>{BACK_ICON}</Text>
+        </GlassCircle>
+      </View>
+      <View style={styles.center}>{children}</View>
+    </View>
+  );
+}
+
+/** Photos bord à bord, à la largeur réelle de l'écran, avec compteur et points. */
+function MediaCarousel({ uris, index, onIndex }: { uris: string[]; index: number; onIndex: (i: number) => void }) {
+  const { width } = useWindowDimensions();
+  return (
+    <View>
+      <ScrollView
+        horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => onIndex(Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width))}
+      >
+        {uris.map((uri, i) => (
+          <Image key={i} source={{ uri }} style={{ width, height: width }} />
+        ))}
+      </ScrollView>
+      {uris.length > 1 && (
+        <>
+          <View style={styles.counter}>
+            <Text style={styles.counterTxt}>{index + 1} / {uris.length}</Text>
+          </View>
+          <View style={styles.dots}>
+            {uris.map((_, i) => (
+              <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
+            ))}
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+/** Cœur qui rebondit au toucher (visuel seulement : l'action reste `onPress`). */
+function LikeButton({ liked, count, onPress }: { liked: boolean; count: string; onPress: () => void }) {
+  const scale = useSharedValue(1);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <PressableScale
+      style={styles.likeBtn}
+      scaleTo={0.94}
+      hitSlop={8}
+      onPress={() => {
+        scale.value = withSequence(withSpring(1.4, motion.spring.bouncy), withSpring(1, motion.spring.bouncy));
+        haptics.light();
+        onPress();
+      }}
+    >
+      <Animated.Text style={[styles.likeIcon, style]}>{liked ? '❤️' : '🤍'}</Animated.Text>
+      <Text style={styles.likeCount}>{count}</Text>
+    </PressableScale>
   );
 }
 
@@ -422,12 +511,12 @@ function CommentRow({ comment: c, onLike, onReply, onReport }: { comment: Commen
     <View style={styles.commentRow}>
       <Avatar
         uri={c.user?.photoUrl}
-        size={30}
-        placeholderColor={colors.brand}
-        fallback={<Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{c.user?.displayName[0]}</Text>}
+        size={32}
+        placeholderColor={colors.surfaceElevated}
+        fallback={<Text style={styles.commentAvatarLetter}>{c.user?.displayName[0]}</Text>}
       />
-      <View style={[styles.commentBubble, { flex: 1 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <View style={styles.commentBubble}>
+        <View style={styles.commentUserRow}>
           <Text style={styles.commentUser}>
             {c.user?.displayName}{c.pinned ? '  📌' : ''}
           </Text>
@@ -446,83 +535,140 @@ function CommentRow({ comment: c, onLike, onReply, onReport }: { comment: Commen
           </Pressable>
         </View>
       </View>
-      <Pressable onPress={onLike} hitSlop={8} style={{ alignItems: 'center', paddingTop: 6 }}>
-        <Text style={{ fontSize: 13 }}>{c.likedByMe ? '❤️' : '🤍'}</Text>
+      <PressableScale onPress={onLike} hitSlop={8} scaleTo={0.8} style={styles.commentLike}>
+        <Text style={styles.commentLikeIcon}>{c.likedByMe ? '❤️' : '🤍'}</Text>
         {c.likesCount > 0 && <Text style={styles.commentLikeCount}>{c.likesCount}</Text>}
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  editOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  editSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, gap: spacing.md },
-  editTitle: { ...typography.h3, color: colors.text, textAlign: 'center' },
-  editInput: { minHeight: 90, maxHeight: 200, backgroundColor: colors.background, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.text, fontSize: 15, textAlignVertical: 'top' },
-  editActions: { flexDirection: 'row', gap: spacing.sm },
-  editCancel: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
-  editCancelTxt: { color: colors.text, fontWeight: '600', fontSize: 15 },
-  editSave: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: radius.md, backgroundColor: colors.brand },
-  editSaveTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: CHAT_BG },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { paddingHorizontal: spacing.md, paddingVertical: 12 },
-  back: { fontSize: 22, color: colors.brand },
-  author: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: 10 },
-  avatar: { width: 38, height: 38, borderRadius: 19 },
-  authorName: { fontWeight: '700', color: colors.text, fontSize: 14 },
-  placeName: { fontSize: 12, color: colors.textMuted },
-  ago: { marginLeft: 'auto', fontSize: 12, color: colors.textMuted },
-  postImage: { width: 375, height: 375 },
+  centerTxt: { color: colors.textMuted, fontSize: 15 },
+
+  // En-tête
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 10 },
+  backIcon: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  author: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  authorText: { flex: 1, minWidth: 0 },
+  authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  authorName: { fontWeight: '800', color: colors.textPrimary, fontSize: 16, letterSpacing: -0.2, flexShrink: 1 },
+  avatarLetter: { color: '#fff', fontWeight: '700' },
+  placeName: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  ago: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+
+  // Média
   postVideo: { width: '100%', aspectRatio: 4 / 5 },
+  counter: {
+    position: 'absolute', top: 12, end: 12, paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: radius.pill, backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  counterTxt: { color: '#fff', fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 10 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.22)' },
+  dotActive: { width: 18, backgroundColor: '#fff' },
   musicBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surface, marginHorizontal: spacing.md, marginTop: 8,
+    backgroundColor: CHAT_GLASS, marginHorizontal: spacing.md, marginTop: 12,
     borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 10,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
   },
-  musicArtwork: { width: 40, height: 40, borderRadius: 6 },
+  musicArtwork: { width: 40, height: 40, borderRadius: 8 },
   musicIcon: { fontSize: 22, width: 40, textAlign: 'center' },
-  musicTitle: { fontSize: 13, color: colors.text, fontWeight: '700' },
+  musicTitle: { fontSize: 13, color: colors.textPrimary, fontWeight: '700' },
   musicArtist: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 4, marginTop: 8 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
-  dotActive: { backgroundColor: colors.brand },
-  actions: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: 16 },
-  likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  likeIcon: { fontSize: 24 },
-  likeIconActive: {},
-  likeCount: { fontWeight: '700', color: colors.text, fontSize: 15 },
-  commentCount: { fontSize: 15, color: colors.textMuted },
-  caption: { paddingHorizontal: spacing.md, fontSize: 14, color: colors.text, lineHeight: 20, marginBottom: 8 },
-  captionUser: { fontWeight: '700' },
-  commentsSection: { paddingHorizontal: spacing.md },
-  commentsTitle: { ...typography.h3, color: colors.text, marginBottom: 12 },
-  commentRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  commentAvatar: { width: 30, height: 30, borderRadius: 15 },
-  commentBubble: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 10 },
-  commentUser: { fontWeight: '700', color: colors.text, fontSize: 13, marginBottom: 2 },
-  commentText: { color: colors.text, fontSize: 14 },
+
+  // Actions
+  actions: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: 14, paddingBottom: 10, gap: 18 },
+  likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  likeIcon: { fontSize: 26 },
+  likeCount: { fontWeight: '900', color: colors.textPrimary, fontSize: 17, fontVariant: ['tabular-nums'] },
+  stat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statIcon: { fontSize: 17, opacity: 0.85 },
+  statTxt: { fontSize: 15, color: colors.textSecondary, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  caption: { paddingHorizontal: spacing.md, fontSize: 15, color: colors.textPrimary, lineHeight: 22, marginBottom: 6 },
+  captionUser: { fontWeight: '800' },
+
+  // Commentaires
+  commentsSection: { paddingHorizontal: spacing.md, marginTop: spacing.md },
+  commentsHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 14 },
+  commentsTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase' },
+  commentsRule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.14)' },
+  commentsOff: { color: colors.textMuted, fontSize: 13 },
+  commentRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  commentAvatarLetter: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  commentBubble: {
+    flex: 1, backgroundColor: CHAT_GLASS, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
+  },
+  commentUserRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  commentUser: { fontWeight: '800', color: colors.textPrimary, fontSize: 13, marginBottom: 2 },
+  commentText: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
   commentActions: { flexDirection: 'row', gap: 14, marginTop: 6, alignItems: 'center' },
   commentAgo: { fontSize: 11, color: colors.textMuted },
-  commentActionTxt: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
-  commentLikeCount: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  commentActionTxt: { fontSize: 11, color: colors.textSecondary, fontWeight: '700' },
+  commentLike: { alignItems: 'center', paddingTop: 8, minWidth: 22 },
+  commentLikeIcon: { fontSize: 14 },
+  commentLikeCount: { fontSize: 10, color: colors.textMuted, marginTop: 2, fontVariant: ['tabular-nums'] },
+  replyIndent: {
+    marginStart: 15, paddingStart: 16,
+    borderStartWidth: StyleSheet.hairlineWidth, borderStartColor: 'rgba(255,255,255,0.16)',
+  },
+
+  // Saisie
+  commentBox: {
+    gap: 8, paddingHorizontal: spacing.md, paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.12)', backgroundColor: CHAT_BG,
+  },
   replyBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    paddingHorizontal: 10, paddingVertical: 7,
+    backgroundColor: CHAT_GLASS, borderRadius: radius.md,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: CHAT_HAIRLINE,
   },
   replyBannerText: { flex: 1, fontSize: 12, color: colors.textMuted },
-  commentBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: spacing.md, paddingTop: 10,
-    borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background,
-  },
+  replyBannerClose: { color: colors.textSecondary, fontSize: 15 },
+  commentInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   commentInput: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: radius.full,
-    paddingHorizontal: 16, paddingVertical: 10, color: colors.text, fontSize: 14,
-    borderWidth: 1, borderColor: colors.border,
+    flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.pill,
+    paddingHorizontal: 16, paddingVertical: 11, color: colors.textPrimary, fontSize: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
-  sendBtn: { paddingHorizontal: 14, paddingVertical: 10 },
-  sendTxt: { color: colors.brand, fontWeight: '700', fontSize: 14 },
+  sendBtn: {
+    minWidth: 78, height: 42, paddingHorizontal: 16, borderRadius: radius.pill, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sendBtnIdle: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  sendTxt: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  sendTxtIdle: { color: colors.textMuted },
+
+  // Feuille d'édition de la légende
+  editOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  editSheet: {
+    backgroundColor: '#101016', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.28)' },
+  editTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  editInput: {
+    minHeight: 90, maxHeight: 200, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+    padding: spacing.md, color: colors.textPrimary, fontSize: 15, textAlignVertical: 'top',
+  },
+  editActions: { flexDirection: 'row', gap: spacing.sm },
+  editCancel: {
+    flex: 1, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  editCancelTxt: { color: colors.textPrimary, fontWeight: '700', fontSize: 15 },
+  editSave: { flex: 1, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, overflow: 'hidden' },
+  editSaveTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

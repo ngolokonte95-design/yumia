@@ -1,3 +1,16 @@
+/**
+ * VISIONNEUSE DE STORIES.
+ *
+ * Habillage sobre (18/11/2026, « spectaculaire mais simple, peu de couleur ») :
+ * le média occupe tout l'écran, sans voile ; les éléments posés dessus sont en
+ * verre sombre avec un liseré fin, le texte porte son ombre. Deux accents de
+ * couleur seulement : l'anneau de l'avatar et le bouton d'envoi d'une réponse
+ * (quand il y a du texte). Sondage et question : verre sombre, texte blanc.
+ *
+ * Inchangés : le lecteur `StoryVideo` (montage, cycle de vie), l'horloge
+ * d'avancement (`progress` / `Animated.timing`), la musique et sa pause,
+ * les vues, la réponse, l'enregistrement, la suppression, le signalement.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, KeyboardAvoidingView, Modal,
@@ -20,6 +33,8 @@ import { colors, radius, spacing } from '../theme/tokens';
 import type { MusicTrack } from '../components/MusicPicker';
 import { useI18n } from '../lib/useI18n';
 import { SHORT_VIDEO_BUFFER } from '../lib/video-buffer';
+import { PressableScale } from '../components/ui';
+import { BrandFill, GlassCircle, GradientRing, ringInner } from '../components/chat/ChatChrome';
 
 const { width, height } = Dimensions.get('window');
 const STORY_MS = 5000;
@@ -268,7 +283,7 @@ export default function StoryViewerScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.empty}>{t('sv_no_active_story')}</Text>
-        <Pressable onPress={close} style={styles.closeFallback}><Text style={styles.closeTxt}>{t('sv_close')}</Text></Pressable>
+        <PressableScale onPress={close} style={styles.closeFallback}><Text style={styles.closeTxt}>{t('sv_close')}</Text></PressableScale>
       </View>
     );
   }
@@ -297,17 +312,20 @@ export default function StoryViewerScreen() {
         ))}
       </View>
 
-      {/* En-tête auteur */}
+      {/* En-tête auteur — l'anneau de l'avatar est le seul accent de couleur
+          du haut de l'écran ; pas de voile : le texte porte son ombre. */}
       <View style={[styles.topBar, { top: insets.top + 20 }]}>
-        {group.user.photoUrl ? (
-          <Image source={{ uri: group.user.photoUrl }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>{group.user.displayName[0]}</Text>
-          </View>
-        )}
+        <GradientRing size={44} active background="#000">
+          {group.user.photoUrl ? (
+            <Image source={{ uri: group.user.photoUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarLetter}>{group.user.displayName[0]}</Text>
+            </View>
+          )}
+        </GradientRing>
         <View style={styles.headerText}>
-          <Text style={[styles.name, styles.nameInHeader]}>{group.user.displayName}</Text>
+          <Text style={[styles.name, styles.nameInHeader]} numberOfLines={1}>{group.user.displayName}</Text>
           {/* Lieu de CETTE story (pas du groupe) : il change d'une story à
               l'autre au sein du même auteur. */}
           {story.place ? (
@@ -320,9 +338,14 @@ export default function StoryViewerScreen() {
           ) : null}
         </View>
         {story.closeFriendsOnly ? (
-          <View style={styles.cfBadge}><Text style={styles.cfBadgeTxt}>{t('sv_close_friends')}</Text></View>
+          <View style={styles.cfBadge}>
+            <View style={styles.cfDot} />
+            <Text style={styles.cfBadgeTxt}>{t('sv_close_friends')}</Text>
+          </View>
         ) : null}
-        <Pressable onPress={close} hitSlop={12}><Text style={styles.close}>✕</Text></Pressable>
+        <GlassCircle onPress={close} size={36} accessibilityLabel={t('sv_close')}>
+          <Text style={styles.close}>✕</Text>
+        </GlassCircle>
       </View>
 
       {/* Stickers superposés */}
@@ -383,21 +406,24 @@ export default function StoryViewerScreen() {
       {/* Barre du bas : vues + enregistrer/supprimer (ma story) OU réponse en DM (story d'autrui) */}
       {isMine ? (
         <View style={[styles.myStoryRow, { bottom: insets.bottom + 16 }]}>
-          <Pressable style={styles.viewsBar} onPress={openViewers}>
+          <PressableScale style={styles.viewsBar} onPress={() => void openViewers()} scaleTo={0.97}>
+            <Text style={styles.viewsIcon}>👁</Text>
             <Text style={styles.viewsTxt}>{t('sv_views_count').replace('{n}', String(story.viewCount ?? 0)).replace('{s}', (story.viewCount ?? 0) > 1 ? 's' : '')}</Text>
-          </Pressable>
-          <Pressable style={styles.circleActionBtn} onPress={() => void saveStory()} disabled={saving} hitSlop={8}>
+          </PressableScale>
+          <PressableScale style={styles.circleActionBtn} onPress={() => void saveStory()} disabled={saving} hitSlop={8} scaleTo={0.9}>
             {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.circleActionTxt}>💾</Text>}
-          </Pressable>
-          <Pressable style={styles.circleActionBtn} onPress={deleteStory} hitSlop={8}>
+          </PressableScale>
+          <PressableScale style={styles.circleActionBtn} onPress={deleteStory} hitSlop={8} scaleTo={0.9}>
             <Text style={styles.circleActionTxt}>🗑️</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       ) : (
-        <View style={[styles.replyBar, { bottom: insets.bottom + 12 }]}>
+        <View style={[styles.replyRow, { bottom: insets.bottom + 12 }]}>
           {/* Signalement : une story d'autrui n'offrait que la réponse en
               message privé, donc aucun recours face à un contenu choquant. */}
-          <Pressable
+          <PressableScale
+            style={styles.circleActionBtn}
+            scaleTo={0.9}
             onPress={() => promptReport({
               accessToken,
               targetType: 'story',
@@ -407,22 +433,32 @@ export default function StoryViewerScreen() {
             })}
             hitSlop={8}
           >
-            <Text style={styles.replySend}>⚠️</Text>
-          </Pressable>
-          <TextInput
-            style={styles.replyInput}
-            placeholder={replySent ? t('sv_reply_sent') : t('sv_reply_to').replace('{name}', group.user.displayName.split(' ')[0])}
-            placeholderTextColor="rgba(255,255,255,0.6)"
-            value={replyText}
-            onChangeText={setReplyText}
-            onFocus={() => setPaused(true)}
-            onBlur={() => setPaused(false)}
-            returnKeyType="send"
-            onSubmitEditing={() => void sendReply()}
-          />
-          <Pressable onPress={() => void sendReply()} disabled={!replyText.trim()} hitSlop={8}>
+            <Text style={styles.reportIcon}>⚠️</Text>
+          </PressableScale>
+          <View style={styles.replyBar}>
+            <TextInput
+              style={styles.replyInput}
+              placeholder={replySent ? t('sv_reply_sent') : t('sv_reply_to').replace('{name}', group.user.displayName.split(' ')[0])}
+              placeholderTextColor="rgba(255,255,255,0.6)"
+              value={replyText}
+              onChangeText={setReplyText}
+              onFocus={() => setPaused(true)}
+              onBlur={() => setPaused(false)}
+              returnKeyType="send"
+              onSubmitEditing={() => void sendReply()}
+            />
+          </View>
+          {/* Envoi : rempli du dégradé de marque seulement quand il y a du texte. */}
+          <PressableScale
+            style={[styles.circleActionBtn, styles.sendBtn]}
+            onPress={() => void sendReply()}
+            disabled={!replyText.trim()}
+            hitSlop={8}
+            scaleTo={0.9}
+          >
+            {replyText.trim() ? <BrandFill /> : null}
             <Text style={[styles.replySend, !replyText.trim() && { opacity: 0.4 }]}>➤</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       )}
 
@@ -430,6 +466,7 @@ export default function StoryViewerScreen() {
       <Modal visible={viewersOpen} transparent animationType="slide" onRequestClose={() => setViewersOpen(false)}>
         <Pressable style={styles.viewersOverlay} onPress={() => setViewersOpen(false)}>
           <View style={styles.viewersSheet}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.viewersTitle}>{t('sv_views_title').replace('{n}', String(viewers.length))}</Text>
             <FlatList
               data={viewers}
@@ -445,10 +482,10 @@ export default function StoryViewerScreen() {
                     <Image source={{ uri: item.user.photoUrl }} style={styles.viewerAvatar} />
                   ) : (
                     <View style={[styles.viewerAvatar, styles.avatarFallback]}>
-                      <Text style={{ color: '#fff', fontWeight: '700' }}>{item.user.displayName[0]}</Text>
+                      <Text style={styles.avatarLetter}>{item.user.displayName[0]}</Text>
                     </View>
                   )}
-                  <Text style={styles.viewerName}>{item.user.displayName}</Text>
+                  <Text style={styles.viewerName} numberOfLines={1}>{item.user.displayName}</Text>
                 </Pressable>
               )}
             />
@@ -459,70 +496,122 @@ export default function StoryViewerScreen() {
   );
 }
 
+/** Verre sombre posé sur le média (pastilles, barres) : lisible sans voile. */
+const GLASS_ON_MEDIA = 'rgba(10,10,14,0.58)';
+const HAIRLINE_ON_MEDIA = 'rgba(255,255,255,0.22)';
+/** Ombre portée du texte posé directement sur la photo. */
+const TEXT_SHADOW = {
+  textShadowColor: 'rgba(0,0,0,0.75)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 },
+} as const;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   center: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', gap: 16 },
-  empty: { color: '#fff', fontSize: 16 },
-  closeFallback: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.surface, borderRadius: 999 },
+  empty: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  closeFallback: {
+    paddingHorizontal: 22, paddingVertical: 11, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
   closeTxt: { color: '#fff', fontWeight: '700' },
   media: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
   progressRow: { position: 'absolute', left: spacing.sm, right: spacing.sm, flexDirection: 'row', gap: 4, zIndex: 5 },
-  progressTrack: { flex: 1, height: 3, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: 3, backgroundColor: '#fff' },
+  progressTrack: { flex: 1, height: 2.5, backgroundColor: 'rgba(255,255,255,0.28)', borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: 2.5, backgroundColor: '#fff', borderRadius: 2 },
   topBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 5 },
-  avatar: { width: 36, height: 36, borderRadius: 18 },
-  avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  name: { flex: 1, color: '#fff', fontWeight: '700', fontSize: 15 },
-  cfBadge: { backgroundColor: 'rgba(43,182,115,0.9)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  cfBadgeTxt: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  close: { color: '#fff', fontSize: 22, fontWeight: '700' },
-  musicBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, zIndex: 6 },
-  musicDisk: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)' },
+  // Diamètre = ringInner(44) : l'avatar remplit l'intérieur de l'anneau.
+  avatar: { width: ringInner(44), height: ringInner(44), borderRadius: ringInner(44) / 2 },
+  avatarFallback: { backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { color: '#fff', fontWeight: '700' },
+  name: { flex: 1, color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: -0.2, ...TEXT_SHADOW },
+  cfBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: GLASS_ON_MEDIA, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
+  // Le vert reste : c'est le code convenu des « amis proches ».
+  cfDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
+  cfBadgeTxt: { color: '#fff', fontSize: 10.5, fontWeight: '700' },
+  close: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  musicBar: {
+    position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: GLASS_ON_MEDIA, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, zIndex: 6,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
+  musicDisk: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.7)' },
   musicTrackText: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '600' },
-  captionWrap: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 12, padding: 12 },
-  caption: { color: '#fff', fontSize: 15, textAlign: 'center' },
+  captionWrap: {
+    position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: GLASS_ON_MEDIA, borderRadius: 16,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
+  caption: { color: '#fff', fontSize: 15, lineHeight: 21, textAlign: 'center', fontWeight: '500' },
   headerText: { flex: 1 },
-  headerPlace: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', marginTop: 1 },
+  headerPlace: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600', marginTop: 1, ...TEXT_SHADOW },
   // `name` porte flex:1 pour pousser la croix a droite ; ce role revient
   // desormais au conteneur, sinon le texte s'etire dans la colonne.
   nameInHeader: { flex: 0 },
   tapLeft: { position: 'absolute', left: 0, top: 80, bottom: 110, width: width * 0.3 },
   tapRight: { position: 'absolute', right: 0, top: 80, bottom: 110, width: width * 0.7 },
-  // Stickers
+  // Stickers — verre sombre, texte blanc : plus d'aplat blanc ni d'orange.
   sticker: { position: 'absolute', zIndex: 6 },
-  pollBox: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: radius.lg, padding: 12, gap: 8 },
-  pollQuestion: { fontWeight: '800', fontSize: 15, color: '#111', textAlign: 'center' },
-  pollOption: { borderRadius: radius.md, borderWidth: 1.5, borderColor: '#E8621A', overflow: 'hidden', position: 'relative' },
-  pollFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: '#E8621A22' },
-  pollFillMine: { backgroundColor: '#E8621A44' },
+  pollBox: {
+    backgroundColor: 'rgba(10,10,14,0.72)', borderRadius: radius.lg, padding: 12, gap: 8,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
+  pollQuestion: { fontWeight: '800', fontSize: 15, color: '#fff', textAlign: 'center' },
+  pollOption: { borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', overflow: 'hidden', position: 'relative' },
+  pollFill: { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.16)' },
+  pollFillMine: { backgroundColor: 'rgba(255,255,255,0.32)' },
   pollOptionRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 9 },
-  pollOptionText: { fontWeight: '700', color: '#E8621A', fontSize: 14 },
-  pollPct: { fontWeight: '800', color: '#111', fontSize: 13 },
-  pollTotal: { fontSize: 11, color: '#666', textAlign: 'center' },
-  questionBox: { backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 4 },
-  questionText: { fontWeight: '800', fontSize: 15, color: '#111', textAlign: 'center' },
-  questionHint: { fontSize: 11, color: '#888' },
-  labelSticker: { backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  pollOptionText: { fontWeight: '700', color: '#fff', fontSize: 14 },
+  pollPct: { fontWeight: '800', color: '#fff', fontSize: 13, fontVariant: ['tabular-nums'] },
+  pollTotal: { fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },
+  questionBox: {
+    backgroundColor: 'rgba(10,10,14,0.72)', borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
+  questionText: { fontWeight: '800', fontSize: 15, color: '#fff', textAlign: 'center' },
+  questionHint: { fontSize: 11, color: 'rgba(255,255,255,0.7)' },
+  labelSticker: {
+    backgroundColor: GLASS_ON_MEDIA, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
   labelStickerTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
   // Barre du bas
   myStoryRow: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 6 },
-  viewsBar: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingVertical: 11, alignItems: 'center' },
-  circleActionBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
-  circleActionTxt: { fontSize: 19 },
-  viewsTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  replyBar: {
-    position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)',
-    paddingHorizontal: 16, paddingVertical: 4, zIndex: 6,
+  viewsBar: {
+    flex: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: GLASS_ON_MEDIA, borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
   },
-  replyInput: { flex: 1, color: '#fff', fontSize: 14, height: 40 },
-  replySend: { color: '#fff', fontSize: 20 },
+  viewsIcon: { fontSize: 15 },
+  circleActionBtn: {
+    width: 46, height: 46, borderRadius: 23, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: GLASS_ON_MEDIA, borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE_ON_MEDIA,
+  },
+  circleActionTxt: { fontSize: 19 },
+  reportIcon: { fontSize: 17 },
+  viewsTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  replyRow: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 6 },
+  replyBar: {
+    flex: 1, height: 46, justifyContent: 'center',
+    backgroundColor: GLASS_ON_MEDIA, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: 16,
+  },
+  replyInput: { color: '#fff', fontSize: 14, height: 44, paddingVertical: 0 },
+  sendBtn: {},
+  replySend: { color: '#fff', fontSize: 18 },
   // Viewers modal
-  viewersOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  viewersSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: 40 },
-  viewersTitle: { color: colors.textPrimary, fontWeight: '800', fontSize: 16, marginBottom: 12 },
+  viewersOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  viewersSheet: {
+    backgroundColor: '#101016', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: 40,
+    borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.28)', marginBottom: spacing.md },
+  viewersTitle: { color: colors.textPrimary, fontWeight: '800', fontSize: 18, letterSpacing: -0.2, marginBottom: 12 },
   viewersEmpty: { color: colors.textMuted, fontSize: 13, paddingVertical: 20, textAlign: 'center' },
-  viewerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-  viewerAvatar: { width: 40, height: 40, borderRadius: 20 },
-  viewerName: { color: colors.textPrimary, fontWeight: '600', fontSize: 14 },
+  viewerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  viewerAvatar: { width: 42, height: 42, borderRadius: 21 },
+  viewerName: { flex: 1, color: colors.textPrimary, fontWeight: '600', fontSize: 15 },
 });

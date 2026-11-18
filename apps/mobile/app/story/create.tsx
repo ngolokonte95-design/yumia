@@ -1,18 +1,33 @@
+/**
+ * CRÉATION D'UNE STORY.
+ *
+ * Habillage sobre (18/11/2026, « spectaculaire mais simple, peu de couleur ») :
+ * fond noir uni, aperçu du média en grand, options regroupées dans deux cartes
+ * de verre à interrupteurs. Un seul accent de couleur : le bouton « Publier ».
+ *
+ * La logique (choix du média, caméra, envoi, stickers sondage / question,
+ * lieu, musique, à la une, amis proches) et l'aperçu vidéo `PostVideo` sont
+ * inchangés.
+ */
 import { useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { feedApi, type StorySticker } from '../../lib/feed-api';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
 import { PostVideo } from '../../components/PostVideo';
 import { PlacePicker, type PickedPlace } from '../../components/PlacePicker';
 import { useI18n } from '../../lib/useI18n';
+import { PressableScale } from '../../components/ui';
+import { CHAT_BG, CHAT_GLASS, GlassCircle } from '../../components/chat/ChatChrome';
+import { CHEVRON, GlassGroup, IconBubble, ToggleRow } from '../../components/profile/ProfileChrome';
+import { BrandButton } from '../../components/social/SocialChrome';
 
 const API = API_BASE_URL;
 
@@ -109,15 +124,27 @@ export default function CreateStoryScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* En-tête : fermer en verre, titre fort, « Publier » — seul accent de couleur. */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.cancel}>{t('sc_cancel')}</Text></Pressable>
-        <Text style={styles.title}>{t('sc_title')}</Text>
-        <Pressable onPress={publish} disabled={!uri || loading} style={[styles.shareBtn, (!uri || loading) && styles.shareBtnDisabled]}>
-          {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.shareBtnText}>{t('sc_publish')}</Text>}
-        </Pressable>
+        <GlassCircle onPress={() => router.back()} accessibilityLabel={t('sc_cancel')}>
+          <Text style={styles.headerIcon}>✕</Text>
+        </GlassCircle>
+        <Text style={styles.title} numberOfLines={1}>{t('sc_title')}</Text>
+        <BrandButton
+          compact
+          label={t('sc_publish')}
+          onPress={() => void publish()}
+          disabled={!uri}
+          loading={loading}
+          style={styles.publishBtn}
+        />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 40 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 40 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {uri ? (
           <View style={styles.previewWrap}>
             {/* Vrai lecteur pour une vidéo — une <Image> ne sait pas décoder un
@@ -126,27 +153,29 @@ export default function CreateStoryScreen() {
             {type === 'video'
               ? <PostVideo uri={uri} style={styles.preview} />
               : <Image source={{ uri }} style={styles.preview} />}
-            <Pressable style={styles.changeBtn} onPress={() => setUri(null)}>
+            <PressableScale style={styles.changeBtn} onPress={() => setUri(null)} scaleTo={0.94}>
               <Text style={styles.changeTxt}>{t('sc_change')}</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         ) : (
           <View style={styles.pickGrid}>
             {/* Caméra — en avant, pleine largeur */}
-            <Pressable style={styles.cameraBox} onPress={openCamera}>
-              <Text style={styles.pickEmoji}>📷</Text>
+            <PressableScale style={styles.cameraBox} onPress={openCamera} scaleTo={0.98}>
+              <View style={styles.cameraMedal}>
+                <Text style={styles.cameraEmoji}>📷</Text>
+              </View>
               <Text style={styles.pickLabel}>{t('sc_open_camera')}</Text>
               <Text style={styles.pickHint}>{t('sc_camera_hint')}</Text>
-            </Pressable>
+            </PressableScale>
             <View style={styles.pickRow}>
-              <Pressable style={styles.pickBox} onPress={() => pick('photo')}>
+              <PressableScale style={styles.pickBox} onPress={() => void pick('photo')} scaleTo={0.96}>
                 <Text style={styles.pickEmoji}>🖼️</Text>
-                <Text style={styles.pickLabel}>{t('sc_photo')}</Text>
-              </Pressable>
-              <Pressable style={styles.pickBox} onPress={() => pick('video')}>
+                <Text style={styles.pickLabelSmall}>{t('sc_photo')}</Text>
+              </PressableScale>
+              <PressableScale style={styles.pickBox} onPress={() => void pick('video')} scaleTo={0.96}>
                 <Text style={styles.pickEmoji}>🎬</Text>
-                <Text style={styles.pickLabel}>{t('sc_video')}</Text>
-              </Pressable>
+                <Text style={styles.pickLabelSmall}>{t('sc_video')}</Text>
+              </PressableScale>
             </View>
           </View>
         )}
@@ -160,134 +189,135 @@ export default function CreateStoryScreen() {
           maxLength={200}
         />
 
-        {/* Lieu — rattaché à la base YUMIA plutôt qu'à du texte libre :
-            il devient cliquable dans le fil et relie la publication à la
-            fiche du lieu. */}
-        <Pressable style={styles.placeRow} onPress={() => setPlacePickerOpen(true)}>
-          <Text style={styles.placeRowIcon}>📍</Text>
-          <Text style={[styles.placeRowLabel, place ? styles.placeRowLabelSet : null]} numberOfLines={1}>
-            {place ? place.name : t('place_tag_add')}
-          </Text>
-          {place ? (
-            <Pressable onPress={() => setPlace(null)} hitSlop={12} accessibilityLabel={t('place_tag_remove')}>
-              <Text style={styles.placeRowClear}>✕</Text>
+        <GlassGroup style={styles.group}>
+          {/* Lieu — rattaché à la base YUMIA plutôt qu'à du texte libre :
+              il devient cliquable dans le fil et relie la publication à la
+              fiche du lieu. */}
+          <Pressable style={styles.row} onPress={() => setPlacePickerOpen(true)}>
+            <IconBubble icon="📍" />
+            <Text style={[styles.rowLabel, place ? styles.rowLabelSet : null]} numberOfLines={1}>
+              {place ? place.name : t('place_tag_add')}
+            </Text>
+            {place ? (
+              <Pressable onPress={() => setPlace(null)} hitSlop={12} accessibilityLabel={t('place_tag_remove')}>
+                <Text style={styles.rowClear}>✕</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.chevron}>{CHEVRON}</Text>
+            )}
+          </Pressable>
+
+          {/* Musique */}
+          {selectedMusic ? (
+            <View style={styles.row}>
+              <Image source={{ uri: selectedMusic.artworkUrl }} style={styles.musicArtwork} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.musicTitle} numberOfLines={1}>{selectedMusic.title}</Text>
+                <Text style={styles.musicArtist} numberOfLines={1}>{selectedMusic.artist} · {selectedMusic.durationMs / 1000}s</Text>
+              </View>
+              <PressableScale onPress={() => setMusicModalVisible(true)} style={styles.musicChangeBtn} scaleTo={0.94}>
+                <Text style={styles.musicChangeTxt}>{t('sc_modify')}</Text>
+              </PressableScale>
+              <Pressable onPress={() => setSelectedMusic(null)} hitSlop={10}>
+                <Text style={styles.rowClear}>✕</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.row} onPress={() => setMusicModalVisible(true)}>
+              <IconBubble icon="🎵" />
+              <Text style={styles.rowLabel} numberOfLines={1}>{t('sc_add_music')}</Text>
+              <Text style={styles.chevron}>{CHEVRON}</Text>
             </Pressable>
-          ) : null}
-        </Pressable>
+          )}
+        </GlassGroup>
+
         <PlacePicker
           visible={placePickerOpen}
           onClose={() => setPlacePickerOpen(false)}
           onSelect={setPlace}
         />
 
-        {/* Musique */}
-        {selectedMusic ? (
-          <View style={styles.musicSelected}>
-            <Image source={{ uri: selectedMusic.artworkUrl }} style={styles.musicArtwork} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.musicTitle} numberOfLines={1}>{selectedMusic.title}</Text>
-              <Text style={styles.musicArtist} numberOfLines={1}>{selectedMusic.artist} · {selectedMusic.durationMs / 1000}s</Text>
-            </View>
-            <Pressable onPress={() => setMusicModalVisible(true)} style={styles.musicChangeBtn}>
-              <Text style={styles.musicChangeTxt}>{t('sc_modify')}</Text>
-            </Pressable>
-            <Pressable onPress={() => setSelectedMusic(null)}>
-              <Text style={{ color: colors.textMuted, fontSize: 18, paddingLeft: 4 }}>✕</Text>
-            </Pressable>
+        <GlassGroup style={styles.group}>
+          {/* À la une */}
+          <View>
+            <ToggleRow icon="⭐" label={t('sc_pin_title')} sublabel={t('sc_pin_hint')} value={pinToProfile} onValueChange={setPinToProfile} />
+            {pinToProfile && (
+              <TextInput
+                style={styles.innerInput}
+                placeholder={t('sc_highlight_name_placeholder')}
+                placeholderTextColor={colors.textMuted}
+                value={highlightTitle}
+                onChangeText={setHighlightTitle}
+                maxLength={30}
+              />
+            )}
           </View>
-        ) : (
-          <Pressable style={styles.musicRow} onPress={() => setMusicModalVisible(true)}>
-            <Text style={{ fontSize: 20 }}>🎵</Text>
-            <Text style={styles.musicPlaceholder}>{t('sc_add_music')}</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
-          </Pressable>
-        )}
 
-        {/* À la une */}
-        <View style={styles.pinRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>{t('sc_pin_title')}</Text>
-            <Text style={styles.pinHint}>{t('sc_pin_hint')}</Text>
-          </View>
-          <Switch value={pinToProfile} onValueChange={setPinToProfile} trackColor={{ true: colors.brand }} />
-        </View>
-        {pinToProfile && (
-          <TextInput
-            style={styles.caption}
-            placeholder={t('sc_highlight_name_placeholder')}
-            placeholderTextColor={colors.textMuted}
-            value={highlightTitle}
-            onChangeText={setHighlightTitle}
-            maxLength={30}
+          {/* Amis proches */}
+          <ToggleRow
+            icon="👥"
+            label={t('sc_close_friends_title')}
+            sublabel={t('sc_close_friends_hint')}
+            value={closeFriendsOnly}
+            onValueChange={setCloseFriendsOnly}
           />
-        )}
 
-        {/* Amis proches */}
-        <View style={styles.pinRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>{t('sc_close_friends_title')}</Text>
-            <Text style={styles.pinHint}>{t('sc_close_friends_hint')}</Text>
+          {/* Sticker sondage */}
+          <View>
+            <ToggleRow icon="📊" label={t('sc_poll_title')} sublabel={t('sc_poll_hint')} value={pollEnabled} onValueChange={setPollEnabled} />
+            {pollEnabled && (
+              <View style={styles.innerBlock}>
+                <TextInput
+                  style={[styles.innerInput, styles.innerInputFlat]}
+                  placeholder={t('sc_poll_question_placeholder')}
+                  placeholderTextColor={colors.textMuted}
+                  value={pollQuestion}
+                  onChangeText={setPollQuestion}
+                  maxLength={80}
+                />
+                <View style={styles.innerRow}>
+                  <TextInput
+                    style={[styles.innerInput, styles.innerInputFlat, { flex: 1 }]}
+                    placeholder={t('sc_poll_option_1')}
+                    placeholderTextColor={colors.textMuted}
+                    value={pollOptA}
+                    onChangeText={setPollOptA}
+                    maxLength={22}
+                  />
+                  <TextInput
+                    style={[styles.innerInput, styles.innerInputFlat, { flex: 1 }]}
+                    placeholder={t('sc_poll_option_2')}
+                    placeholderTextColor={colors.textMuted}
+                    value={pollOptB}
+                    onChangeText={setPollOptB}
+                    maxLength={22}
+                  />
+                </View>
+              </View>
+            )}
           </View>
-          <Switch value={closeFriendsOnly} onValueChange={setCloseFriendsOnly} trackColor={{ true: '#2BB673' }} />
-        </View>
 
-        {/* Sticker sondage */}
-        <View style={styles.pinRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>{t('sc_poll_title')}</Text>
-            <Text style={styles.pinHint}>{t('sc_poll_hint')}</Text>
-          </View>
-          <Switch value={pollEnabled} onValueChange={setPollEnabled} trackColor={{ true: colors.brand }} />
-        </View>
-        {pollEnabled && (
-          <View style={{ gap: 8, marginBottom: spacing.md }}>
-            <TextInput
-              style={[styles.caption, { marginBottom: 0 }]}
-              placeholder={t('sc_poll_question_placeholder')}
-              placeholderTextColor={colors.textMuted}
-              value={pollQuestion}
-              onChangeText={setPollQuestion}
-              maxLength={80}
+          {/* Sticker question */}
+          <View>
+            <ToggleRow
+              icon="❓"
+              label={t('sc_question_box_title')}
+              sublabel={t('sc_question_box_hint')}
+              value={questionEnabled}
+              onValueChange={setQuestionEnabled}
             />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            {questionEnabled && (
               <TextInput
-                style={[styles.caption, { flex: 1, marginBottom: 0 }]}
-                placeholder={t('sc_poll_option_1')}
+                style={styles.innerInput}
+                placeholder={t('sc_question_prompt_placeholder')}
                 placeholderTextColor={colors.textMuted}
-                value={pollOptA}
-                onChangeText={setPollOptA}
-                maxLength={22}
+                value={questionText}
+                onChangeText={setQuestionText}
+                maxLength={80}
               />
-              <TextInput
-                style={[styles.caption, { flex: 1, marginBottom: 0 }]}
-                placeholder={t('sc_poll_option_2')}
-                placeholderTextColor={colors.textMuted}
-                value={pollOptB}
-                onChangeText={setPollOptB}
-                maxLength={22}
-              />
-            </View>
+            )}
           </View>
-        )}
-
-        {/* Sticker question */}
-        <View style={styles.pinRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pinTitle}>{t('sc_question_box_title')}</Text>
-            <Text style={styles.pinHint}>{t('sc_question_box_hint')}</Text>
-          </View>
-          <Switch value={questionEnabled} onValueChange={setQuestionEnabled} trackColor={{ true: colors.brand }} />
-        </View>
-        {questionEnabled && (
-          <TextInput
-            style={styles.caption}
-            placeholder={t('sc_question_prompt_placeholder')}
-            placeholderTextColor={colors.textMuted}
-            value={questionText}
-            onChangeText={setQuestionText}
-            maxLength={80}
-          />
-        )}
+        </GlassGroup>
       </ScrollView>
 
       <MusicPickerModal
@@ -300,57 +330,86 @@ export default function CreateStoryScreen() {
   );
 }
 
+const HAIRLINE = 'rgba(255,255,255,0.14)';
+const FIELD_BG = 'rgba(255,255,255,0.05)';
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  cancel: { color: colors.textMuted, fontSize: 16 },
-  title: { ...typography.h3, color: colors.text },
-  shareBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 16, paddingVertical: 8 },
-  shareBtnDisabled: { opacity: 0.4 },
-  shareBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  previewWrap: { position: 'relative', borderRadius: radius.xl, overflow: 'hidden', marginBottom: spacing.md },
+  container: { flex: 1, backgroundColor: CHAT_BG },
+
+  // En-tête
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: 10,
+  },
+  headerIcon: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  title: { flex: 1, color: colors.textPrimary, fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
+  publishBtn: { minWidth: 96 },
+
+  // Aperçu du média
+  previewWrap: {
+    position: 'relative', borderRadius: radius.xl, overflow: 'hidden', marginBottom: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE,
+  },
   preview: { width: '100%', aspectRatio: 0.7, borderRadius: radius.xl, overflow: 'hidden' },
-  changeBtn: { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 8 },
-  changeTxt: { color: '#fff', fontWeight: '700' },
+  changeBtn: {
+    position: 'absolute', bottom: 12, end: 12, backgroundColor: 'rgba(10,10,14,0.62)', borderRadius: radius.pill,
+    paddingHorizontal: 16, paddingVertical: 9,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  changeTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
+  // Choix du média
   pickGrid: { marginBottom: spacing.md, gap: spacing.md },
   cameraBox: {
-    height: 130, backgroundColor: colors.brand + '18', borderRadius: radius.xl,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2,
-    borderColor: colors.brand, gap: 6,
+    height: 168, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: CHAT_GLASS, borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE,
   },
+  cameraMedal: {
+    width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)',
+  },
+  cameraEmoji: { fontSize: 30 },
   pickHint: { fontSize: 12, color: colors.textMuted },
   pickRow: { flexDirection: 'row', gap: spacing.md },
-  pickBox: { flex: 1, height: 130, backgroundColor: colors.surface, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed', gap: 6 },
-  pickEmoji: { fontSize: 40 },
-  pickLabel: { ...typography.h3, color: colors.text },
-  caption: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
-  pinRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
-  pinTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
-  pinHint: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  musicRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 14, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
-  musicPlaceholder: { flex: 1, color: colors.textMuted, fontSize: 14 },
-  musicSelected: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 10, marginBottom: spacing.md, borderWidth: 1.5, borderColor: colors.brand + '66' },
-  musicArtwork: { width: 46, height: 46, borderRadius: 6 },
-  musicTitle: { fontSize: 13, color: colors.text, fontWeight: '700' },
-  musicArtist: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  musicChangeBtn: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.border },
-  musicChangeTxt: { fontSize: 12, color: colors.brand, fontWeight: '600' },
-  // Ligne « Ajouter un lieu » : même allure que les autres champs de l'écran.
-  placeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+  pickBox: {
+    flex: 1, height: 112, borderRadius: radius.xl, alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: CHAT_GLASS, borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE,
   },
-  placeRowIcon: { fontSize: 16 },
-  placeRowLabel: { ...typography.body, color: colors.textMuted, flex: 1 },
-  placeRowLabelSet: { color: colors.textPrimary },
-  placeRowClear: { ...typography.body, color: colors.textSecondary },
+  pickEmoji: { fontSize: 30 },
+  pickLabel: { color: colors.textPrimary, fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  pickLabelSmall: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+
+  // Champs
+  caption: {
+    backgroundColor: FIELD_BG, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: 14,
+    color: colors.textPrimary, fontSize: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE,
+    marginBottom: spacing.md,
+  },
+  group: { marginBottom: spacing.md },
+  // Même gabarit que les lignes de ProfileChrome (MenuRow / ToggleRow).
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 60,
+  },
+  rowLabel: { flex: 1, color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
+  rowLabelSet: { color: colors.textPrimary },
+  rowClear: { color: colors.textSecondary, fontSize: 16, paddingHorizontal: 2 },
+  chevron: { color: colors.textMuted, fontSize: 22, fontWeight: '300', marginTop: -2 },
+  musicArtwork: { width: 44, height: 44, borderRadius: 8 },
+  musicTitle: { fontSize: 14, color: colors.textPrimary, fontWeight: '700' },
+  musicArtist: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  musicChangeBtn: {
+    borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE,
+  },
+  musicChangeTxt: { fontSize: 12, color: colors.textPrimary, fontWeight: '700' },
+  innerBlock: { gap: 8, marginHorizontal: spacing.md, marginBottom: spacing.md },
+  innerRow: { flexDirection: 'row', gap: 8 },
+  innerInput: {
+    marginHorizontal: spacing.md, marginBottom: spacing.md,
+    backgroundColor: FIELD_BG, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 12,
+    color: colors.textPrimary, fontSize: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: HAIRLINE,
+  },
+  // Champs déjà placés dans `innerBlock`, qui porte les marges.
+  innerInputFlat: { marginHorizontal: 0, marginBottom: 0 },
 });
