@@ -1,15 +1,18 @@
 /**
  * Comptes bloqués — liste les utilisateurs bloqués et permet de les débloquer.
  * Backend : GET /social/blocked, DELETE /social/block/:userId.
+ *
+ * Habillage sobre (18/11/2026) : lignes en verre, aucun accent de couleur.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
+import { PersonRow, PillButton, QuietEmpty, QuietHeader, SPINNER_COLOR } from '../components/pb2/Pb2Chrome';
 
 const API = API_BASE_URL;
 
@@ -60,44 +63,31 @@ export default function BlockedScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('bl_title')}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <QuietHeader title={t('bl_title')} onBack={() => router.back()} />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
+        <View style={styles.center}><ActivityIndicator color={SPINNER_COLOR} /></View>
       ) : (
         <FlatList
           data={users}
           keyExtractor={(u) => u.id}
-          contentContainerStyle={{ paddingVertical: 8, paddingBottom: insets.bottom + 40 }}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 40 }}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🚫</Text>
-              <Text style={styles.emptyTitle}>{t('bl_empty_title')}</Text>
-              <Text style={styles.emptyText}>{t('bl_empty_text')}</Text>
-            </View>
+            <QuietEmpty emoji="🚫" title={t('bl_empty_title')} text={t('bl_empty_text')} />
           }
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              {item.photoUrl ? (
-                <Image source={{ uri: item.photoUrl }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarLetter}>{item.displayName[0]}</Text>
-                </View>
+          renderItem={({ item, index }) => (
+            <PersonRow
+              index={index}
+              uri={item.photoUrl}
+              name={item.displayName}
+              action={(
+                <PillButton
+                  label={t('bl_unblock')}
+                  loading={processingId === item.id}
+                  onPress={() => void unblock(item.id)}
+                />
               )}
-              <Text style={styles.name}>{item.displayName}</Text>
-              {processingId === item.id ? (
-                <ActivityIndicator color={colors.brand} />
-              ) : (
-                <Pressable style={styles.unblockBtn} onPress={() => void unblock(item.id)}>
-                  <Text style={styles.unblockTxt}>{t('bl_unblock')}</Text>
-                </Pressable>
-              )}
-            </View>
+            />
           )}
         />
       )}
@@ -108,18 +98,4 @@ export default function BlockedScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  avatar: { width: 48, height: 48, borderRadius: 24 },
-  avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: '#fff', fontWeight: '700', fontSize: 18 },
-  name: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
-  unblockBtn: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
-  unblockTxt: { color: colors.text, fontWeight: '600', fontSize: 13 },
-  empty: { alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 52, marginBottom: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40 },
 });

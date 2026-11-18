@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, StyleSheet, Text, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
+import { GridTile } from '../components/p2b/ProfileVisuals';
+import { QuietEmpty, QuietHeader, SegmentTabs, SPINNER_COLOR } from '../components/pb2/Pb2Chrome';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
-const GRID_ITEM = (SCREEN_W - 3) / 3;
 
 interface Post { id: string; mediaUrls: string[]; caption?: string | null }
 
-/** Archivés & brouillons — posts masqués sans suppression + posts non publiés. */
+/**
+ * Archivés & brouillons — posts masqués sans suppression + posts non publiés.
+ * Habillage sobre (18/11/2026) : onglets en rail de verre, vignettes à coins
+ * arrondis espacées ; aucun accent de couleur.
+ */
 export default function ArchiveScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
@@ -67,48 +72,41 @@ export default function ArchiveScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('ar_title')}</Text>
-        <View style={{ width: 30 }} />
-      </View>
+      <QuietHeader title={t('ar_title')} onBack={() => router.back()} />
 
-      <View style={styles.tabs}>
-        {(['archived', 'drafts'] as const).map((tabKey) => (
-          <Pressable key={tabKey} style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]} onPress={() => setTab(tabKey)}>
-            <Text style={[styles.tabTxt, tab === tabKey && styles.tabTxtActive]}>
-              {tabKey === 'archived' ? t('ar_tab_archived') : t('ar_tab_drafts')}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentTabs
+        tabs={[
+          { key: 'archived', label: t('ar_tab_archived') },
+          { key: 'drafts', label: t('ar_tab_drafts') },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
+        <View style={styles.center}><ActivityIndicator color={SPINNER_COLOR} /></View>
       ) : (
         <FlatList
           data={posts}
           numColumns={3}
           keyExtractor={(p) => p.id}
+          columnWrapperStyle={styles.gridRow}
+          ItemSeparatorComponent={GridGap}
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-          renderItem={({ item }) => (
-            <Pressable style={styles.gridItem} onPress={() => act(item)}>
+          renderItem={({ item, index }) => (
+            <GridTile size={TILE} index={index} onPress={() => act(item)}>
               {item.mediaUrls[0] ? (
                 <Image source={{ uri: item.mediaUrls[0] }} style={styles.gridImg} />
               ) : (
-                <View style={[styles.gridImg, styles.gridPlaceholder]}><Text style={{ fontSize: 22 }}>📷</Text></View>
+                <View style={[styles.gridImg, styles.gridPlaceholder]}><Text style={styles.placeholderIcon}>📷</Text></View>
               )}
-            </Pressable>
+            </GridTile>
           )}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={{ fontSize: 44, marginBottom: 10 }}>{tab === 'archived' ? '📁' : '📝'}</Text>
-              <Text style={styles.emptyTxt}>
-                {tab === 'archived'
-                  ? t('ar_empty_archived')
-                  : t('ar_empty_drafts')}
-              </Text>
-            </View>
+            <QuietEmpty
+              emoji={tab === 'archived' ? '📁' : '📝'}
+              text={tab === 'archived' ? t('ar_empty_archived') : t('ar_empty_drafts')}
+            />
           }
         />
       )}
@@ -116,20 +114,19 @@ export default function ArchiveScreen() {
   );
 }
 
+const GRID_GAP = 4;
+/** Vignette : 3 par ligne, avec marges et espaces. */
+const TILE = Math.floor((SCREEN_W - spacing.md * 2 - GRID_GAP * 2) / 3);
+
+function GridGap() {
+  return <View style={{ height: GRID_GAP }} />;
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h3, color: colors.text },
-  tabs: { flexDirection: 'row', margin: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 4 },
-  tabBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: radius.md },
-  tabBtnActive: { backgroundColor: colors.background },
-  tabTxt: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  tabTxtActive: { color: colors.brand, fontWeight: '700' },
-  gridItem: { width: GRID_ITEM, height: GRID_ITEM, margin: 0.5 },
+  gridRow: { gap: GRID_GAP, paddingHorizontal: spacing.md },
   gridImg: { width: '100%', height: '100%' },
   gridPlaceholder: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  empty: { alignItems: 'center', paddingTop: 70, paddingHorizontal: 40 },
-  emptyTxt: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 21 },
+  placeholderIcon: { fontSize: 22 },
 });

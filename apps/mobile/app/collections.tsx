@@ -2,19 +2,27 @@
  * Enregistrements & collections — grille des posts enregistrés, organisables
  * en collections nommées.
  * Backend : GET /posts/saved (?collectionId=), GET/POST/DELETE /posts/collections.
+ *
+ * Habillage sobre (18/11/2026) : pastilles blanches/verre, vignettes à coins
+ * arrondis ; seul accent de couleur : le bouton « Créer » de la fenêtre.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Image, Modal, Pressable,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { FeedPost } from '../lib/feed-api';
 import { useI18n } from '../lib/useI18n';
+import { BrandButton } from '../components/social/SocialChrome';
+import { GridTile, TileBadge } from '../components/p2b/ProfileVisuals';
+import {
+  QUIET_GLASS, QuietChip, QuietEmpty, QuietHeader, RoundGlassButton, SPINNER_COLOR,
+} from '../components/pb2/Pb2Chrome';
 
 const API = API_BASE_URL;
 
@@ -114,57 +122,45 @@ export default function CollectionsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('col_title')}</Text>
-        <Pressable onPress={() => setShowCreate(true)}><Text style={styles.plus}>＋</Text></Pressable>
-      </View>
+      <QuietHeader
+        title={t('col_title')}
+        onBack={() => router.back()}
+        right={<RoundGlassButton label="＋" onPress={() => setShowCreate(true)} accessibilityLabel={t('col_new_collection')} />}
+      />
 
-      {/* Filtres collections */}
+      {/* Filtres collections — appui long sur une collection : la supprimer. */}
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <Pressable
-            style={[styles.chip, selected === null && styles.chipActive]}
-            onPress={() => selectCollection(null)}
-          >
-            <Text style={[styles.chipTxt, selected === null && styles.chipTxtActive]}>{t('col_all')}</Text>
-          </Pressable>
+          <QuietChip label={t('col_all')} active={selected === null} onPress={() => selectCollection(null)} />
           {collections.map((c) => (
-            <Pressable
+            <QuietChip
               key={c.id}
-              style={[styles.chip, selected?.id === c.id && styles.chipActive]}
+              label={`${c.name} · ${c.itemsCount}`}
+              active={selected?.id === c.id}
               onPress={() => selectCollection(c)}
               onLongPress={() => remove(c)}
-            >
-              <Text style={[styles.chipTxt, selected?.id === c.id && styles.chipTxtActive]}>
-                {c.name} · {c.itemsCount}
-              </Text>
-            </Pressable>
+            />
           ))}
         </ScrollView>
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
+        <View style={styles.center}><ActivityIndicator color={SPINNER_COLOR} /></View>
       ) : (
         <FlatList
           data={posts}
           keyExtractor={(p) => p.id}
           numColumns={3}
+          columnWrapperStyle={styles.gridRow}
+          ItemSeparatorComponent={GridGap}
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🔖</Text>
-              <Text style={styles.emptyTitle}>{t('col_empty_title')}</Text>
-              <Text style={styles.emptyText}>
-                {t('col_empty_text')}
-              </Text>
-            </View>
+            <QuietEmpty emoji="🔖" title={t('col_empty_title')} text={t('col_empty_text')} />
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const thumb = item.coverUrl ?? item.mediaUrls[0];
             return (
-              <Pressable style={styles.cell} onPress={() => router.push(`/post/${item.id}` as never)}>
+              <GridTile size={TILE} index={index} onPress={() => router.push(`/post/${item.id}` as never)}>
                 {thumb ? (
                   <Image source={{ uri: thumb }} style={styles.cellImg} />
                 ) : (
@@ -172,8 +168,10 @@ export default function CollectionsScreen() {
                     <Text numberOfLines={3} style={styles.cellCaption}>{item.caption ?? '📝'}</Text>
                   </View>
                 )}
-                {item.videoUrl ? <Text style={styles.videoBadge}>▶</Text> : null}
-              </Pressable>
+                {item.videoUrl ? (
+                  <TileBadge corner="tr"><Text style={styles.videoBadge}>▶</Text></TileBadge>
+                ) : null}
+              </GridTile>
             );
           }}
         />
@@ -182,7 +180,7 @@ export default function CollectionsScreen() {
       {/* Modale création */}
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <Pressable style={styles.backdrop} onPress={() => setShowCreate(false)}>
-          <Pressable style={styles.sheet} onPress={() => undefined}>
+          <Pressable style={[QUIET_GLASS, styles.sheet]} onPress={() => undefined}>
             <Text style={styles.sheetTitle}>{t('col_new_collection')}</Text>
             <TextInput
               style={styles.input}
@@ -193,13 +191,12 @@ export default function CollectionsScreen() {
               autoFocus
               maxLength={40}
             />
-            <Pressable
-              style={[styles.createBtn, (!newName.trim() || creating) && { opacity: 0.5 }]}
+            <BrandButton
+              label={t('col_create')}
+              loading={creating}
               disabled={!newName.trim() || creating}
               onPress={() => void create()}
-            >
-              {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.createTxt}>{t('col_create')}</Text>}
-            </Pressable>
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -207,31 +204,30 @@ export default function CollectionsScreen() {
   );
 }
 
+const GRID_GAP = 4;
+/** Vignette : 3 par ligne, avec marges et espaces. */
+const TILE = Math.floor((Dimensions.get('window').width - spacing.md * 2 - GRID_GAP * 2) / 3);
+
+function GridGap() {
+  return <View style={{ height: GRID_GAP }} />;
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text },
-  plus: { fontSize: 22, color: colors.brand, width: 40, textAlign: 'right' },
-  chips: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingVertical: 10 },
-  chip: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipTxt: { color: colors.text, fontSize: 13, fontWeight: '600' },
-  chipTxtActive: { color: '#fff' },
-  cell: { flex: 1 / 3, aspectRatio: 1, padding: 1 },
-  cellImg: { flex: 1, backgroundColor: colors.surface },
+  chips: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  gridRow: { gap: GRID_GAP, paddingHorizontal: spacing.md },
+  cellImg: { width: '100%', height: '100%', backgroundColor: colors.surface },
   cellFallback: { alignItems: 'center', justifyContent: 'center', padding: 6 },
   cellCaption: { fontSize: 11, color: colors.textMuted, textAlign: 'center' },
-  videoBadge: { position: 'absolute', top: 6, right: 8, color: '#fff', fontSize: 12, textShadowColor: '#000', textShadowRadius: 4 },
-  empty: { alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 52, marginBottom: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  sheet: { backgroundColor: colors.background, borderRadius: radius.lg, padding: spacing.lg, width: '85%', gap: 14, borderWidth: 1, borderColor: colors.border },
-  sheetTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  input: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, borderWidth: 1, borderColor: colors.border },
-  createBtn: { backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: 12, alignItems: 'center' },
-  createTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  videoBadge: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.68)', alignItems: 'center', justifyContent: 'center' },
+  sheet: {
+    backgroundColor: colors.bg, borderRadius: radius.xl, padding: spacing.lg, width: '86%', gap: spacing.md,
+  },
+  sheetTitle: { fontSize: 19, fontWeight: '900', letterSpacing: -0.3, color: colors.text },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12,
+    color: colors.text, fontSize: 15, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
+  },
 });

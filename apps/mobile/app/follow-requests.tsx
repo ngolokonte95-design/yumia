@@ -1,13 +1,18 @@
+/**
+ * Demandes d'abonnement (compte privé) : accepter ou supprimer.
+ * Habillage sobre (18/11/2026) : lignes en verre, « Confirmer » en pastille
+ * blanche, « Supprimer » en rouge fonctionnel discret.
+ */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
-import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
+import { PersonRow, PillButton, QuietEmpty, QuietHeader, SPINNER_COLOR } from '../components/pb2/Pb2Chrome';
 
 const API = API_BASE_URL;
 
@@ -51,58 +56,38 @@ export default function FollowRequestsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('fr_title')}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <QuietHeader title={t('fr_title')} onBack={() => router.back()} />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
+        <View style={styles.center}><ActivityIndicator color={SPINNER_COLOR} /></View>
       ) : (
         <FlatList
           data={requests}
           keyExtractor={(r) => r.id}
-          contentContainerStyle={{ paddingVertical: 8, paddingBottom: insets.bottom + 40 }}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 40 }}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>👥</Text>
-              <Text style={styles.emptyTitle}>{t('fr_empty_title')}</Text>
-              <Text style={styles.emptyText}>{t('fr_empty_text')}</Text>
-            </View>
+            <QuietEmpty emoji="👥" title={t('fr_empty_title')} text={t('fr_empty_text')} />
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const isProcessing = processingId === item.id;
             return (
-              <View style={styles.requestRow}>
-                <Pressable onPress={() => router.push(`/user/${item.requester.id}` as never)}>
-                  <Avatar
-                    uri={item.requester.photoUrl}
-                    size={52}
-                    placeholderColor={colors.brand}
-                    fallback={<Text style={styles.avatarLetter}>{item.requester.displayName[0]}</Text>}
-                  />
-                </Pressable>
-                <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.requester.id}` as never)}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={styles.name}>{item.requester.displayName}</Text>
-                    <PlanBadgeIcon plan={item.requester.plan} size={18} />
-                  </View>
-                  {item.requester.bio ? <Text style={styles.bio} numberOfLines={1}>{item.requester.bio}</Text> : null}
-                </Pressable>
-                {isProcessing ? (
-                  <ActivityIndicator color={colors.brand} />
+              <PersonRow
+                index={index}
+                avatarSize={52}
+                uri={item.requester.photoUrl}
+                name={item.requester.displayName}
+                plan={item.requester.plan}
+                sub={item.requester.bio}
+                onPress={() => router.push(`/user/${item.requester.id}` as never)}
+                action={isProcessing ? (
+                  <View style={styles.processing}><ActivityIndicator color={SPINNER_COLOR} /></View>
                 ) : (
                   <View style={styles.btnGroup}>
-                    <Pressable style={styles.acceptBtn} onPress={() => void respond(item.id, true)}>
-                      <Text style={styles.acceptTxt}>{t('fr_confirm')}</Text>
-                    </Pressable>
-                    <Pressable style={styles.rejectBtn} onPress={() => void respond(item.id, false)}>
-                      <Text style={styles.rejectTxt}>{t('fr_delete')}</Text>
-                    </Pressable>
+                    <PillButton tone="solid" label={t('fr_confirm')} onPress={() => void respond(item.id, true)} />
+                    <PillButton tone="danger" label={t('fr_delete')} onPress={() => void respond(item.id, false)} />
                   </View>
                 )}
-              </View>
+              />
             );
           }}
         />
@@ -114,22 +99,6 @@ export default function FollowRequestsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text },
-  requestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
-  avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: '#fff', fontWeight: '700', fontSize: 20 },
-  name: { fontSize: 15, fontWeight: '700', color: colors.text },
-  bio: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   btnGroup: { flexDirection: 'column', gap: 8 },
-  acceptBtn: { backgroundColor: colors.brand, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' },
-  acceptTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  rejectBtn: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  rejectTxt: { color: colors.text, fontWeight: '600', fontSize: 13 },
-  empty: { alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 52, marginBottom: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40 },
+  processing: { minWidth: 84, alignItems: 'center' },
 });

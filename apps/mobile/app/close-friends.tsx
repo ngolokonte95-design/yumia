@@ -3,17 +3,22 @@
  *  - type=close-friends : GET /social/close-friends, POST/DELETE /social/close-friends/:userId
  *  - type=favorites     : GET /social/favorites,     POST/DELETE /social/favorites/:userId
  * L'ajout se fait depuis la liste des personnes que je suis (following).
+ *
+ * Habillage sobre (18/11/2026) : lignes en verre, « Ajouter » en pastille
+ * blanche, « Retirer » en rouge fonctionnel discret, aucun autre accent.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import type { Plan } from '../lib/feed-api';
-import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
+import {
+  PersonRow, PillButton, QuietCount, QuietEmpty, QuietHeader, SPINNER_COLOR,
+} from '../components/pb2/Pb2Chrome';
 
 const API = API_BASE_URL;
 
@@ -90,63 +95,42 @@ export default function CloseFriendsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{title}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <QuietHeader title={title} onBack={() => router.back()} />
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
+        <View style={styles.center}><ActivityIndicator color={SPINNER_COLOR} /></View>
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(u) => u.id}
-          contentContainerStyle={{ paddingVertical: 8, paddingBottom: insets.bottom + 40 }}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 40 }}
           ListHeaderComponent={
             members.length > 0 ? (
-              <Text style={styles.count}>{members.length} {members.length > 1 ? t('cf_people_plural') : t('cf_people_singular')}</Text>
+              <QuietCount label={`${members.length} ${members.length > 1 ? t('cf_people_plural') : t('cf_people_singular')}`} />
             ) : undefined
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>{emptyIcon}</Text>
-              <Text style={styles.emptyTitle}>{t('cf_empty_title')}</Text>
-              <Text style={styles.emptyText}>{emptyText}</Text>
-            </View>
+            <QuietEmpty emoji={emptyIcon} title={t('cf_empty_title')} text={emptyText} />
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const isMember = memberIds.has(item.id);
             return (
-              <View style={styles.row}>
-                <Pressable onPress={() => router.push(`/user/${item.id}` as never)}>
-                  <Avatar
-                    uri={item.photoUrl}
-                    size={48}
-                    placeholderColor={colors.brand}
-                    fallback={<Text style={styles.avatarLetter}>{item.displayName[0]}</Text>}
-                  />
-                </Pressable>
-                <Pressable style={{ flex: 1 }} onPress={() => router.push(`/user/${item.id}` as never)}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={styles.name}>{item.displayName}</Text>
-                    <PlanBadgeIcon plan={item.plan} size={18} />
-                  </View>
-                  {item.bio ? <Text style={styles.bio} numberOfLines={1}>{item.bio}</Text> : null}
-                </Pressable>
-                {processingId === item.id ? (
-                  <ActivityIndicator color={colors.brand} />
-                ) : (
-                  <Pressable
-                    style={isMember ? styles.removeBtn : styles.addBtn}
+              <PersonRow
+                index={index}
+                uri={item.photoUrl}
+                name={item.displayName}
+                plan={item.plan}
+                sub={item.bio}
+                onPress={() => router.push(`/user/${item.id}` as never)}
+                action={(
+                  <PillButton
+                    tone={isMember ? 'danger' : 'solid'}
+                    label={isMember ? t('cf_remove') : t('cf_add')}
+                    loading={processingId === item.id}
                     onPress={() => void toggle(item)}
-                  >
-                    <Text style={isMember ? styles.removeTxt : styles.addTxt}>
-                      {isMember ? t('cf_remove') : t('cf_add')}
-                    </Text>
-                  </Pressable>
+                  />
                 )}
-              </View>
+              />
             );
           }}
         />
@@ -158,22 +142,4 @@ export default function CloseFriendsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { fontSize: 22, color: colors.brand },
-  title: { ...typography.h2, color: colors.text },
-  count: { fontSize: 13, color: colors.textMuted, paddingHorizontal: spacing.md, paddingBottom: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  avatar: { width: 48, height: 48, borderRadius: 24 },
-  avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: '#fff', fontWeight: '700', fontSize: 18 },
-  name: { fontSize: 15, fontWeight: '700', color: colors.text },
-  bio: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  addBtn: { backgroundColor: colors.brand, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8 },
-  addTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  removeBtn: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
-  removeTxt: { color: colors.text, fontWeight: '600', fontSize: 13 },
-  empty: { alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 52, marginBottom: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 40 },
 });
