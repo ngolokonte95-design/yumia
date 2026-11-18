@@ -6,9 +6,9 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GlassCard, PressableScale, Reveal } from '../components/ui';
+import { PressableScale, Reveal } from '../components/ui';
 import { useAuth } from '../lib/auth-context';
-import { safeMeta, universeLabel } from '../lib/universeMeta';
+import { universeLabel } from '../lib/universeMeta';
 import { useI18n } from '../lib/useI18n';
 import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import {
@@ -18,6 +18,11 @@ import {
 import type { TranslationKey } from '../lib/translations';
 import { PostViewer } from '../components/PostViewer';
 import { feedApi, type FeedPost } from '../lib/feed-api';
+import { UniverseGlyph } from '../components/UniverseGlyph';
+import { BrandButton, GlassIconButton, SocialEmpty, SocialHeader } from '../components/social/SocialChrome';
+import { BrandDot } from '../components/profile/ProfileChrome';
+import { BACK_ICON, GLASS_CARD, GlassDot, SearchPill } from '../components/p2a/P2Chrome';
+import { haptics } from '../lib/useHaptics';
 
 /** Onglet de type — `null` signifie « tout ». */
 type KindFilter = FavoriteKind | null;
@@ -34,6 +39,11 @@ const SORT_LABEL_KEY: Record<FavoriteSort, TranslationKey> = {
  *
  * Remplace les deux écrans historiques (« Mes adresses » et « Enregistrements »)
  * qui ne se parlaient pas.
+ *
+ * DA (18/11/2026) : titre dégradé, recherche en pilule vitrée, collections et
+ * types en pastilles qui se remplissent du dégradé, favoris en cartes vitrées
+ * à grande vignette, feuilles sombres. Le voile dégradé d'ambiance en haut
+ * d'écran est retiré (il dessinait une « barre »). Logique inchangée.
  */
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -158,48 +168,29 @@ export default function FavoritesScreen() {
   );
 
   return (
-    <View style={styles.screen}>
-      {/* Dégradé d'ambiance discret en haut d'écran */}
-      <LinearGradient
-        colors={gradients.brandSoft}
-        style={styles.ambient}
-        pointerEvents="none"
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <SocialHeader
+        title={t('fav_title')}
+        onBack={() => router.back()}
+        backIcon={BACK_ICON}
+        right={<GlassIconButton icon="＋" onPress={() => setShowCreate(true)} />}
       />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <PressableScale onPress={() => router.back()} hitSlop={12} style={styles.headerBtn}>
-          <Text style={styles.headerIcon}>←</Text>
-        </PressableScale>
-        <Text style={styles.headerTitle}>{t('fav_title')}</Text>
-        <PressableScale onPress={() => setShowCreate(true)} hitSlop={12} style={styles.headerBtn}>
-          <Text style={styles.headerIcon}>＋</Text>
-        </PressableScale>
-      </View>
-
       {/* Recherche */}
-      <GlassCard variant="pill" rounded={radius.pill} style={styles.searchCard} sheen={false}>
-        <View style={styles.searchInner}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('fav_search_placeholder')}
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <PressableScale onPress={() => setSearch('')} hitSlop={10}>
-              <Text style={styles.searchClear}>✕</Text>
-            </PressableScale>
-          )}
-        </View>
-      </GlassCard>
+      <SearchPill
+        style={styles.searchCard}
+        placeholder={t('fav_search_placeholder')}
+        value={search}
+        onChangeText={setSearch}
+        returnKeyType="search"
+        onClear={() => setSearch('')}
+      />
 
       {/* Collections */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.chipsBar}
         contentContainerStyle={styles.chips}
       >
         <Chip
@@ -220,14 +211,17 @@ export default function FavoritesScreen() {
 
       {/* Filtres de type + tri */}
       <View style={styles.filters}>
-        <View style={styles.kindRow}>
+        <View style={[styles.kindRow, GLASS_CARD]}>
           {([null, 'place', 'post'] as KindFilter[]).map((k) => (
             <PressableScale
               key={String(k)}
               scaleTo={0.94}
-              onPress={() => setKind(k)}
-              style={[styles.kindBtn, kind === k && styles.kindBtnActive]}
+              onPress={() => { haptics.select(); setKind(k); }}
+              style={styles.kindBtn}
             >
+              {kind === k ? (
+                <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              ) : null}
               <Text style={[styles.kindTxt, kind === k && styles.kindTxtActive]}>
                 {k === null ? t('fav_kind_all') : k === 'place' ? t('fav_kind_places') : t('fav_kind_posts')}
               </Text>
@@ -237,8 +231,8 @@ export default function FavoritesScreen() {
 
         <PressableScale
           scaleTo={0.94}
-          onPress={() => setSort((s) => (s === 'recent' ? 'name' : s === 'name' ? 'oldest' : 'recent'))}
-          style={styles.sortBtn}
+          onPress={() => { haptics.select(); setSort((s) => (s === 'recent' ? 'name' : s === 'name' ? 'oldest' : 'recent')); }}
+          style={[styles.sortBtn, GLASS_CARD]}
         >
           <Text style={styles.sortTxt}>⇅ {t(SORT_LABEL_KEY[sort])}</Text>
         </PressableScale>
@@ -264,6 +258,7 @@ export default function FavoritesScreen() {
             <Reveal index={Math.min(index, 8)}>
               <FavoriteRow
                 item={item}
+                opening={openingPost === item.id}
                 onPress={() => void openItem(item)}
                 onOrganize={() => setAssigning(item)}
               />
@@ -305,57 +300,63 @@ export default function FavoritesScreen() {
 
 // ── Sous-composants ──────────────────────────────────────────────────────────
 
+/** Pastille de collection : remplie du dégradé quand elle est choisie ; appui long = supprimer. */
 function Chip({
   label, active, onPress, onLongPress,
 }: {
   label: string; active: boolean; onPress: () => void; onLongPress?: () => void;
 }) {
   return (
-    <PressableScale scaleTo={0.94} onPress={onPress} onLongPress={onLongPress}>
-      <View style={[styles.chip, active && styles.chipActive]}>
-        <Text style={[styles.chipTxt, active && styles.chipTxtActive]} numberOfLines={1}>
-          {label}
-        </Text>
-      </View>
+    <PressableScale
+      scaleTo={0.94}
+      onPress={() => { haptics.select(); onPress(); }}
+      onLongPress={onLongPress}
+      style={[styles.chip, GLASS_CARD, active && styles.chipActive]}
+    >
+      {active ? (
+        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      ) : null}
+      <Text style={[styles.chipTxt, active && styles.chipTxtActive]} numberOfLines={1}>
+        {label}
+      </Text>
     </PressableScale>
   );
 }
 
 function FavoriteRow({
-  item, onPress, onOrganize,
+  item, opening, onPress, onOrganize,
 }: {
-  item: FavoriteItem; onPress: () => void; onOrganize: () => void;
+  item: FavoriteItem; opening: boolean; onPress: () => void; onOrganize: () => void;
 }) {
   const { t } = useI18n();
-  const meta = item.universe ? safeMeta(item.universe) : null;
 
   return (
-    <PressableScale onPress={onPress} scaleTo={0.98} style={styles.rowWrap}>
-      <GlassCard rounded={radius.md}>
-        <View style={styles.row}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+    <PressableScale onPress={onPress} scaleTo={0.98} style={[styles.row, GLASS_CARD]}>
+      {item.imageUrl ? (
+        <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+      ) : (
+        <View style={[styles.thumb, styles.thumbFallback]}>
+          {item.kind === 'post' || !item.universe ? (
+            <Text style={styles.thumbEmoji}>{item.kind === 'post' ? '🖼️' : '📍'}</Text>
           ) : (
-            <View style={[styles.thumb, styles.thumbFallback]}>
-              <Text style={styles.thumbEmoji}>
-                {item.kind === 'post' ? '🖼️' : meta?.emoji ?? '📍'}
-              </Text>
-            </View>
+            <UniverseGlyph u={item.universe} size={30} />
           )}
-
-          <View style={styles.rowBody}>
-            <Text style={styles.rowTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.rowMeta} numberOfLines={1}>
-              {item.kind === 'post' ? t('fav_post_label') : (item.universe ? universeLabel(t, item.universe) : t('fav_place_label'))}
-              {item.subtitle ? ` · ${item.subtitle}` : ''}
-            </Text>
-          </View>
-
-          <PressableScale onPress={onOrganize} hitSlop={12} style={styles.organize}>
-            <Text style={styles.organizeIcon}>⋯</Text>
-          </PressableScale>
         </View>
-      </GlassCard>
+      )}
+
+      <View style={styles.rowBody}>
+        <Text style={styles.rowKind} numberOfLines={1}>
+          {item.kind === 'post' ? t('fav_post_label') : (item.universe ? universeLabel(t, item.universe) : t('fav_place_label'))}
+        </Text>
+        <Text style={styles.rowTitle} numberOfLines={2}>{item.title}</Text>
+        {item.subtitle ? <Text style={styles.rowMeta} numberOfLines={1}>{item.subtitle}</Text> : null}
+      </View>
+
+      {opening ? (
+        <ActivityIndicator color={colors.brand} />
+      ) : (
+        <GlassDot label="⋯" onPress={onOrganize} hitSlop={12} />
+      )}
     </PressableScale>
   );
 }
@@ -369,11 +370,11 @@ function EmptyState({ search, collection }: { search: string; collection: string
       : t('fav_empty_default');
 
   return (
-    <View style={styles.empty}>
-      <Text style={styles.emptyEmoji}>{search ? '🔍' : '❤️'}</Text>
-      <Text style={styles.emptyTitle}>{search ? t('fav_nothing_found') : t('fav_empty_title')}</Text>
-      <Text style={styles.emptyText}>{message}</Text>
-    </View>
+    <SocialEmpty
+      emoji={search ? '🔍' : '❤️'}
+      title={search ? t('fav_nothing_found') : t('fav_empty_title')}
+      text={message}
+    />
   );
 }
 
@@ -389,6 +390,7 @@ function CreateCollectionModal({
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <PressableScale onPress={onClose} scaleTo={1} style={styles.backdrop}>
           <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('fav_new_collection')}</Text>
             <Text style={styles.sheetHint}>
               {t('fav_new_collection_hint')}
@@ -402,14 +404,12 @@ function CreateCollectionModal({
               autoFocus
               maxLength={40}
             />
-            <PressableScale
-              haptic
+            <BrandButton
+              label={t('fav_create')}
               onPress={onCreate}
               disabled={!name.trim()}
-              style={[styles.primaryBtn, !name.trim() && styles.primaryBtnDisabled]}
-            >
-              <Text style={styles.primaryBtnTxt}>{t('fav_create')}</Text>
-            </PressableScale>
+              style={styles.primaryBtn}
+            />
           </View>
         </PressableScale>
       </KeyboardAvoidingView>
@@ -430,22 +430,24 @@ function AssignModal({
     <Modal visible={!!item} transparent animationType="slide" onRequestClose={onClose}>
       <PressableScale onPress={onClose} scaleTo={1} style={styles.backdrop}>
         <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>{t('fav_organize_into')}</Text>
           <Text style={styles.sheetHint} numberOfLines={1}>{item?.title}</Text>
 
           <ScrollView style={styles.assignList}>
-            {collections.map((c) => (
-              <PressableScale
-                key={c.id}
-                onPress={() => onAssign(c.id)}
-                style={[styles.assignRow, item?.collectionId === c.id && styles.assignRowActive]}
-              >
-                <Text style={styles.assignName}>{c.name}</Text>
-                <Text style={styles.assignCount}>
-                  {item?.collectionId === c.id ? '✓' : c.itemsCount}
-                </Text>
-              </PressableScale>
-            ))}
+            {collections.map((c) => {
+              const active = item?.collectionId === c.id;
+              return (
+                <PressableScale
+                  key={c.id}
+                  onPress={() => onAssign(c.id)}
+                  style={[styles.assignRow, active && styles.assignRowActive]}
+                >
+                  <Text style={styles.assignName}>{c.name}</Text>
+                  {active ? <BrandDot label="✓" size={24} /> : <Text style={styles.assignCount}>{c.itemsCount}</Text>}
+                </PressableScale>
+              );
+            })}
             {collections.length === 0 && (
               <Text style={styles.assignEmpty}>
                 {t('fav_no_collections')}
@@ -466,112 +468,87 @@ function AssignModal({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  ambient: { position: 'absolute', top: 0, left: 0, right: 0, height: 260 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
-  },
-  headerBtn: { width: 40 },
-  headerIcon: { fontSize: 24, color: colors.textPrimary, fontWeight: '700' },
-  headerTitle: { ...typography.title, color: colors.textPrimary },
-
   searchCard: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
-  searchInner: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingVertical: 10,
-  },
-  searchIcon: { fontSize: 15 },
-  searchInput: { flex: 1, ...typography.body, color: colors.textPrimary, padding: 0 },
-  searchClear: { ...typography.body, color: colors.textMuted },
 
+  chipsBar: { flexGrow: 0 },
   chips: { paddingHorizontal: spacing.md, gap: spacing.sm, paddingBottom: spacing.sm },
   chip: {
-    backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border, borderRadius: radius.pill,
-    paddingHorizontal: 14, paddingVertical: 7, maxWidth: 190,
+    borderRadius: radius.pill, overflow: 'hidden',
+    paddingHorizontal: 14, paddingVertical: 8, maxWidth: 200,
   },
-  chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
-  chipTxtActive: { color: '#fff', fontWeight: '700' },
+  chipActive: { borderColor: 'transparent' },
+  chipTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '700' },
+  chipTxtActive: { color: '#fff', fontWeight: '900' },
 
   filters: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm,
   },
   kindRow: {
-    flexDirection: 'row', backgroundColor: colors.surface,
-    borderRadius: radius.pill, padding: 3, gap: 2,
+    flexDirection: 'row', borderRadius: radius.pill, padding: 3, gap: 2,
   },
-  kindBtn: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill },
-  kindBtnActive: { backgroundColor: colors.surfaceElevated },
-  kindTxt: { ...typography.caption, color: colors.textMuted, fontWeight: '600' },
-  kindTxtActive: { color: colors.textPrimary, fontWeight: '700' },
-  sortBtn: {
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: radius.pill, backgroundColor: colors.surface,
-  },
-  sortTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
+  kindBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, overflow: 'hidden' },
+  kindTxt: { ...typography.caption, color: colors.textMuted, fontWeight: '700' },
+  kindTxtActive: { color: '#fff', fontWeight: '900' },
+  sortBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill },
+  sortTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '700' },
 
   list: { paddingHorizontal: spacing.md, gap: spacing.sm },
-  rowWrap: { marginBottom: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', padding: spacing.sm, gap: spacing.md },
-  thumb: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: colors.surfaceElevated },
-  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
-  thumbEmoji: { fontSize: 24 },
-  rowBody: { flex: 1, gap: 3 },
-  rowTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  rowMeta: { ...typography.caption, color: colors.textMuted },
-  organize: { paddingHorizontal: spacing.sm },
-  organizeIcon: { fontSize: 20, color: colors.textMuted, letterSpacing: 1 },
-
-  empty: { alignItems: 'center', paddingTop: 90, gap: spacing.sm },
-  emptyEmoji: { fontSize: 52 },
-  emptyTitle: { ...typography.title, color: colors.textPrimary },
-  emptyText: {
-    ...typography.body, color: colors.textSecondary,
-    textAlign: 'center', paddingHorizontal: spacing.xl, lineHeight: 21,
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    borderRadius: radius.lg, padding: spacing.sm, paddingEnd: spacing.md, marginBottom: spacing.sm,
   },
+  thumb: { width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.surfaceElevated },
+  thumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  thumbEmoji: { fontSize: 28 },
+  rowBody: { flex: 1, gap: 2 },
+  rowKind: {
+    color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase',
+  },
+  rowTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '900', letterSpacing: -0.2 },
+  rowMeta: { ...typography.caption, color: colors.textSecondary },
 
   backdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.65)',
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center', justifyContent: 'center', padding: spacing.lg,
   },
   sheet: {
-    width: '100%', backgroundColor: colors.surface, borderRadius: radius.lg,
+    width: '100%', backgroundColor: colors.surface, borderRadius: radius.xl,
     padding: spacing.lg, gap: spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 30, shadowOffset: { width: 0, height: 12 }, elevation: 16,
   },
-  sheetTitle: { ...typography.heading, color: colors.textPrimary },
+  sheetHandle: {
+    alignSelf: 'center', width: 44, height: 5, borderRadius: 3,
+    backgroundColor: colors.brand, marginBottom: spacing.xs,
+  },
+  sheetTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
   sheetHint: { ...typography.caption, color: colors.textMuted, marginBottom: 4 },
   input: {
-    backgroundColor: colors.surfaceElevated, borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.md,
     paddingHorizontal: spacing.md, paddingVertical: 12,
     color: colors.textPrimary, ...typography.body,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
   },
-  primaryBtn: {
-    backgroundColor: colors.brand, borderRadius: radius.md,
-    paddingVertical: 13, alignItems: 'center', marginTop: 4,
-  },
-  primaryBtnDisabled: { opacity: 0.4 },
-  primaryBtnTxt: { ...typography.body, color: '#fff', fontWeight: '700' },
+  primaryBtn: { marginTop: spacing.xs },
 
   assignList: { maxHeight: 280 },
   assignRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 13, paddingHorizontal: spacing.md,
-    borderRadius: radius.md, marginBottom: 4,
-    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.md, marginBottom: 6,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'transparent',
   },
-  assignRowActive: { backgroundColor: `${colors.brand}26` },
-  assignName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  assignCount: { ...typography.caption, color: colors.textMuted },
+  assignRowActive: { borderColor: `${colors.brand}88`, backgroundColor: 'rgba(232,98,26,0.08)' },
+  assignName: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
+  assignCount: { ...typography.caption, color: colors.textMuted, fontWeight: '700' },
   assignEmpty: {
     ...typography.caption, color: colors.textMuted,
     textAlign: 'center', paddingVertical: spacing.lg, lineHeight: 19,
   },
   removeBtn: { paddingVertical: 12, alignItems: 'center' },
-  removeTxt: { ...typography.body, color: colors.danger, fontWeight: '600' },
+  removeTxt: { ...typography.body, color: colors.danger, fontWeight: '700' },
 });

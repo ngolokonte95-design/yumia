@@ -2,13 +2,16 @@
  * SEARCH — écran de recherche conversationnelle.
  * L'utilisateur tape en langage naturel ; l'IA mood interprète et renvoie
  * les 3 meilleures adresses contextuelles.
+ *
+ * DA (18/11/2026) : recherche en pilule vitrée (liseré de marque au focus),
+ * filtres d'univers en pastilles qui se remplissent du dégradé, historique en
+ * groupe vitré, idées en pastilles en cascade, explication de l'IA en carte
+ * ✨, résultats en cascade. Logique inchangée.
  */
 import { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  Pressable,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -34,6 +37,11 @@ import { useSearchHistory } from '../lib/useSearchHistory';
 import { SuggestionCard } from '../components/SuggestionCard';
 import type { Top3Response } from '../lib/api';
 import type { TranslationKey } from '../lib/translations';
+import { GradientText, PressableScale, Reveal } from '../components/ui';
+import { BrandButton, BrandChip, GlassIconButton, SocialEmpty } from '../components/social/SocialChrome';
+import { GlassGroup, SectionLabel } from '../components/profile/ProfileChrome';
+import { BACK_ICON, GLASS_CARD, IconMedal, SearchPill } from '../components/p2a/P2Chrome';
+import { haptics } from '../lib/useHaptics';
 
 const SUGGESTIONS_PROMPT_KEYS: TranslationKey[] = [
   'srch_prompt_brunch',
@@ -108,16 +116,13 @@ export default function SearchScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
-      {/* Header avec input */}
+      {/* En-tête : retour en verre + recherche en pilule */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <TextInput
-          ref={inputRef}
-          style={styles.input}
+        <GlassIconButton icon={BACK_ICON} onPress={() => router.back()} />
+        <SearchPill
+          inputRef={inputRef}
+          style={styles.searchPill}
           placeholder={t('search_placeholder')}
-          placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={() => void handleSearch(query)}
@@ -125,42 +130,38 @@ export default function SearchScreen() {
           autoFocus
           autoCorrect={false}
           autoCapitalize="none"
+          onClear={hasQuery
+            ? () => { setQuery(''); setResult(null); setError(null); inputRef.current?.focus(); }
+            : undefined}
         />
-        {hasQuery ? (
-          <Pressable
-            onPress={() => { setQuery(''); setResult(null); setError(null); inputRef.current?.focus(); }}
-            style={styles.clearBtn}
-          >
-            <Text style={styles.clearText}>✕</Text>
-          </Pressable>
-        ) : null}
       </View>
 
-      {/* Filtres : univers + budget */}
-      <View style={styles.filterBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {/* Universe chips */}
-          {UNIVERSES.map((u) => {
-            const active = universeFilter === u;
-            const meta = UNIVERSE_META[u];
-            return (
-              <Pressable
-                key={u}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => {
-                  const next = active ? null : u;
-                  setUniverseFilter(next);
-                  if (query.trim()) void handleSearch(query, next, maxPriceTier);
-                }}
-              >
-                <Text style={styles.filterChipText}>
-                  {meta.emoji} {universeLabel(t, u)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
+      {/* Filtres d'univers : pastilles qui se remplissent du dégradé */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        style={styles.filterBar}
+        contentContainerStyle={styles.filterRow}
+      >
+        {UNIVERSES.map((u) => {
+          const active = universeFilter === u;
+          const meta = UNIVERSE_META[u];
+          return (
+            <BrandChip
+              key={u}
+              active={active}
+              label={`${meta.emoji} ${universeLabel(t, u)}`}
+              onPress={() => {
+                haptics.select();
+                const next = active ? null : u;
+                setUniverseFilter(next);
+                if (query.trim()) void handleSearch(query, next, maxPriceTier);
+              }}
+            />
+          );
+        })}
+      </ScrollView>
 
       <ScrollView
         keyboardShouldPersistTaps="handled"
@@ -169,35 +170,45 @@ export default function SearchScreen() {
       >
         <PremiumUpsellModal visible={limitError !== null} message={limitError !== null ? savedLimitMessage() : ''} onClose={clearLimitError} />
 
-        {/* État vide — historique + chips de suggestions rapides */}
+        {/* État vide — historique + idées de recherche */}
         {!loading && !result && !error ? (
           <View style={styles.idle}>
             {history.length > 0 ? (
-              <View style={styles.historySection}>
+              <Reveal index={0}>
                 <View style={styles.historyHeader}>
-                  <Text style={styles.historyTitle}>{t('srch_recent')}</Text>
-                  <Pressable onPress={() => void clearHistory()} hitSlop={8}>
+                  <SectionLabel label={t('srch_recent')} style={styles.historyLabel} />
+                  <PressableScale onPress={() => void clearHistory()} hitSlop={8} scaleTo={0.92}>
                     <Text style={styles.clearHistory}>{t('srch_clear')}</Text>
-                  </Pressable>
+                  </PressableScale>
                 </View>
-                {history.map((h) => (
-                  <Pressable
-                    key={h}
-                    style={styles.historyRow}
-                    onPress={() => { setQuery(h); void handleSearch(h); }}
-                  >
-                    <Text style={styles.historyIcon}>🕐</Text>
-                    <Text style={styles.historyText} numberOfLines={1}>{h}</Text>
-                  </Pressable>
-                ))}
-              </View>
+                <GlassGroup>
+                  {history.map((h) => (
+                    <PressableScale
+                      key={h}
+                      scaleTo={0.98}
+                      style={styles.historyRow}
+                      onPress={() => { setQuery(h); void handleSearch(h); }}
+                    >
+                      <IconMedal icon="🕐" size={34} />
+                      <Text style={styles.historyText} numberOfLines={1}>{h}</Text>
+                      <Text style={styles.historyArrow}>↗</Text>
+                    </PressableScale>
+                  ))}
+                </GlassGroup>
+              </Reveal>
             ) : null}
-            <Text style={styles.hint}>{t('search_hint')}</Text>
+
+            <Reveal index={1} style={styles.ideas}>
+              <GradientText style={styles.ideasTitle}>{t('search_title')}</GradientText>
+              <Text style={styles.hint}>{t('search_hint')}</Text>
+            </Reveal>
             <View style={styles.chips}>
-              {SUGGESTIONS_PROMPT_KEYS.map((chipKey) => (
-                <Pressable key={chipKey} style={styles.chip} onPress={() => handleChip(t(chipKey))}>
-                  <Text style={styles.chipText}>{t(chipKey)}</Text>
-                </Pressable>
+              {SUGGESTIONS_PROMPT_KEYS.map((chipKey, i) => (
+                <Reveal key={chipKey} index={i + 2} from="fade">
+                  <PressableScale style={styles.chip} scaleTo={0.94} onPress={() => handleChip(t(chipKey))}>
+                    <Text style={styles.chipText}>{t(chipKey)}</Text>
+                  </PressableScale>
+                </Reveal>
               ))}
             </View>
           </View>
@@ -206,47 +217,50 @@ export default function SearchScreen() {
         {/* Chargement */}
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator color={colors.brand} size="large" />
-            <Text style={styles.stateText}>{t('search_searching')}</Text>
+            <IconMedal icon={<ActivityIndicator color="#fff" />} size={64} lit />
+            <GradientText style={styles.loadingText}>{t('search_searching')}</GradientText>
           </View>
         ) : null}
 
         {/* Erreur */}
         {!loading && error ? (
-          <View style={styles.center}>
-            <Text style={styles.stateText}>{error}</Text>
-            <Pressable style={styles.retryBtn} onPress={() => void handleSearch(query)}>
-              <Text style={styles.retryText}>{t('retry')}</Text>
-            </Pressable>
-          </View>
+          <SocialEmpty
+            emoji="📡"
+            title={error}
+            action={<BrandButton label={t('retry')} onPress={() => void handleSearch(query)} compact />}
+          />
         ) : null}
 
         {/* Résultats */}
         {!loading && result ? (
           <View style={styles.results}>
             {result.reason ? (
-              <Text style={styles.reason}>{result.reason}</Text>
+              <Reveal index={0} style={[styles.reasonCard, GLASS_CARD]}>
+                <Text style={styles.reasonIcon}>✨</Text>
+                <Text style={styles.reason}>{result.reason}</Text>
+              </Reveal>
             ) : null}
             {result.suggestions.length === 0 ? (
-              <Text style={styles.stateText}>{t('search_empty')}</Text>
+              <SocialEmpty emoji="🧭" title={t('search_empty')} />
             ) : (
-              result.suggestions.map((s) => (
-                <SuggestionCard
-                  key={s.place.id}
-                  suggestion={s}
-                  isSaved={savedIds.has(s.place.id)}
-                  onPress={() => { placeStore.set(s); router.push('/place'); }}
-                  onSave={
-                    accessToken
-                      ? (id, willSave) => willSave ? save(id) : unsave(id)
-                      : undefined
-                  }
-                  onVisit={
-                    accessToken
-                      ? async (feedback) => recordVisit(accessToken, s.place.id, feedback)
-                      : undefined
-                  }
-                />
+              result.suggestions.map((s, i) => (
+                <Reveal key={s.place.id} index={i + 1}>
+                  <SuggestionCard
+                    suggestion={s}
+                    isSaved={savedIds.has(s.place.id)}
+                    onPress={() => { placeStore.set(s); router.push('/place'); }}
+                    onSave={
+                      accessToken
+                        ? (id, willSave) => willSave ? save(id) : unsave(id)
+                        : undefined
+                    }
+                    onVisit={
+                      accessToken
+                        ? async (feedback) => recordVisit(accessToken, s.place.id, feedback)
+                        : undefined
+                    }
+                  />
+                </Reveal>
               ))
             )}
           </View>
@@ -262,94 +276,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
     gap: spacing.sm,
   },
-  backBtn: { padding: spacing.xs },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 20 },
-  input: {
-    flex: 1,
-    ...typography.body,
-    color: colors.textPrimary,
-    paddingVertical: spacing.sm,
-  },
-  clearBtn: { padding: spacing.xs },
-  clearText: { ...typography.body, color: colors.textMuted },
+  searchPill: { flex: 1 },
 
-  filterBar: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
+  filterBar: { flexGrow: 0 },
   filterRow: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.md,
     gap: spacing.sm,
     alignItems: 'center',
   },
-  filterChip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: `${colors.brand}18`,
-    borderColor: colors.brand,
-  },
-  filterChipText: { ...typography.caption, color: colors.textPrimary },
-  filterSep: {
-    width: 1,
-    height: 20,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.xs,
-  },
 
-  idle: { padding: spacing.lg, gap: spacing.lg },
-  historySection: { gap: 2 },
-  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  historyTitle: { ...typography.label, color: colors.textSecondary },
-  clearHistory: { ...typography.caption, color: colors.brandSoft },
+  idle: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.lg },
+  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  historyLabel: { marginTop: 0 },
+  clearHistory: { ...typography.caption, color: colors.brandSoft, fontWeight: '700', marginBottom: spacing.sm },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
   },
-  historyIcon: { fontSize: 14 },
-  historyText: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  hint: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  historyText: { ...typography.body, color: colors.textPrimary, fontWeight: '600', flex: 1 },
+  historyArrow: { color: colors.textMuted, fontSize: 16, fontWeight: '700' },
+
+  ideas: { alignItems: 'center', gap: 6, marginTop: spacing.sm },
+  ideasTitle: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5, textAlign: 'center' },
+  hint: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 21 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center' },
   chip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
+    ...GLASS_CARD,
     borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     paddingHorizontal: spacing.md,
   },
-  chipText: { ...typography.caption, color: colors.textPrimary },
+  chipText: { ...typography.caption, color: colors.textPrimary, fontWeight: '700' },
 
   center: { alignItems: 'center', paddingTop: spacing.xxl, gap: spacing.md },
-  stateText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  retryText: { ...typography.caption, color: colors.textPrimary },
+  loadingText: { fontSize: 18, fontWeight: '900', textAlign: 'center' },
 
   results: { padding: spacing.md, gap: spacing.md },
+  reasonCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  reasonIcon: { fontSize: 18 },
   reason: {
     ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
+    color: colors.textPrimary,
+    flex: 1,
     lineHeight: 22,
   },
 });

@@ -1,13 +1,17 @@
 /**
  * MES ADRESSES — liste complète des lieux sauvegardés.
  * Filtres par univers, pull-to-refresh, swipe-to-remove, tap → Place Detail.
+ *
+ * DA (18/11/2026) : titre dégradé avec le nombre d'adresses en pastille,
+ * filtres en pastilles qui se remplissent du dégradé, adresses en cartes
+ * vitrées (icône de l'univers en médaillon, retrait en rond de verre),
+ * apparition en cascade. Logique inchangée.
  */
 import { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -23,6 +27,11 @@ import { useSavedPlaces } from '../lib/useSavedPlaces';
 import { placeStore } from '../lib/place-store';
 import type { SavedPlace } from '../lib/useSavedPlaces';
 import { ratingSuffix } from '../lib/place-rating';
+import { PressableScale, Reveal } from '../components/ui';
+import { UniverseGlyph } from '../components/UniverseGlyph';
+import { BrandButton, BrandChip, SocialEmpty, SocialHeader } from '../components/social/SocialChrome';
+import { BACK_ICON, GLASS_CARD, GlassDot, IconMedal, InfoPill } from '../components/p2a/P2Chrome';
+import { haptics } from '../lib/useHaptics';
 
 const ALL = '__all__';
 const INTL_LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-US', es: 'es-ES', pt: 'pt-PT', ar: 'ar-SA' };
@@ -85,14 +94,12 @@ export default function SavedScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('saved_title')}</Text>
-        <Text style={styles.count}>{places.length}</Text>
-      </View>
+      <SocialHeader
+        title={t('saved_title')}
+        onBack={() => router.back()}
+        backIcon={BACK_ICON}
+        right={places.length > 0 ? <InfoPill label={String(places.length)} brand /> : undefined}
+      />
 
       {/* Filtres univers */}
       {universes.length > 1 ? (
@@ -101,19 +108,17 @@ export default function SavedScreen() {
           showsHorizontalScrollIndicator={false}
           data={[ALL, ...universes]}
           keyExtractor={(u) => u}
+          style={styles.filterBar}
           contentContainerStyle={styles.filterRow}
           renderItem={({ item }) => {
             const active = item === activeUniverse;
             const meta = item !== ALL ? safeMeta(item) : null;
             return (
-              <Pressable
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setActiveUniverse(item)}
-              >
-                <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                  {meta && item !== ALL ? `${meta.emoji} ${universeLabel(t, item)}` : t('saved_filter_all')}
-                </Text>
-              </Pressable>
+              <BrandChip
+                active={active}
+                label={meta && item !== ALL ? `${meta.emoji} ${universeLabel(t, item)}` : t('saved_filter_all')}
+                onPress={() => { haptics.select(); setActiveUniverse(item); }}
+              />
             );
           }}
         />
@@ -126,53 +131,49 @@ export default function SavedScreen() {
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryBtn} onPress={reload}>
-            <Text style={styles.retryText}>{t('retry')}</Text>
-          </Pressable>
+          <SocialEmpty
+            emoji="📡"
+            title={error}
+            action={<BrandButton label={t('retry')} onPress={reload} compact />}
+          />
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🤍</Text>
-          <Text style={styles.emptyText}>
-            {places.length === 0
-              ? t('saved_empty_none')
-              : t('saved_empty_filter')}
-          </Text>
+          <SocialEmpty
+            emoji="🤍"
+            title={places.length === 0 ? t('saved_empty_none') : t('saved_empty_filter')}
+          />
         </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(sp) => sp.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.xl }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.brand} />
           }
-          renderItem={({ item }) => {
-            const meta = safeMeta(item.place.universe);
+          renderItem={({ item, index }) => {
             const date = new Date(item.createdAt).toLocaleDateString(INTL_LOCALE[locale] ?? 'fr-FR', {
               day: 'numeric',
               month: 'short',
             });
             return (
-              <Pressable style={styles.card} onPress={() => handleTap(item)}>
-                <View style={styles.cardEmojiBg}>
-                  <Text style={styles.cardEmoji}>{meta?.emoji ?? '📍'}</Text>
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardName} numberOfLines={1}>{item.place.name}</Text>
-                  <Text style={styles.cardMeta}>
-                    {universeLabel(t, item.place.universe)}
-                    {ratingSuffix(item.place.rating)}
-                    {item.place.city ? ` · ${item.place.city}` : ''}
-                    {' · '}{date}
-                  </Text>
-                </View>
-                <Pressable style={styles.removeBtn} onPress={() => void handleRemove(item)} hitSlop={8}>
-                  <Text style={styles.removeText}>✕</Text>
-                </Pressable>
-              </Pressable>
+              <Reveal index={Math.min(index, 8)} from="fade">
+                <PressableScale style={[styles.card, GLASS_CARD]} scaleTo={0.98} onPress={() => handleTap(item)}>
+                  <IconMedal icon={<UniverseGlyph u={item.place.universe} size={26} />} size={54} />
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardName} numberOfLines={1}>{item.place.name}</Text>
+                    <Text style={styles.cardMeta} numberOfLines={1}>
+                      {universeLabel(t, item.place.universe)}
+                      {ratingSuffix(item.place.rating)}
+                      {item.place.city ? ` · ${item.place.city}` : ''}
+                    </Text>
+                    <InfoPill label={`🔖 ${date}`} style={styles.datePill} />
+                  </View>
+                  <GlassDot label="✕" onPress={() => void handleRemove(item)} />
+                </PressableScale>
+              </Reveal>
             );
           }}
         />
@@ -183,76 +184,22 @@ export default function SavedScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.md,
-  },
-  backBtn: { padding: spacing.xs },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
-  title: { ...typography.title, color: colors.textPrimary, flex: 1 },
-  count: {
-    ...typography.caption,
-    color: colors.textMuted,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
 
-  filterRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm },
-  filterChip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-  },
-  filterChipActive: { backgroundColor: `${colors.brand}18`, borderColor: colors.brand },
-  filterText: { ...typography.caption, color: colors.textPrimary },
-  filterTextActive: { color: colors.brandSoft },
+  filterBar: { flexGrow: 0 },
+  filterRow: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  errorText: { ...typography.body, color: colors.danger },
-  retryBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  retryText: { ...typography.caption, color: '#fff' },
-  emptyEmoji: { fontSize: 56 },
-  emptyText: { ...typography.body, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: spacing.xl },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  list: { padding: spacing.md, gap: spacing.sm },
+  list: { paddingHorizontal: spacing.md, gap: spacing.sm },
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
   },
-  cardEmojiBg: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  cardEmoji: { fontSize: 26 },
-  cardBody: { flex: 1 },
-  cardName: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  cardMeta: { ...typography.caption, color: colors.textMuted, marginTop: 3 },
-  removeBtn: { padding: spacing.xs },
-  removeText: { ...typography.caption, color: colors.textMuted },
+  cardBody: { flex: 1, gap: 3 },
+  cardName: { color: colors.textPrimary, fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
+  cardMeta: { ...typography.caption, color: colors.textSecondary },
+  datePill: { marginTop: 4 },
 });

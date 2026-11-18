@@ -5,19 +5,28 @@
  * Contrairement à l'ancienne version (SecureStore, par appareil), l'historique
  * est donc le même sur tous les appareils, et n'est pas perdu si une push a
  * été manquée hors-ligne.
+ *
+ * DA (18/11/2026) : en-tête au titre dégradé, cartes vitrées ; une
+ * notification non lue a son icône dans un anneau au dégradé de marque, un
+ * liseré lumineux et un point dégradé. Apparition en cascade des premières
+ * lignes. Logique inchangée.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View,
+  ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { notificationsApi, type ServerNotification } from '../lib/notifications-api';
 import { notificationTarget } from '../lib/notificationRouting';
 import { clearUnreadCountLocally, refreshUnreadCount } from '../lib/useNotifications';
 import { useI18n } from '../lib/useI18n';
+import { PressableScale, Reveal } from '../components/ui';
+import { SocialEmpty, SocialHeader } from '../components/social/SocialChrome';
+import { BACK_ICON, GLASS_CARD, IconMedal } from '../components/p2a/P2Chrome';
 
 const TYPE_ICON: Record<string, string> = {
   post_like: '❤️',
@@ -82,37 +91,33 @@ export default function NotificationsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('notif_title')}</Text>
-      </View>
+      <SocialHeader title={t('notif_title')} onBack={() => router.back()} backIcon={BACK_ICON} />
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.brand} />
         </View>
       ) : items.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🔔</Text>
-          <Text style={styles.emptyText}>{t('notif_empty_title')}</Text>
-          <Text style={styles.emptyHint}>{t('notif_empty_hint')}</Text>
+        <View style={styles.center}>
+          <SocialEmpty emoji="🔔" title={t('notif_empty_title')} text={t('notif_empty_hint')} />
         </View>
       ) : (
         <FlatList
           data={items}
           keyExtractor={(n) => n.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.xl }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.brand} />
           }
           onEndReachedThreshold={0.4}
           onEndReached={() => void loadMore()}
-          renderItem={({ item }) => (
-            <NotifRow item={item} onPress={() => router.push(notificationTarget(item) as never)} />
+          renderItem={({ item, index }) => (
+            // Cascade sur les premières lignes seulement : au-delà, elles
+            // apparaissent hors écran et un délai ralentirait le défilement.
+            <Reveal index={Math.min(index, 8)} from="fade">
+              <NotifRow item={item} onPress={() => router.push(notificationTarget(item) as never)} />
+            </Reveal>
           )}
           ListFooterComponent={
             loadingMore ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.md }} /> : undefined
@@ -131,74 +136,44 @@ function NotifRow({ item, onPress }: { item: ServerNotification; onPress: () => 
   const intlLocale = INTL_LOCALE[locale] ?? 'fr-FR';
   const timeStr = date.toLocaleTimeString(intlLocale, { hour: '2-digit', minute: '2-digit' });
   const dateStr = date.toLocaleDateString(intlLocale, { day: 'numeric', month: 'short' });
+  const unread = !item.read;
 
   return (
-    <Pressable style={[styles.row, !item.read && styles.rowUnread]} onPress={onPress}>
-      <View style={styles.iconBox}>
-        <Text style={styles.icon}>{TYPE_ICON[item.type] ?? '🔔'}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{item.title}</Text>
-        {item.body ? <Text style={styles.rowBody} numberOfLines={2}>{item.body}</Text> : null}
+    <PressableScale style={[styles.row, GLASS_CARD, unread && styles.rowUnread]} scaleTo={0.98} onPress={onPress}>
+      <IconMedal icon={TYPE_ICON[item.type] ?? '🔔'} size={46} lit={unread} />
+      <View style={styles.rowBody}>
+        <Text style={[styles.rowTitle, unread && styles.rowTitleUnread]} numberOfLines={2}>{item.title}</Text>
+        {item.body ? <Text style={styles.rowText} numberOfLines={2}>{item.body}</Text> : null}
         <Text style={styles.rowTime}>{dateStr} · {timeStr}</Text>
       </View>
-      {!item.read ? <View style={styles.unreadDot} /> : null}
-    </Pressable>
+      {unread ? (
+        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.unreadDot} />
+      ) : null}
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backBtn: { padding: spacing.xs },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
-  title: { ...typography.heading, color: colors.textPrimary },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
-  emptyEmoji: { fontSize: 56 },
-  emptyText: { ...typography.heading, color: colors.textPrimary, textAlign: 'center' },
-  emptyHint: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
 
-  list: { padding: spacing.md, gap: spacing.sm },
+  list: { paddingHorizontal: spacing.md, paddingTop: spacing.xs, gap: spacing.sm },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
   },
-  rowUnread: { backgroundColor: `${colors.brand}0A`, borderColor: `${colors.brand}44` },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+  rowUnread: {
+    backgroundColor: 'rgba(31,31,42,0.86)',
+    borderColor: `${colors.brand}66`,
   },
-  icon: { fontSize: 20 },
+  rowBody: { flex: 1, gap: 2 },
   rowTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  rowBody: { ...typography.caption, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
-  rowTime: { ...typography.label, color: colors.textMuted, marginTop: 4 },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.brand,
-    marginTop: 6,
-    flexShrink: 0,
-  },
+  rowTitleUnread: { fontWeight: '900' },
+  rowText: { ...typography.caption, color: colors.textSecondary, lineHeight: 18 },
+  rowTime: { ...typography.label, color: colors.textMuted, marginTop: 3 },
+  unreadDot: { width: 10, height: 10, borderRadius: 5 },
 });

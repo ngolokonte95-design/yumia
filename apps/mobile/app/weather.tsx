@@ -1,12 +1,12 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Keyboard, Pressable, RefreshControl, ScrollView, StyleSheet, Text,
-  TextInput, View,
+  View,
 } from 'react-native';
 import type { TextInputInstance } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatedNumber, PressableScale, Reveal } from '../components/ui';
+import { AnimatedNumber, GradientText, PressableScale, Reveal } from '../components/ui';
 import { WeatherSky } from '../components/weather/WeatherSky';
 import { HourlyStrip } from '../components/weather/HourlyStrip';
 import { DailyForecast } from '../components/weather/DailyForecast';
@@ -22,6 +22,9 @@ import { dayMomentAt, KIND_LABEL, kindEmoji, type CitySuggestion } from '../lib/
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
 import { weatherKindLabel } from '../lib/labelHelpers';
+import { BrandButton, GlassIconButton, SocialEmpty } from '../components/social/SocialChrome';
+import { GlassGroup } from '../components/profile/ProfileChrome';
+import { BACK_ICON, GLASS_CARD, IconMedal, SearchPill } from '../components/p2a/P2Chrome';
 
 /**
  * Écran météo complet de Yumia.
@@ -29,6 +32,13 @@ import { weatherKindLabel } from '../lib/labelHelpers';
  * Ne contient **aucun appel réseau** : toute la donnée vient de
  * `useWeatherReport`, qui délègue lui-même au fournisseur configuré dans la
  * couche Services. L'écran ne fait que présenter.
+ *
+ * DA (18/11/2026) : ciel animé en fond UNI (`flat` : sans dégradé ni voile,
+ * qui dessinaient une « barre grise »), arrêté quand l'écran n'est plus
+ * affiché ; boutons ronds en verre, lieu en pastille vitrée, température en
+ * très grand, mini/maxi en pastilles ; les sections (déjà en cartes vitrées)
+ * apparaissent en cascade ; recherche de ville en pilule vitrée, résultats en
+ * groupe vitré.
  */
 export default function WeatherScreen() {
   const router = useRouter();
@@ -46,6 +56,13 @@ export default function WeatherScreen() {
   const [query, setQuery] = useState('');
   const { results, loading: searching } = useCitySearch(query);
   const searchInputRef = useRef<TextInputInstance>(null);
+
+  // Le ciel animé ne tourne que tant que l'écran est affiché (batterie).
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    return () => setFocused(false);
+  }, []));
 
   function openSearch() {
     setSearchOpen(true);
@@ -76,8 +93,8 @@ export default function WeatherScreen() {
   if ((loading || (resolving && !city)) && !report) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.brand} size="large" />
-        <Text style={styles.loadingText}>{t('weather_reading_sky')}</Text>
+        <IconMedal icon={<ActivityIndicator color="#fff" />} size={64} lit />
+        <GradientText style={styles.loadingText}>{t('weather_reading_sky')}</GradientText>
       </View>
     );
   }
@@ -85,12 +102,12 @@ export default function WeatherScreen() {
   if (!report) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorEmoji}>🌫️</Text>
-        <Text style={styles.errorTitle}>{t('weather_unavailable')}</Text>
-        <Text style={styles.errorText}>{error ?? t('weather_fetch_error')}</Text>
-        <PressableScale haptic onPress={() => void refresh()} style={styles.retry}>
-          <Text style={styles.retryText}>{t('weather_retry')}</Text>
-        </PressableScale>
+        <SocialEmpty
+          emoji="🌫️"
+          title={t('weather_unavailable')}
+          text={error ?? t('weather_fetch_error')}
+          action={<BrandButton label={t('weather_retry')} onPress={() => void refresh()} compact />}
+        />
       </View>
     );
   }
@@ -100,7 +117,7 @@ export default function WeatherScreen() {
 
   return (
     <View style={styles.container}>
-      <WeatherSky kind={current.kind} moment={moment} />
+      {focused ? <WeatherSky kind={current.kind} moment={moment} flat /> : null}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -118,13 +135,9 @@ export default function WeatherScreen() {
       >
         {/* En-tête */}
         <View style={styles.header}>
-          <PressableScale onPress={() => router.back()} hitSlop={12} style={styles.back}>
-            <Text style={styles.backIcon}>←</Text>
-          </PressableScale>
+          <GlassIconButton icon={BACK_ICON} onPress={() => router.back()} />
           <Text style={styles.headerTitle}>{t('weather_title')}</Text>
-          <PressableScale onPress={openSearch} hitSlop={12} style={styles.back}>
-            <Text style={styles.searchIcon}>🔍</Text>
-          </PressableScale>
+          <GlassIconButton icon="🔍" onPress={openSearch} />
         </View>
 
         {/* Bloc principal */}
@@ -133,11 +146,11 @@ export default function WeatherScreen() {
             {/* Lieu observé — la ville recherchée si elle est active, sinon la
                 position réelle. Tap pour rouvrir la recherche ; si une ville est
                 choisie, une pastille permet de revenir à sa position. */}
-            <Pressable onPress={openSearch} style={styles.locationRow} hitSlop={8}>
+            <PressableScale onPress={openSearch} style={[styles.locationPill, GLASS_CARD]} hitSlop={8} scaleTo={0.96}>
               <Text style={styles.locationLabel} numberOfLines={1}>
                 📍 {city ? `${city.name}${city.admin1 ? `, ${city.admin1}` : ''}` : t('weather_my_location')}
               </Text>
-            </Pressable>
+            </PressableScale>
             {city ? (
               <Pressable onPress={() => setCity(null)} style={styles.myLocationChip} hitSlop={8}>
                 <Text style={styles.myLocationChipText}>{t('weather_back_to_my_location')}</Text>
@@ -154,25 +167,47 @@ export default function WeatherScreen() {
             <Text style={styles.feels}>{t('weather_feels_like').replace('{temp}', String(current.feelsLikeC))}</Text>
 
             {today && (
-              <Text style={styles.minmax}>
-                ↑ {today.maxC}°   ↓ {today.minC}°
-              </Text>
+              <View style={styles.minmaxRow}>
+                <View style={[styles.minmaxPill, GLASS_CARD]}>
+                  <Text style={styles.minmaxText}>↑ {today.maxC}°</Text>
+                </View>
+                <View style={[styles.minmaxPill, GLASS_CARD]}>
+                  <Text style={styles.minmaxText}>↓ {today.minC}°</Text>
+                </View>
+              </View>
             )}
           </View>
         </Reveal>
 
-        <WeatherActivities current={current} coords={activeCoords} cityLabel={city?.name} />
+        {/* Sections : déjà en cartes vitrées, révélées en cascade. */}
+        <Reveal index={1}>
+          <WeatherActivities current={current} coords={activeCoords} cityLabel={city?.name} />
+        </Reveal>
 
-        <HourlyStrip hours={report.hourly} utcOffsetSeconds={utcOffsetSeconds} />
-        <DailyForecast days={report.daily} utcOffsetSeconds={utcOffsetSeconds} />
+        <Reveal index={2}>
+          <HourlyStrip hours={report.hourly} utcOffsetSeconds={utcOffsetSeconds} />
+        </Reveal>
+        <Reveal index={3}>
+          <DailyForecast days={report.daily} utcOffsetSeconds={utcOffsetSeconds} />
+        </Reveal>
 
-        <WeatherMaps center={report.coordinates} utcOffsetSeconds={utcOffsetSeconds} />
+        <Reveal index={4}>
+          <WeatherMaps center={report.coordinates} utcOffsetSeconds={utcOffsetSeconds} />
+        </Reveal>
 
-        <MetricsGrid current={current} />
+        <Reveal index={5}>
+          <MetricsGrid current={current} />
+        </Reveal>
 
-        <SunPath astro={astro} utcOffsetSeconds={utcOffsetSeconds} />
+        <Reveal index={5}>
+          <SunPath astro={astro} utcOffsetSeconds={utcOffsetSeconds} />
+        </Reveal>
 
-        {report.airQuality && <AirQualityCard air={report.airQuality} />}
+        {report.airQuality && (
+          <Reveal index={5}>
+            <AirQualityCard air={report.airQuality} />
+          </Reveal>
+        )}
 
         {/* Mention du fournisseur + fraîcheur de la donnée */}
         <Text style={styles.footer}>
@@ -186,23 +221,19 @@ export default function WeatherScreen() {
         <View style={[StyleSheet.absoluteFill, styles.searchOverlay, { paddingTop: insets.top + 8 }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeSearch} />
           <View style={styles.searchHeader}>
-            <View style={styles.searchBox}>
-              <Text style={styles.searchBoxIcon}>🔍</Text>
-              <TextInput
-                ref={searchInputRef}
-                style={styles.searchInput}
-                placeholder={t('weather_search_placeholder')}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                value={query}
-                onChangeText={setQuery}
-                autoCorrect={false}
-                returnKeyType="search"
-              />
-              {searching ? <ActivityIndicator size="small" color="#fff" /> : null}
-            </View>
-            <Pressable onPress={closeSearch} hitSlop={12} style={styles.searchCancel}>
+            <SearchPill
+              inputRef={searchInputRef}
+              style={styles.searchPill}
+              placeholder={t('weather_search_placeholder')}
+              value={query}
+              onChangeText={setQuery}
+              autoCorrect={false}
+              returnKeyType="search"
+              right={searching ? <ActivityIndicator size="small" color={colors.brand} /> : undefined}
+            />
+            <PressableScale onPress={closeSearch} hitSlop={12} scaleTo={0.94} style={styles.searchCancel}>
               <Text style={styles.searchCancelText}>{t('weather_search_cancel')}</Text>
-            </Pressable>
+            </PressableScale>
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.searchResults}>
@@ -211,14 +242,21 @@ export default function WeatherScreen() {
             ) : results.length === 0 && !searching ? (
               <Text style={styles.searchHint}>{t('weather_no_city_found')}</Text>
             ) : (
-              results.map((c) => (
-                <Pressable key={c.id} style={styles.cityRow} onPress={() => pickCity(c)}>
-                  <Text style={styles.cityName}>{c.name}</Text>
-                  <Text style={styles.cityRegion} numberOfLines={1}>
-                    {[c.admin1, c.country].filter(Boolean).join(', ')}
-                  </Text>
-                </Pressable>
-              ))
+              <Reveal from="fade">
+                <GlassGroup>
+                  {results.map((c) => (
+                    <PressableScale key={c.id} style={styles.cityRow} scaleTo={0.98} onPress={() => pickCity(c)}>
+                      <IconMedal icon="📍" size={36} />
+                      <View style={styles.cityText}>
+                        <Text style={styles.cityName}>{c.name}</Text>
+                        <Text style={styles.cityRegion} numberOfLines={1}>
+                          {[c.admin1, c.country].filter(Boolean).join(', ')}
+                        </Text>
+                      </View>
+                    </PressableScale>
+                  ))}
+                </GlassGroup>
+              </Reveal>
             )}
           </ScrollView>
         </View>
@@ -233,75 +271,66 @@ const styles = StyleSheet.create({
 
   center: {
     flex: 1, backgroundColor: colors.bg,
-    alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    alignItems: 'center', justifyContent: 'center', gap: spacing.md,
     padding: spacing.lg,
   },
-  loadingText: { ...typography.body, color: colors.textSecondary },
-  errorEmoji: { fontSize: 48 },
-  errorTitle: { ...typography.title, color: colors.textPrimary },
-  errorText: { ...typography.body, color: colors.textSecondary, textAlign: 'center' },
-  retry: {
-    marginTop: spacing.md, backgroundColor: colors.brand,
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: 999,
-  },
-  retryText: { ...typography.body, color: '#fff', fontWeight: '700' },
+  loadingText: { fontSize: 18, fontWeight: '900', textAlign: 'center' },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.md, marginBottom: spacing.sm,
   },
-  back: { width: 40 },
-  backIcon: { fontSize: 26, color: '#fff', fontWeight: '700' },
-  headerTitle: { ...typography.heading, color: '#fff' },
-  searchIcon: { fontSize: 26, textAlign: 'right' },
+  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
 
-  hero: { alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.md },
-  locationRow: { paddingHorizontal: spacing.xl, maxWidth: '100%' },
-  locationLabel: { ...typography.body, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
-  myLocationChip: {
-    marginTop: spacing.xs, backgroundColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 4,
+  hero: { alignItems: 'center', paddingTop: spacing.md, paddingBottom: spacing.lg },
+  locationPill: {
+    maxWidth: '86%', borderRadius: radius.pill,
+    paddingHorizontal: spacing.md, paddingVertical: 7,
   },
-  myLocationChipText: { ...typography.caption, color: '#fff' },
-  heroIcon: { fontSize: 64, marginTop: spacing.sm, marginBottom: spacing.sm },
+  locationLabel: { ...typography.body, color: '#fff', fontWeight: '700' },
+  myLocationChip: {
+    marginTop: spacing.sm, borderRadius: radius.pill,
+    paddingHorizontal: spacing.md, paddingVertical: 5,
+    borderWidth: 1.5, borderColor: colors.brand, backgroundColor: 'rgba(232,98,26,0.12)',
+  },
+  myLocationChipText: { ...typography.caption, color: '#fff', fontWeight: '800' },
+  heroIcon: { fontSize: 72, marginTop: spacing.md, marginBottom: spacing.xs },
   tempRow: { flexDirection: 'row', alignItems: 'flex-start' },
   temp: {
-    fontSize: 92, fontWeight: '200', color: '#fff',
-    letterSpacing: -4, textAlign: 'center',
+    fontSize: 104, fontWeight: '200', color: '#fff',
+    letterSpacing: -5, textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 18, textShadowOffset: { width: 0, height: 4 },
   },
-  condition: { ...typography.title, color: '#fff', marginTop: -4 },
-  feels: { ...typography.body, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  minmax: { ...typography.body, color: 'rgba(255,255,255,0.65)', marginTop: spacing.sm },
+  condition: { color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -0.4, marginTop: -6 },
+  feels: { ...typography.body, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  minmaxRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  minmaxPill: { borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 6 },
+  minmaxText: { color: '#fff', fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   footer: {
-    ...typography.caption, color: 'rgba(255,255,255,0.4)',
-    textAlign: 'center', marginTop: spacing.lg,
+    ...typography.caption, color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center', marginTop: spacing.lg, paddingHorizontal: spacing.lg,
   },
 
-  // Recherche de ville
-  searchOverlay: { backgroundColor: 'rgba(9,9,13,0.92)' },
+  // Recherche de ville (voile uni, sans dégradé)
+  searchOverlay: { backgroundColor: 'rgba(9,9,13,0.94)' },
   searchHeader: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.md, paddingBottom: spacing.md,
   },
-  searchBox: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: radius.pill,
-    paddingHorizontal: spacing.md, height: 42,
-  },
-  searchBoxIcon: { fontSize: 15 },
-  searchInput: { flex: 1, ...typography.body, color: '#fff' },
+  searchPill: { flex: 1 },
   searchCancel: { paddingVertical: spacing.xs },
-  searchCancelText: { ...typography.body, color: colors.brandSoft, fontWeight: '600' },
+  searchCancelText: { ...typography.body, color: colors.brandSoft, fontWeight: '800' },
   searchResults: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl },
   searchHint: {
-    ...typography.body, color: 'rgba(255,255,255,0.5)',
+    ...typography.body, color: 'rgba(255,255,255,0.55)',
     textAlign: 'center', marginTop: spacing.xl,
   },
   cityRow: {
-    paddingVertical: spacing.sm, borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingHorizontal: spacing.md, paddingVertical: 11,
   },
-  cityName: { ...typography.body, color: '#fff', fontWeight: '600' },
-  cityRegion: { ...typography.caption, color: 'rgba(255,255,255,0.55)', marginTop: 1 },
+  cityText: { flex: 1 },
+  cityName: { ...typography.body, color: '#fff', fontWeight: '800' },
+  cityRegion: { ...typography.caption, color: 'rgba(255,255,255,0.6)', marginTop: 1 },
 });
