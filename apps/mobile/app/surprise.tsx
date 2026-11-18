@@ -2,6 +2,11 @@
  * SURPRISE ME — tirage aléatoire d'un lieu : l'IA choisit pour toi.
  * Chaque tap relance la roulette et incrémente vers le badge "Aventurier".
  * Accessible depuis le bouton 🎲 sur l'écran d'accueil.
+ *
+ * Mise en scène (18/11/2026) : fond « espace profond » de l'Accueil, dé
+ * lumineux au dégradé de marque (halo au repos, rotation pendant le tirage),
+ * puis révélation : la carte du lieu se retourne dans une gerbe de
+ * particules, avec une vibration de succès. Une seule couleur d'accent.
  */
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -9,18 +14,18 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
   Animated,
-  Platform,
   Modal,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSE_CATEGORIES, UNIVERSE_META } from '@yumia/shared';
 import type { Universe } from '@yumia/shared';
 import { safeMeta, universeLabel } from '../lib/universeMeta';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, gradients, radius, spacing } from '../theme/tokens';
 import { useI18n } from '../lib/useI18n';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
@@ -30,6 +35,12 @@ import { usePlanLimits } from '../lib/usePlanLimits';
 import { PremiumUpsellModal } from '../components/PremiumUpsellModal';
 import type { Suggestion } from '@yumia/shared';
 import { ratingSuffix } from '../lib/place-rating';
+import { GradientText, PressableScale } from '../components/ui';
+import { BrandButton, GlassIconButton, OutlineButton } from '../components/social/SocialChrome';
+import { BrandDot } from '../components/profile/ProfileChrome';
+import { UniverseGlyph } from '../components/UniverseGlyph';
+import { BACK_ARROW, BrandPill, GLASS_SURFACE, splitLeadingEmoji } from '../components/p2c/P2Visuals';
+import { DiceButton, FlipReveal, ParticleBurst, SurpriseBackdrop } from '../components/p2c/SurpriseFx';
 
 export default function SurpriseScreen() {
   const insets = useSafeAreaInsets();
@@ -132,13 +143,17 @@ export default function SurpriseScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <SurpriseBackdrop />
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
-      <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Text style={styles.backText}>{t('sur_back')}</Text>
-      </Pressable>
+      <View style={styles.topBar}>
+        <GlassIconButton icon={BACK_ARROW} onPress={() => router.back()} label={t('sur_back')} />
+      </View>
 
-      <View style={styles.body}>
-        <Text style={styles.heading}>{t('sur_heading')}</Text>
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + spacing.xl }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <GradientText style={styles.heading}>{splitLeadingEmoji(t('sur_heading')).text}</GradientText>
         <Text style={styles.sub}>
           {t('sur_sub')}
         </Text>
@@ -146,53 +161,77 @@ export default function SurpriseScreen() {
         {/* Univers dans lequel le dé est lancé — "Tous" par défaut (comportement
             d'origine). Le changer relance une nouvelle surprise à vide plutôt
             que de laisser un résultat de l'ancien univers affiché. */}
-        <Pressable style={styles.universePicker} onPress={() => setPickerOpen(true)}>
+        <PressableScale style={styles.universePicker} onPress={() => setPickerOpen(true)} scaleTo={0.96}>
           <Text style={styles.universePickerText}>
             {universeFilter ? `${UNIVERSE_META[universeFilter].emoji} ${universeLabel(t, universeFilter)}` : t('sur_all_universes')}
           </Text>
           <Text style={styles.universePickerChevron}>▾</Text>
-        </Pressable>
+        </PressableScale>
 
-        {/* Main dice button */}
+        {/* Le dé — secoué par l'animation d'origine pendant le tirage. */}
         <Animated.View style={{ transform: [{ translateX }] }}>
-          <Pressable
-            style={[styles.diceBtn, loading && styles.diceBtnLoading]}
-            onPress={spin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" size="large" />
-            ) : (
-              <Text style={styles.diceEmoji}>🎲</Text>
-            )}
-          </Pressable>
+          <DiceButton loading={loading} onPress={spin} />
         </Animated.View>
 
         <Text style={styles.tapHint}>
           {spins === 0 ? t('sur_tap_discover') : t('sur_tap_again')}
         </Text>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
-        {/* Result card */}
+        {/* Révélation : la carte se retourne dans une gerbe de particules. */}
         {result && meta ? (
-          <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
-            <Text style={styles.cardEmoji}>{meta.emoji}</Text>
-            <Text style={styles.cardName}>{result.place.name}</Text>
-            <Text style={styles.cardMeta}>
-              {universeLabel(t, result.place.universe)}{ratingSuffix(result.place.rating)}
-              {result.place.city ? ` · ${result.place.city}` : ''}
-            </Text>
-            <Text style={styles.cardReason}>🤖 {result.reason}</Text>
+          <Animated.View style={[styles.reveal, { opacity: fadeAnim }]}>
+            <ParticleBurst key={`burst-${spins}`} />
+            <FlipReveal key={`card-${spins}`}>
+              <View style={styles.card}>
+                <View style={styles.cardPhoto}>
+                  {result.place.photoUrls?.[0] ? (
+                    <Image
+                      source={{ uri: result.place.photoUrls[0] }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
+                  ) : (
+                    <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.cardPhotoEmpty]}>
+                      <UniverseGlyph u={result.place.universe} size={64} />
+                    </LinearGradient>
+                  )}
+                  {/* Voile confiné à la photo : lisibilité du nom posé dessus. */}
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.75)']}
+                    locations={[0.35, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {result.compatibility > 0 ? (
+                    <BrandPill label={`❤️ ${Math.round(result.compatibility)} %`} style={styles.compat} />
+                  ) : null}
+                  <Text style={styles.cardName} numberOfLines={2}>{result.place.name}</Text>
+                </View>
 
-            <View style={styles.cardActions}>
-              <Pressable style={styles.cardBtn} onPress={goToDetail}>
-                <Text style={styles.cardBtnText}>{t('sur_see_place')}</Text>
-              </Pressable>
-              <Pressable style={[styles.cardBtn, styles.cardBtnSecondary]} onPress={spin}>
-                <Text style={styles.cardBtnSecondaryText}>{t('sur_something_else')}</Text>
-              </Pressable>
-            </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardMeta}>
+                    {meta.emoji} {universeLabel(t, result.place.universe)}{ratingSuffix(result.place.rating)}
+                    {result.place.city ? ` · ${result.place.city}` : ''}
+                  </Text>
+                  <View style={styles.reasonBox}>
+                    <Text style={styles.reasonIcon}>✨</Text>
+                    <Text style={styles.cardReason}>{result.reason}</Text>
+                  </View>
+
+                  <View style={styles.cardActions}>
+                    <BrandButton label={t('sur_see_place')} onPress={goToDetail} style={styles.cardBtn} />
+                    <OutlineButton label={t('sur_something_else')} onPress={spin} style={styles.cardBtn} />
+                  </View>
+                </View>
+              </View>
+            </FlipReveal>
           </Animated.View>
         ) : null}
 
@@ -202,7 +241,7 @@ export default function SurpriseScreen() {
             {spins >= 10 ? ' 🎉' : ''}
           </Text>
         ) : null}
-      </View>
+      </ScrollView>
 
       <Modal
         visible={pickerOpen}
@@ -222,7 +261,7 @@ export default function SurpriseScreen() {
               >
                 <Text style={styles.universeRowEmoji}>🎲</Text>
                 <Text style={styles.universeRowLabel}>{t('sur_all_universes').replace('🎲 ', '')}</Text>
-                {universeFilter === null && <Text style={styles.universeRowCheck}>✓</Text>}
+                {universeFilter === null && <BrandDot label="✓" size={22} />}
               </Pressable>
 
               {UNIVERSE_CATEGORIES.map((cat) => (
@@ -236,7 +275,7 @@ export default function SurpriseScreen() {
                     >
                       <Text style={styles.universeRowEmoji}>{UNIVERSE_META[u].emoji}</Text>
                       <Text style={styles.universeRowLabel}>{universeLabel(t, u)}</Text>
-                      {universeFilter === u && <Text style={styles.universeRowCheck}>✓</Text>}
+                      {universeFilter === u && <BrandDot label="✓" size={22} />}
                     </Pressable>
                   ))}
                 </View>
@@ -250,117 +289,89 @@ export default function SurpriseScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Fond uni : l'espace profond (SurpriseBackdrop) est posé par-dessus.
   screen: { flex: 1, backgroundColor: colors.bg },
-  backBtn: { padding: spacing.md },
-  backText: { ...typography.body, color: colors.brandSoft },
+  topBar: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, flexDirection: 'row' },
 
   body: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
-  heading: { ...typography.display, color: colors.textPrimary, textAlign: 'center' },
-  sub: { ...typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  heading: { fontSize: 36, fontWeight: '900', letterSpacing: -0.8, textAlign: 'center' },
+  sub: { fontSize: 15, color: 'rgba(255,255,255,0.78)', textAlign: 'center', lineHeight: 22, fontWeight: '500' },
 
-  diceBtn: {
-    width: 120,
-    height: 120,
-    borderRadius: 32,
-    backgroundColor: colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.brand,
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
+  tapHint: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: -spacing.sm },
+  errorBox: {
+    width: '100%', borderRadius: radius.md, padding: spacing.md,
+    backgroundColor: 'rgba(14,14,18,0.78)', borderWidth: 1, borderColor: 'rgba(229,72,77,0.45)',
   },
-  diceBtnLoading: { opacity: 0.7 },
-  diceEmoji: { fontSize: 56 },
-  tapHint: { ...typography.caption, color: colors.textMuted },
-  errorText: { ...typography.body, color: colors.danger, textAlign: 'center' },
+  errorText: { fontSize: 14, color: '#FF9A9D', textAlign: 'center', fontWeight: '600' },
 
   universePicker: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(14,14,18,0.72)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)',
   },
-  universePickerText: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
+  universePickerText: { fontSize: 14, color: colors.textPrimary, fontWeight: '800' },
   universePickerChevron: { color: colors.textMuted, fontSize: 12 },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.bg,
+    backgroundColor: '#121218',
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     maxHeight: '80%',
   },
   sheetHandle: {
-    width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border,
+    width: 44, height: 5, borderRadius: 3, backgroundColor: colors.brand,
     alignSelf: 'center', marginBottom: spacing.sm,
   },
   sheetTitle: {
-    ...typography.heading, color: colors.textPrimary,
+    fontSize: 19, fontWeight: '900', color: colors.textPrimary,
     textAlign: 'center', paddingBottom: spacing.sm,
   },
   categoryBlock: { marginTop: spacing.md },
   categoryLabel: {
-    ...typography.label, color: colors.textMuted, textTransform: 'uppercase',
-    paddingBottom: spacing.xs,
+    fontSize: 11, fontWeight: '800', letterSpacing: 1.8, color: colors.textMuted, textTransform: 'uppercase',
+    paddingBottom: spacing.xs, paddingHorizontal: spacing.sm,
   },
   universeRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingVertical: 11, paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
   },
-  universeRowActive: { backgroundColor: `${colors.brand}18` },
+  universeRowActive: { backgroundColor: 'rgba(232,98,26,0.12)' },
   universeRowEmoji: { fontSize: 18, width: 26 },
-  universeRowLabel: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  universeRowCheck: { ...typography.body, color: colors.brand, fontWeight: '700' },
+  universeRowLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, flex: 1 },
 
-  card: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.sm,
-    alignItems: 'center',
+  reveal: { width: '100%', alignItems: 'center', marginTop: spacing.sm },
+  card: { width: '100%', borderRadius: radius.xl, overflow: 'hidden', ...GLASS_SURFACE, backgroundColor: 'rgba(23,23,31,0.92)' },
+  cardPhoto: { height: 190, justifyContent: 'flex-end', padding: spacing.md, overflow: 'hidden' },
+  cardPhotoEmpty: { alignItems: 'center', justifyContent: 'center' },
+  compat: { position: 'absolute', top: spacing.md, left: spacing.md },
+  cardName: {
+    color: '#fff', fontSize: 25, fontWeight: '900', letterSpacing: -0.5, lineHeight: 30,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 1 },
   },
-  cardEmoji: { fontSize: 52 },
-  cardName: { ...typography.title, color: colors.textPrimary, textAlign: 'center' },
-  cardMeta: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
-  cardReason: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingTop: spacing.xs,
+  cardBody: { padding: spacing.md, gap: spacing.md },
+  cardMeta: { fontSize: 13, color: colors.textSecondary, fontWeight: '700' },
+  reasonBox: {
+    flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start',
+    padding: spacing.md, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
   },
-  cardActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, width: '100%' },
-  cardBtn: {
-    flex: 1,
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  cardBtnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
-  cardBtnSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardBtnSecondaryText: { ...typography.caption, color: colors.textSecondary },
+  reasonIcon: { fontSize: 16 },
+  cardReason: { flex: 1, fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  cardActions: { flexDirection: 'row', gap: spacing.sm },
+  cardBtn: { flex: 1, paddingHorizontal: spacing.sm },
 
-  countHint: { ...typography.caption, color: colors.textMuted },
+  countHint: { fontSize: 13, color: 'rgba(255,255,255,0.65)', fontWeight: '700' },
 });

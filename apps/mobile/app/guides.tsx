@@ -8,15 +8,21 @@
  * Remplace les « guides locaux » : des personnes fictives, créées par un script
  * de démonstration, avec note et label « certifié » inventés, et une
  * réservation qui n'était transmise à personne.
+ *
+ * Mise en scène (18/11/2026) : en-tête au dégradé de marque, recherche en
+ * verre, visites en grandes cartes photo (partenaire, note réelle, durée,
+ * annulation, prix « dès » au dégradé, bouton Réserver). Une seule couleur
+ * d'accent ; aucun voile dégradé hors des photos.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, elevation, gradients, radius, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchGuidedTours, fetchTourCities, type GuidedTours, type TourListing } from '../lib/affiliates-api';
@@ -24,7 +30,13 @@ import { useI18n } from '../lib/useI18n';
 import { openExternalHttps } from '../lib/external-link';
 import { QUICK_FILTERS, THEME_FACETS, THEME_TITLES } from '../lib/tour-themes';
 import type { TranslationKey } from '../lib/translations';
+import { haptics } from '../lib/useHaptics';
 import { FeatureTip } from '../components/FeatureTip';
+import { GradientText, PressableScale, Reveal } from '../components/ui';
+import { BrandButton, BrandChip } from '../components/social/SocialChrome';
+import {
+  GLASS_SURFACE, GlassPill, P2Empty, P2Header, SkeletonCard, ToggleChip,
+} from '../components/p2c/P2Visuals';
 
 const PARTNER_NAMES: Record<string, string> = { viator: 'Viator', getyourguide: 'GetYourGuide' };
 
@@ -155,34 +167,28 @@ export default function GuidesScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{t('gd_subtitle')}</Text>
-        </View>
-      </View>
+      <P2Header title={title} subtitle={t('gd_subtitle')} onBack={() => router.back()} />
 
+      {/* Ville : pastille de verre + bouton au dégradé. */}
       <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('gd_city_placeholder')}
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={(v) => { setQuery(v); setTyping(true); }}
-          returnKeyType="search"
-          onSubmitEditing={() => search(query)}
-          autoCorrect={false}
-        />
-        <Pressable style={styles.searchBtn} onPress={() => search(query)}>
-          <Text style={styles.searchBtnText}>{t('gd_search')}</Text>
-        </Pressable>
+        <View style={styles.cityField}>
+          <Text style={styles.fieldIcon}>📍</Text>
+          <TextInput
+            style={styles.cityInput}
+            placeholder={t('gd_city_placeholder')}
+            placeholderTextColor={colors.textMuted}
+            value={query}
+            onChangeText={(v) => { setQuery(v); setTyping(true); }}
+            returnKeyType="search"
+            onSubmitEditing={() => search(query)}
+            autoCorrect={false}
+          />
+        </View>
+        <BrandButton label={t('gd_search')} onPress={() => search(query)} compact style={styles.searchBtn} />
       </View>
 
       <View style={styles.whatRow}>
-        <Text style={styles.whatIcon}>🔍</Text>
+        <Text style={styles.fieldIcon}>🔍</Text>
         <TextInput
           style={styles.whatInput}
           placeholder={t(`gd_what_${theme ?? 'guides'}` as TranslationKey)}
@@ -219,6 +225,7 @@ export default function GuidesScreen() {
         </View>
       )}
 
+      {/* Style de sortie : un seul choix, pastille pleine au dégradé. */}
       {facets && (
         <ScrollView
           horizontal
@@ -230,18 +237,18 @@ export default function GuidesScreen() {
             ...facets.map((f) => ({ key: f.key as string | undefined, label: `${f.emoji} ${t(f.labelKey)}` }))].map((f) => {
             const active = facet === f.key;
             return (
-              <Pressable
+              <BrandChip
                 key={f.key ?? 'all'}
-                style={[styles.facetChip, active && styles.facetChipActive]}
-                onPress={() => { setFacet(f.key); setWhat(''); void load(query, f.key ?? null, quick, ''); }}
-              >
-                <Text style={[styles.facetTxt, active && styles.facetTxtActive]}>{f.label}</Text>
-              </Pressable>
+                label={f.label}
+                active={active}
+                onPress={() => { haptics.select(); setFacet(f.key); setWhat(''); void load(query, f.key ?? null, quick, ''); }}
+              />
             );
           })}
         </ScrollView>
       )}
 
+      {/* Filtres pratiques : cumulables, en contour. */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -251,49 +258,57 @@ export default function GuidesScreen() {
         {QUICK_FILTERS.map((f) => {
           const active = quick.includes(f.key);
           return (
-            <Pressable
+            <ToggleChip
               key={f.key}
-              style={[styles.quickChip, active && styles.quickChipActive]}
+              label={`${f.emoji} ${t(f.labelKey)}`}
+              active={active}
               onPress={() => {
+                haptics.select();
                 const next = active ? quick.filter((k) => k !== f.key) : [...quick, f.key];
                 setQuick(next);
                 void load(query, facet, next);
               }}
-            >
-              <Text style={[styles.quickTxt, active && styles.quickTxtActive]}>{f.emoji} {t(f.labelKey)}</Text>
-            </Pressable>
+            />
           );
         })}
       </ScrollView>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
+        <View style={styles.skeletons}>
+          <SkeletonCard height={300} />
+          <SkeletonCard height={300} />
+        </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.md }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.lg }}
+        >
           {result && result.tours.length === 0 && (
-            <Text style={styles.empty}>{t('gd_empty').replace('{city}', result.city)}</Text>
+            <P2Empty emoji="🧭" text={t('gd_empty').replace('{city}', result.city)} />
           )}
 
           {result?.tours.map((tour, i) => (
-            <TourCard key={`${tour.url}-${i}`} tour={tour} onPress={() => open(tour.url)} />
+            <Reveal key={`${tour.url}-${i}`} index={Math.min(i, 5)}>
+              <TourCard tour={tour} onPress={() => open(tour.url)} />
+            </Reveal>
           ))}
 
           {result?.hasMore && (
-            <Pressable style={styles.moreBtn} onPress={() => void loadMore()} disabled={loadingMore}>
+            <PressableScale style={styles.moreBtn} onPress={() => void loadMore()} disabled={loadingMore}>
               {loadingMore
                 ? <ActivityIndicator color={colors.brand} />
                 : <Text style={styles.moreTxt}>{t('gd_load_more')}</Text>}
-            </Pressable>
+            </PressableScale>
           )}
 
           {result && result.links.length > 0 && (
             <View style={styles.linksBlock}>
               {result.links.map((l) => (
-                <Pressable key={l.provider} style={styles.partnerBtn} onPress={() => open(l.url)}>
+                <PressableScale key={l.provider} style={styles.partnerBtn} onPress={() => open(l.url)}>
                   <Text style={styles.partnerBtnText}>
                     {t('gd_more').replace('{partner}', PARTNER_NAMES[l.provider] ?? l.provider)} ↗
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
           )}
@@ -310,114 +325,126 @@ export default function GuidesScreen() {
   );
 }
 
+/**
+ * Carte de visite : grande photo (voile limité à la photo, pour lire le titre),
+ * pastilles du partenaire et de la note réelle, durée et annulation, prix
+ * « dès » au dégradé et bouton Réserver. Toutes les données viennent du
+ * partenaire ; rien n'est affiché quand il ne l'a pas fourni.
+ */
 function TourCard({ tour, onPress }: { tour: TourListing; onPress: () => void }) {
   const { t } = useI18n();
   const duration = formatDuration(tour.durationMinutes);
-  const meta = [
-    tour.rating != null ? `⭐ ${tour.rating.toFixed(1)} (${t('gd_reviews').replace('{count}', String(tour.reviewCount))})` : null,
-    duration ? `⏱ ${duration}` : null,
-    tour.freeCancellation ? `✅ ${t('quick_free_cancel')}` : null,
-  ].filter(Boolean).join(' · ');
+  const rating = tour.rating != null
+    ? `⭐ ${tour.rating.toFixed(1)} (${t('gd_reviews').replace('{count}', String(tour.reviewCount))})`
+    : null;
 
   return (
-    <Pressable style={styles.card} onPress={onPress}>
-      {tour.imageUrl ? (
-        <Image source={{ uri: tour.imageUrl }} style={styles.cardImage} contentFit="cover" cachePolicy="memory-disk" />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}><Text style={{ fontSize: 32 }}>🧭</Text></View>
-      )}
-      <View style={styles.cardBody}>
+    <PressableScale style={styles.card} onPress={onPress} scaleTo={0.97}>
+      <View style={styles.cardPhoto}>
+        {tour.imageUrl ? (
+          <Image source={{ uri: tour.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+        ) : (
+          <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, styles.cardPhotoEmpty]}>
+            <Text style={styles.cardPhotoEmoji}>🧭</Text>
+          </LinearGradient>
+        )}
+        {/* Voile confiné à la photo : lisibilité du titre posé dessus. */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.78)']}
+          locations={[0, 0.4, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.cardTop}>
+          <GlassPill label={`${PARTNER_NAMES[tour.provider] ?? tour.provider} ↗`} />
+          {rating ? <GlassPill label={rating} /> : null}
+        </View>
         <Text style={styles.cardTitle} numberOfLines={2}>{tour.title}</Text>
-        {meta ? <Text style={styles.cardMeta}>{meta}</Text> : null}
+      </View>
+
+      <View style={styles.cardBody}>
+        {(duration || tour.freeCancellation) ? (
+          <View style={styles.cardChips}>
+            {duration ? <Text style={styles.cardChip}>⏱ {duration}</Text> : null}
+            {tour.freeCancellation ? <Text style={styles.cardChip}>✅ {t('quick_free_cancel')}</Text> : null}
+          </View>
+        ) : null}
         <View style={styles.cardFooter}>
           {tour.fromPrice != null ? (
-            <Text style={styles.cardPrice}>{t('gd_from').replace('{price}', formatPrice(tour.fromPrice, tour.currency))}</Text>
+            <GradientText style={styles.cardPrice}>
+              {t('gd_from').replace('{price}', formatPrice(tour.fromPrice, tour.currency))}
+            </GradientText>
           ) : <View />}
-          <Text style={styles.cardPartner}>{PARTNER_NAMES[tour.provider]} ↗</Text>
+          <BrandButton label={`${t('sor_book')} ↗`} onPress={onPress} compact />
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  backBtn: { paddingTop: 2 },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 24 },
-  title: { ...typography.heading, color: colors.textPrimary },
-  subtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  searchRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  searchInput: {
-    flex: 1, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 44, ...typography.body, color: colors.textPrimary,
+
+  searchRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm, alignItems: 'center' },
+  cityField: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 46,
+    borderRadius: radius.pill, paddingHorizontal: spacing.md, ...GLASS_SURFACE,
   },
-  searchBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: spacing.lg, justifyContent: 'center' },
-  searchBtnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  fieldIcon: { fontSize: 14 },
+  cityInput: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textPrimary, height: 46, paddingVertical: 0 },
+  searchBtn: { height: 46 },
   // flexShrink: 0 — sans lui, la liste en dessous (flex: 1) écrase la rangée
   // et coupe les puces à mi-hauteur.
   whatRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: spacing.md, marginBottom: spacing.sm,
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.pill, paddingHorizontal: spacing.md,
+    borderRadius: radius.pill, paddingHorizontal: spacing.md, ...GLASS_SURFACE,
   },
-  whatIcon: { fontSize: 13 },
-  whatInput: { flex: 1, color: colors.textPrimary, fontSize: 14, height: 40, paddingVertical: 0 },
+  whatInput: { flex: 1, color: colors.textPrimary, fontSize: 14, height: 42, paddingVertical: 0 },
   whatClear: { fontSize: 14, color: colors.textMuted, paddingHorizontal: 4 },
-  moreBtn: {
-    alignItems: 'center', paddingVertical: spacing.md, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.brand,
-  },
-  moreTxt: { ...typography.body, color: colors.brandSoft, fontWeight: '700' },
+
   facetScroll: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.sm },
-  facetRow: { gap: 6, paddingHorizontal: spacing.md, alignItems: 'center' },
-  facetChip: {
-    backgroundColor: colors.surface, borderRadius: radius.pill, borderWidth: 1,
-    borderColor: colors.border, paddingHorizontal: 12, paddingVertical: 7,
-  },
-  facetChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  facetTxt: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  facetTxtActive: { color: '#fff' },
-  // Filtres pratiques : contour plutôt que fond plein, pour les distinguer
-  // d'un coup d'œil des styles (un seul choix) — ceux-ci se cumulent.
-  quickChip: {
-    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 11, paddingVertical: 5,
-  },
-  quickChipActive: { borderColor: colors.brand, backgroundColor: `${colors.brand}22` },
-  quickTxt: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  quickTxtActive: { color: colors.brandSoft },
+  facetRow: { gap: 8, paddingHorizontal: spacing.md, alignItems: 'center' },
+
   suggestBox: {
-    marginHorizontal: spacing.md, marginTop: -spacing.xs, marginBottom: spacing.sm,
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.lg, overflow: 'hidden',
+    marginHorizontal: spacing.md, marginBottom: spacing.sm,
+    borderRadius: radius.lg, overflow: 'hidden', backgroundColor: 'rgba(23,23,31,0.96)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+    ...elevation.medium,
   },
   suggestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 12 },
-  suggestDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  suggestDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.08)' },
   suggestIcon: { fontSize: 14 },
   suggestText: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.lg },
 
-  card: {
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.lg, overflow: 'hidden',
-  },
-  cardImage: { width: '100%', aspectRatio: 16 / 9, backgroundColor: colors.surfaceElevated },
-  cardImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  cardBody: { padding: spacing.md, gap: 4 },
-  cardTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  cardMeta: { ...typography.caption, color: colors.textSecondary },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  cardPrice: { ...typography.body, color: colors.brandSoft, fontWeight: '800' },
-  cardPartner: { ...typography.caption, color: colors.textMuted },
+  skeletons: { padding: spacing.md, gap: spacing.lg },
 
-  linksBlock: { gap: spacing.sm, marginTop: spacing.sm },
-  partnerBtn: {
-    backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.pill, paddingVertical: spacing.md, alignItems: 'center',
+  moreBtn: {
+    alignItems: 'center', justifyContent: 'center', height: 50, borderRadius: radius.pill,
+    borderWidth: 1.5, borderColor: colors.brand, backgroundColor: 'rgba(232,98,26,0.08)',
   },
-  partnerBtnText: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  disclosure: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, lineHeight: 18 },
+  moreTxt: { fontSize: 15, color: colors.brandSoft, fontWeight: '800' },
+
+  card: { borderRadius: radius.xl, overflow: 'hidden', ...GLASS_SURFACE },
+  cardPhoto: { height: 230, justifyContent: 'space-between', padding: spacing.md, overflow: 'hidden' },
+  cardPhotoEmpty: { alignItems: 'center', justifyContent: 'center' },
+  cardPhotoEmoji: { fontSize: 56 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, flexWrap: 'wrap' },
+  cardTitle: {
+    color: '#fff', fontSize: 21, fontWeight: '900', letterSpacing: -0.3, lineHeight: 26,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 1 },
+  },
+  cardBody: { padding: spacing.md, gap: spacing.sm },
+  cardChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  cardChip: {
+    color: colors.textSecondary, fontSize: 12, fontWeight: '700', overflow: 'hidden',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  cardPrice: { fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
+
+  linksBlock: { gap: spacing.sm, marginTop: spacing.xs },
+  partnerBtn: { borderRadius: radius.pill, paddingVertical: 15, alignItems: 'center', ...GLASS_SURFACE },
+  partnerBtnText: { fontSize: 15, color: colors.textPrimary, fontWeight: '800' },
+  disclosure: { ...typography.caption, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs, lineHeight: 18 },
 });
