@@ -1,14 +1,17 @@
 import { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image,
-  Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, View,
+  type StyleProp, type ViewStyle,
 } from 'react-native';
 import type { ScrollViewInstance } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { CrystalFill, GradientText, PressableScale, Reveal } from '../../components/ui';
+import { PillTabs, TopGlassButton } from '../../components/p2b/ProfileVisuals';
+import { CHEVRON, GLASS, GlassGroup, IconBubble, ToggleRow } from '../../components/profile/ProfileChrome';
 import { API_BASE_URL } from '../../lib/config';
 import { MusicPickerModal, type MusicTrack } from '../../components/MusicPicker';
 import { PostVideo } from '../../components/PostVideo';
@@ -26,6 +29,12 @@ const MAX_PHOTOS = 10;
 const API = API_BASE_URL;
 
 type MediaMode = 'photo' | 'video';
+
+/**
+ * Nouvelle publication — DA du 18/11/2026, sobre comme le profil social :
+ * fond sombre, verre, titre en blanc cristal, choix et bouton Partager
+ * sertis de cristal, options en groupe vitré à interrupteurs. Aucune couleur.
+ */
 
 export default function CreatePostScreen() {
   const { accessToken } = useAuth();
@@ -206,187 +215,197 @@ export default function CreatePostScreen() {
     }
   };
 
+  const changeMode = (m: MediaMode) => {
+    if (m === mode) return;
+    setMode(m);
+    if (m === 'photo') setVideoUri(null);
+    else setImages([]);
+  };
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.cancel}>{t('postcreate_cancel')}</Text></Pressable>
-        <Text style={styles.title}>{t('postcreate_title')}</Text>
-        <Pressable
-          onPress={() => void submit()}
+    <View style={[styles.container, { paddingTop: insets.top + 6 }]}>
+      <View style={styles.topBar}>
+        <TopGlassButton label="✕" onPress={() => router.back()} accessibilityLabel={t('postcreate_cancel')} />
+        <GradientText style={styles.title} colors={gradients.crystal} numberOfLines={1}>{t('postcreate_title')}</GradientText>
+        <CrystalButton
+          label={t('postcreate_share')}
+          loading={loading}
           disabled={loading || !hasMedia}
-          style={[styles.shareBtn, (!hasMedia || loading) && styles.shareBtnDisabled]}
-        >
-          {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.shareBtnText}>{t('postcreate_share')}</Text>}
-        </Pressable>
+          onPress={() => void submit()}
+        />
       </View>
 
       <ScrollView
         ref={scrollRef}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
         onScroll={kb.onScroll}
         scrollEventThrottle={16}
         contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 40 + kb.bottomInset }}
       >
-        {/* Mode toggle */}
-        <View style={styles.modeRow}>
-          <Pressable style={[styles.modeBtn, mode === 'photo' && styles.modeBtnActive]} onPress={() => { setMode('photo'); setVideoUri(null); }}>
-            <Text style={[styles.modeTxt, mode === 'photo' && styles.modeTxtActive]}>{t('postcreate_mode_photo')}</Text>
-          </Pressable>
-          <Pressable style={[styles.modeBtn, mode === 'video' && styles.modeBtnActive]} onPress={() => { setMode('video'); setImages([]); }}>
-            <Text style={[styles.modeTxt, mode === 'video' && styles.modeTxtActive]}>{t('postcreate_mode_video')}</Text>
-          </Pressable>
-        </View>
+        <PillTabs<MediaMode>
+          style={styles.modeRow}
+          active={mode}
+          onChange={changeMode}
+          tabs={[
+            { key: 'photo', label: t('postcreate_mode_photo') },
+            { key: 'video', label: t('postcreate_mode_video') },
+          ]}
+        />
 
-        {/* Photo picker */}
+        {/* ── Photos ── */}
         {mode === 'photo' && (
           images.length > 0 ? (
-            <>
-            <View style={styles.grid}>
-              {images.map((uri, i) => (
-                <Pressable key={uri} style={styles.gridItem} onPress={() => makeCover(i)}>
-                  <Image source={{ uri }} style={styles.gridImg} />
-                  {images.length > 1 && (
-                    <View style={[styles.orderBadge, i === 0 && styles.coverBadge]}>
-                      <Text style={styles.orderTxt}>{i === 0 ? 'Couverture' : i + 1}</Text>
-                    </View>
-                  )}
-                  <Pressable style={styles.removeBtn} onPress={() => setImages((prev) => prev.filter((_, j) => j !== i))}>
-                    <Text style={styles.removeTxt}>✕</Text>
-                  </Pressable>
-                </Pressable>
-              ))}
-              {images.length < MAX_PHOTOS && (
-                <Pressable style={styles.addMore} onPress={() => void pickImages()}>
-                  <Text style={{ fontSize: 28, color: colors.textMuted }}>+</Text>
-                  <Text style={styles.addMoreHint}>{images.length}/{MAX_PHOTOS}</Text>
-                </Pressable>
+            <Reveal>
+              <View style={styles.grid}>
+                {images.map((uri, i) => (
+                  <PressableScale key={uri} style={styles.gridItem} onPress={() => makeCover(i)} scaleTo={0.96}>
+                    <Image source={{ uri }} style={styles.gridImg} />
+                    {images.length > 1 && (
+                      i === 0 ? (
+                        <View style={[styles.orderBadge, styles.coverBadge]}>
+                          <CrystalFill edge={1} />
+                          <Text style={styles.orderTxt}>{t('postcreate_cover')}</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.orderBadge}>
+                          <Text style={styles.orderTxt}>{i + 1}</Text>
+                        </View>
+                      )
+                    )}
+                    <PressableScale
+                      style={styles.removeBtn}
+                      onPress={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                      scaleTo={0.85}
+                      hitSlop={6}
+                    >
+                      <Text style={styles.removeTxt}>✕</Text>
+                    </PressableScale>
+                  </PressableScale>
+                ))}
+                {images.length < MAX_PHOTOS && (
+                  <PressableScale style={[styles.addMore, GLASS]} onPress={() => void pickImages()} scaleTo={0.95}>
+                    <Text style={styles.addMorePlus}>＋</Text>
+                    <Text style={styles.addMoreHint}>{images.length}/{MAX_PHOTOS}</Text>
+                  </PressableScale>
+                )}
+              </View>
+              {images.length > 1 && (
+                <Text style={styles.carouselHint}>{t('postcreate_cover_hint')}</Text>
               )}
-            </View>
-            {images.length > 1 && (
-              <Text style={styles.carouselHint}>
-                Touche une photo pour en faire la couverture.
-              </Text>
-            )}
-            </>
+            </Reveal>
           ) : (
-            <View style={styles.mediaChoiceRow}>
-              <Pressable style={styles.mediaChoiceBtn} onPress={openCamera}>
-                <Text style={styles.mediaChoiceEmoji}>📷</Text>
-                <Text style={styles.mediaChoiceLabel}>{t('postcreate_camera')}</Text>
-              </Pressable>
-              <Pressable style={styles.mediaChoiceBtn} onPress={() => void pickImages()}>
-                <Text style={styles.mediaChoiceEmoji}>🖼️</Text>
-                <Text style={styles.mediaChoiceLabel}>{t('postcreate_gallery')}</Text>
-                <Text style={styles.mediaChoiceHint}>{t('postcreate_up_to_10_photos')}</Text>
-              </Pressable>
-            </View>
+            <MediaChoices
+              onCamera={openCamera}
+              onGallery={() => void pickImages()}
+              galleryEmoji="🖼️"
+              galleryHint={t('postcreate_up_to_10_photos')}
+              cameraLabel={t('postcreate_camera')}
+              galleryLabel={t('postcreate_gallery')}
+            />
           )
         )}
 
-        {/* Video picker */}
+        {/* ── Vidéo ── */}
         {mode === 'video' && (
           videoUri ? (
-            <View style={styles.videoPreviewWrap}>
+            <Reveal style={styles.videoPreviewWrap}>
               {/* Vrai aperçu qui joue, plutôt qu'un bandeau statique : on doit
                   pouvoir voir ce qu'on s'apprête à publier, comme Instagram. */}
-              <PostVideo
-                uri={videoUri}
-                style={styles.videoPreview}
-                overlays={overlays}
-                videoMuted={videoMuted}
-              />
-              <View style={styles.videoPreviewActions}>
-                <Pressable style={[styles.videoPreviewBtn, styles.videoPreviewBtnPrimary]} onPress={() => setEditorOpen(true)}>
-                  <Text style={[styles.videoPreviewBtnTxt, { color: '#fff' }]}>{t('postcreate_edit')}</Text>
-                </Pressable>
-                <Pressable style={styles.videoPreviewBtn} onPress={() => void pickVideo()}>
-                  <Text style={styles.videoPreviewBtnTxt}>{t('postcreate_change')}</Text>
-                </Pressable>
-                <Pressable style={styles.videoPreviewBtn} onPress={() => setVideoUri(null)}>
-                  <Text style={[styles.videoPreviewBtnTxt, { color: '#f87171' }]}>{t('postcreate_remove')}</Text>
-                </Pressable>
+              <View style={styles.videoFrame}>
+                <PostVideo
+                  uri={videoUri}
+                  style={styles.videoPreview}
+                  overlays={overlays}
+                  videoMuted={videoMuted}
+                />
               </View>
-            </View>
+              <View style={styles.videoPreviewActions}>
+                <PressableScale style={styles.videoBtn} onPress={() => setEditorOpen(true)} scaleTo={0.95}>
+                  <CrystalFill />
+                  <GradientText style={styles.videoBtnTxtStrong} colors={gradients.crystal} numberOfLines={1}>
+                    {t('postcreate_edit')}
+                  </GradientText>
+                </PressableScale>
+                <PressableScale style={[styles.videoBtn, GLASS]} onPress={() => void pickVideo()} scaleTo={0.95}>
+                  <Text style={styles.videoBtnTxt} numberOfLines={1}>{t('postcreate_change')}</Text>
+                </PressableScale>
+                <PressableScale style={[styles.videoBtn, GLASS]} onPress={() => setVideoUri(null)} scaleTo={0.95}>
+                  <Text style={[styles.videoBtnTxt, styles.dangerTxt]} numberOfLines={1}>{t('postcreate_remove')}</Text>
+                </PressableScale>
+              </View>
+            </Reveal>
           ) : (
-            <View style={styles.mediaChoiceRow}>
-              <Pressable style={styles.mediaChoiceBtn} onPress={openCamera}>
-                <Text style={styles.mediaChoiceEmoji}>📷</Text>
-                <Text style={styles.mediaChoiceLabel}>{t('postcreate_camera')}</Text>
-              </Pressable>
-              <Pressable style={styles.mediaChoiceBtn} onPress={() => void pickVideo()}>
-                <Text style={styles.mediaChoiceEmoji}>🎬</Text>
-                <Text style={styles.mediaChoiceLabel}>{t('postcreate_gallery')}</Text>
-                <Text style={styles.mediaChoiceHint}>{t('postcreate_max_60s')}</Text>
-              </Pressable>
-            </View>
+            <MediaChoices
+              onCamera={openCamera}
+              onGallery={() => void pickVideo()}
+              galleryEmoji="🎬"
+              galleryHint={t('postcreate_max_60s')}
+              cameraLabel={t('postcreate_camera')}
+              galleryLabel={t('postcreate_gallery')}
+            />
           )
         )}
 
-        {/* Music picker — disponible directement ici pour les deux modes
-            (avant, en vidéo, il fallait ouvrir l'éditeur ✏️ Modifier pour y
-            accéder ; l'éditeur reste aussi accessible et reste synchronisé
-            avec ce choix). */}
+        {/* Musique — disponible directement ici pour les deux modes ; l'éditeur
+            vidéo reste aussi accessible et reste synchronisé avec ce choix. */}
         {selectedMusic ? (
-          <View style={styles.musicSelected}>
+          <View style={[styles.row, GLASS, styles.rowSet]}>
             <Image source={{ uri: selectedMusic.artworkUrl }} style={styles.musicArtwork} />
-            <View style={{ flex: 1 }}>
+            <View style={styles.flex1}>
               <Text style={styles.musicTitle} numberOfLines={1}>{selectedMusic.title}</Text>
               <Text style={styles.musicArtist} numberOfLines={1}>
                 {selectedMusic.artist} · {selectedMusic.durationMs / 1000}s
               </Text>
             </View>
-            <Pressable onPress={() => setMusicModalVisible(true)} style={styles.musicChangeBtn}>
-              <Text style={styles.musicChangeTxt}>{t('postcreate_modify')}</Text>
-            </Pressable>
-            <Pressable onPress={() => setSelectedMusic(null)}>
-              <Text style={{ color: colors.textMuted, fontSize: 18, paddingLeft: 4 }}>✕</Text>
-            </Pressable>
+            <PressableScale onPress={() => setMusicModalVisible(true)} style={[styles.smallBtn, GLASS]} scaleTo={0.92}>
+              <Text style={styles.smallBtnTxt}>{t('postcreate_modify')}</Text>
+            </PressableScale>
+            <PressableScale onPress={() => setSelectedMusic(null)} hitSlop={10} scaleTo={0.85}>
+              <Text style={styles.clear}>✕</Text>
+            </PressableScale>
           </View>
         ) : (
-          <Pressable style={styles.musicRow} onPress={() => setMusicModalVisible(true)}>
-            <Text style={styles.musicIcon}>🎵</Text>
-            <Text style={styles.musicPlaceholder}>{t('postcreate_add_music')}</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 14 }}>›</Text>
-          </Pressable>
+          <PressableScale style={[styles.row, GLASS]} onPress={() => setMusicModalVisible(true)} scaleTo={0.98}>
+            <IconBubble icon="🎵" />
+            <Text style={styles.rowPlaceholder}>{t('postcreate_add_music')}</Text>
+            <Text style={styles.chevron}>{CHEVRON}</Text>
+          </PressableScale>
         )}
 
-        {/* Aperçu discret des ajouts de l'éditeur, en mode vidéo. La musique
-            n'y figure plus : elle a maintenant sa propre ligne juste
-            au-dessus (comme en mode photo), la répéter ici ferait doublon. */}
+        {/* Aperçu discret des ajouts de l'éditeur, en mode vidéo. */}
         {mode === 'video' && videoUri && (overlays.length > 0 || voiceUri || videoMuted) && (
           <View style={styles.editorSummary}>
-            {overlays.length > 0 && <Text style={styles.editorSummaryTxt}>{t('postcreate_additions_count').replace('{n}', String(overlays.length)).replace('{s}', overlays.length > 1 ? 's' : '')}</Text>}
-            {voiceUri && <Text style={styles.editorSummaryTxt}>{t('postcreate_voice_over')}</Text>}
-            {videoMuted && <Text style={styles.editorSummaryTxt}>{t('postcreate_muted_sound')}</Text>}
+            {overlays.length > 0 && <Text style={[styles.editorSummaryTxt, GLASS]}>{t('postcreate_additions_count').replace('{n}', String(overlays.length)).replace('{s}', overlays.length > 1 ? 's' : '')}</Text>}
+            {voiceUri && <Text style={[styles.editorSummaryTxt, GLASS]}>{t('postcreate_voice_over')}</Text>}
+            {videoMuted && <Text style={[styles.editorSummaryTxt, GLASS]}>{t('postcreate_muted_sound')}</Text>}
           </View>
         )}
 
-        {/* Caption */}
-        <TextInput
-          style={styles.captionInput}
-          placeholder={t('postcreate_caption_placeholder')}
-          placeholderTextColor={colors.textMuted}
+        {/* Légende */}
+        <CaptionField
           value={caption}
           onChangeText={setCaption}
-          multiline
-          maxLength={500}
+          placeholder={t('postcreate_caption_placeholder')}
         />
         <Text style={styles.charCount}>{caption.length}/500</Text>
 
         {/* Lieu — rattaché à la base YUMIA plutôt qu'à du texte libre :
             il devient cliquable dans le fil et relie la publication à la
             fiche du lieu. */}
-        <Pressable style={styles.placeRow} onPress={() => setPlacePickerOpen(true)}>
-          <Text style={styles.placeRowIcon}>📍</Text>
-          <Text style={[styles.placeRowLabel, place ? styles.placeRowLabelSet : null]} numberOfLines={1}>
+        <PressableScale style={[styles.row, GLASS, place ? styles.rowSet : null]} onPress={() => setPlacePickerOpen(true)} scaleTo={0.98}>
+          <IconBubble icon="📍" />
+          <Text style={[styles.rowPlaceholder, place ? styles.rowValue : null]} numberOfLines={1}>
             {place ? place.name : t('place_tag_add')}
           </Text>
           {place ? (
-            <Pressable onPress={() => setPlace(null)} hitSlop={12} accessibilityLabel={t('place_tag_remove')}>
-              <Text style={styles.placeRowClear}>✕</Text>
-            </Pressable>
-          ) : null}
-        </Pressable>
+            <PressableScale onPress={() => setPlace(null)} hitSlop={12} scaleTo={0.85}>
+              <Text style={styles.clear} accessibilityLabel={t('place_tag_remove')}>✕</Text>
+            </PressableScale>
+          ) : (
+            <Text style={styles.chevron}>{CHEVRON}</Text>
+          )}
+        </PressableScale>
         <PlacePicker
           visible={placePickerOpen}
           onClose={() => setPlacePickerOpen(false)}
@@ -394,24 +413,38 @@ export default function CreatePostScreen() {
         />
 
         {/* Options */}
-        <View style={styles.optionsBox}>
-          <Pressable style={styles.optionRow} onPress={() => setCommentsDisabled((v) => !v)}>
-            <Text style={styles.optionLabel}>{t('postcreate_disable_comments')}</Text>
-            <Text style={styles.optionToggle}>{commentsDisabled ? '✅' : '⬜'}</Text>
-          </Pressable>
-          <Pressable style={styles.optionRow} onPress={() => setHideLikeCount((v) => !v)}>
-            <Text style={styles.optionLabel}>{t('postcreate_hide_likes')}</Text>
-            <Text style={styles.optionToggle}>{hideLikeCount ? '✅' : '⬜'}</Text>
-          </Pressable>
-        </View>
+        <GlassGroup style={styles.options}>
+          <ToggleRow
+            icon="💬"
+            label={t('postcreate_disable_comments')}
+            value={commentsDisabled}
+            onValueChange={setCommentsDisabled}
+          />
+          <ToggleRow
+            icon="🤍"
+            label={t('postcreate_hide_likes')}
+            value={hideLikeCount}
+            onValueChange={setHideLikeCount}
+          />
+        </GlassGroup>
 
-        <Pressable
-          style={[styles.draftBtn, (!hasMedia || loading) && styles.shareBtnDisabled]}
-          disabled={loading || !hasMedia}
-          onPress={() => void submit(true)}
-        >
-          <Text style={styles.draftBtnText}>{t('postcreate_save_draft')}</Text>
-        </Pressable>
+        <View style={styles.bottomActions}>
+          <PressableScale
+            style={[styles.bottomBtn, GLASS, (!hasMedia || loading) && styles.disabled]}
+            disabled={loading || !hasMedia}
+            onPress={() => void submit(true)}
+            scaleTo={0.96}
+          >
+            <Text style={styles.draftBtnText} numberOfLines={1}>{t('postcreate_save_draft')}</Text>
+          </PressableScale>
+          <CrystalButton
+            label={t('postcreate_share')}
+            loading={loading}
+            disabled={loading || !hasMedia}
+            onPress={() => void submit()}
+            style={styles.bottomBtn}
+          />
+        </View>
       </ScrollView>
 
       <MusicPickerModal
@@ -445,141 +478,179 @@ export default function CreatePostScreen() {
   );
 }
 
+/** Bouton serti de cristal (Partager) ; roue de chargement pendant l'envoi. */
+function CrystalButton({ label, loading, disabled, onPress, style }: {
+  label: string;
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <PressableScale
+      style={[styles.crystalBtn, style, disabled && !loading && styles.disabled]}
+      onPress={onPress}
+      disabled={disabled}
+      scaleTo={0.95}
+    >
+      <CrystalFill />
+      {loading ? (
+        <ActivityIndicator color="#fff" size="small" />
+      ) : (
+        <GradientText style={styles.crystalBtnTxt} colors={gradients.crystal} numberOfLines={1}>{label}</GradientText>
+      )}
+    </PressableScale>
+  );
+}
+
+/** Deux grandes cases de verre : appareil photo, galerie. */
+function MediaChoices({ onCamera, onGallery, galleryEmoji, galleryHint, cameraLabel, galleryLabel }: {
+  onCamera: () => void;
+  onGallery: () => void;
+  galleryEmoji: string;
+  galleryHint: string;
+  cameraLabel: string;
+  galleryLabel: string;
+}) {
+  return (
+    <View style={styles.mediaChoiceRow}>
+      <Reveal index={0} style={styles.flex1}>
+        <PressableScale style={[styles.mediaChoiceBtn, GLASS]} onPress={onCamera} scaleTo={0.96}>
+          <View style={[styles.mediaMedal, GLASS]}><Text style={styles.mediaChoiceEmoji}>📷</Text></View>
+          <Text style={styles.mediaChoiceLabel}>{cameraLabel}</Text>
+        </PressableScale>
+      </Reveal>
+      <Reveal index={1} style={styles.flex1}>
+        <PressableScale style={[styles.mediaChoiceBtn, GLASS]} onPress={onGallery} scaleTo={0.96}>
+          <View style={[styles.mediaMedal, GLASS]}><Text style={styles.mediaChoiceEmoji}>{galleryEmoji}</Text></View>
+          <Text style={styles.mediaChoiceLabel}>{galleryLabel}</Text>
+          <Text style={styles.mediaChoiceHint}>{galleryHint}</Text>
+        </PressableScale>
+      </Reveal>
+    </View>
+  );
+}
+
+/** Légende en verre, liseré clair quand elle a le focus. */
+function CaptionField({ value, onChangeText, placeholder }: {
+  value: string; onChangeText: (v: string) => void; placeholder: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[styles.captionWrap, GLASS, focused && styles.focused]}>
+      <TextInput
+        style={styles.captionInput}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        multiline
+        maxLength={500}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+  container: { flex: 1, backgroundColor: colors.bg },
+  flex1: { flex: 1 },
+  disabled: { opacity: 0.4 },
+  dangerTxt: { color: colors.danger },
+
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
   },
-  cancel: { color: colors.textMuted, fontSize: 16 },
-  title: { ...typography.h3, color: colors.text },
-  shareBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 16, paddingVertical: 8 },
-  shareBtnDisabled: { opacity: 0.4 },
-  shareBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  modeRow: {
-    flexDirection: 'row', backgroundColor: colors.surface,
-    borderRadius: radius.lg, padding: 4, marginBottom: spacing.md, gap: 4,
-  },
-  modeBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: radius.md },
-  modeBtnActive: { backgroundColor: colors.background },
-  modeTxt: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-  modeTxtActive: { color: colors.brand, fontWeight: '700' },
-  mediaChoiceRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  mediaChoiceBtn: {
-    flex: 1, height: 160, backgroundColor: colors.surface, borderRadius: radius.xl,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2,
-    borderColor: colors.border, borderStyle: 'dashed', gap: 6,
-  },
-  mediaChoiceEmoji: { fontSize: 38 },
-  mediaChoiceLabel: { ...typography.h3, color: colors.text },
-  mediaChoiceHint: { fontSize: 12, color: colors.textMuted },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
-  gridItem: { width: '31%', aspectRatio: 1, position: 'relative' },
-  gridImg: { width: '100%', height: '100%', borderRadius: radius.md },
-  removeBtn: {
-    position: 'absolute', top: 4, right: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12,
-    width: 24, height: 24, alignItems: 'center', justifyContent: 'center',
-  },
-  removeTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  orderBadge: {
-    position: 'absolute', left: 4, bottom: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10,
-    paddingHorizontal: 7, paddingVertical: 2,
-  },
-  coverBadge: { backgroundColor: colors.brand },
-  orderTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  addMoreHint: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  carouselHint: { fontSize: 12, color: colors.textMuted, marginTop: -spacing.xs, marginBottom: spacing.md },
-  addMore: {
-    width: '31%', aspectRatio: 1, backgroundColor: colors.surface,
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+  title: { ...typography.heading, fontWeight: '900', color: '#fff', flex: 1, textAlign: 'center' },
+  crystalBtn: {
+    height: 38, minWidth: 92, paddingHorizontal: 14, borderRadius: radius.pill, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
+  crystalBtnTxt: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.3 },
+
+  modeRow: { marginBottom: spacing.md },
+
+  mediaChoiceRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  mediaChoiceBtn: {
+    height: 170, borderRadius: radius.xl,
+    alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  mediaMedal: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  mediaChoiceEmoji: { fontSize: 30 },
+  mediaChoiceLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '800' },
+  mediaChoiceHint: { ...typography.label, color: colors.textMuted },
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
+  gridItem: { width: '31.9%', aspectRatio: 1 },
+  gridImg: { width: '100%', height: '100%', borderRadius: radius.md },
+  removeBtn: {
+    position: 'absolute', top: 5, end: 5,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.3)',
+    width: 24, height: 24, alignItems: 'center', justifyContent: 'center',
+  },
+  removeTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  orderBadge: {
+    position: 'absolute', start: 5, bottom: 5, overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: radius.pill,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  coverBadge: { backgroundColor: 'transparent' },
+  orderTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  addMore: { width: '31.9%', aspectRatio: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  addMorePlus: { fontSize: 26, color: colors.textSecondary },
+  addMoreHint: { ...typography.label, color: colors.textMuted, marginTop: 2 },
+  carouselHint: { ...typography.caption, color: colors.textMuted, marginTop: -spacing.xs, marginBottom: spacing.md },
+
   videoPreviewWrap: { marginBottom: spacing.md },
-  videoPreview: {
-    width: '100%', aspectRatio: 4 / 5, borderRadius: radius.xl,
-    overflow: 'hidden', backgroundColor: colors.surface,
+  videoFrame: {
+    borderRadius: radius.xl, overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
   },
+  videoPreview: { width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.surface },
   videoPreviewActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  videoPreviewBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 10,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
+  videoBtn: {
+    flex: 1, height: 42, borderRadius: radius.pill, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
   },
-  videoPreviewBtnPrimary: { backgroundColor: colors.brand, borderColor: colors.brand },
-  videoPreviewBtnTxt: { color: colors.text, fontWeight: '600', fontSize: 13 },
-  editorSummary: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm,
+  videoBtnTxt: { color: colors.textPrimary, fontWeight: '800', fontSize: 13 },
+  videoBtnTxtStrong: { color: '#fff', fontWeight: '900', fontSize: 13 },
+
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: 10, minHeight: 58,
     marginBottom: spacing.md,
   },
+  rowSet: { borderColor: 'rgba(255,255,255,0.30)' },
+  rowPlaceholder: { ...typography.body, color: colors.textMuted, flex: 1, fontWeight: '600' },
+  rowValue: { color: colors.textPrimary, fontWeight: '700' },
+  chevron: { color: colors.textMuted, fontSize: 20, fontWeight: '700' },
+  clear: { ...typography.body, color: colors.textSecondary, paddingHorizontal: 4 },
+  musicArtwork: { width: 44, height: 44, borderRadius: radius.sm },
+  musicTitle: { ...typography.caption, color: colors.textPrimary, fontWeight: '800' },
+  musicArtist: { ...typography.label, color: colors.textMuted, marginTop: 2 },
+  smallBtn: { borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  smallBtnTxt: { ...typography.label, color: colors.textPrimary, fontWeight: '800' },
+
+  editorSummary: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   editorSummaryTxt: {
-    fontSize: 12, color: colors.textSecondary, fontWeight: '600',
-    backgroundColor: colors.surface, borderRadius: radius.pill,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: colors.border,
+    ...typography.label, color: colors.textSecondary, fontWeight: '700',
+    borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5,
   },
-  musicRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    paddingHorizontal: 14, paddingVertical: 14, marginBottom: spacing.md,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  musicIcon: { fontSize: 20 },
-  musicPlaceholder: { flex: 1, color: colors.textMuted, fontSize: 14 },
-  musicSelected: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: 10, marginBottom: spacing.md,
-    borderWidth: 1.5, borderColor: colors.brand + '66',
-  },
-  musicArtwork: { width: 46, height: 46, borderRadius: 6 },
-  musicTitle: { fontSize: 13, color: colors.text, fontWeight: '700' },
-  musicArtist: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  musicChangeBtn: { backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.border },
-  musicChangeTxt: { fontSize: 12, color: colors.brand, fontWeight: '600' },
+
+  captionWrap: { borderRadius: radius.lg, marginBottom: 4 },
+  focused: { borderColor: 'rgba(255,255,255,0.40)' },
   captionInput: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, color: colors.text, fontSize: 15,
-    minHeight: 100, textAlignVertical: 'top',
-    borderWidth: 1, borderColor: colors.border,
-    marginBottom: 4,
+    padding: spacing.md, color: colors.textPrimary, fontSize: 15,
+    minHeight: 110, textAlignVertical: 'top',
   },
-  charCount: { fontSize: 12, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.md },
-  optionsBox: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md,
-  },
-  optionRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
-  },
-  optionLabel: { fontSize: 14, color: colors.text },
-  optionToggle: { fontSize: 16 },
-  draftBtn: {
-    alignItems: 'center', paddingVertical: 13,
-    borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  draftBtnText: { color: colors.text, fontWeight: '600', fontSize: 14 },
-  // Ligne « Ajouter un lieu » : même allure que les autres champs de l'écran.
-  placeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  placeRowIcon: { fontSize: 16 },
-  placeRowLabel: { ...typography.body, color: colors.textMuted, flex: 1 },
-  placeRowLabelSet: { color: colors.textPrimary },
-  placeRowClear: { ...typography.body, color: colors.textSecondary },
+  charCount: { ...typography.label, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.md },
+
+  options: { marginBottom: spacing.lg },
+
+  bottomActions: { flexDirection: 'row', gap: spacing.sm },
+  bottomBtn: { flex: 1, height: 50, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  draftBtnText: { color: colors.textPrimary, fontWeight: '800', fontSize: 14 },
 });
