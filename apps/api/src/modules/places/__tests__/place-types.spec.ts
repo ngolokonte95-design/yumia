@@ -80,6 +80,25 @@ describe('classement des lieux Google', () => {
       expect(classify('Alimentation Générale', ['store'], 'grocery_store', true)).toBe('grocery_store');
     });
 
+    // Cas relevés en prod à Cergy le 18/11/2026.
+    it('sort les grandes surfaces remontées par la recherche « épicerie »', () => {
+      // Carrefour Market rebaptisé « Market <ville> », typé supermarket sans type de quartier.
+      expect(classify('Market Jouy-Le-Moutier', ['supermarket', 'cosmetics_store', 'bakery'], 'grocery_store', true)).toBe('supermarket');
+      expect(classify('Market Conflans Sainte Honorine', ['supermarket', 'grocery_store'], 'grocery_store', true)).toBe('supermarket');
+      expect(classify("Hmarket Saint-Ouen-l'Aumône", ['supermarket', 'grocery_store', 'food_store'], 'grocery_store', true)).toBe('supermarket');
+      expect(classify('Les Halles de Cergy', ['supermarket'], 'grocery_store', true)).toBe('supermarket');
+      expect(classify('Supérette du Centre', ['supermarket'], 'grocery_store', true)).toBe('grocery_store');
+    });
+
+    it('garde les épiceries de quartier que Google Maps affiche pour « épicerie »', () => {
+      expect(classify('PROXI CLH', ['grocery_store', 'store'], 'grocery_store', true)).toBe('grocery_store');
+      expect(classify('K.k.s. Store', ['grocery_store', 'convenience_store'], 'grocery_store', true)).toBe('grocery_store');
+      expect(classify('Ta Exotique Et Marche', ['grocery_store', 'food_store'], 'grocery_store', true)).toBe('grocery_store');
+      // « Market » ailleurs qu'en premier mot : épicerie.
+      expect(classify('FENICIA MARKET', ['supermarket', 'butcher_shop', 'grocery_store'], 'grocery_store', true)).toBe('grocery_store');
+      expect(classify('Exotique Market Lycamobile', ['supermarket'], 'grocery_store', true)).toBe('grocery_store');
+    });
+
     it('ne prend pas la boutique d\'une station-service pour une épicerie', () => {
       expect(classify('TotalEnergies', ['gas_station', 'convenience_store'])).toBe('fuel');
     });
@@ -154,7 +173,8 @@ describe('classement des lieux Google', () => {
 
     it('recharge seulement les univers dont la recherche a changé', () => {
       expect(hydrationVersion('tobacco')).toBe('v7');
-      expect(hydrationVersion('grocery_store')).toBe('v7');
+      expect(hydrationVersion('grocery_store')).toBe('v8');
+      expect(hydrationVersion('supermarket')).toBe('v8');
       expect(hydrationVersion('restaurant')).toBe('v6');
       expect(hydrationVersion(undefined)).toBe('v6');
     });
@@ -181,6 +201,8 @@ describe('reclassement des lieux en base', () => {
   it('sort les tabacs des bars et les grandes surfaces des épiceries', () => {
     expect(targetUniverse(place('Bar Tabac des Sports', 'bar', ['bar']))).toBe('tobacco');
     expect(targetUniverse(place('Carrefour Market', 'grocery_store', ['grocery_store', 'supermarket']))).toBe('supermarket');
+    expect(targetUniverse(place('Market Jouy-Le-Moutier', 'grocery_store', ['supermarket', 'cosmetics_store', 'bakery']))).toBe('supermarket');
+    expect(targetUniverse(place('FENICIA MARKET', 'grocery_store', ['supermarket', 'butcher_shop', 'grocery_store']))).toBe('grocery_store');
     expect(targetUniverse(place('Alimentation Générale', 'supermarket', ['supermarket', 'grocery_store']))).toBe('grocery_store');
     expect(targetUniverse(place('Épicerie de Nuit', 'tobacco', ['convenience_store']))).toBe('grocery_store');
     expect(targetUniverse(place('Le Narval', 'tobacco', ['bar']))).toBe('tobacco');

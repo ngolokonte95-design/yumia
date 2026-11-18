@@ -6,6 +6,7 @@ import {
   UNIVERSE_TEXT_QUERIES,
   TEXT_ALSO_UNIVERSES,
   TEXT_FIRST_UNIVERSES,
+  NEAREST_FIRST_UNIVERSES,
 } from './place-types';
 import type {
   PhotoAttribution,
@@ -115,8 +116,10 @@ export class GooglePlacesProvider implements PlacesProvider {
     // recherche par type, dominée par les grandes enseignes, ne remonte pas.
     if (params.universe && textQuery && TEXT_ALSO_UNIVERSES.has(params.universe)) {
       const [byText, byType] = await Promise.all([
-        this.searchTextNearbyMulti(textQuery, params.lat, params.lng, params.radius, params.universe, params.limit)
-          .catch(() => [] as ProviderPlace[]),
+        this.searchTextNearbyMulti(
+          textQuery, params.lat, params.lng, params.radius, params.universe, params.limit,
+          NEAREST_FIRST_UNIVERSES.has(params.universe),
+        ).catch(() => [] as ProviderPlace[]),
         this.requestTypes(params, includedTypes).catch(() => [] as ProviderPlace[]),
       ]);
       const byId = new Map<string, ProviderPlace>();
@@ -154,10 +157,11 @@ export class GooglePlacesProvider implements PlacesProvider {
     radius: number,
     universe: Universe,
     limit: number,
+    nearestFirst = false,
   ): Promise<ProviderPlace[]> {
     const queries = Array.isArray(textQuery) ? textQuery : [textQuery];
     const results = await Promise.all(
-      queries.map((q) => this.searchTextNearby(q, lat, lng, radius, universe, limit, true)),
+      queries.map((q) => this.searchTextNearby(q, lat, lng, radius, universe, limit, true, nearestFirst)),
     );
     const byId = new Map<string, ProviderPlace>();
     for (const place of results.flat()) byId.set(place.providerPlaceId, place);
@@ -197,6 +201,9 @@ export class GooglePlacesProvider implements PlacesProvider {
       },
     };
     if (includedTypes.length > 0) body.includedTypes = includedTypes;
+    // Commerces de quartier : les plus proches d'abord. Au classement par
+    // popularité (défaut), les grandes surfaces prennent les 20 places.
+    if (params.universe && NEAREST_FIRST_UNIVERSES.has(params.universe)) body.rankPreference = 'DISTANCE';
 
     const res = await fetch(ENDPOINT, {
       method: 'POST',
@@ -314,7 +321,25 @@ export class GooglePlacesProvider implements PlacesProvider {
     universe?: Universe,
     limit = MAX_RESULTS,
     forceUniverse = false,
+    nearestFirst = false,
   ): Promise<ProviderPlace[]> {
+    const r = Math.min(Math.max(radius, 1), MAX_RADIUS_M);
+    // `nearestFirst` : zone STRICTE (un rectangle : Google n'accepte pas de
+    // cercle en restriction de texte) et lieux les plus proches d'abord. Le
+    // simple biais laissait Google répondre avec des lieux à des kilomètres.
+    const dLat = r / 111_000;
+    const dLng = r / (111_000 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+    const area = nearestFirst
+      ? {
+          locationRestriction: {
+            rectangle: {
+              low: { latitude: lat - dLat, longitude: lng - dLng },
+              high: { latitude: lat + dLat, longitude: lng + dLng },
+            },
+          },
+          rankPreference: 'DISTANCE',
+        }
+      : { locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: r } } };
     const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
       headers: {
@@ -325,12 +350,7 @@ export class GooglePlacesProvider implements PlacesProvider {
       body: JSON.stringify({
         textQuery,
         maxResultCount: Math.min(limit, MAX_RESULTS),
-        locationBias: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius: Math.min(Math.max(radius, 1), MAX_RADIUS_M),
-          },
-        },
+        ...area,
       }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

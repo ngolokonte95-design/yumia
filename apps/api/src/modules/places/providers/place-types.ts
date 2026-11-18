@@ -58,7 +58,11 @@ export const UNIVERSE_TEXT_QUERIES: Partial<Record<Universe, string | string[]>>
   vintage_store:        'vintage friperie seconde main dépôt-vente brocante mode',
   luxury_store:         'luxe haute couture boutique luxe Chanel Dior Louis Vuitton',
   // Épiceries de quartier : en plus des types (voir TEXT_ALSO_UNIVERSES).
-  grocery_store:        'épicerie alimentation générale',
+  // Deux requêtes COURTES (18/11/2026) : la phrase unique « épicerie
+  // alimentation générale » ne remontait presque rien de local à Cergy, et
+  // aucune des épiceries que Google Maps affiche pour « épicerie » (Proxi,
+  // épiceries exotiques, supérettes Lycamobile…).
+  grocery_store:        ['épicerie', 'alimentation générale'],
   // Santé
   mental_health:        'psychologue psychiatre thérapeute psychanalyste cabinet psy',
   laboratory:           'laboratoire analyses médicales prises de sang labo bilan',
@@ -318,6 +322,22 @@ const HYDRATION_VERSIONS: Partial<Record<Universe, string>> = Object.fromEntries
     'cultural_outing', 'theater', 'photo_spot', 'cafe', 'fuel', 'monument', 'fitness',
   ] as Universe[]).map((u) => [u, 'v7']),
 );
+
+/**
+ * 18/11/2026 — épiceries : recherche au plus près (DISTANCE), zone stricte,
+ * deux requêtes courtes ; supermarchés : les grandes surfaces sorties des
+ * épiceries y arrivent. Seuls ces deux univers sont rechargés.
+ */
+HYDRATION_VERSIONS.grocery_store = 'v8';
+HYDRATION_VERSIONS.supermarket = 'v8';
+
+/**
+ * Univers dont les recherches Google se font au plus près (`DISTANCE`) dans
+ * une zone stricte, au lieu de « les plus populaires » : sinon les grandes
+ * surfaces occupent les 20 places et les commerces de quartier n'arrivent
+ * jamais.
+ */
+export const NEAREST_FIRST_UNIVERSES = new Set<Universe>(['grocery_store']);
 
 export function hydrationVersion(universe?: Universe): string {
   return (universe && HYDRATION_VERSIONS[universe]) || 'v6';
@@ -724,9 +744,15 @@ const SUPERMARKET_CHAIN = new RegExp(
     'rewe', 'edeka', 'kaufland', 'penny', 'albert heijn', 'jumbo', 'ica', 'coop',
     // Amérique du Nord
     'walmart', 'costco', 'kroger', 'safeway', 'whole foods', "trader joe'?s?", 'publix',
+    // Enseignes de supermarchés de quartier (Île-de-France)
+    'hmarket',
     // Le mot lui-même
     'hypermarche', 'hypermarket', 'supermarche', 'supermarket', 'supermercado', 'supermarkt', 'supermercato',
-  ].join('|') + ')\\b',
+  ].join('|') + ')\\b'
+  // Carrefour Market rebaptisé « Market <ville> » (« Market Jouy-le-Moutier ») :
+  // « Market » en PREMIER mot seulement — « Fenicia Market », « Exotique Market »
+  // sont des épiceries de quartier.
+  + '|^market\\b',
 );
 
 /** Commerce de quartier, d'après son nom. */
@@ -765,6 +791,12 @@ function groceryFamily(name: string, types: string[], otherwise: Universe): Univ
   if (SUPERMARKET_CHAIN.test(fold(name))) return 'supermarket';
   if (types.some((t) => BIG_STORE_TYPES.includes(t))) return 'supermarket';
   if (types.some((t) => SMALL_GROCERY_TYPES.includes(t))) return 'grocery_store';
+  // Le nom dit « épicerie », « alimentation », « Lycamobile »… : quartier.
+  if (SMALL_GROCERY_NAME.test(fold(name))) return 'grocery_store';
+  // Typé `supermarket` sans AUCUN type ni nom de commerce de quartier : une grande
+  // surface, même remontée par la recherche « épicerie » (18/11 : des Carrefour
+  // Market `supermarket, cosmetics_store, bakery` restaient en Épiceries).
+  if (types.includes('supermarket')) return 'supermarket';
   return otherwise;
 }
 
