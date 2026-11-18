@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, elevation, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { startSharingLocation, stopSharingLocation } from '../lib/share-location';
 import type { Plan } from '../lib/feed-api';
 import { Avatar, PlanBadgeIcon } from '../components/Avatar';
 import { useI18n } from '../lib/useI18n';
 import { FeatureTip } from '../components/FeatureTip';
+import { BrandButton } from '../components/social/SocialChrome';
+import { PB_BACK, PbButton, PbCircle } from '../components/pb1/PbChrome';
 
 const API = API_BASE_URL;
 
@@ -21,6 +23,10 @@ const API = API_BASE_URL;
  * au-delà de quelques dizaines, l'app finit tuée par le système (même
  * raison que la limite de 80 lieux de l'onglet Carte). On garde les plus
  * proches de l'utilisateur (ou du centre par défaut).
+ *
+ * Habillage du 18/11/2026 : la carte occupe tout l'écran, l'en-tête et le
+ * panneau de visibilité flottent dessus en verre sombre. Les repères gardent
+ * EXACTEMENT leur structure (une vue + un Avatar) et leur nombre.
  */
 const MAX_MARKERS = 60;
 
@@ -127,18 +133,21 @@ export default function WorldMapScreen() {
     : { latitude: 48.8566, longitude: 2.3522, latitudeDelta: 60, longitudeDelta: 60 };
 
   if (loading) {
-    return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} size="large" /></View>;
+    return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.textPrimary} size="large" /></View>;
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('wm_title')}</Text>
-        <Text style={styles.count}>{t('wm_online_count').replace('{n}', String(users.length))}</Text>
-      </View>
-
-      <MapView style={styles.map} initialRegion={initialRegion} showsUserLocation userInterfaceStyle="light">
+    <View style={styles.container}>
+      <MapView
+        style={styles.map}
+        initialRegion={initialRegion}
+        showsUserLocation
+        userInterfaceStyle="light"
+        // La carte passe sous l'en-tête et le panneau flottants : cette marge
+        // garde le logo Google / la mention Apple visibles au-dessus du
+        // panneau (exigé par leurs conditions d'utilisation).
+        mapPadding={{ top: insets.top + 56, right: 0, bottom: insets.bottom + 150, left: 0 }}
+      >
         {shownUsers.map((u) => (
           <Marker key={u.userId} coordinate={{ latitude: u.lat, longitude: u.lng }}>
             <View style={styles.markerContainer}>
@@ -153,7 +162,7 @@ export default function WorldMapScreen() {
               <View style={styles.callout}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <Text style={styles.calloutName}>{u.displayName}</Text>
-                  <PlanBadgeIcon plan={u.plan} size={28} />
+                  <PlanBadgeIcon plan={u.plan} size={18} />
                 </View>
                 {u.bio && <Text style={styles.calloutBio} numberOfLines={2}>{u.bio}</Text>}
                 <Text style={styles.calloutAction}>{t('wm_see_profile')}</Text>
@@ -162,6 +171,17 @@ export default function WorldMapScreen() {
           </Marker>
         ))}
       </MapView>
+
+      {/* En-tête flottant, en verre sombre. `box-none` : la carte reste
+          manipulable entre les éléments. */}
+      <View style={[styles.header, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
+        <PbCircle label={PB_BACK} onPress={() => router.back()} style={styles.headerGlass} />
+        <View style={[styles.titlePill, styles.headerGlass]}>
+          <Text style={styles.title} numberOfLines={1}>{t('wm_title')}</Text>
+          <View style={styles.titleDot} />
+          <Text style={styles.count} numberOfLines={1}>{t('wm_online_count').replace('{n}', String(users.length))}</Text>
+        </View>
+      </View>
 
       {/* Broadcast toggle */}
       <View style={[styles.broadcastBar, { bottom: insets.bottom + 20 }]}>
@@ -176,7 +196,7 @@ export default function WorldMapScreen() {
                 '{who}',
                 t(user?.mapAudience === 'everyone' ? 'esp_audience_everyone' : 'esp_audience_friends'),
               )}
-              {' · '}{t('wm_change')}
+              {' · '}<Text style={styles.audienceChange}>{t('wm_change')}</Text>
             </Text>
           </Pressable>
           <Text style={styles.broadcastSub}>
@@ -187,9 +207,15 @@ export default function WorldMapScreen() {
                 : t('wm_activate_hint')}
           </Text>
         </View>
-        <Pressable style={[styles.broadcastBtn, broadcasting && styles.broadcastBtnActive]} onPress={toggleBroadcast}>
-          <Text style={styles.broadcastBtnText}>{broadcasting ? t('wm_deactivate') : t('wm_show_me')}</Text>
-        </Pressable>
+        {broadcasting ? (
+          // Désactiver : neutre, texte rouge fonctionnel.
+          <PbButton onPress={toggleBroadcast} variant="glass" compact>
+            <Text style={styles.deactivateText} numberOfLines={1}>{t('wm_deactivate')}</Text>
+          </PbButton>
+        ) : (
+          // M'afficher : l'action principale, seul bouton au dégradé de marque.
+          <BrandButton label={t('wm_show_me')} onPress={toggleBroadcast} compact />
+        )}
       </View>
       <FeatureTip feature="world_map" />
     </View>
@@ -198,37 +224,49 @@ export default function WorldMapScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md,
-    paddingVertical: 12, zIndex: 10,
-  },
-  back: { fontSize: 22, color: colors.brand, marginRight: spacing.sm },
-  title: { ...typography.h2, color: colors.text, flex: 1 },
-  count: { fontSize: 13, color: colors.textMuted },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   map: { flex: 1 },
+
+  header: {
+    position: 'absolute', left: spacing.md, right: spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+  },
+  // Sur une carte claire, le verre doit être presque opaque pour rester lisible.
+  headerGlass: {
+    backgroundColor: 'rgba(14,14,18,0.9)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+    ...elevation.medium,
+  },
+  titlePill: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1,
+    height: 42, paddingHorizontal: spacing.md, borderRadius: radius.pill,
+  },
+  title: { color: colors.textPrimary, fontSize: 16, fontWeight: '900', letterSpacing: -0.2, flexShrink: 1 },
+  titleDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.textMuted },
+  count: { fontSize: 13, color: colors.textSecondary, fontWeight: '700', fontVariant: ['tabular-nums'] },
+
   markerContainer: {
     width: 44, height: 44, borderRadius: 22,
     borderWidth: 3, borderColor: colors.brand,
     overflow: 'hidden', backgroundColor: colors.surface,
   },
-  markerAvatar: { width: 38, height: 38, borderRadius: 19 },
   callout: { padding: 12, minWidth: 160, maxWidth: 220 },
-  calloutName: { fontWeight: '700', fontSize: 15, marginBottom: 4 },
-  calloutBio: { fontSize: 13, color: '#666', marginBottom: 6 },
-  calloutAction: { color: '#007AFF', fontWeight: '700', fontSize: 13 },
+  calloutName: { fontWeight: '800', fontSize: 15, marginBottom: 4, color: '#111' },
+  calloutBio: { fontSize: 13, color: '#555', marginBottom: 6 },
+  calloutAction: { color: '#111', fontWeight: '800', fontSize: 13 },
+
   broadcastBar: {
     position: 'absolute', left: spacing.md, right: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.xl,
+    backgroundColor: 'rgba(14,14,18,0.94)', borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)',
     padding: spacing.md, flexDirection: 'row', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
     gap: 12,
+    ...elevation.medium,
   },
   broadcastInfo: { flex: 1 },
-  broadcastTitle: { fontWeight: '700', color: colors.text, fontSize: 14, marginBottom: 2 },
-  broadcastSub: { fontSize: 12, color: colors.textMuted },
-  broadcastBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 16, paddingVertical: 10 },
-  broadcastBtnActive: { backgroundColor: '#ef4444' },
-  broadcastBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  audienceLink: { color: colors.brandSoft, fontSize: 12, fontWeight: '600', marginTop: 2 },
+  broadcastTitle: { fontWeight: '900', color: colors.text, fontSize: 15, marginBottom: 2, letterSpacing: -0.2 },
+  broadcastSub: { fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 16 },
+  audienceLink: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 2 },
+  audienceChange: { color: colors.textPrimary, fontWeight: '800', textDecorationLine: 'underline' },
+  deactivateText: { color: colors.danger, fontSize: 13, fontWeight: '800' },
 });

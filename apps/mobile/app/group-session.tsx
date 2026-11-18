@@ -2,13 +2,16 @@
  * GROUP SESSION — salle de vote collaborative.
  * Statuts : waiting (en attente) → voting (vote en cours) → done (lieu choisi).
  * Polling toutes les 3 s pour synchroniser l'état entre les membres.
+ *
+ * Habillage du 18/11/2026 : sobre (verre sombre, blanc). Le dégradé de marque
+ * n'apparaît que sur le cadre du code d'invitation et sur le bouton principal
+ * de l'étape en cours. Le vert et le rouge des votes restent : ils ont un sens.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   ActivityIndicator,
   ScrollView,
   Image,
@@ -31,6 +34,10 @@ import {
 } from '../lib/groups-api';
 import { useI18n } from '../lib/useI18n';
 import { ratingSuffix } from '../lib/place-rating';
+import { PressableScale, Reveal } from '../components/ui';
+import { BrandButton } from '../components/social/SocialChrome';
+import { BrandFrame } from '../components/profile/ProfileChrome';
+import { PB_GLASS, PbButton, PbHeader, PbLabel, PbPill } from '../components/pb1/PbChrome';
 
 const POLL_INTERVAL = 3000;
 
@@ -146,7 +153,7 @@ export default function GroupSessionScreen() {
   if (loading) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={colors.brand} />
+        <ActivityIndicator size="large" color={colors.textPrimary} />
       </View>
     );
   }
@@ -155,9 +162,7 @@ export default function GroupSessionScreen() {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <Text style={styles.errorText}>{error ?? t('gs_session_not_found')}</Text>
-        <Pressable onPress={() => router.back()} style={styles.backBtnSmall}>
-          <Text style={styles.backBtnSmallText}>{t('gs_back')}</Text>
-        </Pressable>
+        <PbButton label={t('gs_back')} onPress={() => router.back()} variant="glass" compact />
       </View>
     );
   }
@@ -173,39 +178,46 @@ export default function GroupSessionScreen() {
       contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{t('gs_title')}</Text>
-          <Text style={styles.statusBadge}>
-            {session.status === 'waiting' ? t('gs_status_waiting') :
-             session.status === 'voting' ? t('gs_status_voting') : t('gs_status_done')}
-          </Text>
-        </View>
-      </View>
+      <PbHeader
+        title={t('gs_title')}
+        onBack={() => router.back()}
+        style={{ paddingTop: insets.top + spacing.sm }}
+        right={(
+          <PbPill
+            // Point de statut : vert quand le groupe a choisi, blanc sinon.
+            dot={session.status === 'done' ? colors.success : 'rgba(255,255,255,0.7)'}
+            label={session.status === 'waiting' ? t('gs_status_waiting') :
+              session.status === 'voting' ? t('gs_status_voting') : t('gs_status_done')}
+            style={styles.statusPill}
+          />
+        )}
+      />
 
-      {/* Code d'invitation */}
-      <Pressable style={styles.codeCard} onPress={handleShare}>
-        <View>
-          <Text style={styles.codeLabel}>{t('gs_invite_code')}</Text>
-          <Text style={styles.codeValue}>{session.inviteCode}</Text>
-        </View>
-        <Text style={styles.shareBtn}>{t('gs_share')}</Text>
-      </Pressable>
+      {/* Code d'invitation — le cadre au dégradé de marque de l'écran. */}
+      <Reveal index={0} style={styles.codeWrap}>
+        <PressableScale onPress={handleShare} scaleTo={0.98} haptic>
+          <BrandFrame innerStyle={styles.codeCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.codeLabel}>{t('gs_invite_code')}</Text>
+              <Text style={styles.codeValue} numberOfLines={1} adjustsFontSizeToFit>{session.inviteCode}</Text>
+            </View>
+            <View style={[styles.shareBtn, PB_GLASS]}>
+              <Text style={styles.shareBtnText} numberOfLines={1}>{t('gs_share')}</Text>
+            </View>
+          </BrandFrame>
+        </PressableScale>
+      </Reveal>
 
       {/* Membres */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('gs_members_count').replace('{n}', String(session.members.length))}</Text>
+      <Reveal index={1} style={styles.section}>
+        <PbLabel label={t('gs_members_count').replace('{n}', String(session.members.length))} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.membersRow}>
           {session.members.map((m) => (
             <View key={m.id} style={styles.memberItem}>
               {m.photoUrl
                 ? <Image source={{ uri: m.photoUrl }} style={styles.memberAvatar} />
                 : (
-                  <View style={styles.memberAvatarPlaceholder}>
+                  <View style={[styles.memberAvatarPlaceholder, PB_GLASS]}>
                     <Text style={styles.memberInitial}>
                       {(m.displayName ?? 'I').charAt(0).toUpperCase()}
                     </Text>
@@ -222,40 +234,31 @@ export default function GroupSessionScreen() {
             </View>
           ))}
         </ScrollView>
-      </View>
+      </Reveal>
 
       {/* État WAITING : bouton lancer recherche (hôte seulement) */}
       {session.status === 'waiting' && (
-        <View style={styles.section}>
+        <Reveal index={2} style={styles.section}>
           {isHost ? (
             <>
               <Text style={styles.infoText}>
                 {t('gs_host_ready_prompt')}
               </Text>
-              <Pressable
-                style={[styles.launchBtn, suggesting && styles.btnDisabled]}
-                onPress={handleSuggest}
-                disabled={suggesting}
-              >
-                {suggesting
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.launchBtnText}>{t('gs_launch_search')}</Text>
-                }
-              </Pressable>
+              <BrandButton label={t('gs_launch_search')} onPress={handleSuggest} loading={suggesting} />
             </>
           ) : (
-            <View style={styles.waitBox}>
-              <Text style={styles.infoText}>{t('gs_waiting_for_host')}</Text>
-              <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.md }} />
+            <View style={[styles.waitBox, PB_GLASS]}>
+              <ActivityIndicator color={colors.textPrimary} />
+              <Text style={[styles.infoText, styles.waitText]}>{t('gs_waiting_for_host')}</Text>
             </View>
           )}
-        </View>
+        </Reveal>
       )}
 
       {/* État VOTING : cartes de vote */}
       {session.status === 'voting' && session.suggestions.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('gs_vote_each')}</Text>
+          <PbLabel label={t('gs_vote_each')} />
           {session.suggestions.map((s) => (
             <SuggestionVoteCard
               key={s.placeId}
@@ -271,9 +274,9 @@ export default function GroupSessionScreen() {
 
       {/* État DONE : gagnant */}
       {session.status === 'done' && winner && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('gs_group_chose')}</Text>
-          <View style={styles.winnerCard}>
+        <Reveal index={2} style={styles.section}>
+          <PbLabel label={t('gs_group_chose')} />
+          <View style={[styles.winnerCard, PB_GLASS]}>
             {winner.photoUrl && (
               <Image source={{ uri: winner.photoUrl }} style={styles.winnerPhoto} />
             )}
@@ -285,11 +288,9 @@ export default function GroupSessionScreen() {
                 <Text style={[styles.winnerVoteStat, { color: colors.danger }]}>👎 {winner.dislikes}</Text>
               </View>
             </View>
-            <Pressable style={styles.goBtn} onPress={() => handleGoToPlace(winner)}>
-              <Text style={styles.goBtnText}>{t('gs_go_there')}</Text>
-            </Pressable>
+            <BrandButton label={t('gs_go_there')} onPress={() => handleGoToPlace(winner)} style={styles.goBtn} />
           </View>
-        </View>
+        </Reveal>
       )}
     </ScrollView>
   );
@@ -313,7 +314,7 @@ function SuggestionVoteCard({
   const dislikeLoading = votingId === s.placeId + 'dislike';
 
   return (
-    <View style={styles.voteCard}>
+    <View style={[styles.voteCard, PB_GLASS]}>
       {s.photoUrl && (
         <Image source={{ uri: s.photoUrl }} style={styles.voteCardPhoto} />
       )}
@@ -323,30 +324,30 @@ function SuggestionVoteCard({
           {s.city}{ratingSuffix(s.rating)}
         </Text>
         <View style={styles.voteRow}>
-          <Pressable
-            style={[styles.voteBtn, s.myVote === 'like' && styles.voteBtnActive, likeLoading && styles.btnDisabled]}
+          <PressableScale
+            style={[styles.voteBtn, PB_GLASS, s.myVote === 'like' && styles.voteBtnActive, likeLoading && styles.btnDisabled]}
             onPress={() => onVote(s.placeId, 'like')}
             disabled={!!votingId}
+            scaleTo={0.94}
           >
             {likeLoading
               ? <ActivityIndicator size="small" color={colors.success} />
               : <Text style={styles.voteBtnText}>👍 {s.likes}</Text>
             }
-          </Pressable>
-          <Pressable
-            style={[styles.voteBtn, s.myVote === 'dislike' && styles.voteBtnDanger, dislikeLoading && styles.btnDisabled]}
+          </PressableScale>
+          <PressableScale
+            style={[styles.voteBtn, PB_GLASS, s.myVote === 'dislike' && styles.voteBtnDanger, dislikeLoading && styles.btnDisabled]}
             onPress={() => onVote(s.placeId, 'dislike')}
             disabled={!!votingId}
+            scaleTo={0.94}
           >
             {dislikeLoading
               ? <ActivityIndicator size="small" color={colors.danger} />
               : <Text style={styles.voteBtnText}>👎 {s.dislikes}</Text>
             }
-          </Pressable>
+          </PressableScale>
           {isHost && (
-            <Pressable style={styles.decideBtn} onPress={() => onDecide(s.placeId)}>
-              <Text style={styles.decideBtnText}>{t('gs_choose')}</Text>
-            </Pressable>
+            <PbButton label={t('gs_choose')} onPress={() => onDecide(s.placeId)} compact style={styles.decideBtn} />
           )}
         </View>
       </View>
@@ -358,128 +359,85 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
   errorText: { ...typography.body, color: colors.danger, textAlign: 'center', paddingHorizontal: spacing.lg },
+  statusPill: { alignSelf: 'center', maxWidth: 150 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backBtn: { paddingTop: 4 },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
-  title: { ...typography.heading, color: colors.textPrimary },
-  statusBadge: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-
+  codeWrap: { paddingHorizontal: spacing.md, marginTop: spacing.xs },
   codeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    margin: spacing.md,
-    backgroundColor: `${colors.brand}12`,
-    borderColor: colors.brand,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    gap: spacing.md,
+    padding: spacing.lg,
+    backgroundColor: colors.bg,
   },
-  codeLabel: { ...typography.caption, color: colors.textSecondary },
-  codeValue: { ...typography.title, color: colors.brand, letterSpacing: 6, marginTop: 2 },
-  shareBtn: { ...typography.caption, color: colors.brand, fontWeight: '700' },
+  codeLabel: {
+    color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase',
+  },
+  codeValue: {
+    color: colors.textPrimary, fontSize: 34, fontWeight: '900', letterSpacing: 8, marginTop: 4,
+    fontVariant: ['tabular-nums'],
+  },
+  shareBtn: { borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 40, alignItems: 'center', justifyContent: 'center', maxWidth: 140 },
+  shareBtnText: { color: colors.textPrimary, fontSize: 13, fontWeight: '800' },
 
-  section: { paddingHorizontal: spacing.md, marginTop: spacing.lg },
-  sectionTitle: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.md },
+  section: { paddingHorizontal: spacing.md, marginTop: spacing.xl },
 
-  membersRow: { gap: spacing.md, paddingRight: spacing.sm },
-  memberItem: { alignItems: 'center', gap: 4, width: 56 },
-  memberAvatar: { width: 44, height: 44, borderRadius: 22 },
+  membersRow: { gap: spacing.md, paddingEnd: spacing.sm },
+  memberItem: { alignItems: 'center', gap: 5, width: 62 },
+  memberAvatar: {
+    width: 52, height: 52, borderRadius: 26,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)',
+  },
   memberAvatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceElevated,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  memberInitial: { ...typography.heading, color: colors.brand, fontSize: 18 },
-  memberName: { ...typography.label, color: colors.textPrimary, fontSize: 10, textAlign: 'center' },
-  memberVotedCount: { ...typography.label, color: colors.textMuted, fontSize: 9 },
+  memberInitial: { color: colors.textPrimary, fontSize: 19, fontWeight: '900' },
+  memberName: { ...typography.label, color: colors.textPrimary, fontSize: 11, textAlign: 'center' },
+  memberVotedCount: { ...typography.label, color: colors.textMuted, fontSize: 10 },
 
   infoText: { ...typography.body, color: colors.textSecondary, lineHeight: 22, marginBottom: spacing.md },
-  waitBox: { alignItems: 'center', paddingVertical: spacing.xl },
-  launchBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  launchBtnText: { ...typography.body, color: '#fff', fontWeight: '700' },
+  waitBox: { alignItems: 'center', paddingVertical: spacing.xl, paddingHorizontal: spacing.lg, borderRadius: radius.lg, gap: spacing.md },
+  waitText: { marginBottom: 0, textAlign: 'center' },
 
   voteCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
     borderRadius: radius.lg,
     marginBottom: spacing.md,
     overflow: 'hidden',
   },
-  voteCardPhoto: { width: '100%', height: 140 },
-  voteCardBody: { padding: spacing.md, gap: spacing.sm },
-  voteCardName: { ...typography.heading, color: colors.textPrimary },
-  voteCardMeta: { ...typography.caption, color: colors.textMuted },
-  voteRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', marginTop: spacing.sm },
+  voteCardPhoto: { width: '100%', height: 190 },
+  voteCardBody: { padding: spacing.md, gap: 4 },
+  voteCardName: { color: colors.textPrimary, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 },
+  voteCardMeta: { ...typography.caption, color: colors.textSecondary },
+  voteRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center', marginTop: spacing.md },
   voteBtn: {
     flex: 1,
-    borderColor: colors.border,
-    borderWidth: 1.5,
     borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 38,
+    height: 44,
   },
-  voteBtnActive: { backgroundColor: `${colors.success}18`, borderColor: colors.success },
-  voteBtnDanger: { backgroundColor: `${colors.danger}18`, borderColor: colors.danger },
-  voteBtnText: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
-  decideBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  decideBtnText: { ...typography.caption, color: '#fff', fontWeight: '700' },
+  voteBtnActive: { backgroundColor: `${colors.success}22`, borderColor: colors.success, borderWidth: 1.5 },
+  voteBtnDanger: { backgroundColor: `${colors.danger}22`, borderColor: colors.danger, borderWidth: 1.5 },
+  voteBtnText: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  decideBtn: { height: 44 },
 
   winnerCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.success,
-    borderWidth: 1.5,
     borderRadius: radius.lg,
     overflow: 'hidden',
   },
-  winnerPhoto: { width: '100%', height: 180 },
+  winnerPhoto: { width: '100%', height: 240 },
   winnerInfo: { padding: spacing.md, gap: spacing.sm },
-  winnerName: { ...typography.heading, color: colors.textPrimary, fontSize: 20 },
-  winnerMeta: { ...typography.caption, color: colors.textMuted },
+  winnerName: { color: colors.textPrimary, fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  winnerMeta: { ...typography.caption, color: colors.textSecondary },
   winnerVotes: { flexDirection: 'row', gap: spacing.lg },
   winnerVoteStat: { ...typography.body, color: colors.success, fontWeight: '700' },
   goBtn: {
-    backgroundColor: colors.brand,
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
   },
-  goBtnText: { ...typography.body, color: '#fff', fontWeight: '700' },
 
-  backBtnSmall: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  backBtnSmallText: { ...typography.body, color: colors.textSecondary },
   btnDisabled: { opacity: 0.5 },
 });

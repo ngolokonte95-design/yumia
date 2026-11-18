@@ -3,24 +3,26 @@
  *   • Créer une session collaborative (code partageable + salle de vote)
  *   • Rejoindre une session via un code à 6 caractères
  *   • Quick Search (recherche rapide non-collaborative)
+ *
+ * Habillage du 18/11/2026 : sobre (verre sombre, blanc), le dégradé de marque
+ * réservé à l'action principale de chaque onglet et au trait de l'onglet actif.
  */
 import { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   TextInput,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Share,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, elevation, gradients, radius, spacing, typography } from '../theme/tokens';
 import { useLocation } from '../lib/useLocation';
 import { useAuth } from '../lib/auth-context';
 import { useSaved } from '../lib/useSaved';
@@ -35,6 +37,11 @@ import type { Top3Response } from '../lib/api';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
 import { FeatureTip } from '../components/FeatureTip';
+import { PressableScale, Reveal } from '../components/ui';
+import { BrandButton } from '../components/social/SocialChrome';
+import {
+  PB_CHEVRON, PB_GLASS, PbButton, PbChip, PbHeader, PbLabel, PbTabs,
+} from '../components/pb1/PbChrome';
 
 type Tab = 'session' | 'quick';
 
@@ -144,125 +151,121 @@ export default function GroupScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>←</Text>
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>{t('group_title')}</Text>
-            <Text style={styles.subtitle}>{t('group_subtitle')}</Text>
-          </View>
-        </View>
+        <PbHeader
+          title={t('group_title')}
+          subtitle={t('group_subtitle')}
+          onBack={() => router.back()}
+          style={{ paddingTop: insets.top + spacing.sm }}
+        />
 
-        {/* Tabs */}
-        <View style={styles.tabs}>
-          <Pressable
-            style={[styles.tab, tab === 'session' && styles.tabActive]}
-            onPress={() => setTab('session')}
-          >
-            <Text style={[styles.tabText, tab === 'session' && styles.tabTextActive]}>
-              {t('group_tab_session')}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.tab, tab === 'quick' && styles.tabActive]}
-            onPress={() => setTab('quick')}
-          >
-            <Text style={[styles.tabText, tab === 'quick' && styles.tabTextActive]}>
-              {t('group_tab_quick')}
-            </Text>
-          </Pressable>
-        </View>
+        <PbTabs
+          tabs={[
+            { key: 'session', label: t('group_tab_session') },
+            { key: 'quick', label: t('group_tab_quick') },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
 
         {tab === 'session' ? (
           <View style={styles.section}>
-            {/* Créer */}
-            <Pressable
-              style={[styles.createBtn, sessionLoading && styles.btnDisabled]}
-              onPress={handleCreate}
-              disabled={sessionLoading}
-            >
-              {sessionLoading
-                ? <ActivityIndicator color="#fff" />
-                : <>
-                    <Text style={styles.createBtnIcon}>🎯</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.createBtnTitle}>{t('group_create_session_title')}</Text>
-                      <Text style={styles.createBtnSub}>{t('group_create_session_sub')}</Text>
-                    </View>
-                    <Text style={styles.createBtnChevron}>›</Text>
-                  </>
-              }
-            </Pressable>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>{t('group_or_join')}</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Rejoindre */}
-            <View style={styles.joinBox}>
-              <TextInput
-                style={styles.codeInput}
-                placeholder={t('group_code_placeholder')}
-                placeholderTextColor={colors.textMuted}
-                value={joinCode}
-                onChangeText={(v) => setJoinCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                maxLength={6}
-                returnKeyType="join"
-                onSubmitEditing={handleJoin}
-              />
-              <Pressable
-                style={[styles.joinBtn, (joinCode.length !== 6 || sessionLoading) && styles.btnDisabled]}
-                onPress={handleJoin}
-                disabled={joinCode.length !== 6 || sessionLoading}
+            {/* Créer — l'action principale, seule surface au dégradé de marque. */}
+            <Reveal index={0}>
+              <PressableScale
+                style={[styles.createBtn, sessionLoading && styles.btnDisabled]}
+                onPress={handleCreate}
+                disabled={sessionLoading}
+                scaleTo={0.97}
+                haptic
               >
-                <Text style={styles.joinBtnText}>{t('group_join_btn')}</Text>
-              </Pressable>
-            </View>
+                <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                <LinearGradient colors={gradients.glassSheen} style={StyleSheet.absoluteFill} />
+                {sessionLoading
+                  ? <ActivityIndicator color="#fff" style={{ flex: 1 }} />
+                  : <>
+                      <View style={styles.createBtnMedal}>
+                        <Text style={styles.createBtnIcon}>🎯</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.createBtnTitle}>{t('group_create_session_title')}</Text>
+                        <Text style={styles.createBtnSub}>{t('group_create_session_sub')}</Text>
+                      </View>
+                      <Text style={styles.createBtnChevron}>{PB_CHEVRON}</Text>
+                    </>
+                }
+              </PressableScale>
+            </Reveal>
 
-            {sessionError ? <Text style={styles.error}>{sessionError}</Text> : null}
+            <Reveal index={1}>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t('group_or_join')}</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                {t('group_info_text')}
-              </Text>
-            </View>
+              {/* Rejoindre */}
+              <View style={styles.joinBox}>
+                <TextInput
+                  style={[styles.codeInput, PB_GLASS]}
+                  placeholder={t('group_code_placeholder')}
+                  placeholderTextColor={colors.textMuted}
+                  value={joinCode}
+                  onChangeText={(v) => setJoinCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  maxLength={6}
+                  returnKeyType="join"
+                  onSubmitEditing={handleJoin}
+                />
+                <PbButton
+                  label={t('group_join_btn')}
+                  onPress={handleJoin}
+                  disabled={joinCode.length !== 6 || sessionLoading}
+                  style={styles.joinBtn}
+                />
+              </View>
+
+              {sessionError ? <Text style={styles.error}>{sessionError}</Text> : null}
+            </Reveal>
+
+            <Reveal index={2}>
+              <View style={[styles.infoBox, PB_GLASS]}>
+                <Text style={styles.infoText}>
+                  {t('group_info_text')}
+                </Text>
+              </View>
+            </Reveal>
           </View>
         ) : (
           <View>
-            <View style={styles.section}>
-              <Text style={styles.label}>{t('group_occasion')}</Text>
+            <Reveal index={0} style={styles.section}>
+              <PbLabel label={t('group_occasion')} />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {THEMES.map((th) => (
-                  <Pressable
+                  <PbChip
                     key={th.key}
-                    style={[styles.chip, theme === th.key && styles.chipActive]}
+                    emoji={th.emoji}
+                    label={t(th.labelKey)}
+                    active={theme === th.key}
                     onPress={() => setTheme((prev) => (prev === th.key ? null : th.key))}
-                  >
-                    <Text style={styles.chipEmoji}>{th.emoji}</Text>
-                    <Text style={[styles.chipLabel, theme === th.key && styles.chipLabelActive]}>
-                      {t(th.labelKey)}
-                    </Text>
-                  </Pressable>
+                  />
                 ))}
               </ScrollView>
-            </View>
+            </Reveal>
 
-            <View style={styles.section}>
-              <Text style={styles.label}>{t('group_number_of_people')}</Text>
+            <Reveal index={1} style={styles.section}>
+              <PbLabel label={t('group_number_of_people')} />
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {SIZES.map((n) => {
                   const circleLimit = getLimit('circleMaxMembers');
                   const locked = n > circleLimit;
                   return (
-                    <Pressable
+                    <PbChip
                       key={n}
-                      style={[styles.sizeChip, size === n && !locked && styles.chipActive, locked && styles.sizeChipLocked]}
+                      round
+                      label={`${n}${locked ? ' 👑' : ''}`}
+                      active={size === n && !locked}
+                      locked={locked}
                       onPress={() => {
                         if (locked) {
                           setUpsell(t('group_circle_limit').replace('{n}', String(circleLimit)));
@@ -270,20 +273,16 @@ export default function GroupScreen() {
                         }
                         setSize(n);
                       }}
-                    >
-                      <Text style={[styles.sizeText, size === n && !locked && styles.chipLabelActive, locked && styles.sizeTextLocked]}>
-                        {n}{locked ? ' 👑' : ''}
-                      </Text>
-                    </Pressable>
+                    />
                   );
                 })}
               </ScrollView>
-            </View>
+            </Reveal>
 
-            <View style={styles.section}>
-              <Text style={styles.label}>{t('group_precisions_label')}</Text>
+            <Reveal index={2} style={styles.section}>
+              <PbLabel label={t('group_precisions_label')} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, PB_GLASS]}
                 placeholder={t('group_precisions_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={note}
@@ -291,26 +290,22 @@ export default function GroupScreen() {
                 multiline
                 numberOfLines={2}
               />
-            </View>
+            </Reveal>
 
-            <View style={[styles.section, { marginTop: spacing.sm }]}>
-              <Pressable
-                style={[styles.searchBtn, loading && styles.btnDisabled]}
-                onPress={handleQuickSearch}
-                disabled={loading}
-              >
-                {loading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.searchBtnText}>{t('group_find_place')}</Text>
-                }
-              </Pressable>
-            </View>
+            <Reveal index={3} style={[styles.section, { marginTop: spacing.lg }]}>
+              <BrandButton label={t('group_find_place')} onPress={handleQuickSearch} loading={loading} />
+            </Reveal>
 
             {error ? <View style={styles.section}><Text style={styles.error}>{error}</Text></View> : null}
 
             {result ? (
               <View style={styles.section}>
-                {result.reason ? <Text style={styles.reason}>{result.reason}</Text> : null}
+                {result.reason ? (
+                  <View style={[styles.reasonBox, PB_GLASS]}>
+                    <Text style={styles.reasonIcon}>✨</Text>
+                    <Text style={styles.reason}>{result.reason}</Text>
+                  </View>
+                ) : null}
                 <View style={{ gap: spacing.md }}>
                   {result.suggestions.map((s) => (
                     <SuggestionCard
@@ -335,61 +330,39 @@ export default function GroupScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backBtn: { paddingTop: 4 },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 22 },
-  title: { ...typography.heading, color: colors.textPrimary },
-  subtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: { borderBottomColor: colors.brand },
-  tabText: { ...typography.caption, color: colors.textMuted },
-  tabTextActive: { ...typography.caption, color: colors.brand, fontWeight: '700' },
-
-  section: { paddingHorizontal: spacing.md, marginTop: spacing.lg },
-  label: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.sm },
+  section: { paddingHorizontal: spacing.md, marginTop: spacing.xl },
 
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.brand,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    minHeight: 96,
+    overflow: 'hidden',
+    ...elevation.glowBrand,
   },
-  btnDisabled: { opacity: 0.5 },
-  createBtnIcon: { fontSize: 28 },
-  createBtnTitle: { ...typography.body, color: '#fff', fontWeight: '700' },
-  createBtnSub: { ...typography.caption, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  createBtnChevron: { ...typography.title, color: '#fff', lineHeight: 22 },
+  btnDisabled: { opacity: 0.6 },
+  createBtnMedal: {
+    width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  createBtnIcon: { fontSize: 26 },
+  createBtnTitle: { color: '#fff', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 },
+  createBtnSub: { ...typography.caption, color: 'rgba(255,255,255,0.85)', marginTop: 3 },
+  createBtnChevron: { color: '#fff', fontSize: 26, fontWeight: '300' },
 
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { ...typography.caption, color: colors.textMuted },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.16)' },
+  dividerText: {
+    color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1.8, textTransform: 'uppercase',
+  },
 
   joinBox: {
     flexDirection: 'row',
@@ -399,80 +372,39 @@ const styles = StyleSheet.create({
   },
   codeInput: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    ...typography.heading,
+    height: 56,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
     color: colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '900',
     letterSpacing: 6,
     textAlign: 'center',
   },
-  joinBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  joinBtnText: { ...typography.body, color: '#fff', fontWeight: '700' },
+  joinBtn: { height: 56 },
 
   error: { ...typography.caption, color: colors.danger, marginTop: spacing.md },
 
   infoBox: {
     marginTop: spacing.xl,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
   },
   infoText: { ...typography.caption, color: colors.textSecondary, lineHeight: 20 },
 
-  chipsRow: { gap: spacing.sm, paddingRight: spacing.md },
-  chip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1.5,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  chipActive: { backgroundColor: `${colors.brand}18`, borderColor: colors.brand },
-  chipEmoji: { fontSize: 16 },
-  chipLabel: { ...typography.caption, color: colors.textPrimary },
-  chipLabelActive: { color: colors.brandSoft },
-  sizeChip: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sizeChipLocked: { opacity: 0.5, borderColor: '#7C3AED44' },
-  sizeText: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  sizeTextLocked: { fontSize: 11, color: '#A78BFA' },
+  chipsRow: { gap: spacing.sm, paddingEnd: spacing.md },
   input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     padding: spacing.md,
     color: colors.textPrimary,
     ...typography.body,
-    minHeight: 72,
+    minHeight: 80,
     textAlignVertical: 'top',
   },
-  searchBtn: {
-    backgroundColor: colors.brand,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
+  reasonBox: {
+    flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start',
+    borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md,
   },
-  searchBtnText: { ...typography.body, color: '#fff', fontWeight: '700' },
-  reason: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.md },
+  reasonIcon: { fontSize: 16 },
+  reason: { ...typography.body, color: colors.textPrimary, flex: 1, lineHeight: 21 },
 });

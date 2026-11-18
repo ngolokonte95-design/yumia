@@ -6,17 +6,25 @@
  * listées dans l'app, mais la page de la ville ouverte directement, avec notre
  * identifiant. Le serveur vérifie que cette page existe (GET /affiliates/car-rental)
  * et retombe sinon sur leur accueil.
+ *
+ * Habillage du 18/11/2026 : sobre — champ en pilule de verre, suggestions en
+ * groupe vitré, un seul bouton au dégradé de marque.
  */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, spacing, typography } from '../theme/tokens';
 import { useAuth } from '../lib/auth-context';
 import { useLocation } from '../lib/useLocation';
 import { fetchCarRentalLink, fetchTourCities } from '../lib/affiliates-api';
 import { useI18n } from '../lib/useI18n';
 import { openExternalHttps } from '../lib/external-link';
+import { PressableScale, Reveal } from '../components/ui';
+import { BrandButton } from '../components/social/SocialChrome';
+import { GlassGroup } from '../components/profile/ProfileChrome';
+import { SearchPill } from '../components/p2a/P2Chrome';
+import { PbHeader } from '../components/pb1/PbChrome';
 
 export default function CarRentalScreen() {
   const insets = useSafeAreaInsets();
@@ -69,56 +77,49 @@ export default function CarRentalScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{t('cr_title')}</Text>
-          <Text style={styles.subtitle}>{t('cr_subtitle')}</Text>
-        </View>
-      </View>
+      <PbHeader
+        title={t('cr_title')}
+        subtitle={t('cr_subtitle')}
+        onBack={() => router.back()}
+        style={styles.header}
+      />
 
       <View style={styles.body}>
-        <TextInput
-          style={styles.input}
-          placeholder={t('gd_city_placeholder')}
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={(v) => { setQuery(v); setTyping(true); }}
-          returnKeyType="search"
-          onSubmitEditing={() => void open(query)}
-          autoCorrect={false}
-        />
+        <Reveal index={0}>
+          <SearchPill
+            placeholder={t('gd_city_placeholder')}
+            value={query}
+            onChangeText={(v) => { setQuery(v); setTyping(true); }}
+            returnKeyType="search"
+            onSubmitEditing={() => void open(query)}
+            autoCorrect={false}
+          />
+        </Reveal>
 
         {suggestions.length > 0 && (
-          <View style={styles.suggestBox}>
-            {suggestions.map((c, i) => (
-              <Pressable
+          <GlassGroup style={styles.suggestBox}>
+            {suggestions.map((c) => (
+              <PressableScale
                 key={c.label}
-                style={[styles.suggestRow, i > 0 && styles.suggestDivider]}
+                style={styles.suggestRow}
+                scaleTo={0.98}
                 onPress={() => { setQuery(c.name); void open(c.name); }}
               >
                 <Text style={styles.suggestIcon}>📍</Text>
                 <Text style={styles.suggestText} numberOfLines={1}>{c.label}</Text>
-              </Pressable>
+              </PressableScale>
             ))}
-          </View>
+          </GlassGroup>
         )}
 
-        <Pressable
-          style={[styles.cta, (!city || opening) && styles.ctaDisabled]}
-          disabled={!city || opening}
-          onPress={() => void open(query)}
-        >
-          {opening ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.ctaText}>
-              {city ? t('cr_button').replace('{city}', city) : t('cr_button_empty')} ↗
-            </Text>
-          )}
-        </Pressable>
+        <Reveal index={1}>
+          <BrandButton
+            label={`${city ? t('cr_button').replace('{city}', city) : t('cr_button_empty')} ↗`}
+            onPress={() => void open(query)}
+            disabled={!city}
+            loading={opening}
+          />
+        </Reveal>
 
         {error && <Text style={styles.error}>{t('cr_error')}</Text>}
 
@@ -130,27 +131,12 @@ export default function CarRentalScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  backBtn: { paddingTop: 2 },
-  backText: { ...typography.heading, color: colors.brandSoft, fontSize: 24 },
-  title: { ...typography.heading, color: colors.textPrimary },
-  subtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  body: { paddingHorizontal: spacing.md, gap: spacing.md },
-  input: {
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 48, ...typography.body, color: colors.textPrimary,
-  },
-  suggestBox: {
-    marginTop: -spacing.xs, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.lg, overflow: 'hidden',
-  },
-  suggestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 12 },
-  suggestDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  header: { paddingTop: spacing.sm },
+  body: { paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.md },
+  suggestBox: { marginTop: -spacing.xs },
+  suggestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 14 },
   suggestIcon: { fontSize: 14 },
   suggestText: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  cta: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingVertical: spacing.md, alignItems: 'center' },
-  ctaDisabled: { opacity: 0.5 },
-  ctaText: { ...typography.body, color: '#fff', fontWeight: '800' },
   error: { ...typography.caption, color: colors.danger, textAlign: 'center' },
-  disclosure: { ...typography.caption, color: colors.textMuted, textAlign: 'center', lineHeight: 18 },
+  disclosure: { ...typography.caption, color: colors.textMuted, textAlign: 'center', lineHeight: 18, marginTop: spacing.xs },
 });
