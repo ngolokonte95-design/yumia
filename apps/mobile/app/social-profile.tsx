@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
   ScrollView, Share, StyleSheet, Text, View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -181,6 +181,15 @@ export default function SocialProfileScreen() {
   }, [accessToken, user?.id, user?.id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Tirer pour rafraîchir : rejoue le chargement du profil (compteurs,
+  // publications, stories à la une, suggestions, story active) et la pastille
+  // des demandes d'abonnement.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await Promise.all([load(), loadFollowRequests()]); } finally { setRefreshing(false); }
+  }, [load, loadFollowRequests]);
 
   const followSuggestion = async (targetId: string) => {
     if (!accessToken) return;
@@ -418,6 +427,9 @@ export default function SocialProfileScreen() {
         data={gridData}
         numColumns={3}
         keyExtractor={(p) => p.id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor="#fff" colors={[colors.brand]} />
+        }
         ListHeaderComponent={ListHeader}
         columnWrapperStyle={styles.gridRow}
         ItemSeparatorComponent={() => <View style={{ height: GRID_GAP }} />}

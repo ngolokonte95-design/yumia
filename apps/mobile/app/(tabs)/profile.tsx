@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Share } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, View, Text, StyleSheet, Share } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,8 @@ import { colors, gradients, radius, spacing, typography } from '../../theme/toke
 import { useAuth } from '../../lib/auth-context';
 import { API_BASE_URL } from '../../lib/config';
 import { useI18n } from '../../lib/useI18n';
-import { usePassportStats } from '../../lib/usePassportStats';
+import { usePassportStats, type PassportData, type PassportStats } from '../../lib/usePassportStats';
+import { request } from '../../lib/api';
 import { useUnreadNotificationsCount } from '../../lib/useNotifications';
 import { Avatar, PlanBadgeIcon } from '../../components/Avatar';
 import { LocalePicker } from '../../components/LocalePicker';
@@ -44,10 +45,36 @@ const AVATAR = 104;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout, accessToken, updateProfile } = useAuth();
+  const { user, logout, accessToken, updateProfile, reloadUser } = useAuth();
   const router = useRouter();
   const { t, locale } = useI18n();
-  const { stats, passport, loading } = usePassportStats(accessToken);
+  const loaded = usePassportStats(accessToken);
+  const { loading } = loaded;
+
+  // Tirer pour rafraîchir : rejoue les deux requêtes du hook (/passport/stats
+  // et /passport) et recharge le compte (forfait, photo, nom). Le hook ne se
+  // relance pas à la demande : le résultat frais est gardé ici et prime sur
+  // le sien tant que l'écran vit.
+  const [fresh, setFresh] = useState<{ stats: PassportStats; passport: PassportData } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    if (!accessToken) return;
+    setRefreshing(true);
+    try {
+      const [s, p] = await Promise.all([
+        request<PassportStats>('/passport/stats', { token: accessToken }),
+        request<PassportData>('/passport', { token: accessToken }),
+        reloadUser(),
+      ]);
+      setFresh({ stats: s, passport: p });
+    } catch {
+      // Hors ligne ou erreur : on garde ce qui est affiché.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [accessToken, reloadUser]);
+  const stats = fresh?.stats ?? loaded.stats;
+  const passport = fresh?.passport ?? loaded.passport;
   const unreadCount = useUnreadNotificationsCount();
   const [showLocalePicker, setShowLocalePicker] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
@@ -118,6 +145,15 @@ export default function ProfileScreen() {
       style={styles.screen}
       contentContainerStyle={{ paddingTop: insets.top + spacing.sm, paddingBottom: spacing.xxl }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void onRefresh()}
+          tintColor="#fff"
+          colors={[colors.brand]}
+          progressViewOffset={insets.top}
+        />
+      }
     >
       {/* Barre du haut : logo, notifications, réglages */}
       <View style={styles.topBar}>

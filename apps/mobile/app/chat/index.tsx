@@ -7,7 +7,7 @@
  */
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Image, Modal, Pressable,
+  ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -101,6 +101,13 @@ export default function ChatListScreen() {
   // disparaisse — un simple useEffect au montage ne le referait jamais.
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
+  // Tirer pour rafraîchir : relance le même chargement (conversations + notes).
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
+
   const myNote = notes.find((n) => n.userId === me?.id);
   const otherNotes = notes.filter((n) => n.userId !== me?.id);
 
@@ -143,6 +150,9 @@ export default function ChatListScreen() {
         <FlatList
           data={conversations}
           keyExtractor={(c) => c.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor="#fff" colors={[colors.brand]} />
+          }
           ListHeaderComponent={
             /* ── Notes (statut 24h, façon Instagram) ─────────────────────── */
             <ScrollView

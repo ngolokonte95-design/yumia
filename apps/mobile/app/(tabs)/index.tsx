@@ -15,7 +15,7 @@
  * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
 } from 'react-native-reanimated';
@@ -123,6 +123,29 @@ export default function HomeScreen() {
     }, [accessToken]),
   );
 
+  // Tirer pour rafraîchir : le compteur de messages non lus (même requête
+  // que ci-dessus) et la barre météo. Celle-ci porte son propre chargement :
+  // on la remonte, elle relit son cache et ne rappelle le réseau que si sa
+  // donnée a plus de 15 min — sa règle habituelle, inchangée.
+  const [refreshing, setRefreshing] = useState(false);
+  const [weatherKey, setWeatherKey] = useState(0);
+  // Hauteur gardée pendant le remontage de la barre : le logo ne saute pas.
+  const [weatherHeight, setWeatherHeight] = useState(0);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      setWeatherKey((k) => k + 1);
+      if (accessToken) {
+        const r = await request<{ count: number }>('/chat/unread-count', { token: accessToken });
+        setUnreadChats(r.count);
+      }
+    } catch {
+      // Hors ligne : on garde ce qui est affiché.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [accessToken]);
+
   const { title: greetTitle, sub: greetSub } = buildGreeting(user?.displayName ?? 'toi', t);
 
   // ── En-tête qui s'efface au défilement ─────────────────────────────────────────────────────
@@ -149,12 +172,30 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefresh()}
+            tintColor="#fff"
+            colors={[colors.brand]}
+            progressViewOffset={insets.top}
+          />
+        }
       >
         {/* ── En-tête sur le ciel ─────────────────────────────────────── */}
         <Animated.View style={[styles.hero, { minHeight: heroTotal, paddingTop: insets.top + spacing.sm }, heroContentStyle]}>
           {/* Barre météo d'origine, tout en haut (préférée par l'utilisateur
               à la pastille compacte, 17/11) — ouvre l'écran Météo. */}
-          <WeatherCard lat={coords.lat} lng={coords.lng} />
+          <View style={weatherHeight ? { minHeight: weatherHeight } : undefined}>
+            <View
+              onLayout={(e) => {
+                const h = Math.round(e.nativeEvent.layout.height);
+                if (h > 0 && h !== weatherHeight) setWeatherHeight(h);
+              }}
+            >
+              <WeatherCard key={weatherKey} lat={coords.lat} lng={coords.lng} />
+            </View>
+          </View>
 
           {/* Logo en grand, au centre. */}
           <View style={styles.logoWrap}>

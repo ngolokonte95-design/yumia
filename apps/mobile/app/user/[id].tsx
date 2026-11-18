@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, ScrollView,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, RefreshControl, ScrollView,
   Share, StyleSheet, Text, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -99,6 +99,14 @@ export default function UserProfileScreen() {
   }, [accessToken, id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Tirer pour rafraîchir : rejoue le chargement du profil (compteurs,
+  // publications, stories à la une).
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
 
   // ── Modération ──────────────────────────────────────────────────────────────
   const moderate = async (action: 'block' | 'restrict' | 'mute') => {
@@ -315,6 +323,9 @@ export default function UserProfileScreen() {
         data={gridData}
         numColumns={3}
         keyExtractor={(p) => p.id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor="#fff" colors={[colors.brand]} />
+        }
         ListHeaderComponent={ListHeader}
         renderItem={({ item, index }) => (
           <GridTile

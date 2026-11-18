@@ -16,6 +16,7 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
+  RefreshControl,
   ActivityIndicator,
   ScrollView,
   useWindowDimensions,
@@ -95,6 +96,33 @@ export default function ForYouScreen() {
     loadMore();
   }, [checkLimit, recordUsage, quotaMessage, loadMore, t]);
 
+  // Tirer pour rafraîchir : de nouvelles suggestions. Même contrôle de quota
+  // que le chargement de la suite (un rafraîchissement est un chargement de
+  // plus) ; refusé, il ouvre l'upsell au lieu de recharger.
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    try {
+      const { allowed } = await checkLimit('suggestionsPerDay');
+      if (!allowed) {
+        setUpsell(quotaMessage('suggestionsPerDay', t('tab_foryou')));
+        return;
+      }
+      await recordUsage('suggestionsPerDay');
+      setRefreshing(true);
+      reload();
+    } catch {
+      setRefreshing(false);
+    }
+  }, [checkLimit, recordUsage, quotaMessage, reload, t]);
+  // `reload` ne se laisse pas attendre : l'indicateur s'éteint quand le flux
+  // a fini de charger. Garde-fou : jamais plus de 10 s, quoi qu'il arrive.
+  useEffect(() => {
+    if (!refreshing) return;
+    if (!loading) { setRefreshing(false); return; }
+    const guard = setTimeout(() => setRefreshing(false), 10_000);
+    return () => clearTimeout(guard);
+  }, [refreshing, loading]);
+
   const pickMood = (m: (typeof MOODS)[number] | null) => {
     if (m === mood) return;
     haptics.select();
@@ -140,6 +168,16 @@ export default function ForYouScreen() {
           getItemLayout={(_, index) => ({ length: height, offset: height * index, index })}
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            // Décalé sous les pastilles d'humeur, qui flottent en haut de la carte.
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void handleRefresh()}
+              tintColor="#fff"
+              colors={[colors.brand]}
+              progressViewOffset={insets.top + 56}
+            />
+          }
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           // Plein écran : deux cartes de part et d'autre suffisent, les
