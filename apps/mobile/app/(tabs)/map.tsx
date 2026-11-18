@@ -129,6 +129,18 @@ export default function MapScreen() {
   // sinon la liste resterait ouverte par-dessus les résultats.
   const [suggestOpen, setSuggestOpen] = useState(false);
   const { results: citySuggestions } = useCitySearch(suggestOpen ? cityQuery : '');
+
+  // Clavier ouvert : un voile invisible le referme (avec les suggestions) au
+  // premier contact hors de la recherche. Sans lui, seule la touche
+  // « Rechercher » le faisait descendre, et toucher la carte lançait une
+  // recherche au point touché (demande de l'utilisateur, 18/11).
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const [tapResults, setTapResults] = useState<NearbyPlace[] | null>(null);
   const [tapLoading, setTapLoading] = useState(false);
   const [tapPoint, setTapPoint] = useState<{ x: number; y: number } | null>(null);
@@ -402,6 +414,9 @@ export default function MapScreen() {
   }, [tapResults, cityResults, cityQuery]);
 
   const selectUniverse = useCallback(async (u: Universe | null) => {
+    // Android : le clavier de la recherche d'univers peut rester ouvert
+    // quand son champ disparaît avec le panneau.
+    Keyboard.dismiss();
     const { allowed, message } = await consumePlaceLoad();
     if (!allowed) { setUpsell(message); setFilterPanelOpen(false); return; }
     setUniverse(u);
@@ -685,11 +700,22 @@ export default function MapScreen() {
     <View style={styles.screen}>
       <PremiumUpsellModal visible={upsell !== null} message={upsell ?? ''} onClose={() => setUpsell(null)} />
 
+      {/* Ferme le clavier au premier contact ailleurs (un glissement de la
+          carte compris). Sous la barre de recherche (zIndex 9) : les
+          suggestions restent touchables. Panneau ouvert : son propre voile
+          s'en charge, le fermer fait aussi descendre le clavier. */}
+      {keyboardOpen && !filterPanelOpen && !radiusPanelOpen ? (
+        <View
+          style={styles.keyboardBackdrop}
+          onTouchStart={() => { Keyboard.dismiss(); setSuggestOpen(false); }}
+        />
+      ) : null}
+
       {/* Ferme le panneau ouvert (univers ou rayon) en tapant à côté */}
       {filterPanelOpen || radiusPanelOpen ? (
         <Pressable
           style={styles.filterBackdrop}
-          onPress={() => { setFilterPanelOpen(false); setRadiusPanelOpen(false); }}
+          onPress={() => { Keyboard.dismiss(); setFilterPanelOpen(false); setRadiusPanelOpen(false); }}
         />
       ) : null}
 
@@ -1435,6 +1461,7 @@ const styles = StyleSheet.create({
   },
   chipText: { ...typography.caption, color: '#fff', fontWeight: '700' },
   chipChevron: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
+  keyboardBackdrop: { ...StyleSheet.absoluteFill, zIndex: 9 },
   filterBackdrop: {
     ...StyleSheet.absoluteFill,
     zIndex: 9,
