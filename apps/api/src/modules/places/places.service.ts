@@ -17,6 +17,7 @@ import {
   hydrationVersion,
   isBlockedPlace,
   KEYWORD_UNIVERSES,
+  NEAREST_FIRST_UNIVERSES,
   UNIVERSE_TEXT_QUERIES,
 } from './providers/place-types';
 
@@ -143,6 +144,24 @@ const HYDRATION_ZONES: { radiusKm: number; gridDeg: number }[] = [
   { radiusKm: 20, gridDeg: 0.1 },
   { radiusKm: 50, gridDeg: 0.2 },
 ];
+
+/**
+ * Rayon de la zone à charger chez Google. Les commerces de quartier
+ * (NEAREST_FIRST_UNIVERSES) se cherchent « au plus près » : sur une zone de
+ * 20 km, ce plus près se mesure depuis le CENTRE de la zone (aimanté sur une
+ * grille de ~11 km), et l'écran affichait des épiceries à 7-9 km alors qu'il
+ * y en avait à 300 m (18/11/2026). On charge donc une petite zone (3 km)
+ * autour de l'utilisateur ; la liste, elle, garde son rayon.
+ */
+export const NEAREST_FIRST_HYDRATION_RADIUS_M = 3_000;
+/** En dessous de ce nombre de commerces dans la petite zone, on la charge. */
+const NEAREST_FIRST_MIN_RESULTS = 15;
+
+export function hydrationRadius(radiusM: number, universe?: Universe): number {
+  return universe && NEAREST_FIRST_UNIVERSES.has(universe)
+    ? Math.min(radiusM, NEAREST_FIRST_HYDRATION_RADIUS_M)
+    : radiusM;
+}
 
 export function hydrationTile(
   lat: number,
@@ -447,7 +466,16 @@ export class PlacesService {
   }): Promise<PlaceWithDistance[]> {
     let results = await this.queryNearby(params);
 
-    if (this.provider.isEnabled && results.length < HYDRATE_MIN_LOCAL_RESULTS) {
+    // Commerces de quartier : ce qui compte, c'est ce qu'il y a PRÈS de
+    // l'utilisateur. Soixante épiceries à 10 km ne disent rien des rues
+    // d'à côté : on recharge tant que la petite zone autour de lui est pauvre.
+    const nearestFirst = !!params.universe && NEAREST_FIRST_UNIVERSES.has(params.universe);
+    const localCount = nearestFirst
+      ? results.filter((r) => r.distanceMeters <= NEAREST_FIRST_HYDRATION_RADIUS_M).length
+      : results.length;
+    const localMin = nearestFirst ? NEAREST_FIRST_MIN_RESULTS : HYDRATE_MIN_LOCAL_RESULTS;
+
+    if (this.provider.isEnabled && localCount < localMin) {
       const hydrated = await this.maybeHydrate(params);
       if (hydrated) {
         // Relecture en PG : les lieux fraîchement importés y sont garantis
@@ -494,7 +522,7 @@ export class PlacesService {
     universe?: Universe;
     requester?: PlacesRequester;
   }): Promise<boolean> {
-    const tile = hydrationTile(params.lat, params.lng, params.radius);
+    const tile = hydrationTile(params.lat, params.lng, hydrationRadius(params.radius, params.universe));
     const tileKey = [
       'places:hydrated',
       // Version de schéma d'hydratation, par univers : changer la recherche

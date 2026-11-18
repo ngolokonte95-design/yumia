@@ -1,4 +1,4 @@
-import { hydrationTile } from '../places.service';
+import { hydrationRadius, hydrationTile } from '../places.service';
 
 describe('hydrationTile', () => {
   it('ramène les rayons voisins à une même zone, quel que soit le zoom', () => {
@@ -17,5 +17,18 @@ describe('hydrationTile', () => {
     const a = hydrationTile(48.851, 2.351, 8_000);
     const b = hydrationTile(48.859, 2.358, 8_000);
     expect(a).toEqual(b);
+  });
+});
+
+describe('hydrationRadius', () => {
+  it('charge les épiceries sur une petite zone autour de l\'utilisateur, pas sur 20 km', () => {
+    expect(hydrationRadius(20_000, 'grocery_store')).toBe(3_000);
+    expect(hydrationTile(49.0364, 2.0763, hydrationRadius(20_000, 'grocery_store')).radiusKm).toBe(3);
+  });
+
+  it('ne change rien pour les autres univers ni pour un rayon déjà petit', () => {
+    expect(hydrationRadius(20_000, 'restaurant')).toBe(20_000);
+    expect(hydrationRadius(20_000)).toBe(20_000);
+    expect(hydrationRadius(1_000, 'grocery_store')).toBe(1_000);
   });
 });
