@@ -4,12 +4,17 @@ import {
   ScrollView, StyleSheet, Text, TextInput, View, type ListViewToken as ViewToken,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth-context';
 import { promptReport } from '../../lib/report-content';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, gradients, motion, radius, spacing, typography } from '../../theme/tokens';
+import { GradientRing } from '../../components/chat/ChatChrome';
+import { BrandButton } from '../../components/social/SocialChrome';
+import { haptics } from '../../lib/useHaptics';
 import { API_BASE_URL } from '../../lib/config';
 import { feedApi, FEED_PAGE_SIZE, oldestPostId, type FeedPost, type StoryGroup, type Plan } from '../../lib/feed-api';
 import { YumiaLogo } from '../../components/YumiaLogo';
@@ -91,6 +96,34 @@ function formatAgo(iso: string, t: (key: TranslationKey) => string) {
 
 // ── Barre de stories (façon Instagram) ───────────────────────────────────────
 
+/** Diamètre de l'anneau de story (avatar de 54 + liseré). */
+const STORY_RING = 66;
+
+/**
+ * Cœur du « j'aime » : petit rebond au toucher, quand on aime. L'animation
+ * part du geste (jamais du défilement ni du recyclage des cartes) et ne
+ * tourne que sur le fil d'interface : rien ne s'exécute pendant le scroll.
+ */
+function LikeButton({ liked, onPress, children }: { liked: boolean; onPress: () => void; children?: ReactNode }) {
+  const scale = useSharedValue(1);
+  const heart = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Pressable
+      style={styles.actionBtn}
+      onPress={() => {
+        if (!liked) {
+          scale.value = withSequence(withTiming(1.4, { duration: 110 }), withSpring(1, motion.spring.bouncy));
+          haptics.light();
+        }
+        onPress();
+      }}
+    >
+      <Animated.Text style={[styles.actionIcon, heart]}>{liked ? '❤️' : '🤍'}</Animated.Text>
+      {children}
+    </Pressable>
+  );
+}
+
 function StoriesBar({
   groups, myId, myPhoto, myName, onCreate, onOpen,
 }: {
@@ -115,7 +148,7 @@ function StoriesBar({
       {/* Votre story — toujours en 1er, à gauche, avec le + */}
       <Pressable style={styles.storyItem} onPress={() => (myGroup ? onOpen(myId!) : onCreate())}>
         <View style={styles.storyMineWrap}>
-          <View style={[styles.storyRing, myGroup?.hasUnseen ? styles.storyRingActive : styles.storyRingMine]}>
+          <GradientRing size={STORY_RING} active={!!myGroup?.hasUnseen} background={colors.background}>
             {myPhoto ? (
               <Image source={{ uri: myPhoto }} style={styles.storyAvatar} />
             ) : (
@@ -123,7 +156,7 @@ function StoriesBar({
                 <Text style={styles.storyAvatarLetter}>{(myName ?? 'M')[0].toUpperCase()}</Text>
               </View>
             )}
-          </View>
+          </GradientRing>
           <Pressable style={styles.storyPlus} onPress={onCreate} hitSlop={8}>
             <Text style={styles.storyPlusTxt}>+</Text>
           </Pressable>
@@ -134,13 +167,15 @@ function StoriesBar({
       {/* Stories des comptes que je suis (amis ou non) */}
       {others.map((group) => (
         <Pressable key={group.user.id} style={styles.storyItem} onPress={() => onOpen(group.user.id)}>
-          <View style={[styles.storyRing, group.hasUnseen && styles.storyRingActive]}>
-            <Avatar
-              uri={group.user.photoUrl}
-              size={54}
-              placeholderColor={colors.brand}
-              fallback={<Text style={styles.storyAvatarLetter}>{group.user.displayName[0]?.toUpperCase()}</Text>}
-            />
+          <View style={styles.storyRingWrap}>
+            <GradientRing size={STORY_RING} active={!!group.hasUnseen} background={colors.background}>
+              <Avatar
+                uri={group.user.photoUrl}
+                size={54}
+                placeholderColor={colors.surfaceElevated}
+                fallback={<Text style={styles.storyAvatarLetter}>{group.user.displayName[0]?.toUpperCase()}</Text>}
+              />
+            </GradientRing>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <Text style={styles.storyName} numberOfLines={1}>{group.user.displayName.split(' ')[0]}</Text>
@@ -282,9 +317,9 @@ function PostCard({
       <Pressable style={styles.postAuthor} onPress={() => item.user && onUserPress(item.user.id)}>
         <Avatar
           uri={item.user?.photoUrl}
-          size={36}
-          placeholderColor={colors.brand}
-          fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{item.user?.displayName[0]}</Text>}
+          size={40}
+          placeholderColor={colors.surfaceElevated}
+          fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{item.user?.displayName[0]}</Text>}
         />
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -307,8 +342,8 @@ function PostCard({
           )}
         </View>
         <Text style={styles.postAgo}>{formatAgo(item.createdAt, tr)}</Text>
-        <Pressable onPress={handleMenu} hitSlop={12} style={{ marginLeft: 'auto', paddingHorizontal: 6 }}>
-          <Text style={{ color: colors.textMuted, fontSize: 18, letterSpacing: 1 }}>···</Text>
+        <Pressable onPress={handleMenu} hitSlop={12} style={styles.postMenu}>
+          <Text style={styles.postMenuText}>···</Text>
         </Pressable>
       </Pressable>
 
@@ -438,10 +473,9 @@ function PostCard({
             se lit comme une fonctionnalité manquante, pas comme un zéro. Seul
             `hideLikeCount`, que l'auteur choisit publication par publication,
             masque encore le nombre de j'aime. */}
-        <Pressable style={styles.actionBtn} onPress={() => onLike(item.id)}>
-          <Text style={styles.actionIcon}>{item.likedByMe ? '❤️' : '🤍'}</Text>
+        <LikeButton liked={!!item.likedByMe} onPress={() => onLike(item.id)}>
           {!item.hideLikeCount && <Text style={styles.actionCount}>{formatCount(item.likesCount)}</Text>}
-        </Pressable>
+        </LikeButton>
         {!item.commentsDisabled && (
           <Pressable style={styles.actionBtn} onPress={() => onComment(item.id)}>
             <Text style={styles.actionIcon}>💬</Text>
@@ -1031,9 +1065,7 @@ export default function SocialTab() {
           <Text style={styles.emptyEmoji}>{emptyEmoji}</Text>
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
           <Text style={styles.emptyText}>{emptyText}</Text>
-          <Pressable style={styles.emptyBtn} onPress={() => router.push('/post/create' as never)}>
-            <Text style={styles.emptyBtnText}>{t('social_empty_photo_video')}</Text>
-          </Pressable>
+          <BrandButton label={t('social_empty_photo_video')} onPress={() => router.push('/post/create' as never)} />
         </View>
       )}
     />
@@ -1092,6 +1124,7 @@ export default function SocialTab() {
 
       {/* Recherche */}
       <View style={styles.searchWrap}>
+        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
           placeholder={t('social_search_placeholder')}
@@ -1113,7 +1146,7 @@ export default function SocialTab() {
                 <Avatar
                   uri={item.photoUrl}
                   size={44}
-                  placeholderColor={colors.brand}
+                  placeholderColor={colors.surfaceElevated}
                   fallback={<Text style={{ color: '#fff', fontWeight: '700' }}>{item.displayName[0]}</Text>}
                 />
                 <View style={{ flex: 1 }}>
@@ -1158,6 +1191,9 @@ export default function SocialTab() {
                   >
                     {text}
                   </Text>
+                  {active ? (
+                    <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.tabUnderline} />
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -1215,7 +1251,7 @@ export default function SocialTab() {
                   <Avatar
                     uri={item.otherUser?.photoUrl}
                     size={52}
-                    placeholderColor={colors.brand}
+                    placeholderColor={colors.surfaceElevated}
                     fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.otherUser?.displayName[0]}</Text>}
                   />
                   <View style={styles.encounterInfo}>
@@ -1264,7 +1300,7 @@ export default function SocialTab() {
                     <Avatar
                       uri={item.photoUrl}
                       size={44}
-                      placeholderColor={colors.brand}
+                      placeholderColor={colors.surfaceElevated}
                       fallback={<Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{item.displayName[0]}</Text>}
                     />
                     <View style={{ flex: 1 }}>
@@ -1298,6 +1334,7 @@ export default function SocialTab() {
       <Modal visible={sharePost !== null} transparent animationType="slide" onRequestClose={() => setSharePost(null)}>
         <Pressable style={styles.shareOverlay} onPress={() => setSharePost(null)}>
           <View style={styles.shareSheet}>
+            <View style={styles.shareHandle} />
             <Text style={styles.shareTitle}>{t('social_send_to')}</Text>
             <FlatList
               data={shareConvs}
@@ -1349,56 +1386,61 @@ const styles = StyleSheet.create({
   topBarActions: { position: 'absolute', right: spacing.md, top: 6, flexDirection: 'row', gap: 8 },
   leftBtns: { position: 'absolute', left: spacing.md, top: 8, flexDirection: 'row', gap: 14, alignItems: 'center' },
   reelsBtn: { alignItems: 'center', gap: 2 },
-  reelsBtnIcon: { fontSize: 20, color: colors.brand },
-  reelsBtnLabel: { fontSize: 10, color: colors.brand, fontWeight: '700' },
+  reelsBtnIcon: { fontSize: 20, color: colors.text },
+  reelsBtnLabel: { fontSize: 10, color: colors.textSecondary, fontWeight: '700' },
   memoriesBtn: { alignItems: 'center', gap: 2 },
   memoriesBtnIcon: { fontSize: 20 },
-  memoriesBtnLabel: { fontSize: 10, color: colors.textMuted, fontWeight: '700' },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, position: 'relative' },
+  memoriesBtnLabel: { fontSize: 10, color: colors.textSecondary, fontWeight: '700' },
+  iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)', position: 'relative' },
   iconBtnTxt: { fontSize: 18 },
-  unreadDot: { position: 'absolute', top: 2, right: 2, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.surface },
-  header: { paddingBottom: 6 },
+  unreadDot: { position: 'absolute', top: 1, right: 1, width: 11, height: 11, borderRadius: 6, backgroundColor: colors.brand, borderWidth: 2, borderColor: colors.background },
+  header: { paddingBottom: spacing.sm },
   headerActions: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.sm },
   headerBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.surface, borderRadius: radius.full, paddingHorizontal: 6, paddingVertical: 7, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.full, paddingHorizontal: 6, paddingVertical: 9,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
   },
   headerBtnRow: { flexDirection: 'row', gap: 4 },
-  headerBtnText: { fontSize: 12, lineHeight: 16, color: colors.text, fontWeight: '600', textAlign: 'center' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: spacing.md, marginBottom: spacing.sm, gap: 8 },
-  searchInput: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 12, color: colors.text, fontSize: 15, borderWidth: 1, borderColor: colors.border },
+  headerBtnText: { fontSize: 12, lineHeight: 16, color: colors.text, fontWeight: '700', textAlign: 'center' },
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: spacing.md, marginBottom: spacing.md, paddingHorizontal: spacing.md, height: 44,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.full, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
+  },
+  searchInput: { flex: 1, color: colors.text, fontSize: 15, height: 44, paddingVertical: 0 },
   // Marges latérales réduites (sm) : c'est ce qui donne à « Abonnements »
   // la place de s'afficher à la même taille que les autres, sans
   // resserrement — un libellé réduit paraissait plus petit et plus bas.
   // Pas de marge sous les onglets : le fond noir s'arrête au bord du bloc
   // gris, la première publication commence juste en dessous (voulu).
-  tabs: { flexDirection: 'row', marginHorizontal: spacing.sm, marginBottom: 0, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 3 },
-  tabBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 1, alignItems: 'center', gap: 2, borderRadius: radius.md },
-  tabBtnActive: { backgroundColor: colors.background },
+  tabs: { flexDirection: 'row', marginHorizontal: spacing.sm, marginBottom: spacing.sm, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: radius.lg, padding: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.08)' },
+  tabBtn: { flex: 1, paddingTop: 7, paddingBottom: 9, paddingHorizontal: 1, alignItems: 'center', gap: 2, borderRadius: radius.md },
+  tabBtnActive: { backgroundColor: 'rgba(255,255,255,0.09)' },
   tabBtnIcon: { fontSize: 18, lineHeight: 22, textAlign: 'center' },
   tabBtnIconInactive: { opacity: 0.55 },
   // lineHeight fixe : même ligne de base pour tous, même si un libellé long
   // doit encore se resserrer un peu dans une autre langue.
   tabBtnText: { fontSize: 10.5, lineHeight: 14, letterSpacing: -0.2, color: colors.textMuted, fontWeight: '600', textAlign: 'center' },
-  tabBtnTextActive: { color: colors.brand, fontWeight: '700' },
+  tabBtnTextActive: { color: colors.text, fontWeight: '800' },
   // Stories
-  storyItem: { alignItems: 'center', width: 68 },
-  storyMineWrap: { width: 64, height: 64, marginBottom: 4 },
+  storyItem: { alignItems: 'center', width: 72, gap: 5 },
+  storyMineWrap: { width: STORY_RING, height: STORY_RING },
   storyRing: { width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: colors.border, padding: 2 },
   storyRingActive: { borderColor: colors.brand },
   storyRingMine: { borderColor: colors.border, borderStyle: 'dashed' },
   storyAvatar: { width: 54, height: 54, borderRadius: 27 },
-  storyAvatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
+  storyAvatarFallback: { backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
   storyAvatarLetter: { color: '#fff', fontWeight: '700', fontSize: 18 },
-  storyPlus: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
-  storyPlusTxt: { color: '#fff', fontSize: 14, fontWeight: '800', lineHeight: 16 },
-  storyName: { fontSize: 11, color: colors.text, textAlign: 'center' },
+  storyPlus: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.background },
+  storyPlusTxt: { color: colors.background, fontSize: 14, fontWeight: '900', lineHeight: 16 },
+  storyName: { fontSize: 11, color: colors.textSecondary, textAlign: 'center', fontWeight: '600' },
   // Post card
-  postCard: { backgroundColor: colors.surface, marginBottom: 8, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
-  postAuthor: { flexDirection: 'row', alignItems: 'center', padding: spacing.sm, gap: 10 },
+  postCard: { marginBottom: spacing.lg, paddingBottom: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.07)' },
+  postAuthor: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 10, gap: 10 },
   postAvatar: { width: 36, height: 36, borderRadius: 18 },
-  postAuthorName: { fontWeight: '700', color: colors.text, fontSize: 13 },
-  postPlace: { fontSize: 11, color: colors.textMuted },
+  postAuthorName: { fontWeight: '800', color: colors.text, fontSize: 15, letterSpacing: -0.2 },
+  postPlace: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
   postAgo: { marginLeft: 'auto', fontSize: 12, color: colors.textMuted },
   postImage: { width: '100%', aspectRatio: 1 },
   // Carrée comme les photos (avant : 4/5, portrait — trop haute, on ne voyait
@@ -1406,19 +1448,19 @@ const styles = StyleSheet.create({
   postVideo: { width: '100%', aspectRatio: 1 },
   videoPlaceholder: { backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   videoBadge: { position: 'absolute', top: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  multiIndicator: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  multiIndicator: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(14,14,18,0.62)', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)' },
   multiIndicatorText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   carouselDots: { position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 5 },
   carouselDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
   carouselDotActive: { backgroundColor: '#fff', width: 7, height: 7, borderRadius: 3.5 },
-  postActions: { flexDirection: 'row', gap: 6, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, alignItems: 'center' },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4 },
+  postActions: { flexDirection: 'row', gap: 10, paddingHorizontal: spacing.md, paddingTop: 12, paddingBottom: 8, alignItems: 'center' },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 2 },
   actionIcon: { fontSize: 22 },
   actionIconActive: { opacity: 1 },
-  actionCount: { fontWeight: '700', color: colors.text, fontSize: 13 },
+  actionCount: { fontWeight: '700', color: colors.text, fontSize: 13, fontVariant: ['tabular-nums'] },
   musicBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: spacing.sm, marginTop: 2, marginBottom: 2, backgroundColor: colors.background + 'cc', borderRadius: radius.lg, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
-  musicOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 12, paddingVertical: 8 },
-  musicStandalone: { marginHorizontal: spacing.sm, marginTop: 2, marginBottom: 2 },
+  musicOverlay: { position: 'absolute', bottom: 10, left: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(14,14,18,0.66)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)' },
+  musicStandalone: { marginHorizontal: spacing.md, marginTop: 2, marginBottom: 2, height: 52 },
   musicToggle: {
     width: 28,
     height: 28,
@@ -1428,52 +1470,60 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   musicToggleIcon: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  musicArtwork: { width: 32, height: 32, borderRadius: 4 },
+  musicArtwork: { width: 32, height: 32, borderRadius: 8 },
   musicTitle: { fontSize: 12, color: '#fff', fontWeight: '700' },
   musicArtist: { fontSize: 11, color: 'rgba(255,255,255,0.75)' },
-  postCaption: { paddingHorizontal: spacing.sm, paddingBottom: 4, fontSize: 13, color: colors.text, lineHeight: 18 },
-  postComments: { paddingHorizontal: spacing.sm, paddingBottom: spacing.sm, fontSize: 13, color: colors.textMuted },
+  postCaption: { paddingHorizontal: spacing.md, paddingBottom: 6, fontSize: 14, color: colors.text, lineHeight: 20 },
+  postComments: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, fontSize: 13, color: colors.textMuted },
   // Activité
-  feedCard: { flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: 8, backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden' },
-  feedThumb: { width: 70, height: 70 },
-  feedBody: { flex: 1, padding: spacing.sm, justifyContent: 'center' },
+  feedCard: { flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.lg, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)' },
+  feedThumb: { width: 78, height: 78 },
+  feedBody: { flex: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: 'center' },
   feedUser: { fontSize: 12, color: colors.textMuted, marginBottom: 2 },
-  feedPlace: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  feedPlace: { fontWeight: '800', color: colors.text, fontSize: 15 },
   feedCity: { fontSize: 12, color: colors.textMuted },
   // Rencontres
-  encounterCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.xl, marginBottom: 10, padding: spacing.md, gap: 12, borderWidth: 1, borderColor: colors.border },
+  encounterCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.lg, marginBottom: 10, padding: spacing.md, gap: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)' },
   encounterAvatar: { width: 52, height: 52, borderRadius: 26 },
   encounterInfo: { flex: 1 },
-  encounterName: { fontWeight: '700', color: colors.text, fontSize: 15, marginBottom: 2 },
+  encounterName: { fontWeight: '800', color: colors.text, fontSize: 15, marginBottom: 2 },
   encounterPlace: { fontSize: 13, color: colors.textMuted, marginBottom: 2 },
-  encounterTime: { fontSize: 12, color: colors.brand },
+  encounterTime: { fontSize: 12, color: colors.textSecondary },
   encounterLevel: { fontSize: 12, color: colors.textMuted },
   // Users
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 10 },
+  userRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: spacing.md, paddingVertical: 11 },
   userAvatar: { width: 44, height: 44, borderRadius: 22 },
-  userName: { fontWeight: '700', color: colors.text, fontSize: 15 },
+  userName: { fontWeight: '800', color: colors.text, fontSize: 15 },
   userBio: { fontSize: 13, color: colors.textMuted, maxWidth: 240 },
-  followBtn: { backgroundColor: colors.brand, borderRadius: radius.full, paddingHorizontal: 14, paddingVertical: 6 },
-  followBtnActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  followBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  followBtn: { backgroundColor: colors.text, borderRadius: radius.full, paddingHorizontal: 16, paddingVertical: 8 },
+  followBtnActive: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)' },
+  followBtnText: { color: colors.background, fontWeight: '800', fontSize: 12 },
   followBtnTextActive: { color: colors.text },
-  peopleHeader: { paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 12 },
-  peopleTitle: { ...typography.h3, color: colors.text, marginBottom: 2 },
+  peopleHeader: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  peopleTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.4, color: colors.text, marginBottom: 2 },
   peopleSubtitle: { fontSize: 13, color: colors.textMuted },
   // Partage en DM
-  shareOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  shareSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: 40 },
-  shareTitle: { color: colors.text, fontWeight: '800', fontSize: 16, marginBottom: 12 },
+  shareOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  shareSheet: { backgroundColor: '#111118', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: 40, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)' },
+  shareTitle: { color: colors.text, fontWeight: '900', fontSize: 18, letterSpacing: -0.3, marginBottom: 12 },
   shareEmpty: { color: colors.textMuted, fontSize: 13, paddingVertical: 20, textAlign: 'center' },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
   shareAvatar: { width: 44, height: 44, borderRadius: 22 },
   shareName: { flex: 1, color: colors.text, fontWeight: '600', fontSize: 14 },
-  shareSendTxt: { color: colors.brand, fontWeight: '700', fontSize: 13 },
+  shareSendTxt: { color: colors.text, fontWeight: '800', fontSize: 13 },
   // Empty
-  empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: spacing.xl },
+  empty: { alignItems: 'center', paddingTop: 64, paddingHorizontal: spacing.xl },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { ...typography.h3, color: colors.text, textAlign: 'center', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
+  emptyTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.4, color: colors.text, textAlign: 'center', marginBottom: 8 },
+  emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: spacing.lg },
   emptyBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 24, paddingVertical: 12 },
   emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  // Ajouts de la refonte sobre (18/11/2026)
+  storyRingWrap: { width: STORY_RING, height: STORY_RING },
+  postMenu: { marginLeft: 'auto', paddingHorizontal: 6, paddingVertical: 4 },
+  postMenuText: { color: colors.textSecondary, fontSize: 18, letterSpacing: 1 },
+  searchIcon: { fontSize: 14 },
+  // Seul accent de couleur des onglets : un trait de marque sous l'actif.
+  tabUnderline: { position: 'absolute', bottom: 3, width: 18, height: 3, borderRadius: 2 },
+  shareHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginBottom: spacing.md },
 });
