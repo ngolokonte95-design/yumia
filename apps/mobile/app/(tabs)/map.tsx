@@ -28,7 +28,7 @@ import { haptics } from '../../lib/useHaptics';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { UNIVERSES, UNIVERSE_META, type Universe } from '@yumia/shared';
+import { UNIVERSES, UNIVERSE_CATEGORIES, UNIVERSE_META, type Universe } from '@yumia/shared';
 import { safeMeta, placeEmoji, universeLabel } from '../../lib/universeMeta';
 import { colors, elevation, radius, spacing, typography } from '../../theme/tokens';
 import { useI18n } from '../../lib/useI18n';
@@ -76,10 +76,28 @@ const CARD_STEP = CARD_W + CARD_GAP;
 const BOTTOM_SPACE = DRAWER_COLLAPSED + CARD_H + spacing.sm * 2;
 
 
-/** Univers du panneau de filtre, triés alphabétiquement (« Tous » reste à part, en tête). */
-const SORTED_UNIVERSES = [...UNIVERSES].sort(
-  (a, b) => UNIVERSE_META[a].labelFr.localeCompare(UNIVERSE_META[b].labelFr, 'fr'),
-);
+/**
+ * Univers du panneau de filtre, RANGÉS PAR CATÉGORIE comme sur l'Accueil
+ * (18/11/2026 : l'ordre alphabétique obligeait à tout parcourir). Dans chaque
+ * catégorie, l'ordre de UNIVERSE_CATEGORIES met les plus courants en tête.
+ * Un univers absent des catégories (ajout récent) tombe dans « Autres ».
+ */
+const FILTER_GROUPS: { key: string; universes: Universe[] }[] = (() => {
+  const listed = new Set<string>(UNIVERSE_CATEGORIES.flatMap((c) => c.universes));
+  const orphans = UNIVERSES.filter((u) => !listed.has(u));
+  return UNIVERSE_CATEGORIES.map((c) => ({
+    key: c.key,
+    universes: [
+      ...(c.universes as Universe[]),
+      ...(c.key === 'other' ? orphans : []),
+    ],
+  }));
+})();
+
+/** Texte comparé sans accents ni majuscules (recherche d'univers). */
+function foldText(text: string): string {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
@@ -90,6 +108,9 @@ export default function MapScreen() {
   const [universe, setUniverse] = useState<Universe | null>(null);
   const { radiusKm, setRadiusKm } = useSearchRadius();
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  // Recherche dans le panneau des univers ; vidée à chaque fermeture.
+  const [universeQuery, setUniverseQuery] = useState('');
+  useEffect(() => { if (!filterPanelOpen) setUniverseQuery(''); }, [filterPanelOpen]);
   const [radiusPanelOpen, setRadiusPanelOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cityQuery, setCityQuery] = useState('');
@@ -717,23 +738,69 @@ export default function MapScreen() {
         {/* Panneau grille — tous les univers, compact et scrollable */}
         {filterPanelOpen ? (
           <View style={styles.filterPanel}>
+            {/* Recherche d'un univers par son nom (sans accents). */}
+            <View style={styles.universeSearch}>
+              <Text style={styles.universeSearchIcon}>🔍</Text>
+              <TextInput
+                style={styles.universeSearchInput}
+                value={universeQuery}
+                onChangeText={setUniverseQuery}
+                placeholder={t('map_universe_search')}
+                placeholderTextColor={colors.textMuted}
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {universeQuery ? (
+                <Pressable onPress={() => setUniverseQuery('')} hitSlop={8}>
+                  <Text style={styles.clearBtn}>✕</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <ScrollView
+              // flexShrink : le panneau a une hauteur max ; sans ça la liste
+              // déborderait sous le champ de recherche au lieu de défiler.
+              style={{ flexShrink: 1 }}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.filterGrid}
+              contentContainerStyle={styles.filterScroll}
               keyboardShouldPersistTaps="handled"
             >
-              <FilterTile label={t('map_all_filter')} emoji="🗂️" active={universe === null} onPress={() => void selectUniverse(null)} />
-              {SORTED_UNIVERSES.map((u) => (
-                <FilterTile
-                  key={u}
-                  label={universeLabel(t, u)}
-                  emoji={UNIVERSE_META[u].emoji}
-                  icon={universeIcon(u, 14) ?? undefined}
-                  color={universeColor(u)}
-                  active={universe === u}
-                  onPress={() => void selectUniverse(u)}
-                />
-              ))}
+              {(() => {
+                const q = foldText(universeQuery);
+                const tile = (u: Universe) => (
+                  <FilterTile
+                    key={u}
+                    label={universeLabel(t, u)}
+                    emoji={UNIVERSE_META[u].emoji}
+                    icon={universeIcon(u, 14) ?? undefined}
+                    active={universe === u}
+                    onPress={() => void selectUniverse(u)}
+                  />
+                );
+                if (q) {
+                  // Recherche : une seule liste, toutes catégories confondues.
+                  const hits = FILTER_GROUPS.flatMap((g) => g.universes)
+                    .filter((u) => foldText(universeLabel(t, u)).includes(q));
+                  return hits.length > 0
+                    ? <View style={styles.filterGrid}>{hits.map(tile)}</View>
+                    : <Text style={styles.filterEmpty}>{t('map_universe_none')}</Text>;
+                }
+                return (
+                  <>
+                    <View style={styles.filterGrid}>
+                      <FilterTile label={t('map_all_filter')} emoji="🗂️" active={universe === null} onPress={() => void selectUniverse(null)} />
+                    </View>
+                    {FILTER_GROUPS.map((g) => (
+                      <View key={g.key} style={styles.filterGroup}>
+                        <View style={styles.filterGroupHead}>
+                          <Text style={styles.filterGroupTitle} numberOfLines={1}>{t(`category_${g.key}` as never)}</Text>
+                          <View style={styles.filterGroupRule} />
+                        </View>
+                        <View style={styles.filterGrid}>{g.universes.map(tile)}</View>
+                      </View>
+                    ))}
+                  </>
+                );
+              })()}
             </ScrollView>
           </View>
         ) : null}
@@ -1350,12 +1417,28 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
   },
+  filterScroll: { padding: spacing.md, paddingTop: spacing.sm, gap: spacing.md },
   filterGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    padding: spacing.md,
   },
+  filterGroup: { gap: spacing.sm },
+  filterGroupHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  filterGroupTitle: {
+    color: colors.textSecondary, fontSize: 11, fontWeight: '800',
+    letterSpacing: 1.6, textTransform: 'uppercase', flexShrink: 1,
+  },
+  filterGroupRule: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.16)' },
+  filterEmpty: { ...typography.caption, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.md },
+  universeSearch: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    margin: spacing.md, marginBottom: 0, paddingHorizontal: spacing.md, height: 40,
+    borderRadius: radius.pill, backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+  },
+  universeSearchIcon: { fontSize: 13 },
+  universeSearchInput: { flex: 1, ...typography.body, color: colors.textPrimary, height: 40, paddingVertical: 0 },
   filterTile: {
     flexDirection: 'row',
     alignItems: 'center',
