@@ -16,7 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { colors, elevation, gradients, radius, spacing } from '../../theme/tokens';
-import { PressableScale, Reveal } from '../ui';
+import { GradientText, PressableScale, Reveal } from '../ui';
 import { CountUp, GLASS, IconBubble } from '../profile/ProfileChrome';
 import { haptics } from '../../lib/useHaptics';
 
@@ -31,14 +31,39 @@ export function AvatarHalo({ size }: { size: number }) {
       <Svg width={size} height={size}>
         <Defs>
           <RadialGradient id="p2bHalo" cx="50%" cy="50%" r="50%">
-            {/* 18/11 : profils plus sobres — éclat blanc discret, plus de couleur. */}
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.10" />
-            <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.03" />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+            {/* 18/11 : profils sobres — éclat argent froid, plus de couleur. */}
+            <Stop offset="0" stopColor="#DCE4F0" stopOpacity="0.12" />
+            <Stop offset="0.5" stopColor="#DCE4F0" stopOpacity="0.035" />
+            <Stop offset="1" stopColor="#DCE4F0" stopOpacity="0" />
           </RadialGradient>
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="url(#p2bHalo)" />
       </Svg>
+    </View>
+  );
+}
+
+// ── Verre serti de cristal ──────────────────────────────────────────────────
+// 18/11 : les aplats blancs (Modifier, Suivre, onglet actif, pastilles) étaient
+// trop crus. L'élément choisi devient un verre fumé serti d'un liseré cristal
+// qui accroche la lumière sur ses arêtes (blanc pur → argent froid en
+// diagonale), avec un léger reflet en haut et le texte en blanc cristal — la
+// même matière que les titres de l'Accueil. Aucune couleur.
+
+const CRYSTAL_EDGE = [
+  'rgba(255,255,255,0.95)', 'rgba(174,187,208,0.30)', 'rgba(255,255,255,0.70)',
+  'rgba(140,152,175,0.22)', 'rgba(255,255,255,0.90)',
+] as const;
+const CRYSTAL_SHEEN = ['rgba(255,255,255,0.13)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)'] as const;
+
+/** Fond cristal posé sous le contenu d'une pastille (le parent coupe les coins). */
+function CrystalFill({ edge = 1.2 }: { edge?: number }) {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <LinearGradient colors={CRYSTAL_EDGE} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={[styles.crystalCore, { top: edge, left: edge, right: edge, bottom: edge }]}>
+        <LinearGradient colors={CRYSTAL_SHEEN} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
+      </View>
     </View>
   );
 }
@@ -76,12 +101,13 @@ export function QuietRing({ size, thickness = 3, dashed = false, children }: {
   );
 }
 
-/** Pastille ronde au dégradé (« + » de story, coche…). */
+/** Pastille ronde sertie de cristal (« + » de story, coche…). */
 export function BrandBadge({ label, size = 30, onPress, style }: {
   label: string; size?: number; onPress?: () => void; style?: StyleProp<ViewStyle>;
 }) {
   const body = (
     <View style={[styles.brandBadge, { width: size, height: size, borderRadius: size / 2 }]}>
+      <CrystalFill edge={1.4} />
       <Text style={[styles.brandBadgeText, { fontSize: size * 0.56 }]}>{label}</Text>
     </View>
   );
@@ -128,7 +154,7 @@ export function StatCell({ value, label, onPress }: { value: number; label: stri
 
 // ── Boutons d'action ────────────────────────────────────────────────────────
 
-/** Bouton d'action : dégradé de marque (`primary`) ou verre. */
+/** Bouton d'action : verre serti de cristal (`primary`) ou verre simple. */
 export function ActionButton({
   label, onPress, primary = false, icon, badge, style, textStyle, accessibilityLabel,
 }: {
@@ -148,10 +174,15 @@ export function ActionButton({
       scaleTo={0.95}
       haptic={false}
     >
+      {primary ? <CrystalFill /> : null}
       <View accessibilityLabel={accessibilityLabel} style={styles.actionInner}>
         {icon ? <Text style={styles.actionIcon}>{icon}</Text> : null}
-        {label ? (
-          <Text style={[styles.actionText, primary && styles.actionTextPrimary, textStyle]} numberOfLines={1}>{label}</Text>
+        {label && primary ? (
+          <GradientText style={[styles.actionText, styles.actionTextPrimary, textStyle]} colors={gradients.crystal} numberOfLines={1}>
+            {label}
+          </GradientText>
+        ) : label ? (
+          <Text style={[styles.actionText, textStyle]} numberOfLines={1}>{label}</Text>
         ) : null}
       </View>
       {badge && badge > 0 ? (
@@ -183,7 +214,7 @@ export function TopGlassButton({ label, onPress, accessibilityLabel, size = 38 }
 
 export type PillTab<K extends string> = { key: K; icon?: string; label?: string; badge?: number };
 
-/** Onglets en pastilles dans un rail vitré : l'actif se remplit du dégradé. */
+/** Onglets en pastilles dans un rail vitré : l'actif est serti de cristal. */
 export function PillTabs<K extends string>({ tabs, active, onChange, style }: {
   tabs: PillTab<K>[];
   active: K;
@@ -201,8 +232,13 @@ export function PillTabs<K extends string>({ tabs, active, onChange, style }: {
             onPress={() => { if (!on) haptics.select(); onChange(tab.key); }}
             scaleTo={0.94}
           >
+            {on ? <CrystalFill edge={1} /> : null}
             {tab.icon ? <Text style={[styles.pillIcon, on && styles.pillTextOn]}>{tab.icon}</Text> : null}
-            {tab.label ? <Text style={[styles.pillLabel, on && styles.pillTextOn]} numberOfLines={1}>{tab.label}</Text> : null}
+            {tab.label && on ? (
+              <GradientText style={[styles.pillLabel, styles.pillTextOn]} colors={gradients.crystal} numberOfLines={1}>{tab.label}</GradientText>
+            ) : tab.label ? (
+              <Text style={styles.pillLabel} numberOfLines={1}>{tab.label}</Text>
+            ) : null}
             {tab.badge && tab.badge > 0 ? (
               <View style={[styles.pillBadge, on && styles.pillBadgeOn]}>
                 <Text style={styles.pillBadgeText}>{tab.badge}</Text>
@@ -311,8 +347,8 @@ export function SheetMenu({ visible, onClose, items, bottomInset, cancelLabel }:
 // ── Pastille de sélection ───────────────────────────────────────────────────
 
 /**
- * Pastille de choix : verre au repos, remplie du dégradé de marque quand elle
- * est choisie. `fill` : occupe toute la largeur de sa case (rangées égales).
+ * Pastille de choix : verre au repos, sertie de cristal quand elle est
+ * choisie. `fill` : occupe toute la largeur de sa case (rangées égales).
  */
 export function SelectChip({ label, active, onPress, fill = false }: {
   label: string; active: boolean; onPress: () => void; fill?: boolean;
@@ -323,7 +359,12 @@ export function SelectChip({ label, active, onPress, fill = false }: {
       onPress={() => { if (!active) haptics.select(); onPress(); }}
       scaleTo={0.94}
     >
-      <Text style={[styles.selChipText, active && styles.selChipTextOn]} numberOfLines={1}>{label}</Text>
+      {active ? <CrystalFill edge={1} /> : null}
+      {active ? (
+        <GradientText style={[styles.selChipText, styles.selChipTextOn]} colors={gradients.crystal} numberOfLines={1}>{label}</GradientText>
+      ) : (
+        <Text style={styles.selChipText} numberOfLines={1}>{label}</Text>
+      )}
     </PressableScale>
   );
 }
@@ -336,13 +377,14 @@ export function GlassPill({ children, style }: { children: ReactNode; style?: St
 
 const styles = StyleSheet.create({
   halo: { position: 'absolute', left: '50%', top: '50%' },
+  crystalCore: { position: 'absolute', borderRadius: radius.pill, overflow: 'hidden', backgroundColor: '#14151D' },
   ringInner: { flex: 1, width: '100%', overflow: 'hidden', backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 
   brandBadge: {
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.bg,
     borderWidth: 2.5, borderColor: colors.bg,
   },
-  brandBadgeText: { color: colors.bg, fontWeight: '900', marginTop: -1 },
+  brandBadgeText: { color: '#F4F7FB', fontWeight: '700', marginTop: -1 },
 
   statsBar: { flexDirection: 'row', borderRadius: radius.lg, paddingVertical: spacing.md },
   statsCellWrap: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -355,12 +397,12 @@ const styles = StyleSheet.create({
     height: 44, borderRadius: radius.pill, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md,
   },
-  actionPrimary: { backgroundColor: '#FFFFFF' },
+  actionPrimary: {},
   actionGlass: {},
   actionInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionIcon: { fontSize: 16 },
   actionText: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
-  actionTextPrimary: { color: colors.bg, fontWeight: '900' },
+  actionTextPrimary: { color: '#FFFFFF', fontWeight: '900', letterSpacing: 0.3 },
   badge: {
     position: 'absolute', top: 4, end: 6,
     minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
@@ -377,7 +419,7 @@ const styles = StyleSheet.create({
     flex: 1, height: 38, borderRadius: radius.pill, overflow: 'hidden',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8,
   },
-  pillOn: { backgroundColor: 'rgba(255,255,255,0.14)' },
+  pillOn: {},
   pillIcon: { color: colors.textMuted, fontSize: 17, fontWeight: '800' },
   pillLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   pillTextOn: { color: '#fff' },
@@ -385,7 +427,7 @@ const styles = StyleSheet.create({
     minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5,
     alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  pillBadgeOn: { backgroundColor: 'rgba(0,0,0,0.28)' },
+  pillBadgeOn: { backgroundColor: 'rgba(255,255,255,0.16)' },
   pillBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
 
   tile: { borderRadius: 12, overflow: 'hidden', backgroundColor: colors.surface },
@@ -424,9 +466,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   selChipFill: { flex: 1, paddingHorizontal: 8 },
-  selChipOn: { borderColor: 'transparent', backgroundColor: '#FFFFFF' },
+  selChipOn: { borderColor: 'transparent' },
   selChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
-  selChipTextOn: { color: colors.bg, fontWeight: '900' },
+  selChipTextOn: { color: '#FFFFFF', fontWeight: '900' },
 
   glassPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center',

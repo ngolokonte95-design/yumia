@@ -23,14 +23,16 @@ export function GradientText({
   children,
   style,
   colors = gradients.brand,
+  numberOfLines,
 }: {
   children: string;
   style?: StyleProp<TextStyle>;
   colors?: readonly string[];
+  numberOfLines?: number;
 }) {
   return (
     <MaskedView
-      maskElement={<Text style={[style, { backgroundColor: 'transparent' }]}>{children}</Text>}
+      maskElement={<Text style={[style, { backgroundColor: 'transparent' }]} numberOfLines={numberOfLines}>{children}</Text>}
     >
       <LinearGradient
         colors={colors as [string, string, ...string[]]}
@@ -38,7 +40,7 @@ export function GradientText({
         end={{ x: 1, y: 1 }}
       >
         {/* Texte transparent : ne sert qu'à donner ses dimensions au dégradé. */}
-        <Text style={[style, { opacity: 0 }]}>{children}</Text>
+        <Text style={[style, { opacity: 0 }]} numberOfLines={numberOfLines}>{children}</Text>
       </LinearGradient>
     </MaskedView>
   );
