@@ -15,7 +15,7 @@
  * « Parfait maintenant » et l'accordéon de catégories ont été retirés.
  */
 import { useCallback, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { I18nManager, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue,
 } from 'react-native-reanimated';
@@ -36,7 +36,7 @@ import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
 import { SpaceBackground, SPACE_BLACK } from '../../components/space/SpaceBackground';
 import { WeatherCard } from '../../components/weather/WeatherCard';
-import { GradientText, PressableScale, Reveal } from '../../components/ui';
+import { CrystalFill, GradientText, PressableScale, Reveal } from '../../components/ui';
 import { FeatureTip } from '../../components/FeatureTip';
 
 type TFn = (key: TranslationKey) => string;
@@ -216,8 +216,13 @@ export default function HomeScreen() {
             <PressableScale style={styles.search} onPress={() => go('/search')} scaleTo={0.98}>
               <Text style={styles.searchIcon}>🔍</Text>
               <Text style={styles.searchText} numberOfLines={1}>{t('home_search_placeholder')}</Text>
+              {/* 18/11 : plus d'aplat orange — pastille sertie de cristal, flèche
+                  en blanc cristal (même matière que les titres). */}
               <View style={styles.searchGo}>
-                <Text style={styles.searchGoText}>→</Text>
+                <CrystalFill edge={1.3} core="#121219" />
+                <GradientText style={styles.searchGoText} colors={gradients.crystal}>
+                  {I18nManager.isRTL ? '←' : '→'}
+                </GradientText>
               </View>
             </PressableScale>
           </View>
@@ -359,10 +364,10 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 16 },
   searchText: { ...typography.body, color: 'rgba(255,255,255,0.75)', flex: 1 },
   searchGo: {
-    width: 34, height: 34, borderRadius: 17, backgroundColor: colors.brand,
+    width: 36, height: 36, borderRadius: 18, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
-  searchGoText: { color: '#fff', fontWeight: '900', fontSize: 16 },
+  searchGoText: { color: '#fff', fontWeight: '900', fontSize: 17, marginTop: -1 },
 
   section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
 
