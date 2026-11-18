@@ -65,8 +65,9 @@ export default (): AppConfig => ({
   ai: {
     provider: (process.env.AI_PROVIDER as 'anthropic' | 'mock') ?? 'mock',
     anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
-    modelSmart: process.env.AI_MODEL_SMART ?? 'claude-sonnet-4-6',
-    modelFast: process.env.AI_MODEL_FAST ?? 'claude-haiku-4-5-20251001',
+    // Claude Haiku 5.5 partout (18/11/2026) — voir modules/ai/claude-model.ts.
+    modelSmart: process.env.AI_MODEL_SMART ?? 'claude-haiku-5-5',
+    modelFast: process.env.AI_MODEL_FAST ?? 'claude-haiku-5-5',
     maxTokens: parseInt(process.env.AI_MAX_TOKENS ?? '1024', 10),
   },
   jwt: {

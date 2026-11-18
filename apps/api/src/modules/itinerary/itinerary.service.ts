@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
+import { assertUsable, CLAUDE_MODEL, claudeTuning, responseText, withHeadroom } from '../ai/claude-model';
 import type { Universe } from '@yumia/shared';
 import type { AppConfig } from '../../config/configuration';
 import { PlacesService } from '../places/places.service';
@@ -474,7 +475,7 @@ export class ItineraryService {
     this.ai = ai?.provider === 'anthropic' && ai.anthropicApiKey
       ? new Anthropic({ apiKey: ai.anthropicApiKey })
       : null;
-    this.model = ai?.modelSmart ?? 'claude-sonnet-4-6';
+    this.model = ai?.modelSmart ?? CLAUDE_MODEL;
   }
 
   async generate(
@@ -798,21 +799,25 @@ ${isWeek
    * brut.
    */
   private async askJson<T>(prompt: string, maxTokens: number): Promise<T> {
+    // Plafond élargi : réflexion de Haiku 5.5 + ~30 % de jetons en plus.
+    const budget = withHeadroom(maxTokens);
     const response = await this.ai!.messages.create({
       model: this.model,
-      max_tokens: maxTokens,
+      max_tokens: budget,
       messages: [{ role: 'user', content: prompt }],
-    });
+      ...claudeTuning('medium'),
+    } as Anthropic.Messages.MessageCreateParamsNonStreaming);
 
     // Une réponse coupée par la limite de jetons produit un JSON tronqué,
     // donc invalide. Sans ce contrôle, l'erreur remontait sous la forme
     // « Expected ',' or ']' » — un message de parsing pour un problème de
-    // budget, qui envoie chercher au mauvais endroit.
-    if (response.stop_reason === 'max_tokens') {
-      throw new Error(`Réponse tronquée : limite de ${maxTokens} jetons atteinte`);
-    }
+    // budget, qui envoie chercher au mauvais endroit. Un refus de sécurité
+    // est signalé de la même façon, explicitement.
+    assertUsable(response, budget);
 
-    const raw = response.content[0].type === 'text' ? response.content[0].text : '';
+    // Blocs `text` seulement : une réponse Haiku 5.5 peut commencer par un
+    // bloc de réflexion.
+    const raw = responseText(response);
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON object found in response');
     return JSON.parse(jsonMatch[0]) as T;

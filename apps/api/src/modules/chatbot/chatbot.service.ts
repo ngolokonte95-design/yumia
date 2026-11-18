@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
+import { assertUsable, CLAUDE_MODEL, claudeTuning, responseText, withHeadroom } from '../ai/claude-model';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import {
   CHATBOT_HISTORY_CONTENT_MAX,
@@ -107,14 +108,21 @@ export class ChatbotService {
     ];
 
     try {
+      const maxTokens = withHeadroom(700);
       const response = await this.ai.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 512,
+        model: CLAUDE_MODEL,
+        max_tokens: maxTokens,
         system: contextualSystem,
         messages,
-      });
+        // Temps réel : réflexion adaptative au plus léger (souvent aucune).
+        ...claudeTuning('low'),
+      } as Anthropic.Messages.MessageCreateParamsNonStreaming);
 
-      const text = response.content[0].type === 'text' ? response.content[0].text : '';
+      // Refus de sécurité ou réponse coupée sans texte : même message que
+      // pour une panne, plutôt qu'une bulle vide.
+      assertUsable(response, maxTokens);
+      const text = responseText(response);
+      if (!text.trim()) throw new Error('Réponse vide');
       return { reply: stripMarkdown(text), role: 'assistant' as const };
     } catch (err) {
       this.logger.error(`[chatbot] Error: ${String(err)}`);

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_MODEL, claudeTuning, withHeadroom } from '../../ai/claude-model';
 
 export interface ExtractedMenuItem {
   name: string;
@@ -47,8 +48,9 @@ export class MenuAiHandler {
     this.logger.log(`[menu-ai] extraction depuis ${photoUrl}`);
 
     const response = await this.client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      model: CLAUDE_MODEL,
+      max_tokens: withHeadroom(4096),
+      ...claudeTuning('medium'),
       messages: [
         {
           role: 'user',
@@ -96,8 +98,9 @@ export class MenuAiHandler {
     this.logger.log(`[menu-ai] extraction depuis base64 (${mediaType})`);
 
     const response = await this.client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      model: CLAUDE_MODEL,
+      max_tokens: withHeadroom(4096),
+      ...claudeTuning('medium'),
       messages: [
         {
           role: 'user',
