@@ -13,7 +13,7 @@ import Purchases, {
   type PurchasesPackage,
   type CustomerInfo,
 } from 'react-native-purchases';
-import { Linking, Platform } from 'react-native';
+import { Linking, NativeModules, Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { APPLE_MANAGE_SUBSCRIPTIONS_URL, GOOGLE_MANAGE_SUBSCRIPTIONS_URL } from './legal';
 
@@ -29,6 +29,18 @@ const ANDROID_KEY =
 
 let initialized = false;
 
+/**
+ * Expo Go ? Même détection que react-native-purchases (utils/environment) :
+ * pas de module natif RNPurchases, et le module ExpoGo présent. Avec Expo 58,
+ * `Constants.executionEnvironment` ne suffisait plus à le reconnaître.
+ */
+function isExpoGo(): boolean {
+  if (NativeModules.RNPurchases) return false;
+  const expo = (globalThis as { expo?: { modules?: Record<string, unknown> } }).expo;
+  return !!expo?.modules?.ExpoGo
+    || Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+}
+
 export function initPurchases(): void {
   if (initialized) return;
   const apiKey = Platform.select({ ios: IOS_KEY, android: ANDROID_KEY, default: '' });
@@ -37,7 +49,7 @@ export function initPurchases(): void {
   // key… not available inside Expo Go ») et l'erreur remonte à l'ouverture de
   // l'app. Les achats n'y fonctionnent de toute façon pas : on reste en no-op,
   // comme sans clé. Les vrais builds (TestFlight, Play) ne sont pas concernés.
-  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return;
+  if (isExpoGo()) return;
   Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
   Purchases.configure({ apiKey });
   initialized = true;
