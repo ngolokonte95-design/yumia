@@ -85,9 +85,11 @@ class YumiaCallsModule : Module() {
       return@AsyncFunction
     }
 
+    // Sans paramètre, Expo 58 attend un corps « () -> Any? » : un
+    // `return@AsyncFunction` nu (Unit) ne compile plus, d'où les `null`.
     /** Fin d'appel : le téléphone retrouve son mode audio normal. */
     AsyncFunction("resetAudioRoute") {
-      val audio = context.getSystemService(AudioManager::class.java) ?: return@AsyncFunction
+      val audio = context.getSystemService(AudioManager::class.java) ?: return@AsyncFunction null
       if (Build.VERSION.SDK_INT >= 31) {
         audio.clearCommunicationDevice()
       } else {
@@ -95,7 +97,7 @@ class YumiaCallsModule : Module() {
         audio.isSpeakerphoneOn = false
       }
       audio.mode = AudioManager.MODE_NORMAL
-      return@AsyncFunction
+      null
     }
 
     /** Android 14+ : l'écran d'appel plein écran demande une autorisation. */
@@ -105,10 +107,11 @@ class YumiaCallsModule : Module() {
     }
 
     AsyncFunction("openFullScreenIntentSettings") {
-      if (Build.VERSION.SDK_INT < 34) return@AsyncFunction
+      if (Build.VERSION.SDK_INT < 34) return@AsyncFunction null
       val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}"))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       context.startActivity(intent)
+      null
     }
   }
 }
