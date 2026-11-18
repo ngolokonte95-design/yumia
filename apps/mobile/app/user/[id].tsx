@@ -179,9 +179,9 @@ export default function UserProfileScreen() {
         <View style={[styles.notFoundBack, { top: insets.top + spacing.sm }]}>
           <TopGlassButton label={BACK_ARROW} onPress={() => router.back()} />
         </View>
-        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.emptyMedal}>
+        <View style={[styles.emptyMedal, { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }]}>
           <Text style={styles.emptyEmoji}>👤</Text>
-        </LinearGradient>
+        </View>
         <Text style={styles.notFoundText}>{t('up_user_not_found')}</Text>
       </View>
     );
@@ -359,9 +359,9 @@ export default function UserProfileScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.emptyMedal}>
+            <View style={[styles.emptyMedal, { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }]}>
               <Text style={styles.emptyEmoji}>📷</Text>
-            </LinearGradient>
+            </View>
             <Text style={styles.emptyTitle}>{t('up_empty_posts')}</Text>
             {isMe && (
               <ActionButton primary label={t('up_publish_photo')} onPress={() => router.push('/camera' as never)} style={styles.emptyBtn} />
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: spacing.sm },
   displayName: { flexShrink: 1, fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.6, textAlign: 'center' },
   levelPill: { marginTop: spacing.sm },
-  levelText: { color: colors.brandSoft, fontSize: 12, fontWeight: '800' },
+  levelText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   bio: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, textAlign: 'center', marginTop: spacing.sm },
 
   block: { paddingHorizontal: spacing.md, marginTop: spacing.lg },
@@ -458,7 +458,6 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 44, paddingHorizontal: spacing.xl, gap: spacing.md },
   emptyMedal: {
     width: 80, height: 80, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
-    ...elevation.glowBrand,
   },
   emptyEmoji: { fontSize: 36 },
   emptyTitle: { fontSize: 16, color: colors.textSecondary, fontWeight: '700', textAlign: 'center' },

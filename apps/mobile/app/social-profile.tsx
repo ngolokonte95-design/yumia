@@ -467,11 +467,11 @@ export default function SocialProfileScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         ListEmptyComponent={
           <View style={styles.emptyGrid}>
-            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.emptyMedal}>
+            <View style={[styles.emptyMedal, { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }]}>
               <Text style={styles.emptyGridIcon}>
                 {profileTab === 'grid' ? '📷' : profileTab === 'reels' ? '🎬' : profileTab === 'reposts' ? '🔁' : '🏷️'}
               </Text>
-            </LinearGradient>
+            </View>
             <Text style={styles.emptyGridText}>
               {profileTab === 'grid' ? t('sp_empty_posts') :
                profileTab === 'reels' ? t('sp_empty_reels') :
@@ -633,7 +633,6 @@ const styles = StyleSheet.create({
   emptyGrid: { alignItems: 'center', paddingVertical: 44, paddingHorizontal: spacing.xl, gap: spacing.md },
   emptyMedal: {
     width: 80, height: 80, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
-    ...elevation.glowBrand,
   },
   emptyGridIcon: { fontSize: 36 },
   emptyGridText: { fontSize: 16, color: colors.textSecondary, fontWeight: '700', textAlign: 'center' },

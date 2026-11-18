@@ -31,9 +31,10 @@ export function AvatarHalo({ size }: { size: number }) {
       <Svg width={size} height={size}>
         <Defs>
           <RadialGradient id="p2bHalo" cx="50%" cy="50%" r="50%">
-            <Stop offset="0" stopColor={colors.brand} stopOpacity="0.38" />
-            <Stop offset="0.45" stopColor={colors.accent} stopOpacity="0.16" />
-            <Stop offset="1" stopColor={colors.accent} stopOpacity="0" />
+            {/* 18/11 : profils plus sobres — éclat blanc discret, plus de couleur. */}
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.10" />
+            <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0.03" />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
           </RadialGradient>
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="url(#p2bHalo)" />
@@ -51,7 +52,7 @@ export function BrandRing({ size, thickness = 3, children }: { size: number; thi
       colors={gradients.brand}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[{ width: size, height: size, borderRadius: size / 2, padding: thickness }, elevation.glowBrand]}
+      style={{ width: size, height: size, borderRadius: size / 2, padding: thickness }}
     >
       <View style={[styles.ringInner, { borderRadius: (size - thickness * 2) / 2 }]}>{children}</View>
     </LinearGradient>
@@ -80,14 +81,9 @@ export function BrandBadge({ label, size = 30, onPress, style }: {
   label: string; size?: number; onPress?: () => void; style?: StyleProp<ViewStyle>;
 }) {
   const body = (
-    <LinearGradient
-      colors={gradients.brand}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.brandBadge, { width: size, height: size, borderRadius: size / 2 }]}
-    >
+    <View style={[styles.brandBadge, { width: size, height: size, borderRadius: size / 2 }]}>
       <Text style={[styles.brandBadgeText, { fontSize: size * 0.56 }]}>{label}</Text>
-    </LinearGradient>
+    </View>
   );
   if (!onPress) return <View style={style}>{body}</View>;
   return (
@@ -152,12 +148,6 @@ export function ActionButton({
       scaleTo={0.95}
       haptic={false}
     >
-      {primary ? (
-        <>
-          <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <LinearGradient colors={gradients.glassSheen} style={StyleSheet.absoluteFill} />
-        </>
-      ) : null}
       <View accessibilityLabel={accessibilityLabel} style={styles.actionInner}>
         {icon ? <Text style={styles.actionIcon}>{icon}</Text> : null}
         {label ? (
@@ -211,9 +201,6 @@ export function PillTabs<K extends string>({ tabs, active, onChange, style }: {
             onPress={() => { if (!on) haptics.select(); onChange(tab.key); }}
             scaleTo={0.94}
           >
-            {on ? (
-              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-            ) : null}
             {tab.icon ? <Text style={[styles.pillIcon, on && styles.pillTextOn]}>{tab.icon}</Text> : null}
             {tab.label ? <Text style={[styles.pillLabel, on && styles.pillTextOn]} numberOfLines={1}>{tab.label}</Text> : null}
             {tab.badge && tab.badge > 0 ? (
@@ -336,9 +323,6 @@ export function SelectChip({ label, active, onPress, fill = false }: {
       onPress={() => { if (!active) haptics.select(); onPress(); }}
       scaleTo={0.94}
     >
-      {active ? (
-        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      ) : null}
       <Text style={[styles.selChipText, active && styles.selChipTextOn]} numberOfLines={1}>{label}</Text>
     </PressableScale>
   );
@@ -355,10 +339,10 @@ const styles = StyleSheet.create({
   ringInner: { flex: 1, width: '100%', overflow: 'hidden', backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 
   brandBadge: {
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: colors.bg, ...elevation.glowBrand,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF',
+    borderWidth: 2.5, borderColor: colors.bg,
   },
-  brandBadgeText: { color: '#fff', fontWeight: '900', marginTop: -1 },
+  brandBadgeText: { color: colors.bg, fontWeight: '900', marginTop: -1 },
 
   statsBar: { flexDirection: 'row', borderRadius: radius.lg, paddingVertical: spacing.md },
   statsCellWrap: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -371,17 +355,17 @@ const styles = StyleSheet.create({
     height: 44, borderRadius: radius.pill, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md,
   },
-  actionPrimary: { ...elevation.glowBrand },
+  actionPrimary: { backgroundColor: '#FFFFFF' },
   actionGlass: {},
   actionInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionIcon: { fontSize: 16 },
   actionText: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
-  actionTextPrimary: { color: '#fff', fontWeight: '900' },
+  actionTextPrimary: { color: colors.bg, fontWeight: '900' },
   badge: {
     position: 'absolute', top: 4, end: 6,
     minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.brand, borderWidth: 1.5, borderColor: colors.bg,
+    backgroundColor: colors.danger, borderWidth: 1.5, borderColor: colors.bg,
   },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
 
@@ -393,13 +377,13 @@ const styles = StyleSheet.create({
     flex: 1, height: 38, borderRadius: radius.pill, overflow: 'hidden',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8,
   },
-  pillOn: { ...elevation.glowBrand },
+  pillOn: { backgroundColor: 'rgba(255,255,255,0.14)' },
   pillIcon: { color: colors.textMuted, fontSize: 17, fontWeight: '800' },
   pillLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   pillTextOn: { color: '#fff' },
   pillBadge: {
     minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)',
   },
   pillBadgeOn: { backgroundColor: 'rgba(0,0,0,0.28)' },
   pillBadgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
@@ -426,7 +410,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
     ...elevation.high,
   },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.brand, marginBottom: spacing.sm },
+  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)', marginBottom: spacing.sm },
   sheetGroup: { borderRadius: radius.lg, overflow: 'hidden' },
   sheetSep: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.08)', marginStart: spacing.md + 36 + spacing.md },
   sheetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: 12, minHeight: 58 },
@@ -440,9 +424,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   selChipFill: { flex: 1, paddingHorizontal: 8 },
-  selChipOn: { borderColor: 'transparent' },
+  selChipOn: { borderColor: 'transparent', backgroundColor: '#FFFFFF' },
   selChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
-  selChipTextOn: { color: '#fff', fontWeight: '900' },
+  selChipTextOn: { color: colors.bg, fontWeight: '900' },
 
   glassPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center',
