@@ -16,7 +16,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator,
+  View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -109,6 +109,9 @@ export default function GuidesScreen() {
   /** Numéro de la dernière recherche : une réponse plus ancienne, arrivée en
    *  retard, ne doit pas écraser celle de la catégorie choisie ensuite. */
   const requestSeq = useRef(0);
+  /** Paramètres de la dernière recherche lancée — rejoués par « tirer pour rafraîchir ». */
+  const lastSearch = useRef<{ city: string; f: string | null; q: string[]; w: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   /**
    * `f` : `null` = « Tous ». Surtout pas `undefined` : un paramètre par défaut
@@ -124,6 +127,7 @@ export default function GuidesScreen() {
     const c = city.trim();
     if (!c || !accessToken) return;
     const seq = ++requestSeq.current;
+    lastSearch.current = { city: c, f, q, w };
     setLoading(true);
     setPage(1);
     try {
@@ -135,6 +139,31 @@ export default function GuidesScreen() {
       if (seq === requestSeq.current) setLoading(false);
     }
   }, [accessToken, theme, facet, quick, what]);
+
+  /**
+   * Tirer pour rafraîchir : rejoue la DERNIÈRE recherche affichée (ville,
+   * style, filtres, mot-clé), telle qu'elle a été lancée — pas le contenu
+   * courant des champs, qui peut être une saisie non validée. Rien n'est
+   * lancé tant qu'aucune recherche n'a abouti. La liste reste à l'écran
+   * pendant le rechargement, et y reste si le partenaire ne répond pas.
+   */
+  const onRefresh = async () => {
+    const last = lastSearch.current;
+    if (!last || !result || !accessToken) return;
+    const seq = ++requestSeq.current;
+    setRefreshing(true);
+    try {
+      const next = await fetchGuidedTours(last.city, accessToken, theme, last.f ?? undefined, last.q, { q: last.w.trim() || undefined });
+      if (seq === requestSeq.current) {
+        setResult(next);
+        setPage(1);
+      }
+    } catch {
+      // Partenaire injoignable : on garde les visites déjà affichées.
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   /** « Voir plus » : page suivante, ajoutée à la liste. */
   const loadMore = async () => {
@@ -282,6 +311,9 @@ export default function GuidesScreen() {
         <ScrollView
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.lg }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.brand} colors={[colors.brand]} />
+          }
         >
           {result && result.tours.length === 0 && (
             <P2Empty emoji="🧭" text={t('gd_empty').replace('{city}', result.city)} />

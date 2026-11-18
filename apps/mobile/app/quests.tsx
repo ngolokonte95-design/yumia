@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, StyleSheet, Text, View,
+  ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -94,6 +94,19 @@ export default function QuestsScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
+  /** Tirer pour rafraîchir : recharge les quêtes et leur progression. */
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } catch {
+      // Réseau indisponible : les quêtes affichées restent en place.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
+
   const filtered = quests.filter((q) => {
     if (filter === 'active') return !q.completed;
     if (filter === 'done') return q.completed;
@@ -139,6 +152,9 @@ export default function QuestsScreen() {
           keyExtractor={(q) => q.id}
           renderItem={({ item, index }) => <QuestCard quest={item} index={index} />}
           contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + 80 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.brand} colors={[colors.brand]} />
+          }
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListEmptyComponent={<P2Empty emoji="🏆" text={t('quests_empty')} />}
         />

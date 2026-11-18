@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Modal, Pressable,
+  ActivityIndicator, Alert, FlatList, Modal, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import type { ScrollViewInstance } from 'react-native';
@@ -85,9 +85,16 @@ export default function MeetupScreen() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', city: '', date: '', maxAttendees: '' });
 
-  const load = useCallback(async (cityFilter?: string) => {
+  // Filtre de ville réellement appliqué à la liste affichée (le champ peut
+  // contenir une saisie non validée) : c'est lui que le rafraîchissement rejoue.
+  const appliedCity = useRef<string | undefined>(undefined);
+  const [refreshing, setRefreshing] = useState(false);
+
+  /** `silent` : recharge sans remplacer la liste par l'indicateur plein écran. */
+  const load = useCallback(async (cityFilter?: string, silent = false) => {
     if (!accessToken) return;
-    setLoading(true);
+    appliedCity.current = cityFilter;
+    if (!silent) setLoading(true);
     const url = cityFilter ? `${API}/meetups?city=${encodeURIComponent(cityFilter)}` : `${API}/meetups`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (res.ok) setMeetups(await res.json());
@@ -95,6 +102,18 @@ export default function MeetupScreen() {
   }, [accessToken]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Tirer pour rafraîchir : même requête, même filtre de ville. */
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load(appliedCity.current, true);
+    } catch {
+      // Réseau indisponible : la liste affichée reste en place.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
 
   const rsvp = async (meetupId: string, currentStatus: string | null | undefined) => {
     const status = currentStatus === 'going' ? 'cancel' : 'going';
@@ -175,6 +194,9 @@ export default function MeetupScreen() {
           data={meetups}
           keyExtractor={(m) => m.id}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.brand} colors={[colors.brand]} />
+          }
           contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: insets.bottom + 80, gap: spacing.md }}
           renderItem={({ item, index }) => (
             <Reveal index={Math.min(index, 6)}>

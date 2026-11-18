@@ -4,7 +4,7 @@
  * blanche, « Supprimer » en rouge fonctionnel discret.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../lib/auth-context';
@@ -42,6 +42,19 @@ export default function FollowRequestsScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
+  /** Tirer pour rafraîchir : recharge les demandes en attente. */
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await load();
+    } catch {
+      // Réseau indisponible : les demandes affichées restent en place.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [load]);
+
   const respond = async (requestId: string, accept: boolean) => {
     if (!accessToken) return;
     setProcessingId(requestId);
@@ -65,6 +78,9 @@ export default function FollowRequestsScreen() {
           data={requests}
           keyExtractor={(r) => r.id}
           contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 40 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor="#fff" colors={[colors.brand]} />
+          }
           ListEmptyComponent={
             <QuietEmpty emoji="👥" title={t('fr_empty_title')} text={t('fr_empty_text')} />
           }

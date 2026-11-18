@@ -5,8 +5,8 @@
  * (voile confiné à la photo), les ambiances sont des pastilles sans couleur
  * (blanc quand choisie). Aucun dégradé de marque sur cet écran.
  */
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UNIVERSE_META } from '@yumia/shared';
@@ -42,14 +42,40 @@ export default function NightclubScreen() {
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /** La requête de l'écran, partagée par le chargement initial et le rafraîchissement. */
+  const fetchPlaces = useCallback(
+    () => fetchNearby({ lat: coords.lat, lng: coords.lng, radius: universeSearchRadius('nightclub'), universe: 'nightclub', limit: 30 }),
+    [coords.lat, coords.lng],
+  );
+
   useEffect(() => {
     if (resolving) return;
     setLoading(true);
-    fetchNearby({ lat: coords.lat, lng: coords.lng, radius: universeSearchRadius('nightclub'), universe: 'nightclub', limit: 30 })
+    fetchPlaces()
       .then(setPlaces)
       .catch(() => setPlaces([]))
       .finally(() => setLoading(false));
-  }, [coords.lat, coords.lng, resolving]);
+  }, [fetchPlaces, resolving]);
+
+  /**
+   * Tirer pour rafraîchir : même requête que l'ouverture de l'écran, sans
+   * l'indicateur plein écran. Cet écran ne passe par aucun quota de
+   * chargement côté app (contrairement à la page d'univers) : le
+   * rafraîchissement n'en ajoute ni n'en contourne aucun. En cas d'échec,
+   * la liste affichée reste en place.
+   */
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    if (resolving) return;
+    setRefreshing(true);
+    try {
+      setPlaces(await fetchPlaces());
+    } catch {
+      // Réseau indisponible : on garde les lieux affichés.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchPlaces, resolving]);
 
   // Filtre côté client par tag d'ambiance
   const filtered = ambiance === 'all'
@@ -105,7 +131,13 @@ export default function NightclubScreen() {
       {loading || resolving ? (
         <View style={styles.center}><ActivityIndicator color={colors.textPrimary} size="large" /></View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor="#fff" colors={[colors.brand]} />
+          }
+        >
           {filtered.length === 0 ? (
             <PbEmpty emoji="🎧" title={t('nc_empty_title')} text={t('nc_empty_hint')} />
           ) : (

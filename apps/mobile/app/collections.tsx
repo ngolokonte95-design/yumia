@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -60,9 +60,10 @@ export default function CollectionsScreen() {
     } catch { /* best-effort */ }
   }, [accessToken, auth]);
 
-  const loadPosts = useCallback(async (collectionId?: string) => {
+  /** `silent` : recharge sans remplacer la grille par l'indicateur plein écran. */
+  const loadPosts = useCallback(async (collectionId?: string, silent = false) => {
     if (!accessToken) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const qs = collectionId ? `?limit=60&collectionId=${collectionId}` : '?limit=60';
       const res = await fetch(`${API}/posts/saved${qs}`, { headers: auth() });
@@ -75,6 +76,17 @@ export default function CollectionsScreen() {
     void loadCollections();
     void loadPosts();
   }, [loadCollections, loadPosts]);
+
+  /** Tirer pour rafraîchir : les collections et les publications de celle qui est affichée. */
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadCollections(), loadPosts(selected?.id, true)]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const selectCollection = (c: Collection | null) => {
     setSelected(c);
@@ -154,6 +166,9 @@ export default function CollectionsScreen() {
           columnWrapperStyle={styles.gridRow}
           ItemSeparatorComponent={GridGap}
           contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor="#fff" colors={[colors.brand]} />
+          }
           ListEmptyComponent={
             <QuietEmpty emoji="🔖" title={t('col_empty_title')} text={t('col_empty_text')} />
           }

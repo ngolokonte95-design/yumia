@@ -5,7 +5,7 @@
  * bouton de paiement au dégradé de marque.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -40,6 +40,24 @@ export default function CartScreen() {
   }, [accessToken]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /**
+   * Tirer pour rafraîchir : relit le panier sur le serveur (prix, stocks,
+   * quantités à jour). Contrairement à `load`, un échec réseau ne vide pas
+   * le panier affiché.
+   */
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    if (!accessToken) return;
+    setRefreshing(true);
+    try {
+      setCart(await shopApi.cart(accessToken));
+    } catch {
+      // Réseau indisponible : on garde le panier affiché.
+    } finally {
+      setRefreshing(false);
+    }
+  }, [accessToken]);
 
   async function changeQuantity(itemId: string, quantity: number) {
     if (!accessToken || busyItemId) return;
@@ -85,7 +103,12 @@ export default function CartScreen() {
         </ShopEmpty>
       ) : (
         <>
-          <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 280 }}>
+          <ScrollView
+            contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 280 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.brand} colors={[colors.brand]} />
+            }
+          >
             {cart!.lines.map((line, i) => (
               <Animated.View
                 key={line.id}
