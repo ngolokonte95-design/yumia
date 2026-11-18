@@ -1,3 +1,12 @@
+/**
+ * MON PROFIL SOCIAL — refonte premium (18/11/2026).
+ *
+ * En-tête fort : halo radial de marque derrière l'avatar (aucun voile linéaire),
+ * anneau au dégradé quand une story est active, nom en grand avec le badge
+ * d'abonnement à 22 px, compteurs réels qui montent, actions en pilules,
+ * stories à la une, onglets en pastilles, mur de publications à coins arrondis
+ * qui apparaît en cascade. Logique (chargement, actions, menus) inchangée.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable,
@@ -5,8 +14,9 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, elevation, gradients, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { feedApi, type StoryHighlight } from '../lib/feed-api';
 import { VideoThumb } from '../components/VideoThumb';
@@ -15,10 +25,20 @@ import { useI18n } from '../lib/useI18n';
 import { PostViewer } from '../components/PostViewer';
 import type { FeedPost } from '../lib/feed-api';
 import { isVideoUrl } from '../lib/is-video-url';
+import { PressableScale, Reveal } from '../components/ui';
+import { GLASS } from '../components/profile/ProfileChrome';
+import {
+  ActionButton, AvatarHalo, BACK_ARROW, BrandBadge, BrandRing, GridTile, HighlightBubble,
+  PillTabs, QuietRing, SheetMenu, StatCell, StatsBar, TileBadge, TopGlassButton,
+  type PillTab,
+} from '../components/p2b/ProfileVisuals';
 
 const API = API_BASE_URL;
 const { width: SCREEN_W } = Dimensions.get('window');
-const GRID_ITEM = (SCREEN_W - 3) / 3;
+/** Mur de publications : marges et écarts, coins arrondis. */
+const GRID_PAD = spacing.sm;
+const GRID_GAP = 4;
+const GRID_ITEM = Math.floor((SCREEN_W - GRID_PAD * 2 - GRID_GAP * 2) / 3);
 
 type ProfileTab = 'grid' | 'reels' | 'reposts' | 'tagged';
 
@@ -223,114 +243,110 @@ export default function SocialProfileScreen() {
     taggedData;
 
   if (loading) {
-    return <View style={[styles.center, { paddingTop: insets.top }]}><ActivityIndicator color={colors.brand} /></View>;
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator color={colors.brand} size="large" />
+      </View>
+    );
   }
+
+  const tabs: PillTab<ProfileTab>[] = [
+    { key: 'grid', icon: '⊞' },
+    { key: 'reels', icon: '▷' },
+    { key: 'reposts', icon: '↺' },
+    { key: 'tagged', icon: '☺' },
+  ];
+
+  const avatarContent = photoUrl ? (
+    <Image source={{ uri: photoUrl }} style={styles.avatarImg} />
+  ) : (
+    <View style={[styles.avatarImg, styles.avatarFallback]}>
+      <Text style={styles.avatarLetter}>{displayName[0]?.toUpperCase()}</Text>
+    </View>
+  );
 
   const ListHeader = (
     <View>
-      {/* Avatar + stats */}
-      <View style={styles.profileTop}>
-        {/* Avatar avec bulle + */}
-        <View style={styles.avatarWrap}>
-          <Pressable
-            onPress={() => hasActiveStory
-              ? router.push(`/story-viewer?userId=${user?.id}` as never)
-              : router.push('/story/create' as never)}
-          >
-            <View style={[styles.avatarRing, hasActiveStory && styles.avatarRingActive]}>
-              {photoUrl ? (
-                <Image source={{ uri: photoUrl }} style={styles.avatar} />
+      {/* ── En-tête : halo radial, avatar à anneau, nom, bio ─────────────── */}
+      <Reveal index={0} style={styles.hero}>
+        <View style={styles.avatarStage}>
+          <AvatarHalo size={260} />
+          <View>
+            <PressableScale
+              scaleTo={0.95}
+              onPress={() => hasActiveStory
+                ? router.push(`/story-viewer?userId=${user?.id}` as never)
+                : router.push('/story/create' as never)}
+            >
+              {hasActiveStory ? (
+                <BrandRing size={116} thickness={3.5}>{avatarContent}</BrandRing>
               ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarLetter}>{displayName[0]?.toUpperCase()}</Text>
-                </View>
+                <QuietRing size={116} dashed>{avatarContent}</QuietRing>
               )}
-            </View>
-          </Pressable>
-          <Pressable style={styles.storyPlusBadge} onPress={() => router.push('/story/create' as never)} hitSlop={8}>
-            <Text style={styles.storyPlusTxt}>+</Text>
-          </Pressable>
+            </PressableScale>
+            <BrandBadge label="+" size={32} style={styles.storyPlus} onPress={() => router.push('/story/create' as never)} />
+          </View>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsBlock}>
-          <Pressable style={styles.statItem} onPress={() => router.push('/camera' as never)}>
-            <Text style={styles.statNum}>{posts.length}</Text>
-            <Text style={styles.statLbl}>{t('sp_publications')}</Text>
-          </Pressable>
-          <Pressable style={styles.statItem} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: user?.id, type: 'followers' } } as never)}>
-            <Text style={styles.statNum}>{socialStats?.followersCount ?? 0}</Text>
-            <Text style={styles.statLbl}>{t('sp_followers')}</Text>
-          </Pressable>
-          <Pressable style={styles.statItem} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: user?.id, type: 'following' } } as never)}>
-            <Text style={styles.statNum}>{socialStats?.followingCount ?? 0}</Text>
-            <Text style={styles.statLbl}>{t('sp_following')}</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* Nom + bio */}
-      <View style={styles.bioSection}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={styles.displayName}>{displayName}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.displayName} numberOfLines={2}>{displayName}</Text>
           <PlanBadgeIcon plan={user?.plan} size={22} />
         </View>
         {bio ? <Text style={styles.bioText}>{bio}</Text> : null}
-      </View>
+      </Reveal>
 
-      {/* Boutons action */}
-      <View style={styles.actionRow}>
-        <Pressable style={styles.actionBtn} onPress={() => router.push('/edit-social-profile' as never)}>
-          <Text style={styles.actionBtnText}>{t('sp_edit_profile')}</Text>
-        </Pressable>
-        <Pressable style={styles.actionBtn} onPress={shareProfile}>
-          <Text style={styles.actionBtnText}>{t('sp_share_profile')}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.actionBtnIcon}
+      {/* ── Compteurs ──────────────────────────────────────────────────── */}
+      <Reveal index={1} style={styles.block}>
+        <StatsBar>
+          <StatCell value={posts.length} label={t('sp_publications')} onPress={() => router.push('/camera' as never)} />
+          <StatCell
+            value={socialStats?.followersCount ?? 0}
+            label={t('sp_followers')}
+            onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: user?.id, type: 'followers' } } as never)}
+          />
+          <StatCell
+            value={socialStats?.followingCount ?? 0}
+            label={t('sp_following')}
+            onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: user?.id, type: 'following' } } as never)}
+          />
+        </StatsBar>
+      </Reveal>
+
+      {/* ── Actions ────────────────────────────────────────────────────── */}
+      <Reveal index={2} style={[styles.block, styles.actionRow]}>
+        <ActionButton primary label={t('sp_edit_profile')} onPress={() => router.push('/edit-social-profile' as never)} style={styles.flex1} />
+        <ActionButton label={t('sp_share_profile')} onPress={shareProfile} style={styles.flex1} />
+        <ActionButton
+          icon="👤"
+          badge={followRequests}
           onPress={() => router.push('/follow-requests' as never)}
           accessibilityLabel={t('sp_menu_follow_requests')}
-        >
-          <Text style={{ fontSize: 16 }}>👤</Text>
-          {followRequests > 0 ? (
-            <View style={styles.actionBtnBadge}>
-              <Text style={styles.actionBtnBadgeTxt}>
-                {followRequests > 99 ? '99+' : followRequests}
-              </Text>
-            </View>
-          ) : null}
-        </Pressable>
-      </View>
+          style={styles.actionSquare}
+        />
+      </Reveal>
 
-      {/* Stories à la une */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsRow}>
-        {/* Nouvelle à la une */}
-        <Pressable style={styles.hlItem} onPress={() => router.push('/story/create' as never)}>
-          <View style={[styles.hlBubble, styles.hlAddBubble]}>
-            <Text style={{ fontSize: 24, color: colors.textMuted }}>＋</Text>
-          </View>
-          <Text style={styles.hlLabel} numberOfLines={1}>{t('sp_new_highlight')}</Text>
-        </Pressable>
-        {highlights.map((hl) => (
-          <Pressable key={hl.id} style={styles.hlItem} onPress={() => setActiveHighlight(hl)} onLongPress={() => setActiveHighlight(hl)}>
-            <View style={styles.hlBubble}>
-              {hl.coverUrl ? (
-                <Image source={{ uri: hl.coverUrl }} style={styles.hlCover} />
-              ) : (
-                <Text style={{ fontSize: 22 }}>✨</Text>
-              )}
-            </View>
-            <Text style={styles.hlLabel} numberOfLines={1}>{hl.title}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {/* ── Stories à la une ───────────────────────────────────────────── */}
+      <Reveal index={3}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsRow}>
+          <HighlightBubble add label={t('sp_new_highlight')} onPress={() => router.push('/story/create' as never)} />
+          {highlights.map((hl) => (
+            <HighlightBubble
+              key={hl.id}
+              label={hl.title}
+              onPress={() => setActiveHighlight(hl)}
+              onLongPress={() => setActiveHighlight(hl)}
+              cover={hl.coverUrl ? <Image source={{ uri: hl.coverUrl }} style={styles.hlCover} /> : <Text style={{ fontSize: 22 }}>✨</Text>}
+            />
+          ))}
+        </ScrollView>
+      </Reveal>
 
-      {/* Contacts à découvrir */}
+      {/* ── Contacts à découvrir ───────────────────────────────────────── */}
       {showSuggestions && suggestions.length > 0 && (
-        <View style={styles.suggestBox}>
+        <Reveal index={4} style={[styles.suggestBox, GLASS]}>
           <View style={styles.suggestHeader}>
             <Text style={styles.suggestTitle}>{t('sp_discover_contacts')}</Text>
-            <Pressable onPress={() => setShowSuggestions(false)} hitSlop={12}>
+            <Pressable onPress={() => setShowSuggestions(false)} hitSlop={12} style={styles.suggestCloseBtn}>
               <Text style={styles.suggestClose}>✕</Text>
             </Pressable>
           </View>
@@ -340,95 +356,75 @@ export default function SocialProfileScreen() {
                 <Pressable onPress={() => setShowSuggestions(false)} style={styles.suggestCardClose} hitSlop={8}>
                   <Text style={{ fontSize: 12, color: colors.textMuted }}>✕</Text>
                 </Pressable>
-                <Pressable onPress={() => router.push(`/user/${s.id}` as never)}>
-                  {s.photoUrl ? (
-                    <Image source={{ uri: s.photoUrl }} style={styles.suggestAvatar} />
-                  ) : (
-                    <View style={[styles.suggestAvatar, styles.suggestAvatarFallback]}>
-                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{s.displayName[0]}</Text>
-                    </View>
-                  )}
+                <Pressable onPress={() => router.push(`/user/${s.id}` as never)} style={styles.suggestBody}>
+                  <BrandRing size={66} thickness={2}>
+                    {s.photoUrl ? (
+                      <Image source={{ uri: s.photoUrl }} style={styles.suggestAvatar} />
+                    ) : (
+                      <View style={[styles.suggestAvatar, styles.avatarFallback]}>
+                        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 20 }}>{s.displayName[0]}</Text>
+                      </View>
+                    )}
+                  </BrandRing>
                   <Text style={styles.suggestName} numberOfLines={1}>{s.displayName}</Text>
                   {s.bio ? <Text style={styles.suggestBio} numberOfLines={2}>{s.bio}</Text> : null}
                 </Pressable>
-                <Pressable
-                  style={[styles.followBtn, followed.has(s.id) && styles.followBtnActive]}
+                <ActionButton
+                  primary={!followed.has(s.id)}
+                  label={followed.has(s.id) ? t('sp_followed_check') : t('sp_follow')}
                   onPress={() => void followSuggestion(s.id)}
-                >
-                  <Text style={[styles.followBtnText, followed.has(s.id) && styles.followBtnTextActive]}>
-                    {followed.has(s.id) ? t('sp_followed_check') : t('sp_follow')}
-                  </Text>
-                </Pressable>
+                  style={styles.suggestFollow}
+                  textStyle={{ fontSize: 13 }}
+                />
               </View>
             ))}
           </ScrollView>
-        </View>
+        </Reveal>
       )}
 
-      {/* Tabs grille */}
-      <View style={styles.tabBar}>
-        {([
-          { key: 'grid', icon: '⊞' },
-          { key: 'reels', icon: '▷' },
-          { key: 'reposts', icon: '↺' },
-          { key: 'tagged', icon: '☺' },
-        ] as { key: ProfileTab; icon: string }[]).map(({ key, icon }) => (
-          <Pressable
-            key={key}
-            style={[styles.tabItem, profileTab === key && styles.tabItemActive]}
-            onPress={() => setProfileTab(key)}
-          >
-            <Text style={[styles.tabIcon, profileTab === key && styles.tabIconActive]}>{icon}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {/* ── Onglets ────────────────────────────────────────────────────── */}
+      <Reveal index={5} style={styles.tabsWrap}>
+        <PillTabs tabs={tabs} active={profileTab} onChange={setProfileTab} />
+      </Reveal>
     </View>
   );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Top bar style Instagram */}
+      {/* ── Barre du haut ──────────────────────────────────────────────── */}
       <View style={styles.topBar}>
-        <View style={styles.topBarLeft}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.topBarIcon}>←</Text>
-          </Pressable>
-        </View>
+        <TopGlassButton label={BACK_ARROW} onPress={() => router.back()} />
         <Pressable style={styles.topBarCenter} onPress={() => {}}>
-          <Text style={styles.topBarUsername}>{displayName} ▾</Text>
+          <Text style={styles.topBarUsername} numberOfLines={1}>{displayName} ▾</Text>
         </Pressable>
         <View style={styles.topBarRight}>
-          <Pressable style={styles.topBarIconBtn} onPress={() => setShowPlusMenu(true)}>
-            <Text style={styles.topBarIcon}>＋</Text>
-          </Pressable>
-          <Pressable style={styles.topBarIconBtn} onPress={() => router.push('/chat' as never)}>
-            <Text style={styles.topBarIcon}>✉</Text>
-          </Pressable>
+          <TopGlassButton label="＋" onPress={() => setShowPlusMenu(true)} size={36} />
+          <TopGlassButton label="✉" onPress={() => router.push('/chat' as never)} size={36} />
           {/* Favoris (lieux + publications enregistrées) : accessible d'un
               geste depuis le profil, comme le signet d'Instagram — il n'était
               atteignable que par le menu ☰. */}
-          <Pressable
-            style={styles.topBarIconBtn}
+          <TopGlassButton
+            label="🔖"
             onPress={() => router.push('/favorites' as never)}
             accessibilityLabel={t('sp_menu_favorites_collections')}
-          >
-            <Text style={styles.topBarIcon}>🔖</Text>
-          </Pressable>
-          <Pressable style={styles.topBarIconBtn} onPress={() => setShowMenu(true)}>
-            <Text style={styles.topBarIcon}>☰</Text>
-          </Pressable>
+            size={36}
+          />
+          <TopGlassButton label="☰" onPress={() => setShowMenu(true)} size={36} />
         </View>
       </View>
 
-      {/* Grille de posts */}
+      {/* ── Mur de publications ────────────────────────────────────────── */}
       <FlatList
         data={gridData}
         numColumns={3}
         keyExtractor={(p) => p.id}
         ListHeaderComponent={ListHeader}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.gridItem}
+        columnWrapperStyle={styles.gridRow}
+        ItemSeparatorComponent={() => <View style={{ height: GRID_GAP }} />}
+        renderItem={({ item, index }) => (
+          <GridTile
+            size={GRID_ITEM}
+            index={index}
             onPress={() => setViewerIndex(gridData.findIndex((p) => p.id === item.id))}
             onLongPress={() => setPostMenu(item)}
           >
@@ -443,33 +439,27 @@ export default function SocialProfileScreen() {
             )}
             {item.mediaUrls.length > 1 && !isVideoUrl(item.mediaUrls[0]) && (
               // Plusieurs photos : repère « carrousel », comme sur Instagram.
-              <View style={styles.multiBadge}>
-                <Text style={styles.multiBadgeTxt}>⧉</Text>
-              </View>
+              <TileBadge corner="tr"><Text style={styles.tileBadgeTxt}>⧉</Text></TileBadge>
             )}
             {item.pinned && (
-              <View style={styles.pinnedBadge}>
-                <Text style={{ fontSize: 11 }}>📌</Text>
-              </View>
+              <TileBadge corner="tl"><Text style={{ fontSize: 10 }}>📌</Text></TileBadge>
             )}
             {isVideoUrl(item.mediaUrls[0]) && (
-              <View style={styles.videoIcon}>
-                <Text style={{ fontSize: 13, color: '#fff' }}>▶</Text>
-              </View>
+              <TileBadge corner="tr"><Text style={styles.tileBadgeTxt}>▶</Text></TileBadge>
             )}
             {item.likesCount > 0 && (
-              <View style={styles.likesBadge}>
-                <Text style={styles.likesBadgeTxt}>❤ {item.likesCount}</Text>
-              </View>
+              <TileBadge corner="bl"><Text style={styles.tileBadgeTxt}>❤ {item.likesCount}</Text></TileBadge>
             )}
-          </Pressable>
+          </GridTile>
         )}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         ListEmptyComponent={
           <View style={styles.emptyGrid}>
-            <Text style={styles.emptyGridIcon}>
-              {profileTab === 'grid' ? '📷' : profileTab === 'reels' ? '🎬' : profileTab === 'reposts' ? '🔁' : '🏷️'}
-            </Text>
+            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.emptyMedal}>
+              <Text style={styles.emptyGridIcon}>
+                {profileTab === 'grid' ? '📷' : profileTab === 'reels' ? '🎬' : profileTab === 'reposts' ? '🔁' : '🏷️'}
+              </Text>
+            </LinearGradient>
             <Text style={styles.emptyGridText}>
               {profileTab === 'grid' ? t('sp_empty_posts') :
                profileTab === 'reels' ? t('sp_empty_reels') :
@@ -477,87 +467,66 @@ export default function SocialProfileScreen() {
                t('sp_empty_tags')}
             </Text>
             {profileTab === 'grid' && (
-              <Pressable style={styles.emptyGridBtn} onPress={() => router.push('/camera' as never)}>
-                <Text style={styles.emptyGridBtnTxt}>{t('sp_publish_photo')}</Text>
-              </Pressable>
+              <ActionButton primary label={t('sp_publish_photo')} onPress={() => router.push('/camera' as never)} style={styles.emptyBtn} />
             )}
           </View>
         }
       />
 
-      {/* Menu hamburger */}
-      <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => setShowMenu(false)}>
-        <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)} />
-        <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 20 }]}>
-          {[
-            { icon: '⚙️', label: t('sp_menu_settings'), onPress: () => { setShowMenu(false); router.push('/settings' as never); } },
-            { icon: '👥', label: t('sp_menu_follow_requests'), onPress: () => { setShowMenu(false); router.push('/follow-requests' as never); } },
-            { icon: '📁', label: t('sp_menu_archive'), onPress: () => { setShowMenu(false); router.push('/archive' as never); } },
-            { icon: '❤️', label: t('sp_menu_favorites_collections'), onPress: () => { setShowMenu(false); router.push('/favorites' as never); } },
-            { icon: '🟢', label: t('sp_menu_close_friends'), onPress: () => { setShowMenu(false); router.push('/close-friends?type=close-friends' as never); } },
-            { icon: '⭐', label: t('sp_menu_favorites'), onPress: () => { setShowMenu(false); router.push('/close-friends?type=favorites' as never); } },
-            { icon: '🚫', label: t('sp_menu_blocked'), onPress: () => { setShowMenu(false); router.push('/blocked' as never); } },
-            { icon: '🔒', label: socialStats?.isPrivate ? t('sp_menu_go_public') : t('sp_menu_go_private'), onPress: () => { setShowMenu(false); router.push('/edit-social-profile' as never); } },
-            { icon: '🔔', label: t('sp_menu_notifications'), onPress: () => { setShowMenu(false); router.push('/notifications' as never); } },
-            { icon: '📤', label: t('sp_menu_share_profile'), onPress: () => { setShowMenu(false); shareProfile(); } },
-          ].map(({ icon, label, onPress }) => (
-            <Pressable key={label} style={styles.menuItem} onPress={onPress}>
-              <Text style={styles.menuIcon}>{icon}</Text>
-              <Text style={styles.menuLabel}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </Modal>
+      {/* ── Menu hamburger ─────────────────────────────────────────────── */}
+      <SheetMenu
+        visible={showMenu}
+        onClose={() => setShowMenu(false)}
+        bottomInset={insets.bottom}
+        items={[
+          { icon: '⚙️', label: t('sp_menu_settings'), onPress: () => { setShowMenu(false); router.push('/settings' as never); } },
+          { icon: '👥', label: t('sp_menu_follow_requests'), onPress: () => { setShowMenu(false); router.push('/follow-requests' as never); } },
+          { icon: '📁', label: t('sp_menu_archive'), onPress: () => { setShowMenu(false); router.push('/archive' as never); } },
+          { icon: '❤️', label: t('sp_menu_favorites_collections'), onPress: () => { setShowMenu(false); router.push('/favorites' as never); } },
+          { icon: '🟢', label: t('sp_menu_close_friends'), onPress: () => { setShowMenu(false); router.push('/close-friends?type=close-friends' as never); } },
+          { icon: '⭐', label: t('sp_menu_favorites'), onPress: () => { setShowMenu(false); router.push('/close-friends?type=favorites' as never); } },
+          { icon: '🚫', label: t('sp_menu_blocked'), onPress: () => { setShowMenu(false); router.push('/blocked' as never); } },
+          { icon: '🔒', label: socialStats?.isPrivate ? t('sp_menu_go_public') : t('sp_menu_go_private'), onPress: () => { setShowMenu(false); router.push('/edit-social-profile' as never); } },
+          { icon: '🔔', label: t('sp_menu_notifications'), onPress: () => { setShowMenu(false); router.push('/notifications' as never); } },
+          { icon: '📤', label: t('sp_menu_share_profile'), onPress: () => { setShowMenu(false); shareProfile(); } },
+        ]}
+      />
 
-      {/* Menu + (publication / reel / story) */}
-      <Modal visible={showPlusMenu} transparent animationType="slide" onRequestClose={() => setShowPlusMenu(false)}>
-        <Pressable style={styles.menuOverlay} onPress={() => setShowPlusMenu(false)} />
-        <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 20 }]}>
-          {[
-            { icon: '📸', label: t('sp_menu_new_post'), onPress: () => { setShowPlusMenu(false); router.push('/camera' as never); } },
-            { icon: '🎬', label: t('sp_menu_new_reel'), onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=reel' as never); } },
-            { icon: '⭕', label: t('sp_menu_new_story'), onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=story' as never); } },
-            { icon: '✨', label: t('sp_menu_highlight_story'), onPress: () => { setShowPlusMenu(false); router.push('/story/create' as never); } },
-          ].map(({ icon, label, onPress }) => (
-            <Pressable key={label} style={styles.menuItem} onPress={onPress}>
-              <Text style={styles.menuIcon}>{icon}</Text>
-              <Text style={styles.menuLabel}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </Modal>
+      {/* ── Menu + (publication / reel / story) ────────────────────────── */}
+      <SheetMenu
+        visible={showPlusMenu}
+        onClose={() => setShowPlusMenu(false)}
+        bottomInset={insets.bottom}
+        items={[
+          { icon: '📸', label: t('sp_menu_new_post'), onPress: () => { setShowPlusMenu(false); router.push('/camera' as never); } },
+          { icon: '🎬', label: t('sp_menu_new_reel'), onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=reel' as never); } },
+          { icon: '⭕', label: t('sp_menu_new_story'), onPress: () => { setShowPlusMenu(false); router.push('/camera?mode=story' as never); } },
+          { icon: '✨', label: t('sp_menu_highlight_story'), onPress: () => { setShowPlusMenu(false); router.push('/story/create' as never); } },
+        ]}
+      />
 
-      {/* Menu appui long sur un post */}
-      <Modal visible={postMenu !== null} transparent animationType="slide" onRequestClose={() => setPostMenu(null)}>
-        <Pressable style={styles.menuOverlay} onPress={() => setPostMenu(null)} />
-        <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 20 }]}>
-          {[
-            { icon: '📌', label: postMenu?.pinned ? t('sp_menu_unpin') : t('sp_menu_pin'), onPress: () => void postAction('pin') },
-            { icon: '📊', label: t('sp_menu_view_stats'), onPress: () => void postAction('stats') },
-            { icon: '✏️', label: t('sp_menu_edit'), onPress: () => { const id = postMenu?.id; setPostMenu(null); if (id) router.push(`/post/${id}?edit=1` as never); } },
-            { icon: '📁', label: t('sp_menu_archive_post'), onPress: () => void postAction('archive') },
-            { icon: '🗑️', label: t('sp_menu_delete'), onPress: () => void postAction('delete') },
-          ].map(({ icon, label, onPress }) => (
-            <Pressable key={label} style={styles.menuItem} onPress={onPress}>
-              <Text style={styles.menuIcon}>{icon}</Text>
-              <Text style={styles.menuLabel}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </Modal>
+      {/* ── Menu appui long sur un post ────────────────────────────────── */}
+      <SheetMenu
+        visible={postMenu !== null}
+        onClose={() => setPostMenu(null)}
+        bottomInset={insets.bottom}
+        items={[
+          { icon: '📌', label: postMenu?.pinned ? t('sp_menu_unpin') : t('sp_menu_pin'), onPress: () => void postAction('pin') },
+          { icon: '📊', label: t('sp_menu_view_stats'), onPress: () => void postAction('stats') },
+          { icon: '✏️', label: t('sp_menu_edit'), onPress: () => { const id = postMenu?.id; setPostMenu(null); if (id) router.push(`/post/${id}?edit=1` as never); } },
+          { icon: '📁', label: t('sp_menu_archive_post'), onPress: () => void postAction('archive') },
+          { icon: '🗑️', label: t('sp_menu_delete'), onPress: () => void postAction('delete'), danger: true },
+        ]}
+      />
 
-      {/* Visionneuse highlight */}
+      {/* ── Visionneuse de story à la une ──────────────────────────────── */}
       <Modal visible={!!activeHighlight} transparent={false} animationType="fade" onRequestClose={() => setActiveHighlight(null)}>
         <View style={styles.hlViewer}>
           <View style={[styles.hlViewerHeader, { paddingTop: insets.top + 8 }]}>
-            <Text style={styles.hlViewerTitle}>{activeHighlight?.title}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
-              <Pressable onPress={confirmDeleteHighlight} hitSlop={12} accessibilityLabel={t('sp_delete_highlight_title')}>
-                <Text style={styles.hlViewerClose}>🗑</Text>
-              </Pressable>
-              <Pressable onPress={() => setActiveHighlight(null)} hitSlop={12}>
-                <Text style={styles.hlViewerClose}>✕</Text>
-              </Pressable>
+            <Text style={styles.hlViewerTitle} numberOfLines={1}>{activeHighlight?.title}</Text>
+            <View style={styles.hlViewerActions}>
+              <TopGlassButton label="🗑" onPress={confirmDeleteHighlight} accessibilityLabel={t('sp_delete_highlight_title')} />
+              <TopGlassButton label="✕" onPress={() => setActiveHighlight(null)} />
             </View>
           </View>
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
@@ -583,186 +552,88 @@ export default function SocialProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  flex1: { flex: 1 },
 
-  // Top bar
+  // Barre du haut
   topBar: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm,
   },
-  topBarLeft: { width: 44, alignItems: 'flex-start' },
-  topBarCenter: { flex: 1, alignItems: 'center' },
-  topBarRight: { width: 80, flexDirection: 'row', justifyContent: 'flex-end', gap: 4 },
-  topBarUsername: { fontSize: 18, fontWeight: '700', color: colors.text },
-  topBarIconBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  topBarIcon: { fontSize: 22, color: colors.text },
+  topBarCenter: { flex: 1, minWidth: 0, alignItems: 'center' },
+  topBarUsername: { fontSize: 17, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.3 },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
-  // Profile top
-  profileTop: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: 12, gap: spacing.md,
-  },
-  avatarWrap: { position: 'relative' },
-  avatarRing: {
-    width: 90, height: 90, borderRadius: 45,
-    borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
-    padding: 2,
-  },
-  avatarRingActive: { borderColor: colors.brand, borderStyle: 'solid' },
-  avatar: { width: '100%', height: '100%', borderRadius: 100 },
-  avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontSize: 34, color: '#fff', fontWeight: '700' },
-  storyPlusBadge: {
-    position: 'absolute', bottom: 0, right: 0,
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: colors.brand,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5, borderColor: colors.background,
-  },
-  storyPlusTxt: { fontSize: 17, color: '#fff', fontWeight: '700', lineHeight: 20 },
-  statsBlock: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
-  statItem: { alignItems: 'center' },
-  statNum: { fontSize: 18, fontWeight: '700', color: colors.text },
-  statLbl: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  // En-tête
+  hero: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  avatarStage: { width: 260, height: 150, alignItems: 'center', justifyContent: 'center' },
+  avatarImg: { width: '100%', height: '100%', borderRadius: 100 },
+  avatarFallback: { backgroundColor: colors.surfaceElevated, alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { fontSize: 40, color: '#fff', fontWeight: '900' },
+  storyPlus: { position: 'absolute', bottom: 2, end: 2 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: spacing.sm },
+  displayName: { flexShrink: 1, fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.6, textAlign: 'center' },
+  bioText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, textAlign: 'center', marginTop: 6 },
 
-  // Bio
-  bioSection: { paddingHorizontal: spacing.md, paddingBottom: 14 },
-  displayName: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 4 },
-  bioText: { fontSize: 14, color: colors.text, lineHeight: 19 },
+  block: { paddingHorizontal: spacing.md, marginTop: spacing.lg },
+  actionRow: { flexDirection: 'row', gap: spacing.sm },
+  actionSquare: { width: 48, paddingHorizontal: 0 },
 
-  // Actions
-  actionRow: { flexDirection: 'row', paddingHorizontal: spacing.md, gap: 8, marginBottom: 14 },
-  actionBtn: {
-    flex: 1, alignItems: 'center', paddingVertical: 9,
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  actionBtnText: { fontSize: 14, fontWeight: '600', color: colors.text },
-  actionBtnIcon: {
-    width: 42, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  actionBtnBadge: {
-    position: 'absolute', top: -5, right: -5,
-    minWidth: 18, height: 18, borderRadius: 9,
-    paddingHorizontal: 4,
-    backgroundColor: colors.brand,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.background,
-  },
-  actionBtnBadgeTxt: { fontSize: 10, color: '#fff', fontWeight: '800' },
-
-  // Highlights
-  highlightsRow: { paddingHorizontal: spacing.md, paddingBottom: 8, gap: 16 },
-  hlItem: { alignItems: 'center', width: 70 },
-  hlBubble: {
-    width: 62, height: 62, borderRadius: 31,
-    borderWidth: 2, borderColor: colors.border,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden', backgroundColor: colors.surface, marginBottom: 5,
-  },
-  hlAddBubble: { borderStyle: 'dashed' },
+  // Stories à la une
+  highlightsRow: { paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xs, gap: 14 },
   hlCover: { width: '100%', height: '100%' },
-  hlLabel: { fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
 
   // Suggestions
-  suggestBox: {
-    marginHorizontal: spacing.md, marginBottom: 12,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    paddingVertical: 12,
-  },
+  suggestBox: { marginHorizontal: spacing.md, marginTop: spacing.lg, borderRadius: radius.lg, paddingVertical: spacing.md },
   suggestHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 14, marginBottom: 10,
+    paddingHorizontal: spacing.md, marginBottom: spacing.md,
   },
-  suggestTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  suggestClose: { fontSize: 16, color: colors.textMuted },
-  suggestList: { paddingHorizontal: 14, gap: 12 },
+  suggestTitle: { fontSize: 12, fontWeight: '800', color: colors.textPrimary, letterSpacing: 1.8, textTransform: 'uppercase' },
+  suggestCloseBtn: {
+    width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  suggestClose: { fontSize: 13, color: colors.textMuted, fontWeight: '800' },
+  suggestList: { paddingHorizontal: spacing.md, gap: spacing.sm },
   suggestCard: {
-    width: 140, backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg, padding: 12,
-    alignItems: 'center', borderWidth: 1, borderColor: colors.border,
+    width: 150, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center',
+    backgroundColor: 'rgba(14,14,18,0.55)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.10)',
   },
-  suggestCardClose: { position: 'absolute', top: 8, right: 8 },
-  suggestAvatar: { width: 60, height: 60, borderRadius: 30, marginBottom: 8, marginTop: 4 },
-  suggestAvatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  suggestName: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 4, textAlign: 'center' },
-  suggestBio: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 15, marginBottom: 10 },
-  followBtn: {
-    width: '100%', paddingVertical: 8, borderRadius: radius.md,
-    backgroundColor: colors.brand, alignItems: 'center',
-  },
-  followBtnActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  followBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  followBtnTextActive: { color: colors.text },
+  suggestCardClose: { position: 'absolute', top: 8, end: 8, zIndex: 1 },
+  suggestBody: { alignItems: 'center', width: '100%', marginBottom: spacing.sm },
+  suggestAvatar: { width: '100%', height: '100%', borderRadius: 40 },
+  suggestName: { fontSize: 14, fontWeight: '900', color: colors.textPrimary, marginTop: spacing.sm, textAlign: 'center' },
+  suggestBio: { fontSize: 11, color: colors.textMuted, textAlign: 'center', lineHeight: 15, marginTop: 2 },
+  suggestFollow: { alignSelf: 'stretch', height: 36 },
 
-  // Tab bar
-  tabBar: {
-    flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  tabItem: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabItemActive: { borderBottomWidth: 2, borderBottomColor: colors.text },
-  tabIcon: { fontSize: 20, color: colors.textMuted },
-  tabIconActive: { color: colors.text },
+  // Onglets
+  tabsWrap: { paddingHorizontal: spacing.md, marginTop: spacing.lg, marginBottom: spacing.md },
 
-  // Grid
-  gridItem: { width: GRID_ITEM, height: GRID_ITEM, margin: 0.5, position: 'relative' },
+  // Grille
+  gridRow: { gap: GRID_GAP, paddingHorizontal: GRID_PAD },
   gridImg: { width: '100%', height: '100%' },
   gridPlaceholder: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  multiBadge: {
-    position: 'absolute', top: 6, right: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
-    paddingHorizontal: 5, paddingVertical: 1,
-  },
-  multiBadgeTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  videoIcon: {
-    position: 'absolute', top: 6, right: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
-    paddingHorizontal: 5, paddingVertical: 2,
-  },
-  pinnedBadge: {
-    position: 'absolute', top: 6, left: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 4,
-    paddingHorizontal: 4, paddingVertical: 2,
-  },
-  likesBadge: {
-    position: 'absolute', bottom: 5, left: 5,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6,
-    paddingHorizontal: 5, paddingVertical: 2,
-  },
-  likesBadgeTxt: { fontSize: 10, color: '#fff', fontWeight: '700' },
-  emptyGrid: { alignItems: 'center', paddingVertical: 48 },
-  emptyGridIcon: { fontSize: 44, marginBottom: 10 },
-  emptyGridText: { fontSize: 16, color: colors.textMuted, marginBottom: 16 },
-  emptyGridBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: 24, paddingVertical: 10 },
-  emptyGridBtnTxt: { color: '#fff', fontWeight: '700' },
+  tileBadgeTxt: { color: '#fff', fontSize: 10.5, fontWeight: '800' },
 
-  // Menu
-  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
-  menuSheet: {
-    backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingTop: 12,
+  emptyGrid: { alignItems: 'center', paddingVertical: 44, paddingHorizontal: spacing.xl, gap: spacing.md },
+  emptyMedal: {
+    width: 80, height: 80, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
+    ...elevation.glowBrand,
   },
-  menuItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    paddingHorizontal: spacing.lg, paddingVertical: 16,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
-  menuIcon: { fontSize: 22, width: 28 },
-  menuLabel: { fontSize: 15, color: colors.text },
+  emptyGridIcon: { fontSize: 36 },
+  emptyGridText: { fontSize: 16, color: colors.textSecondary, fontWeight: '700', textAlign: 'center' },
+  emptyBtn: { paddingHorizontal: spacing.xl, height: 48 },
 
-  // Highlight viewer
+  // Visionneuse
   hlViewer: { flex: 1, backgroundColor: '#000' },
   hlViewerHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingBottom: 12,
+    paddingHorizontal: spacing.md, paddingBottom: 12, gap: spacing.md,
   },
-  hlViewerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  hlViewerClose: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  hlViewerTitle: { flex: 1, color: '#fff', fontWeight: '900', fontSize: 18 },
+  hlViewerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   hlCaption: { color: '#fff', fontSize: 15, textAlign: 'center', marginTop: 16, paddingHorizontal: spacing.lg },
 });

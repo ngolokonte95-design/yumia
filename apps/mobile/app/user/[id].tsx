@@ -1,12 +1,23 @@
+/**
+ * PROFIL D'UN AUTRE UTILISATEUR — refonte premium (18/11/2026).
+ *
+ * Même DA que « Mon profil » : halo radial de marque derrière l'avatar (aucun
+ * voile linéaire), anneau au dégradé si l'utilisateur a des stories, nom en
+ * grand avec le badge d'abonnement à 22 px, niveau en pastille vitrée,
+ * compteurs réels qui montent, Suivre au dégradé / Message en verre, onglets
+ * en pastilles, mur de publications à coins arrondis. Logique (chargement,
+ * suivi, messages, modération, signalement) inchangée.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, ScrollView,
+  ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, ScrollView,
   Share, StyleSheet, Text, View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { colors, elevation, gradients, spacing } from '../../theme/tokens';
 import { API_BASE_URL } from '../../lib/config';
 import { feedApi, type FeedPost, type StoryHighlight, type Plan } from '../../lib/feed-api';
 import { VideoThumb } from '../../components/VideoThumb';
@@ -15,10 +26,19 @@ import { useI18n } from '../../lib/useI18n';
 import { promptReport } from '../../lib/report-content';
 import { PostViewer } from '../../components/PostViewer';
 import { TranslatableText } from '../../components/TranslatableText';
+import { PressableScale, Reveal } from '../../components/ui';
+import {
+  ActionButton, AvatarHalo, BACK_ARROW, BrandRing, GlassPill, GridTile, HighlightBubble,
+  PillTabs, QuietRing, SheetMenu, StatCell, StatsBar, TileBadge, TopGlassButton,
+  type PillTab,
+} from '../../components/p2b/ProfileVisuals';
 
 const API = API_BASE_URL;
 const { width: SW } = Dimensions.get('window');
-const GRID_ITEM = (SW - 3) / 3;
+/** Mur de publications : marges et écarts, coins arrondis. */
+const GRID_PAD = spacing.sm;
+const GRID_GAP = 4;
+const GRID_ITEM = Math.floor((SW - GRID_PAD * 2 - GRID_GAP * 2) / 3);
 
 function isVideoUrl(url?: string | null): boolean {
   if (!url) return false;
@@ -139,7 +159,7 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top, backgroundColor: colors.background }]}>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.brand} size="large" />
       </View>
     );
@@ -147,8 +167,14 @@ export default function UserProfileScreen() {
 
   if (!profile) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top, backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.textMuted, fontSize: 15 }}>{t('up_user_not_found')}</Text>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <View style={[styles.notFoundBack, { top: insets.top + spacing.sm }]}>
+          <TopGlassButton label={BACK_ARROW} onPress={() => router.back()} />
+        </View>
+        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.emptyMedal}>
+          <Text style={styles.emptyEmoji}>👤</Text>
+        </LinearGradient>
+        <Text style={styles.notFoundText}>{t('up_user_not_found')}</Text>
       </View>
     );
   }
@@ -161,158 +187,139 @@ export default function UserProfileScreen() {
   const gridData: FeedPost[] = activeTab === 'reels' ? tabReels : activeTab === 'posts' ? tabPosts : [];
 
   // ── Onglets du bas ─────────────────────────────────────────────────────────
-  const TABS: { id: ProfileTab; icon: string }[] = [
-    { id: 'posts',   icon: '⊞' },
-    { id: 'reels',   icon: '▷' },
-    { id: 'reposts', icon: '↺' },
-    { id: 'tags',    icon: '☺' },
+  const TABS: PillTab<ProfileTab>[] = [
+    { key: 'posts',   icon: '⊞' },
+    { key: 'reels',   icon: '▷' },
+    { key: 'reposts', icon: '↺' },
+    { key: 'tags',    icon: '☺' },
   ];
+
+  const avatar = (
+    <Avatar
+      uri={profile.photoUrl}
+      size={104}
+      placeholderColor={colors.surfaceElevated}
+      fallback={<Text style={styles.avatarInitial}>{profile.displayName[0]?.toUpperCase()}</Text>}
+    />
+  );
 
   const ListHeader = (
     <View>
-      {/* ── Avatar + stats ─────────────────────────────────────────────────── */}
-      <View style={styles.profileHead}>
-        {/* Avatar */}
-        <Pressable style={styles.avatarWrap} onPress={() => profile.hasStories && router.push(`/story-viewer?userId=${id}` as never)}>
-          <View style={[styles.avatarRing, profile.hasStories ? styles.avatarRingActive : styles.avatarRingInactive]}>
-            <Avatar
-              uri={profile.photoUrl}
-              size={88}
-              borderWidth={2}
-              borderColor={colors.background}
-              placeholderColor={colors.brand}
-              fallback={<Text style={styles.avatarInitial}>{profile.displayName[0]?.toUpperCase()}</Text>}
-            />
-          </View>
-        </Pressable>
-
-        {/* Stats */}
-        <View style={styles.statsArea}>
-          <Pressable style={styles.stat}>
-            <Text style={styles.statNum}>{posts.filter((p) => !p.isReel).length}</Text>
-            <Text style={styles.statLabel}>{t('up_publications')}</Text>
-          </Pressable>
-          <Pressable style={styles.stat} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'followers' } } as never)}>
-            <Text style={styles.statNum}>{profile.followersCount}</Text>
-            <Text style={styles.statLabel}>{t('up_followers')}</Text>
-          </Pressable>
-          <Pressable style={styles.stat} onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'following' } } as never)}>
-            <Text style={styles.statNum}>{profile.followingCount}</Text>
-            <Text style={styles.statLabel}>{t('up_following')}</Text>
-          </Pressable>
+      {/* ── En-tête : halo radial, avatar à anneau, nom, bio, niveau ───────── */}
+      <Reveal index={0} style={styles.hero}>
+        <View style={styles.avatarStage}>
+          <AvatarHalo size={260} />
+          <PressableScale scaleTo={0.95} onPress={() => profile.hasStories && router.push(`/story-viewer?userId=${id}` as never)}>
+            {profile.hasStories ? (
+              <BrandRing size={116} thickness={3.5}>{avatar}</BrandRing>
+            ) : (
+              <QuietRing size={116}>{avatar}</QuietRing>
+            )}
+          </PressableScale>
         </View>
-      </View>
 
-      {/* ── Nom + bio ──────────────────────────────────────────────────────── */}
-      <View style={styles.nameSection}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={styles.displayName}>{profile.displayName}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.displayName} numberOfLines={2}>{profile.displayName}</Text>
           <PlanBadgeIcon plan={profile.plan} size={22} />
         </View>
+        <GlassPill style={styles.levelPill}>
+          <Text style={styles.levelText}>
+            {t('up_level_xp').replace('{level}', String(profile.level)).replace('{xp}', String(profile.totalXp))}
+          </Text>
+        </GlassPill>
         {profile.bio ? <TranslatableText text={profile.bio} style={styles.bio} /> : null}
-        <Text style={styles.levelBadge}>{t('up_level_xp').replace('{level}', String(profile.level)).replace('{xp}', String(profile.totalXp))}</Text>
-      </View>
+      </Reveal>
+
+      {/* ── Compteurs ──────────────────────────────────────────────────────── */}
+      <Reveal index={1} style={styles.block}>
+        <StatsBar>
+          <StatCell value={posts.filter((p) => !p.isReel).length} label={t('up_publications')} />
+          <StatCell
+            value={profile.followersCount}
+            label={t('up_followers')}
+            onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'followers' } } as never)}
+          />
+          <StatCell
+            value={profile.followingCount}
+            label={t('up_following')}
+            onPress={() => router.push({ pathname: '/user/follow-list', params: { userId: id, type: 'following' } } as never)}
+          />
+        </StatsBar>
+      </Reveal>
 
       {/* ── Boutons d'action ──────────────────────────────────────────────── */}
-      <View style={styles.actionRow}>
+      <Reveal index={2} style={[styles.block, styles.actionRow]}>
         {isMe ? (
           <>
-            <Pressable style={styles.actionBtn} onPress={() => router.push('/edit-social-profile' as never)}>
-              <Text style={styles.actionBtnTxt}>{t('up_edit_profile')}</Text>
-            </Pressable>
-            <Pressable style={styles.actionBtn} onPress={() => {}}>
-              <Text style={styles.actionBtnTxt}>{t('up_share_profile')}</Text>
-            </Pressable>
-            <Pressable style={styles.actionIconBtn}>
-              <Text style={styles.actionIconTxt}>👤</Text>
-            </Pressable>
+            <ActionButton primary label={t('up_edit_profile')} onPress={() => router.push('/edit-social-profile' as never)} style={styles.flex1} />
+            <ActionButton label={t('up_share_profile')} onPress={() => {}} style={styles.flex1} />
+            <ActionButton icon="👤" onPress={() => {}} style={styles.actionSquare} />
           </>
         ) : (
           <>
-            <Pressable
-              style={[styles.actionBtn, following ? styles.actionBtnSecondary : styles.actionBtnPrimary]}
+            <ActionButton
+              primary={!following}
+              label={following ? t('up_followed') : t('up_follow')}
               onPress={toggleFollow}
-            >
-              <Text style={[styles.actionBtnTxt, following ? styles.actionBtnTxtSecondary : styles.actionBtnTxtPrimary]}>
-                {following ? t('up_followed') : t('up_follow')}
-              </Text>
-            </Pressable>
-            <Pressable style={[styles.actionBtn, styles.actionBtnSecondary]} onPress={openChat}>
-              <Text style={[styles.actionBtnTxt, styles.actionBtnTxtSecondary]}>{t('up_message')}</Text>
-            </Pressable>
-            <Pressable style={styles.actionIconBtn} onPress={() => setShowMenu(true)}>
-              <Text style={styles.actionIconTxt}>⋯</Text>
-            </Pressable>
+              style={styles.flex1}
+            />
+            <ActionButton label={t('up_message')} onPress={openChat} style={styles.flex1} />
+            <ActionButton icon="⋯" onPress={() => setShowMenu(true)} style={styles.actionSquare} />
           </>
         )}
-      </View>
+      </Reveal>
 
       {/* ── Stories à la une ──────────────────────────────────────────────── */}
       {(highlights.length > 0 || isMe) && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsRow}>
-          {isMe && (
-            <Pressable style={styles.hlItem} onPress={() => router.push('/story/create' as never)}>
-              <View style={[styles.hlBubble, styles.hlBubbleAdd]}>
-                <Text style={styles.hlAddIcon}>+</Text>
-              </View>
-              <Text style={styles.hlLabel} numberOfLines={1}>{t('up_new_highlight')}</Text>
-            </Pressable>
-          )}
-          {highlights.map((hl) => (
-            <Pressable key={hl.id} style={styles.hlItem} onPress={() => setActiveHighlight(hl)}>
-              <View style={styles.hlBubble}>
-                {hl.coverUrl
+        <Reveal index={3}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsRow}>
+            {isMe && (
+              <HighlightBubble add label={t('up_new_highlight')} onPress={() => router.push('/story/create' as never)} />
+            )}
+            {highlights.map((hl) => (
+              <HighlightBubble
+                key={hl.id}
+                label={hl.title}
+                onPress={() => setActiveHighlight(hl)}
+                cover={hl.coverUrl
                   ? <Image source={{ uri: hl.coverUrl }} style={styles.hlCover} />
                   : <Text style={{ fontSize: 22 }}>✨</Text>}
-              </View>
-              <Text style={styles.hlLabel} numberOfLines={1}>{hl.title}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+              />
+            ))}
+          </ScrollView>
+        </Reveal>
       )}
 
       {/* ── Onglets ────────────────────────────────────────────────────────── */}
-      <View style={styles.tabRow}>
-        {TABS.map((tabDef) => (
-          <Pressable key={tabDef.id} style={styles.tabBtn} onPress={() => setActiveTab(tabDef.id)}>
-            <Text style={[styles.tabIcon, activeTab === tabDef.id && styles.tabIconActive]}>{tabDef.icon}</Text>
-            {activeTab === tabDef.id && <View style={styles.tabUnderline} />}
-          </Pressable>
-        ))}
-      </View>
+      <Reveal index={4} style={styles.tabsWrap}>
+        <PillTabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
+      </Reveal>
     </View>
   );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* ── Top bar ────────────────────────────────────────────────────────── */}
+      {/* ── Barre du haut ──────────────────────────────────────────────────── */}
       <View style={styles.topBar}>
-        <Pressable style={styles.topBack} onPress={() => router.back()}>
-          <Text style={styles.topBackTxt}>←</Text>
-        </Pressable>
+        <TopGlassButton label={BACK_ARROW} onPress={() => router.back()} />
         <Text style={styles.topTitle} numberOfLines={1}>{profile.displayName}</Text>
         <View style={styles.topRight}>
-          {!isMe && (
-            <Pressable style={styles.topIconBtn} onPress={openChat}>
-              <Text style={styles.topIconTxt}>✉️</Text>
-            </Pressable>
-          )}
-          <Pressable style={styles.topIconBtn} onPress={() => setShowMenu(true)}>
-            <Text style={styles.topIconTxt}>☰</Text>
-          </Pressable>
+          {!isMe && <TopGlassButton label="✉️" onPress={openChat} />}
+          <TopGlassButton label="☰" onPress={() => setShowMenu(true)} />
         </View>
       </View>
 
-      {/* ── Grille de publications ─────────────────────────────────────────── */}
+      {/* ── Mur de publications ────────────────────────────────────────────── */}
       <FlatList
         ref={listRef}
         data={gridData}
         numColumns={3}
         keyExtractor={(p) => p.id}
         ListHeaderComponent={ListHeader}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.gridItem}
+        renderItem={({ item, index }) => (
+          <GridTile
+            size={GRID_ITEM}
+            index={index}
             onPress={() => setViewerIndex(gridData.findIndex((p) => p.id === item.id))}
           >
             {item.mediaUrls[0] ? (
@@ -326,46 +333,38 @@ export default function UserProfileScreen() {
             )}
             {item.mediaUrls.length > 1 && !isVideoUrl(item.mediaUrls[0]) && (
               // Plusieurs photos : repère « carrousel », comme sur Instagram.
-              <View style={styles.multiBadge}>
-                <Text style={styles.multiBadgeTxt}>⧉</Text>
-              </View>
+              <TileBadge corner="tr"><Text style={styles.tileBadgeTxt}>⧉</Text></TileBadge>
             )}
             {item.isReel && (
-              <View style={styles.gridReelBadge}>
-                <Text style={{ color: '#fff', fontSize: 12 }}>▶</Text>
-              </View>
+              <TileBadge corner="tr"><Text style={styles.tileBadgeTxt}>▶</Text></TileBadge>
             )}
             {item.likesCount > 0 && (
-              <View style={styles.gridOverlay}>
-                <Text style={styles.gridOverlayTxt}>❤️ {item.likesCount}</Text>
-              </View>
+              <TileBadge corner="bl"><Text style={styles.tileBadgeTxt}>❤️ {item.likesCount}</Text></TileBadge>
             )}
-          </Pressable>
+          </GridTile>
         )}
-        columnWrapperStyle={{ gap: 1.5 }}
-        ItemSeparatorComponent={() => <View style={{ height: 1.5 }} />}
+        columnWrapperStyle={styles.gridRow}
+        ItemSeparatorComponent={() => <View style={{ height: GRID_GAP }} />}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📷</Text>
+            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.emptyMedal}>
+              <Text style={styles.emptyEmoji}>📷</Text>
+            </LinearGradient>
             <Text style={styles.emptyTitle}>{t('up_empty_posts')}</Text>
             {isMe && (
-              <Pressable style={styles.emptyBtn} onPress={() => router.push('/camera' as never)}>
-                <Text style={styles.emptyBtnTxt}>{t('up_publish_photo')}</Text>
-              </Pressable>
+              <ActionButton primary label={t('up_publish_photo')} onPress={() => router.push('/camera' as never)} style={styles.emptyBtn} />
             )}
           </View>
         }
       />
 
-      {/* ── Visionneuse highlight ──────────────────────────────────────────── */}
+      {/* ── Visionneuse de story à la une ──────────────────────────────────── */}
       <Modal visible={!!activeHighlight} animationType="fade" onRequestClose={() => setActiveHighlight(null)}>
         <View style={styles.hlViewer}>
           <View style={[styles.hlViewerTop, { paddingTop: insets.top + 8 }]}>
-            <Text style={styles.hlViewerTitle}>{activeHighlight?.title}</Text>
-            <Pressable onPress={() => setActiveHighlight(null)} hitSlop={12}>
-              <Text style={styles.hlClose}>✕</Text>
-            </Pressable>
+            <Text style={styles.hlViewerTitle} numberOfLines={1}>{activeHighlight?.title}</Text>
+            <TopGlassButton label="✕" onPress={() => setActiveHighlight(null)} />
           </View>
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
             {activeHighlight?.items.map((it) => (
@@ -379,26 +378,19 @@ export default function UserProfileScreen() {
       </Modal>
 
       {/* ── Menu contextuel ───────────────────────────────────────────────── */}
-      <Modal visible={showMenu} transparent animationType="slide" onRequestClose={() => setShowMenu(false)}>
-        <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
-          <View style={[styles.menuSheet, { paddingBottom: insets.bottom + 8 }]}>
-            {[
-              { label: t('up_menu_mute'), onPress: () => void moderate('mute') },
-              { label: t('up_menu_restrict'), onPress: () => void moderate('restrict') },
-              { label: t('up_menu_block'), onPress: () => void moderate('block') },
-              { label: t('up_menu_report'), onPress: report },
-              { label: t('up_menu_share'), onPress: copyProfileLink },
-            ].map((item) => (
-              <Pressable key={item.label} style={styles.menuItem} onPress={item.onPress}>
-                <Text style={styles.menuItemTxt}>{item.label}</Text>
-              </Pressable>
-            ))}
-            <Pressable style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 }]} onPress={() => setShowMenu(false)}>
-              <Text style={[styles.menuItemTxt, { color: colors.textMuted }]}>{t('up_cancel')}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
+      <SheetMenu
+        visible={showMenu}
+        onClose={() => setShowMenu(false)}
+        bottomInset={insets.bottom}
+        cancelLabel={t('up_cancel')}
+        items={[
+          { icon: '🔕', label: t('up_menu_mute'), onPress: () => void moderate('mute') },
+          { icon: '🚧', label: t('up_menu_restrict'), onPress: () => void moderate('restrict') },
+          { icon: '🚫', label: t('up_menu_block'), onPress: () => void moderate('block'), danger: true },
+          { icon: '⚠️', label: t('up_menu_report'), onPress: report, danger: true },
+          { icon: '📤', label: t('up_menu_share'), onPress: copyProfileLink },
+        ]}
+      />
 
       {viewerIndex !== null ? (
         <PostViewer
@@ -412,96 +404,60 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, backgroundColor: colors.bg },
+  flex1: { flex: 1 },
 
-  // Top bar
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  topBack: { paddingRight: 12 },
-  topBackTxt: { fontSize: 22, color: colors.text },
-  topTitle: { flex: 1, ...typography.h3, color: colors.text, textAlign: 'center' },
-  topRight: { flexDirection: 'row', gap: 4 },
-  topIconBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  topIconTxt: { fontSize: 20 },
-
-  // Profile header
-  profileHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm, gap: 16 },
-  avatarWrap: { position: 'relative' },
-  avatarRing: { width: 94, height: 94, borderRadius: 47, padding: 2.5 },
-  avatarRingActive: { backgroundColor: colors.brand },
-  avatarRingInactive: { backgroundColor: colors.border },
-  avatar: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: colors.background },
-  avatarFallback: { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { color: '#fff', fontSize: 32, fontWeight: '800' },
-  statsArea: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },
-  stat: { alignItems: 'center', gap: 3 },
-  statNum: { fontSize: 20, fontWeight: '800', color: colors.text },
-  statLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
-
-  // Name section
-  nameSection: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: 4 },
-  displayName: { ...typography.h3, color: colors.text },
-  bio: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-  levelBadge: { fontSize: 12, color: colors.brand, fontWeight: '600', marginTop: 4 },
-
-  // Action buttons
-  actionRow: { flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 8 },
-  actionBtn: { flex: 1, height: 34, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  actionBtnPrimary: { backgroundColor: colors.brand, borderColor: colors.brand },
-  actionBtnSecondary: { backgroundColor: colors.surface },
-  actionBtnTxt: { fontSize: 13, fontWeight: '700', color: colors.text },
-  actionBtnTxtPrimary: { color: '#fff' },
-  actionBtnTxtSecondary: { color: colors.text },
-  actionIconBtn: { width: 34, height: 34, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  actionIconTxt: { fontSize: 16, color: colors.text },
-
-  // Highlights
-  highlightsRow: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 16 },
-  hlItem: { alignItems: 'center', width: 70, gap: 4 },
-  hlBubble: { width: 62, height: 62, borderRadius: 31, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.surface },
-  hlBubbleAdd: { borderStyle: 'dashed', borderColor: colors.textMuted },
-  hlAddIcon: { fontSize: 22, color: colors.textMuted, fontWeight: '300' },
-  hlCover: { width: '100%', height: '100%' },
-  hlLabel: { fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
-
-  // Tabs
-  tabRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.sm },
-  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, position: 'relative' },
-  tabIcon: { fontSize: 20, color: colors.textMuted },
-  tabIconActive: { color: colors.text },
-  tabUnderline: { position: 'absolute', bottom: 0, left: '20%', right: '20%', height: 2, backgroundColor: colors.text, borderRadius: 1 },
-
-  // Grid
-  gridItem: { width: GRID_ITEM, height: GRID_ITEM, position: 'relative' },
-  multiBadge: {
-    position: 'absolute', top: 6, right: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 4,
-    paddingHorizontal: 5, paddingVertical: 1,
+  // Barre du haut
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.sm,
   },
-  multiBadgeTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  topTitle: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '900', color: colors.textPrimary, textAlign: 'center', letterSpacing: -0.3 },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+
+  // En-tête
+  hero: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  avatarStage: { width: 260, height: 150, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { color: '#fff', fontSize: 40, fontWeight: '900' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: spacing.sm },
+  displayName: { flexShrink: 1, fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.6, textAlign: 'center' },
+  levelPill: { marginTop: spacing.sm },
+  levelText: { color: colors.brandSoft, fontSize: 12, fontWeight: '800' },
+  bio: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, textAlign: 'center', marginTop: spacing.sm },
+
+  block: { paddingHorizontal: spacing.md, marginTop: spacing.lg },
+  actionRow: { flexDirection: 'row', gap: spacing.sm },
+  actionSquare: { width: 48, paddingHorizontal: 0 },
+
+  // Stories à la une
+  highlightsRow: { paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xs, gap: 14 },
+  hlCover: { width: '100%', height: '100%' },
+
+  // Onglets
+  tabsWrap: { paddingHorizontal: spacing.md, marginTop: spacing.lg, marginBottom: spacing.md },
+
+  // Grille
+  gridRow: { gap: GRID_GAP, paddingHorizontal: GRID_PAD },
   gridImg: { width: '100%', height: '100%' },
   gridPlaceholder: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  gridReelBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
-  gridOverlay: { position: 'absolute', bottom: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  gridOverlayTxt: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  tileBadgeTxt: { color: '#fff', fontSize: 10.5, fontWeight: '800' },
 
-  // Empty state
-  emptyState: { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { fontSize: 15, color: colors.textMuted, fontWeight: '600' },
-  emptyBtn: { marginTop: 8, backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: 28, paddingVertical: 13 },
-  emptyBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  // États
+  emptyState: { alignItems: 'center', paddingTop: 44, paddingHorizontal: spacing.xl, gap: spacing.md },
+  emptyMedal: {
+    width: 80, height: 80, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
+    ...elevation.glowBrand,
+  },
+  emptyEmoji: { fontSize: 36 },
+  emptyTitle: { fontSize: 16, color: colors.textSecondary, fontWeight: '700', textAlign: 'center' },
+  emptyBtn: { paddingHorizontal: spacing.xl, height: 48 },
+  notFoundBack: { position: 'absolute', start: spacing.md },
+  notFoundText: { color: colors.textSecondary, fontSize: 16, fontWeight: '700' },
 
-  // Highlight viewer
+  // Visionneuse
   hlViewer: { flex: 1, backgroundColor: '#000' },
-  hlViewerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingBottom: 12 },
-  hlViewerTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  hlClose: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  hlViewerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingBottom: 12, gap: spacing.md },
+  hlViewerTitle: { flex: 1, color: '#fff', fontWeight: '900', fontSize: 18 },
   hlCaption: { color: '#fff', fontSize: 15, textAlign: 'center', marginTop: 16, paddingHorizontal: spacing.lg },
-
-  // Context menu
-  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  menuSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingTop: 12 },
-  menuItem: { paddingVertical: 16, paddingHorizontal: spacing.lg },
-  menuItemTxt: { fontSize: 16, color: colors.text, fontWeight: '500' },
 });
