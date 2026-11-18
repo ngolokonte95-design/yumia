@@ -319,13 +319,9 @@ export default function MapScreen() {
     setCityLoading(true);
     try {
       const results = await fetchByCity(q, universe ?? undefined, 20);
+      // Le cadrage automatique montre tous les lieux de la ville trouvés.
+      fitPending.current = true;
       setCityResults(results.map((p) => ({ ...p, distanceMeters: 0 })));
-      if (results[0]) {
-        mapRef.current?.animateToRegion(
-          { latitude: results[0].lat, longitude: results[0].lng, latitudeDelta: 0.08, longitudeDelta: 0.08 },
-          500,
-        );
-      }
     } catch {
       // silent
     } finally {
@@ -409,6 +405,7 @@ export default function MapScreen() {
     if (!allowed) { setUpsell(message); setFilterPanelOpen(false); return; }
     setUniverse(u);
     setFilterPanelOpen(false);
+    fitPending.current = true;
     reload(u, radiusKm);
   }, [reload, radiusKm, consumePlaceLoad]);
 
@@ -418,6 +415,7 @@ export default function MapScreen() {
     if (!allowed) { setUpsell(message); setRadiusPanelOpen(false); return; }
     setRadiusKm(km);
     setRadiusPanelOpen(false);
+    fitPending.current = true;
     reload(universe, km);
   }, [reload, universe, setRadiusKm, consumePlaceLoad]);
 
@@ -463,13 +461,10 @@ export default function MapScreen() {
     setCityQuery('');
     try {
       const results = await fetchNearby({ lat: latitude, lng: longitude, radius: radiusKm * 1000, universe: universe ?? undefined, limit: 50 });
+      // Cadre tous les lieux trouvés autour du point touché (ils peuvent
+      // être à 50 km) ; sans résultat, on garde la vue telle quelle.
+      fitPending.current = results.length > 0;
       setTapResults(results);
-      // Recentre sur le point tapé en conservant le zoom actuel (pas de re-zoom).
-      const { latitudeDelta, longitudeDelta } = regionRef.current;
-      mapRef.current?.animateToRegion(
-        { latitude, longitude, latitudeDelta, longitudeDelta },
-        250,
-      );
     } catch {
       // silent
     } finally {
@@ -584,7 +579,39 @@ export default function MapScreen() {
     return mixed;
   }, [cityResults, tapResults, places, viewportPlaces, displayCap, universe]);
 
-  const markerPlaces = useMemo(() => displayPlaces.slice(0, MAX_MARKERS), [displayPlaces]);
+  // Distance TOUJOURS mesurée depuis la position de l'utilisateur (18/11) :
+  // le serveur la calcule depuis le centre de sa recherche (point touché,
+  // ville cherchée, zone visible), si bien qu'un lieu en Espagne s'affichait
+  // « à 300 m » pour quelqu'un à Paris.
+  const placesFromMe = useMemo(
+    () => displayPlaces.map((p) => ({ ...p, distanceMeters: haversineMeters(coords.lat, coords.lng, p.lat, p.lng) })),
+    [displayPlaces, coords.lat, coords.lng],
+  );
+
+  const markerPlaces = useMemo(() => placesFromMe.slice(0, MAX_MARKERS), [placesFromMe]);
+
+  // ── Cadrage automatique ───────────────────────────────────────────────────
+  // Après un changement de rayon, d'univers, une recherche de ville ou un
+  // point touché, la carte cadre TOUS les lieux trouvés : avec 50 km, une
+  // partie tombait hors de l'écran et il fallait dézoomer à la main. Pas de
+  // recadrage pendant que l'utilisateur déplace la carte lui-même.
+  const fitPending = useRef(true);
+  useEffect(() => {
+    if (!fitPending.current || markerPlaces.length === 0 || !mapRef.current) return;
+    fitPending.current = false;
+    if (markerPlaces.length === 1) {
+      const only = markerPlaces[0];
+      mapRef.current.animateToRegion(
+        { latitude: only.lat, longitude: only.lng, latitudeDelta: MAP_DELTA, longitudeDelta: MAP_DELTA },
+        400,
+      );
+      return;
+    }
+    mapRef.current.fitToCoordinates(
+      markerPlaces.map((m) => ({ latitude: m.lat, longitude: m.lng })),
+      { edgePadding: { top: insets.top + 120, right: 48, bottom: 72, left: 48 }, animated: true },
+    );
+  }, [markerPlaces, insets.top]);
 
   // tracksViewChanges est coûteux (re-rasterise le marker à chaque frame). On ne
   // l'active que brièvement, par marker, juste le temps qu'il apparaisse — jamais
@@ -644,7 +671,7 @@ export default function MapScreen() {
     ? t('map_places_point').replace('{n}', String(displayPlaces.length))
     : t('map_places_you').replace('{n}', String(displayPlaces.length));
 
-  const carouselVisible = !resolving && !expanded && displayPlaces.length > 0;
+  const carouselVisible = !resolving && !expanded && placesFromMe.length > 0;
 
   return (
     <View style={styles.screen}>
@@ -944,9 +971,9 @@ export default function MapScreen() {
           quand le tiroir est ouvert (la liste prend le relais). */}
       {carouselVisible ? (
         <PlaceCarousel
-          places={displayPlaces}
+          places={placesFromMe}
           selectedId={selectedId}
-          hideDist={cityResults !== null}
+          hideDist={false}
           onSnap={focusPlace}
           onOpen={openDetail}
         />
@@ -983,7 +1010,7 @@ export default function MapScreen() {
           <FlatList
             style={styles.list}
             contentContainerStyle={{ paddingBottom: insets.bottom + spacing.md }}
-            data={displayPlaces}
+            data={placesFromMe}
             keyExtractor={(place) => place.id}
             showsVerticalScrollIndicator={false}
             initialNumToRender={12}
@@ -996,7 +1023,7 @@ export default function MapScreen() {
                 selected={item.id === selectedId}
                 onPress={() => selectPlace(item)}
                 onDetail={() => openDetail(item)}
-                hideDist={cityResults !== null}
+                hideDist={false}
               />
             )}
             ListEmptyComponent={
@@ -1267,8 +1294,21 @@ function PlaceRow({
   );
 }
 
+/** Distance à vol d'oiseau en mètres. */
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.min(1, Math.sqrt(a))));
+}
+
 function formatDistance(m: number): string {
-  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+  if (m < 1000) return `${Math.round(m)} m`;
+  // Lieux lointains (autre ville, autre pays) : « 1 043 km » plutôt que « 1043.2 km ».
+  if (m >= 100_000) return `${Math.round(m / 1000).toLocaleString('fr-FR')} km`;
+  return `${(m / 1000).toFixed(1)} km`;
 }
 
 /** Extrait l'heure de fermeture depuis les horaires du jour (ex. "10:30 – 22:30" → "22:30"). */
