@@ -317,9 +317,13 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
 
   // Raccourcis
-  shortcutsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  // Toujours 2 lignes de 5, quelle que soit la largeur : 5 × 18,4 % = 92 %,
+  // les 8 % restants deviennent les espaces (space-between). Un `gap` fixe en
+  // pixels s'ajoutait aux pourcentages et faisait passer la 5ᵉ tuile à la
+  // ligne sur les Android étroits (4 + 4 + 2).
+  shortcutsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.sm },
   shortcut: {
-    width: '18.2%', alignItems: 'center', gap: 5, paddingVertical: 9,
+    width: '18.4%', alignItems: 'center', gap: 5, paddingVertical: 9,
     borderRadius: radius.md, backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)',
   },
