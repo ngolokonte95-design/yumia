@@ -202,6 +202,7 @@ describe('reclassement des lieux en base', () => {
     expect(targetUniverse(place('Bar Tabac des Sports', 'bar', ['bar']))).toBe('tobacco');
     expect(targetUniverse(place('Carrefour Market', 'grocery_store', ['grocery_store', 'supermarket']))).toBe('supermarket');
     expect(targetUniverse(place('Market Jouy-Le-Moutier', 'grocery_store', ['supermarket', 'cosmetics_store', 'bakery']))).toBe('supermarket');
+    expect(targetUniverse(place('Magasin Maison Thiriet', 'supermarket', ['supermarket', 'grocery_store', 'food_store']))).toBe('supermarket');
     expect(targetUniverse(place('FENICIA MARKET', 'grocery_store', ['supermarket', 'butcher_shop', 'grocery_store']))).toBe('grocery_store');
     expect(targetUniverse(place('Alimentation Générale', 'supermarket', ['supermarket', 'grocery_store']))).toBe('grocery_store');
     expect(targetUniverse(place('Épicerie de Nuit', 'tobacco', ['convenience_store']))).toBe('grocery_store');

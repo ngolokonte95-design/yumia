@@ -746,6 +746,8 @@ const SUPERMARKET_CHAIN = new RegExp(
     'walmart', 'costco', 'kroger', 'safeway', 'whole foods', "trader joe'?s?", 'publix',
     // Enseignes de supermarchés de quartier (Île-de-France)
     'hmarket',
+    // Surgelés (comme Picard)
+    'thiriet',
     // Le mot lui-même
     'hypermarche', 'hypermarket', 'supermarche', 'supermarket', 'supermercado', 'supermarkt', 'supermercato',
   ].join('|') + ')\\b'
