@@ -15,6 +15,7 @@ import {
   Keyboard,
   PixelRatio,
   BackHandler,
+  I18nManager,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,14 +24,14 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { universeColor, universeGradient } from '../../lib/universeTheme';
 import { UniverseGlyph } from '../../components/UniverseGlyph';
-import { PressableScale } from '../../components/ui';
+import { CrystalFill, GradientText, PressableScale } from '../../components/ui';
 import { haptics } from '../../lib/useHaptics';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region, type MapPressEvent } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { UNIVERSES, UNIVERSE_CATEGORIES, UNIVERSE_META, type Universe } from '@yumia/shared';
 import { safeMeta, placeEmoji, universeLabel } from '../../lib/universeMeta';
-import { colors, elevation, radius, spacing, typography } from '../../theme/tokens';
+import { colors, elevation, gradients, radius, spacing, typography } from '../../theme/tokens';
 import { useI18n } from '../../lib/useI18n';
 import { useLocation } from '../../lib/useLocation';
 import { useNearby } from '../../lib/useNearby';
@@ -750,9 +751,17 @@ export default function MapScreen() {
               </Pressable>
             ) : null}
           </View>
-          <Pressable style={styles.searchGo} onPress={handleCitySearch}>
-            <Text style={styles.searchGoText}>→</Text>
-          </Pressable>
+          {/* Serti de cristal comme la flèche de l'Accueil (18/11). L'ombre
+              reste sur le bouton, le cristal est découpé dans un calque à
+              part : overflow hidden couperait l'ombre sur iOS. */}
+          <PressableScale style={styles.searchGo} onPress={handleCitySearch} scaleTo={0.9} haptic>
+            <View style={styles.searchGoClip}>
+              <CrystalFill edge={1.3} core="#121219" />
+            </View>
+            <GradientText style={styles.searchGoText} colors={gradients.crystal}>
+              {I18nManager.isRTL ? '←' : '→'}
+            </GradientText>
+          </PressableScale>
         </View>
 
         {/* Suggestions pendant la frappe. Volontairement fermées seulement par
@@ -1437,12 +1446,17 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: colors.brand,
+    // Fond = cœur du cristal : Android a besoin d'un fond pour l'ombre.
+    backgroundColor: '#121219',
     alignItems: 'center',
     justifyContent: 'center',
-    ...elevation.glowBrand,
+    ...elevation.medium,
   },
-  searchGoText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  searchGoClip: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 23, overflow: 'hidden',
+  },
+  searchGoText: { color: '#fff', fontSize: 19, fontWeight: '900', marginTop: -1 },
 
   // Pastilles sous la recherche (univers, rayon, accès directs)
   topScrim: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 8 },
