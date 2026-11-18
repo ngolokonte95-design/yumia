@@ -425,14 +425,13 @@ export default function ItineraryScreen() {
           </View>
         </Reveal>
 
-        {/* Ville */}
+        {/* Ville. onLayout sur l'enfant direct du contenu défilant : y est
+            alors mesuré depuis le haut du formulaire. Posé sur le libellé
+            (dans Reveal), il valait ~0 et chaque lettre tapée faisait
+            remonter l'écran tout en haut, le champ passant sous le clavier. */}
+        <View onLayout={(e) => { cityFieldY.current = e.nativeEvent.layout.y; }}>
         <Reveal index={3}>
-          <Text
-            style={styles.label}
-            onLayout={(e) => { cityFieldY.current = e.nativeEvent.layout.y; }}
-          >
-            {tr('itin_label_city')}
-          </Text>
+          <Text style={styles.label}>{tr('itin_label_city')}</Text>
           <View>
             <View style={styles.inputWrap}>
               <Text style={styles.inputIcon}>📍</Text>
@@ -472,6 +471,7 @@ export default function ItineraryScreen() {
             ) : null}
           </View>
         </Reveal>
+        </View>
 
         {/* Contraintes */}
         <Reveal index={4}>
