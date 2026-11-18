@@ -16,7 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { colors, elevation, gradients, radius, spacing } from '../../theme/tokens';
-import { GradientText, PressableScale, Reveal } from '../ui';
+import { CrystalFill, GradientText, PressableScale, Reveal } from '../ui';
 import { CountUp, GLASS, IconBubble } from '../profile/ProfileChrome';
 import { haptics } from '../../lib/useHaptics';
 
@@ -39,31 +39,6 @@ export function AvatarHalo({ size }: { size: number }) {
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="url(#p2bHalo)" />
       </Svg>
-    </View>
-  );
-}
-
-// ── Verre serti de cristal ──────────────────────────────────────────────────
-// 18/11 : les aplats blancs (Modifier, Suivre, onglet actif, pastilles) étaient
-// trop crus. L'élément choisi devient un verre fumé serti d'un liseré cristal
-// qui accroche la lumière sur ses arêtes (blanc pur → argent froid en
-// diagonale), avec un léger reflet en haut et le texte en blanc cristal — la
-// même matière que les titres de l'Accueil. Aucune couleur.
-
-const CRYSTAL_EDGE = [
-  'rgba(255,255,255,0.95)', 'rgba(174,187,208,0.30)', 'rgba(255,255,255,0.70)',
-  'rgba(140,152,175,0.22)', 'rgba(255,255,255,0.90)',
-] as const;
-const CRYSTAL_SHEEN = ['rgba(255,255,255,0.13)', 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0)'] as const;
-
-/** Fond cristal posé sous le contenu d'une pastille (le parent coupe les coins). */
-function CrystalFill({ edge = 1.2 }: { edge?: number }) {
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <LinearGradient colors={CRYSTAL_EDGE} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <View style={[styles.crystalCore, { top: edge, left: edge, right: edge, bottom: edge }]}>
-        <LinearGradient colors={CRYSTAL_SHEEN} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
-      </View>
     </View>
   );
 }
@@ -377,7 +352,6 @@ export function GlassPill({ children, style }: { children: ReactNode; style?: St
 
 const styles = StyleSheet.create({
   halo: { position: 'absolute', left: '50%', top: '50%' },
-  crystalCore: { position: 'absolute', borderRadius: radius.pill, overflow: 'hidden', backgroundColor: '#14151D' },
   ringInner: { flex: 1, width: '100%', overflow: 'hidden', backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 
   brandBadge: {

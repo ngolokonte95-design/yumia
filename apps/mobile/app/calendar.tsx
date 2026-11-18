@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, StyleSheet, Text, View,
+  ActivityIndicator, Alert, FlatList, I18nManager, PanResponder, RefreshControl, StyleSheet, Text, View,
 } from 'react-native';
+import Animated, { FadeIn, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GlassCard, PressableScale, Reveal } from '../components/ui';
+import { GradientText, PressableScale, Reveal } from '../components/ui';
 import { MonthGrid } from '../components/calendar/MonthGrid';
 import { EventEditor } from '../components/calendar/EventEditor';
+import {
+  BrandFab, BrandPill, CrystalTitle, GLASS, GlassChipButton, PlannerEmpty,
+} from '../components/calendar/PlannerChrome';
+import { GlassCircleButton } from '../components/profile/ProfileChrome';
+import { SpaceBackdrop, SPACE_BLACK } from '../components/auth/AuthChrome';
 import { useAuth } from '../lib/auth-context';
 import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import {
@@ -20,15 +26,24 @@ import {
 } from '../lib/calendar-format';
 import { useI18n } from '../lib/useI18n';
 import { calendarCategoryLabel } from '../lib/labelHelpers';
+import { haptics } from '../lib/useHaptics';
+
+type RowState = 'past' | 'next' | 'normal';
+
+const capitalize = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 /**
- * Calendrier Yumia.
+ * Calendrier Yumia — DA du 18/11/2026.
  *
- * Grille mensuelle + agenda du jour sélectionné. Les séries récurrentes sont
- * développées côté serveur : l'écran ne manipule que des occurrences concrètes.
+ * Fond spatial de l'Accueil, mois en grand titre cristal, grille dans un
+ * panneau de verre (balayer à gauche / à droite change de mois), agenda du
+ * jour en frise : le prochain événement d'aujourd'hui est marqué du dégradé
+ * de marque, ceux déjà passés s'estompent.
  *
- * Ouvrable avec des paramètres pour créer directement un événement depuis une
- * fiche de lieu (`?title=&placeId=&placeName=&address=`).
+ * Les séries récurrentes sont développées côté serveur : l'écran ne manipule
+ * que des occurrences concrètes. Ouvrable avec des paramètres pour créer
+ * directement un événement depuis une fiche de lieu
+ * (`?title=&placeId=&placeName=&address=`).
  */
 export default function CalendarScreen() {
   const router = useRouter();
@@ -41,8 +56,11 @@ export default function CalendarScreen() {
 
   const [month, setMonth] = useState(() => new Date());
   const [selected, setSelected] = useState(() => new Date());
+  /** Sens du dernier changement de mois : pilote le glissé de la grille. */
+  const [dir, setDir] = useState<1 | -1>(1);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -56,6 +74,11 @@ export default function CalendarScreen() {
 
   useEffect(() => { void load(); }, [load]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  };
 
   // Ouverture depuis une fiche de lieu : pré-remplit et ouvre l'éditeur.
   const prefillTitle = params.title;
@@ -87,7 +110,64 @@ export default function CalendarScreen() {
     return map;
   }, [events]);
 
-  const dayEvents = eventsByDay.get(dayKey(selected)) ?? [];
+  const dayEvents = useMemo(
+    () => [...(eventsByDay.get(dayKey(selected)) ?? [])]
+      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()),
+    [eventsByDay, selected],
+  );
+
+  /** Événements du mois affiché (la grille déborde sur les mois voisins). */
+  const monthCount = events.filter((e) => {
+    const d = new Date(e.startAt);
+    return d.getMonth() === month.getMonth() && d.getFullYear() === month.getFullYear();
+  }).length;
+
+  // Aujourd'hui : ce qui est passé s'estompe, le prochain est mis en avant.
+  const now = new Date();
+  const rowStates: RowState[] = [];
+  let nextFound = false;
+  for (const e of dayEvents) {
+    if (!isSameDay(selected, now) || e.allDay) { rowStates.push('normal'); continue; }
+    const end = e.endAt ? new Date(e.endAt) : new Date(new Date(e.startAt).getTime() + 3_600_000);
+    if (end < now) { rowStates.push('past'); continue; }
+    if (!nextFound) { nextFound = true; rowStates.push('next'); continue; }
+    rowStates.push('normal');
+  }
+
+  const countLabel = (n: number) => (n === 0
+    ? t('calendar_nothing_planned')
+    : t('calendar_events_count').replace('{n}', String(n)).replace('{s}', n > 1 ? 's' : ''));
+
+  const changeMonth = (n: 1 | -1) => {
+    const next = addMonths(month, n);
+    const today = new Date();
+    setDir(n);
+    setMonth(next);
+    // Le mois courant rouvre sur aujourd'hui, les autres sur leur 1er jour.
+    setSelected(next.getMonth() === today.getMonth() && next.getFullYear() === today.getFullYear() ? today : next);
+    haptics.select();
+  };
+
+  const goToday = () => {
+    const today = new Date();
+    setDir(today.getTime() >= month.getTime() ? 1 : -1);
+    setMonth(today);
+    setSelected(today);
+  };
+
+  // Balayer la grille change de mois. Le geste n'est réclamé que s'il est
+  // franchement horizontal : un défilement vertical reste à la liste.
+  const changeRef = useRef(changeMonth);
+  useEffect(() => { changeRef.current = changeMonth; });
+  const swipe = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 18 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+    onPanResponderTerminationRequest: () => true,
+    onPanResponderRelease: (_, g) => {
+      if (Math.abs(g.dx) < 50) return;
+      const forward = I18nManager.isRTL ? g.dx > 0 : g.dx < 0;
+      changeRef.current(forward ? 1 : -1);
+    },
+  }), []);
 
   const save = async (draft: EventDraft) => {
     if (!accessToken) return;
@@ -140,89 +220,93 @@ export default function CalendarScreen() {
 
   const openNew = () => { setEditing(null); setEditorOpen(true); };
 
+  const monthKey = `${month.getFullYear()}-${month.getMonth()}`;
+  const slide = (dir > 0 ? FadeInRight : FadeInLeft).duration(280);
+  const isRTL = I18nManager.isRTL;
+
+  const header = (
+    <View>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <GlassCircleButton label={isRTL ? '→' : '←'} onPress={() => router.back()} />
+        <GlassChipButton label={t('calendar_today')} onPress={goToday} />
+      </View>
+
+      {/* Mois en grand, flèches de verre de part et d'autre. */}
+      <View style={styles.hero}>
+        <GlassCircleButton label={isRTL ? '›' : '‹'} onPress={() => changeMonth(-1)} size={40} />
+        <Animated.View key={`t${monthKey}`} entering={slide} style={styles.heroCenter}>
+          <CrystalTitle
+            center
+            title={capitalize(monthsFor(locale)[month.getMonth()])}
+            subtitle={`${month.getFullYear()} · ${countLabel(monthCount)}`}
+          />
+        </Animated.View>
+        <GlassCircleButton label={isRTL ? '‹' : '›'} onPress={() => changeMonth(1)} size={40} />
+      </View>
+
+      <View style={[styles.gridPanel, GLASS]} {...swipe.panHandlers}>
+        <Animated.View key={`g${monthKey}`} entering={slide}>
+          <MonthGrid month={month} selected={selected} eventsByDay={eventsByDay} onSelect={setSelected} />
+        </Animated.View>
+      </View>
+
+      <View style={styles.agendaHead}>
+        <Animated.View key={dayKey(selected)} entering={FadeIn.duration(240)} style={styles.flex1}>
+          <GradientText style={styles.agendaTitle} colors={gradients.crystal} numberOfLines={1}>
+            {capitalize(formatLongDate(selected, locale))}
+          </GradientText>
+          <Text style={styles.agendaCount}>{countLabel(dayEvents.length)}</Text>
+        </Animated.View>
+        {/* Passerelle vers le bloc-notes : les notes de la journée se
+            retrouvent au même endroit que le programme de cette journée. */}
+        <GlassChipButton
+          label={t('calendar_notes_of_day')}
+          onPress={() => router.push(`/notebook?date=${dayKey(selected)}` as never)}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.screen}>
-      <LinearGradient colors={gradients.brandSoft} style={styles.ambient} pointerEvents="none" />
+      <SpaceBackdrop />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <PressableScale onPress={() => router.back()} hitSlop={12} style={styles.headerBtn}>
-          <Text style={styles.headerIcon}>←</Text>
-        </PressableScale>
-        <View style={styles.monthNav}>
-          <PressableScale onPress={() => setMonth((m) => addMonths(m, -1))} hitSlop={12}>
-            <Text style={styles.navArrow}>‹</Text>
-          </PressableScale>
-          <Text style={styles.monthLabel}>
-            {monthsFor(locale)[month.getMonth()]} {month.getFullYear()}
-          </Text>
-          <PressableScale onPress={() => setMonth((m) => addMonths(m, 1))} hitSlop={12}>
-            <Text style={styles.navArrow}>›</Text>
-          </PressableScale>
-        </View>
-        <PressableScale onPress={openNew} hitSlop={12} style={styles.headerBtn}>
-          <Text style={styles.headerIcon}>＋</Text>
-        </PressableScale>
-      </View>
-
-      <PressableScale
-        onPress={() => { const now = new Date(); setMonth(now); setSelected(now); }}
-        style={styles.todayBtn}
-      >
-        <Text style={styles.todayTxt}>{t('calendar_today')}</Text>
-      </PressableScale>
-
-      <MonthGrid
-        month={month}
-        selected={selected}
-        eventsByDay={eventsByDay}
-        onSelect={setSelected}
+      <FlatList
+        data={loading ? [] : dayEvents}
+        keyExtractor={(e) => e.occurrenceId}
+        ListHeaderComponent={header}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={(
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefresh()}
+            tintColor="#fff"
+            colors={[colors.brand]}
+            progressBackgroundColor={colors.surface}
+          />
+        )}
+        ListEmptyComponent={loading ? (
+          <View style={styles.loading}><ActivityIndicator color="#fff" /></View>
+        ) : (
+          <PlannerEmpty emoji="🗓️" text={t('calendar_empty_events')}>
+            <BrandPill label={`＋ ${t('ee_new_event')}`} onPress={openNew} />
+          </PlannerEmpty>
+        )}
+        renderItem={({ item, index }) => (
+          <Reveal index={Math.min(index, 6)}>
+            <TimelineRow
+              event={item}
+              state={rowStates[index] ?? 'normal'}
+              isFirst={index === 0}
+              isLast={index === dayEvents.length - 1}
+              onPress={() => { setEditing(item); setEditorOpen(true); }}
+            />
+          </Reveal>
+        )}
       />
 
-      <View style={styles.agendaHeader}>
-        <View style={styles.agendaHeadRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.agendaTitle}>{formatLongDate(selected, locale)}</Text>
-            <Text style={styles.agendaCount}>
-              {dayEvents.length === 0 ? t('calendar_nothing_planned') : t('calendar_events_count').replace('{n}', String(dayEvents.length)).replace('{s}', dayEvents.length > 1 ? 's' : '')}
-            </Text>
-          </View>
-          {/* Passerelle vers le bloc-notes : les notes de la journée se
-              retrouvent au même endroit que le programme de cette journée. */}
-          <PressableScale
-            onPress={() => router.push(`/notebook?date=${dayKey(selected)}` as never)}
-            style={styles.notesBtn}
-          >
-            <Text style={styles.notesBtnTxt}>{t('calendar_notes_of_day')}</Text>
-          </PressableScale>
-        </View>
-      </View>
-
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} /></View>
-      ) : (
-        <FlatList
-          data={dayEvents}
-          keyExtractor={(e) => e.occurrenceId}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.xxl }]}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🗓️</Text>
-              <Text style={styles.emptyTxt}>
-                {t('calendar_empty_events')}
-              </Text>
-            </View>
-          }
-          renderItem={({ item, index }) => (
-            <Reveal index={Math.min(index, 6)}>
-              <EventRow
-                event={item}
-                onPress={() => { setEditing(item); setEditorOpen(true); }}
-              />
-            </Reveal>
-          )}
-        />
-      )}
+      <BrandFab onPress={openNew} bottom={insets.bottom + 20} accessibilityLabel={t('ee_new_event')} />
 
       <EventEditor
         visible={editorOpen}
@@ -236,102 +320,135 @@ export default function CalendarScreen() {
   );
 }
 
-function EventRow({ event, onPress }: { event: CalendarEvent; onPress: () => void }) {
+/** Une étape de la frise : heure, nœud sur le fil, carte de verre. */
+function TimelineRow({ event, state, isFirst, isLast, onPress }: {
+  event: CalendarEvent;
+  state: RowState;
+  isFirst: boolean;
+  isLast: boolean;
+  onPress: () => void;
+}) {
   const { t } = useI18n();
   const meta = CATEGORY_META[event.category as EventCategory] ?? CATEGORY_META.personal;
   const foreign = isForeignTimezone(event.timezone);
+  const metaLine = `${calendarCategoryLabel(t, event.category, meta.label)}`
+    + `${event.placeName ? ` · ${event.placeName}` : ''}`
+    + `${event.recurring ? t('calendar_recurring_suffix') : ''}`;
 
   return (
-    <PressableScale onPress={onPress} scaleTo={0.98} style={styles.rowWrap}>
-      <GlassCard rounded={radius.md}>
-        <View style={styles.row}>
-          <View style={[styles.stripe, { backgroundColor: meta.color }]} />
+    <PressableScale onPress={onPress} scaleTo={0.98} style={[styles.tlRow, state === 'past' && styles.tlPast]}>
+      <View style={styles.tlTime}>
+        {event.allDay ? (
+          <Text style={styles.tlAllDay} numberOfLines={2}>{t('calendar_all_day')}</Text>
+        ) : (
+          <>
+            <Text style={styles.tlStart}>{formatEventTime(event.startAt, event.timezone)}</Text>
+            {event.endAt ? <Text style={styles.tlEnd}>{formatEventTime(event.endAt, event.timezone)}</Text> : null}
+          </>
+        )}
+      </View>
 
-          <View style={styles.rowTime}>
-            {event.allDay ? (
-              <Text style={styles.allDay}>{t('calendar_all_day')}</Text>
-            ) : (
-              <>
-                <Text style={styles.startTime}>
-                  {formatEventTime(event.startAt, event.timezone)}
-                </Text>
-                {event.endAt && (
-                  <Text style={styles.endTime}>
-                    {formatEventTime(event.endAt, event.timezone)}
-                  </Text>
-                )}
-              </>
-            )}
+      <View style={styles.tlRail}>
+        {isFirst && isLast ? null : (
+          <View style={[styles.tlLine, isFirst && styles.tlLineFirst, isLast && styles.tlLineLast]} />
+        )}
+        {state === 'next' ? (
+          <View style={styles.tlNodeGlow}>
+            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tlNodeNext} />
           </View>
+        ) : (
+          <View style={[styles.tlNode, state === 'past' && styles.tlNodePast]} />
+        )}
+      </View>
 
-          <View style={styles.rowBody}>
-            <Text style={styles.rowTitle} numberOfLines={1}>{event.title}</Text>
-            <Text style={styles.rowMeta} numberOfLines={1}>
-              {meta.emoji} {calendarCategoryLabel(t, event.category, meta.label)}
-              {event.placeName ? ` · ${event.placeName}` : ''}
-              {event.recurring ? t('calendar_recurring_suffix') : ''}
-            </Text>
-            {/* Signalé explicitement : sinon l'heure affichée semblerait fausse
-                à qui consulte depuis un autre fuseau. */}
-            {foreign && (
-              <Text style={styles.tz}>{t('calendar_timezone_hour').replace('{tz}', event.timezone.split('/').pop() ?? '')}</Text>
-            )}
-          </View>
+      <View style={[styles.tlCard, GLASS, state === 'next' && styles.tlCardNext]}>
+        <View style={styles.tlEmoji}>
+          <Text style={styles.tlEmojiTxt}>{meta.emoji}</Text>
         </View>
-      </GlassCard>
+        <View style={styles.tlBody}>
+          <Text style={styles.tlTitle} numberOfLines={2}>{event.title}</Text>
+          <Text style={styles.tlMeta} numberOfLines={1}>{metaLine}</Text>
+          {/* Signalé explicitement : sinon l'heure affichée semblerait fausse
+              à qui consulte depuis un autre fuseau. */}
+          {foreign ? (
+            <Text style={styles.tlTz}>{t('calendar_timezone_hour').replace('{tz}', event.timezone.split('/').pop() ?? '')}</Text>
+          ) : null}
+        </View>
+      </View>
     </PressableScale>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  ambient: { position: 'absolute', top: 0, left: 0, right: 0, height: 240 },
-  center: { paddingVertical: spacing.xl, alignItems: 'center' },
+const NODE_TOP = 20;
+const NODE = 11;
 
-  header: {
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: SPACE_BLACK },
+  flex1: { flex: 1 },
+  loading: { paddingVertical: spacing.xl, alignItems: 'center' },
+
+  topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
   },
-  headerBtn: { width: 36 },
-  headerIcon: { fontSize: 24, color: colors.textPrimary, fontWeight: '700' },
-  monthNav: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  navArrow: { fontSize: 26, color: colors.brand, fontWeight: '700' },
-  monthLabel: { ...typography.heading, color: colors.textPrimary, minWidth: 130, textAlign: 'center' },
 
-  todayBtn: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: spacing.md },
-  todayTxt: { ...typography.caption, color: colors.brandSoft, fontWeight: '600' },
-
-  agendaHeader: {
-    paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
-    marginTop: spacing.sm,
+  hero: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.md, gap: spacing.sm,
   },
-  agendaHeadRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  notesBtn: {
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: radius.pill, backgroundColor: colors.surface,
-  },
-  notesBtnTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
-  agendaTitle: { ...typography.title, color: colors.textPrimary },
-  agendaCount: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  heroCenter: { flex: 1, alignItems: 'center' },
 
-  list: { paddingHorizontal: spacing.md },
-  rowWrap: { marginBottom: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', padding: spacing.sm, gap: spacing.sm },
-  stripe: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
-  rowTime: { width: 52, alignItems: 'center' },
-  startTime: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  endTime: { ...typography.label, color: colors.textMuted },
-  allDay: { ...typography.label, color: colors.textSecondary, fontWeight: '700' },
-  rowBody: { flex: 1, gap: 2 },
-  rowTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
-  rowMeta: { ...typography.caption, color: colors.textMuted },
-  tz: { ...typography.label, color: colors.brandSoft },
-
-  empty: { alignItems: 'center', paddingTop: spacing.xl, gap: spacing.sm },
-  emptyEmoji: { fontSize: 44 },
-  emptyTxt: {
-    ...typography.body, color: colors.textSecondary,
-    textAlign: 'center', lineHeight: 21,
+  gridPanel: {
+    marginHorizontal: spacing.md, borderRadius: radius.xl,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.xs,
   },
+
+  agendaHead: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.md,
+  },
+  agendaTitle: { ...typography.title, fontWeight: '900', color: '#fff' },
+  agendaCount: { ...typography.caption, color: colors.textMuted, fontWeight: '700', marginTop: 2 },
+
+  // ── Frise ──
+  tlRow: { flexDirection: 'row', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  tlPast: { opacity: 0.5 },
+  tlTime: { width: 50, paddingTop: NODE_TOP - 6, alignItems: 'flex-end' },
+  tlStart: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  tlEnd: { ...typography.label, color: colors.textMuted, fontVariant: ['tabular-nums'], marginTop: 1 },
+  tlAllDay: { ...typography.label, color: colors.textSecondary, fontWeight: '800', textAlign: 'right' },
+
+  tlRail: { width: 26, alignItems: 'center' },
+  tlLine: {
+    position: 'absolute', top: 0, bottom: 0, width: StyleSheet.hairlineWidth * 2,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  tlLineFirst: { top: NODE_TOP + NODE / 2 },
+  tlLineLast: { bottom: undefined, height: NODE_TOP + NODE / 2 },
+  tlNode: {
+    marginTop: NODE_TOP, width: NODE, height: NODE, borderRadius: NODE / 2,
+    backgroundColor: '#F4F7FB', borderWidth: 2, borderColor: SPACE_BLACK,
+  },
+  tlNodePast: { backgroundColor: SPACE_BLACK, borderColor: 'rgba(255,255,255,0.45)', borderWidth: 1.5 },
+  tlNodeGlow: {
+    marginTop: NODE_TOP - 2, width: NODE + 4, height: NODE + 4, borderRadius: (NODE + 4) / 2,
+    shadowColor: colors.brand, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
+  },
+  tlNodeNext: { width: NODE + 4, height: NODE + 4, borderRadius: (NODE + 4) / 2 },
+
+  tlCard: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    borderRadius: radius.lg, padding: spacing.sm, paddingEnd: spacing.md, minHeight: 60,
+  },
+  tlCardNext: { borderColor: 'rgba(255,255,255,0.30)' },
+  tlEmoji: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
+  },
+  tlEmojiTxt: { fontSize: 19 },
+  tlBody: { flex: 1, gap: 2 },
+  tlTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '800' },
+  tlMeta: { ...typography.caption, color: colors.textMuted },
+  tlTz: { ...typography.label, color: colors.textSecondary },
 });

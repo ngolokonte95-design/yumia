@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View,
-} from 'react-native';
-import { PressableScale } from '../ui';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { GradientText, PressableScale } from '../ui';
+import { colors, gradients, radius, spacing, typography } from '../../theme/tokens';
+import { CrystalChip, FieldLabel, GLASS, GlassSheet, SheetHeader } from './PlannerChrome';
 import {
   CATEGORIES, CATEGORY_META,
   type CalendarEvent, type EventCategory, type EventDraft,
@@ -54,7 +53,9 @@ function TimeStepper({
         <Text style={styles.stepTxt}>−15</Text>
       </PressableScale>
 
-      <Text style={styles.time}>{pad(value.getHours())}:{pad(value.getMinutes())}</Text>
+      <GradientText style={styles.time} colors={gradients.crystal}>
+        {`${pad(value.getHours())}:${pad(value.getMinutes())}`}
+      </GradientText>
 
       <PressableScale onPress={() => shift(15)} style={styles.stepBtn} hitSlop={8}>
         <Text style={styles.stepTxt}>+15</Text>
@@ -163,25 +164,18 @@ export function EventEditor({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}
-      >
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-
-          <View style={styles.sheetHeader}>
-            <PressableScale onPress={onClose} hitSlop={10}>
-              <Text style={styles.cancel}>{t('ee_cancel')}</Text>
-            </PressableScale>
-            <Text style={styles.sheetTitle}>
-              {initial ? t('ee_modify') : t('ee_new_event')}
-            </Text>
-            <PressableScale onPress={submit} hitSlop={10} disabled={!title.trim()}>
-              <Text style={[styles.save, !title.trim() && styles.saveDisabled]}>OK</Text>
-            </PressableScale>
-          </View>
+    <GlassSheet visible={visible} onClose={onClose}>
+      <SheetHeader
+        leftLabel={t('ee_cancel')}
+        onLeft={onClose}
+        center={(
+          <GradientText style={styles.sheetTitle} colors={gradients.crystal} numberOfLines={1}>
+            {initial ? t('ee_modify') : t('ee_new_event')}
+          </GradientText>
+        )}
+        onOk={submit}
+        okDisabled={!title.trim()}
+      />
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <TextInput
@@ -193,7 +187,7 @@ export function EventEditor({
               autoFocus={!initial}
             />
 
-            {/* Catégories */}
+            {/* Catégories : serties de cristal une fois choisies, sans couleur. */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -201,18 +195,13 @@ export function EventEditor({
             >
               {CATEGORIES.map((c) => {
                 const meta = CATEGORY_META[c];
-                const active = category === c;
                 return (
-                  <PressableScale key={c} scaleTo={0.94} onPress={() => setCategory(c)}>
-                    <View style={[
-                      styles.cat,
-                      active && { backgroundColor: meta.color, borderColor: meta.color },
-                    ]}>
-                      <Text style={[styles.catTxt, active && styles.catTxtActive]}>
-                        {meta.emoji} {calendarCategoryLabel(t, c, meta.label)}
-                      </Text>
-                    </View>
-                  </PressableScale>
+                  <CrystalChip
+                    key={c}
+                    label={`${meta.emoji} ${calendarCategoryLabel(t, c, meta.label)}`}
+                    active={category === c}
+                    onPress={() => setCategory(c)}
+                  />
                 );
               })}
             </ScrollView>
@@ -221,8 +210,8 @@ export function EventEditor({
               <DayPicker value={start} onChange={setStart} />
             </Field>
 
-            <View style={styles.switchRow}>
-              <Text style={styles.fieldLabel}>{t('ee_all_day')}</Text>
+            <View style={[styles.switchRow, GLASS]}>
+              <Text style={styles.switchLabel}>{t('ee_all_day')}</Text>
               <Switch
                 value={allDay}
                 onValueChange={setAllDay}
@@ -238,13 +227,12 @@ export function EventEditor({
                 <Field label={t('ee_field_duration')}>
                   <View style={styles.chipRow}>
                     {[30, 60, 120, 180].map((m) => (
-                      <PressableScale key={m} scaleTo={0.94} onPress={() => setDurationMin(m)}>
-                        <View style={[styles.chip, durationMin === m && styles.chipActive]}>
-                          <Text style={[styles.chipTxt, durationMin === m && styles.chipTxtActive]}>
-                            {m < 60 ? t('ee_min_short').replace('{n}', String(m)) : t('ee_hour_short').replace('{n}', String(m / 60))}
-                          </Text>
-                        </View>
-                      </PressableScale>
+                      <CrystalChip
+                        key={m}
+                        label={m < 60 ? t('ee_min_short').replace('{n}', String(m)) : t('ee_hour_short').replace('{n}', String(m / 60))}
+                        active={durationMin === m}
+                        onPress={() => setDurationMin(m)}
+                      />
                     ))}
                   </View>
                 </Field>
@@ -254,13 +242,7 @@ export function EventEditor({
             <Field label={t('ee_field_repeat')}>
               <View style={styles.chipRow}>
                 {REPEATS.map((r) => (
-                  <PressableScale key={r.labelKey} scaleTo={0.94} onPress={() => setRrule(r.rrule)}>
-                    <View style={[styles.chip, rrule === r.rrule && styles.chipActive]}>
-                      <Text style={[styles.chipTxt, rrule === r.rrule && styles.chipTxtActive]}>
-                        {t(r.labelKey)}
-                      </Text>
-                    </View>
-                  </PressableScale>
+                  <CrystalChip key={r.labelKey} label={t(r.labelKey)} active={rrule === r.rrule} onPress={() => setRrule(r.rrule)} />
                 ))}
               </View>
             </Field>
@@ -268,20 +250,14 @@ export function EventEditor({
             <Field label={t('ee_field_reminder')}>
               <View style={styles.chipRow}>
                 {REMINDERS.map((r) => (
-                  <PressableScale key={r.labelKey} scaleTo={0.94} onPress={() => setReminder(r.minutes)}>
-                    <View style={[styles.chip, reminder === r.minutes && styles.chipActive]}>
-                      <Text style={[styles.chipTxt, reminder === r.minutes && styles.chipTxtActive]}>
-                        {t(r.labelKey)}
-                      </Text>
-                    </View>
-                  </PressableScale>
+                  <CrystalChip key={r.labelKey} label={t(r.labelKey)} active={reminder === r.minutes} onPress={() => setReminder(r.minutes)} />
                 ))}
               </View>
             </Field>
 
             <Field label={t('ee_field_notes')}>
               <TextInput
-                style={styles.notesInput}
+                style={[styles.notesInput, GLASS]}
                 placeholder={t('ee_notes_placeholder')}
                 placeholderTextColor={colors.textMuted}
                 value={notes}
@@ -300,91 +276,56 @@ export function EventEditor({
 
             <View style={{ height: spacing.xxl }} />
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </GlassSheet>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <FieldLabel>{label}</FieldLabel>
       {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
-    paddingHorizontal: spacing.md, paddingTop: spacing.sm, maxHeight: '92%',
-  },
-  handle: {
-    width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border,
-    alignSelf: 'center', marginBottom: spacing.sm,
-  },
-  sheetHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingBottom: spacing.sm,
-  },
-  sheetTitle: { ...typography.heading, color: colors.textPrimary },
-  cancel: { ...typography.body, color: colors.textMuted },
-  save: { ...typography.body, color: colors.brand, fontWeight: '700' },
-  saveDisabled: { opacity: 0.4 },
+  sheetTitle: { ...typography.heading, fontWeight: '900', color: '#fff' },
 
   titleInput: {
-    ...typography.title, color: colors.textPrimary,
-    paddingVertical: spacing.sm, marginBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+    fontSize: 26, fontWeight: '800', letterSpacing: -0.4, color: colors.textPrimary,
+    paddingVertical: spacing.sm, marginBottom: spacing.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.14)',
   },
   catRow: { gap: spacing.sm, paddingVertical: spacing.sm },
-  cat: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
-  },
-  catTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
-  catTxtActive: { color: '#fff', fontWeight: '700' },
 
-  field: { marginTop: spacing.md, gap: spacing.sm },
-  fieldLabel: {
-    ...typography.label, color: colors.textMuted, textTransform: 'uppercase',
-  },
+  field: { marginTop: spacing.lg, gap: spacing.sm },
   switchRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: spacing.md,
+    marginTop: spacing.lg, borderRadius: radius.lg, paddingHorizontal: spacing.md, paddingVertical: 10,
   },
+  switchLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
 
   stepper: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface, borderRadius: radius.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6,
+    ...GLASS, borderRadius: radius.lg,
     paddingHorizontal: spacing.sm, paddingVertical: spacing.sm,
   },
   stepBtn: {
-    paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: radius.sm, backgroundColor: colors.surfaceElevated,
+    paddingHorizontal: 11, paddingVertical: 8, borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)',
   },
-  stepTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '700' },
-  time: { ...typography.title, color: colors.textPrimary, fontVariant: ['tabular-nums'] },
-  dayLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '600', flex: 1, textAlign: 'center' },
+  stepTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '800' },
+  time: { fontSize: 30, fontWeight: '900', letterSpacing: -0.5, color: '#fff', fontVariant: ['tabular-nums'] },
+  dayLabel: { ...typography.body, color: colors.textPrimary, fontWeight: '800', flex: 1, textAlign: 'center' },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: {
-    paddingHorizontal: 13, paddingVertical: 7, borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  chipTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
-  chipTxtActive: { color: '#fff', fontWeight: '700' },
 
   notesInput: {
-    ...typography.body, color: colors.textPrimary,
-    backgroundColor: colors.surface, borderRadius: radius.md,
-    padding: spacing.md, minHeight: 80, textAlignVertical: 'top',
+    ...typography.body, color: colors.textPrimary, borderRadius: radius.lg,
+    padding: spacing.md, minHeight: 90, textAlignVertical: 'top',
   },
   deleteBtn: { marginTop: spacing.lg, paddingVertical: spacing.md, alignItems: 'center' },
-  deleteTxt: { ...typography.body, color: colors.danger, fontWeight: '600' },
+  deleteTxt: { ...typography.body, color: colors.danger, fontWeight: '700' },
 });

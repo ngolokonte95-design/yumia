@@ -1,15 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, ScrollView,
+  ActivityIndicator, Alert, I18nManager, Image, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { GlassCard, PressableScale, Reveal } from '../components/ui';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { PressableScale, Reveal } from '../components/ui';
+import {
+  BrandFab, BrandPill, BrandProgress, CheckDot, CrystalChip, CrystalTitle, GLASS, GlassSheet,
+  PlannerEmpty, SheetHeader,
+} from '../components/calendar/PlannerChrome';
+import { GlassCircleButton } from '../components/profile/ProfileChrome';
+import { PillTabs } from '../components/p2b/ProfileVisuals';
+import { SpaceBackdrop, SPACE_BLACK } from '../components/auth/AuthChrome';
+import { formatLongDate } from '../lib/calendar-format';
 import { useAuth } from '../lib/auth-context';
-import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
+import { colors, radius, spacing, typography } from '../theme/tokens';
 import { feedApi } from '../lib/feed-api';
 import {
   notebookApi, type ChecklistItem, type Note, type NoteDraft, type NoteKind,
@@ -22,17 +30,21 @@ const COLORS = [null, '#E8621A', '#5C4ECC', '#2BB673', '#F2B705', '#E5484D'];
 type Tab = 'all' | 'favorite' | 'archived';
 
 /**
- * Bloc-notes Yumia.
+ * Bloc-notes Yumia — DA du 18/11/2026.
+ *
+ * Fond spatial de l'Accueil, titre en blanc cristal, notes en mosaïque de
+ * verre sur deux colonnes (hauteurs libres). La couleur choisie pour une note
+ * ne teinte plus qu'un halo radial discret dans son coin ; les listes ont des
+ * cases rondes et une fine barre de progression au dégradé de marque.
  *
  * Notes libres et checklists, rattachables à une journée, un lieu ou un
- * événement du calendrier. L'enregistrement est automatique et temporisé :
- * pas de bouton « Sauvegarder » à oublier.
+ * événement du calendrier.
  */
 export default function NotebookScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const params = useLocalSearchParams<{
     placeId?: string; placeName?: string; date?: string; calendarEventId?: string;
   }>();
@@ -43,6 +55,8 @@ export default function NotebookScreen() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Note | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [newKind, setNewKind] = useState<NoteKind>('note');
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -67,7 +81,33 @@ export default function NotebookScreen() {
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  const openNew = () => { setEditing(null); setEditorOpen(true); };
+  const openNew = (kind: NoteKind = 'note') => { setNewKind(kind); setEditing(null); setEditorOpen(true); };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  };
+
+  // Mosaïque : chaque note va dans la colonne la moins haute (hauteur
+  // estimée d'après son contenu), comme un mur de post-it.
+  const columns = useMemo(() => {
+    const left: { note: Note; index: number }[] = [];
+    const right: { note: Note; index: number }[] = [];
+    let hl = 0;
+    let hr = 0;
+    notes.forEach((note, index) => {
+      const h = estimateHeight(note);
+      if (hl <= hr) { left.push({ note, index }); hl += h; }
+      else { right.push({ note, index }); hr += h; }
+    });
+    return [left, right];
+  }, [notes]);
+
+  const subtitle = params.placeName
+    ? t('nb_context_hint').replace('{place}', params.placeName)
+    : params.date
+      ? capitalize(formatLongDate(parseDayKey(params.date), locale))
+      : undefined;
 
   const save = async (draft: NoteDraft) => {
     if (!accessToken) return;
@@ -128,24 +168,31 @@ export default function NotebookScreen() {
 
   return (
     <View style={styles.screen}>
-      <LinearGradient colors={gradients.brandSoft} style={styles.ambient} pointerEvents="none" />
+      <SpaceBackdrop />
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <PressableScale onPress={() => router.back()} hitSlop={12} style={styles.headerBtn}>
-          <Text style={styles.headerIcon}>←</Text>
-        </PressableScale>
-        <Text style={styles.headerTitle}>{t('nb_title')}</Text>
-        <PressableScale onPress={openNew} hitSlop={12} style={styles.headerBtn}>
-          <Text style={styles.headerIcon}>＋</Text>
-        </PressableScale>
-      </View>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={(
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void onRefresh()}
+            tintColor="#fff"
+            colors={[colors.brand]}
+            progressBackgroundColor={colors.surface}
+          />
+        )}
+      >
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <GlassCircleButton label={I18nManager.isRTL ? '→' : '←'} onPress={() => router.back()} />
+        </View>
 
-      {params.placeName ? (
-        <Text style={styles.contextHint}>{t('nb_context_hint').replace('{place}', params.placeName)}</Text>
-      ) : null}
+        <Reveal style={styles.hero}>
+          <CrystalTitle title={t('nb_title')} subtitle={subtitle} style={styles.heroTitle} />
+        </Reveal>
 
-      <GlassCard variant="pill" rounded={radius.pill} style={styles.searchCard} sheen={false}>
-        <View style={styles.searchInner}>
+        <Reveal index={1} style={[styles.search, GLASS]}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
@@ -159,62 +206,66 @@ export default function NotebookScreen() {
               <Text style={styles.searchClear}>✕</Text>
             </PressableScale>
           )}
-        </View>
-      </GlassCard>
+        </Reveal>
 
-      <View style={styles.tabs}>
-        {(['all', 'favorite', 'archived'] as Tab[]).map((tabKey) => (
-          <PressableScale
-            key={tabKey}
-            scaleTo={0.94}
-            onPress={() => setTab(tabKey)}
-            style={[styles.tab, tab === tabKey && styles.tabActive]}
+        <Reveal index={2}>
+          <PillTabs<Tab>
+            style={styles.tabs}
+            active={tab}
+            onChange={setTab}
+            tabs={[
+              { key: 'all', label: t('nb_tab_all') },
+              { key: 'favorite', label: t('nb_tab_favorite') },
+              { key: 'archived', label: t('nb_tab_archived') },
+            ]}
+          />
+        </Reveal>
+
+        {loading ? (
+          <View style={styles.loading}><ActivityIndicator color="#fff" size="large" /></View>
+        ) : notes.length === 0 ? (
+          <PlannerEmpty
+            emoji="📝"
+            text={search
+              ? t('nb_empty_search')
+              : tab === 'archived'
+                ? t('nb_empty_archived')
+                : t('nb_empty_default')}
           >
-            <Text style={[styles.tabTxt, tab === tabKey && styles.tabTxtActive]}>
-              {tabKey === 'all' ? t('nb_tab_all') : tabKey === 'favorite' ? t('nb_tab_favorite') : t('nb_tab_archived')}
-            </Text>
-          </PressableScale>
-        ))}
-      </View>
+            {!search && tab !== 'archived' ? (
+              <>
+                <BrandPill label={`＋ ${t('nb_kind_note')}`} onPress={() => openNew('note')} />
+                <CrystalChip label={`＋ ${t('nb_kind_checklist')}`} active={false} onPress={() => openNew('checklist')} />
+              </>
+            ) : null}
+          </PlannerEmpty>
+        ) : (
+          <View style={styles.wall}>
+            {columns.map((col, c) => (
+              <View key={c} style={styles.wallCol}>
+                {col.map(({ note, index }) => (
+                  <Reveal key={note.id} index={Math.min(index, 8)}>
+                    <NoteCard
+                      note={note}
+                      locale={locale}
+                      onPress={() => { setEditing(note); setEditorOpen(true); }}
+                      onToggleFavorite={() => void toggleFavorite(note)}
+                      onArchive={() => void archive(note)}
+                    />
+                  </Reveal>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
-      {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.brand} size="large" /></View>
-      ) : (
-        <FlatList
-          data={notes}
-          keyExtractor={(n) => n.id}
-          numColumns={2}
-          columnWrapperStyle={styles.column}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + spacing.xxl }]}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>📝</Text>
-              <Text style={styles.emptyTxt}>
-                {search
-                  ? t('nb_empty_search')
-                  : tab === 'archived'
-                    ? t('nb_empty_archived')
-                    : t('nb_empty_default')}
-              </Text>
-            </View>
-          }
-          renderItem={({ item, index }) => (
-            <Reveal index={Math.min(index, 8)} style={styles.cardWrap}>
-              <NoteCard
-                note={item}
-                onPress={() => { setEditing(item); setEditorOpen(true); }}
-                onToggleFavorite={() => void toggleFavorite(item)}
-                onArchive={() => void archive(item)}
-              />
-            </Reveal>
-          )}
-        />
-      )}
+      <BrandFab onPress={() => openNew('note')} bottom={insets.bottom + 20} accessibilityLabel={t('nb_kind_note')} />
 
       <NoteEditor
         visible={editorOpen}
         initial={editing}
+        initialKind={newKind}
         onClose={() => { setEditorOpen(false); setEditing(null); }}
         onSave={(d) => void save(d)}
         onDelete={editing ? () => remove(editing) : undefined}
@@ -223,64 +274,110 @@ export default function NotebookScreen() {
   );
 }
 
+const capitalize = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+/** `AAAA-MM-JJ` → date locale (minuit). */
+function parseDayKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : new Date();
+}
+
+/** Hauteur approximative d'une carte, pour équilibrer les deux colonnes. */
+function estimateHeight(note: Note): number {
+  let h = 78;
+  if (note.kind === 'checklist') {
+    h += Math.min(note.items.length, 4) * 22 + (note.items.length > 4 ? 18 : 0) + (note.items.length ? 14 : 0);
+  } else {
+    h += Math.min(6, Math.ceil((note.content?.length ?? 0) / 20)) * 19;
+  }
+  if (note.photoUrls.length > 0) h += 104;
+  return h;
+}
+
+/** Date courte de dernière modification (« 18 nov. »). */
+function shortDate(iso: string, locale: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  } catch {
+    return '';
+  }
+}
+
 // ── Carte de note ────────────────────────────────────────────────────────────
 
 function NoteCard({
-  note, onPress, onToggleFavorite, onArchive,
+  note, locale, onPress, onToggleFavorite, onArchive,
 }: {
   note: Note;
+  locale: string;
   onPress: () => void;
   onToggleFavorite: () => void;
   onArchive: () => void;
 }) {
   const { t } = useI18n();
   const done = note.items.filter((i) => i.done).length;
+  const total = note.items.length;
 
   return (
-    <PressableScale onPress={onPress} onLongPress={onArchive} scaleTo={0.97}>
-      <GlassCard rounded={radius.md} style={styles.card}>
-        <View style={styles.cardInner}>
-          {note.color && <View style={[styles.colorBar, { backgroundColor: note.color }]} />}
-
-          <View style={styles.cardHead}>
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {note.title || (note.kind === 'checklist' ? t('nb_card_list_default') : t('nb_card_note_default'))}
-            </Text>
-            <PressableScale onPress={onToggleFavorite} hitSlop={10}>
-              <Text style={styles.star}>{note.favorite ? '⭐' : '☆'}</Text>
-            </PressableScale>
+    <PressableScale onPress={onPress} onLongPress={onArchive} scaleTo={0.97} style={styles.cardWrap}>
+      <View style={[styles.card, GLASS, note.pinned && styles.cardPinned]}>
+        {/* La couleur de la note : un halo radial qui s'éteint dans le coin. */}
+        {note.color ? (
+          <View pointerEvents="none" style={styles.cardGlow}>
+            <Svg width={180} height={180}>
+              <Defs>
+                <RadialGradient id={`nbGlow${note.id}`} cx="50%" cy="50%" r="50%">
+                  <Stop offset="0" stopColor={note.color} stopOpacity="0.32" />
+                  <Stop offset="1" stopColor={note.color} stopOpacity="0" />
+                </RadialGradient>
+              </Defs>
+              <Circle cx={90} cy={90} r={90} fill={`url(#nbGlow${note.id})`} />
+            </Svg>
           </View>
+        ) : null}
 
-          {note.kind === 'checklist' ? (
-            <View style={styles.preview}>
-              {note.items.slice(0, 4).map((i) => (
-                <Text key={i.id} style={[styles.item, i.done && styles.itemDone]} numberOfLines={1}>
-                  {i.done ? '☑' : '☐'} {i.text}
-                </Text>
-              ))}
-              {note.items.length > 4 && (
-                <Text style={styles.more}>{t('nb_others_count').replace('{n}', String(note.items.length - 4))}</Text>
-              )}
-            </View>
-          ) : (
-            <Text style={styles.preview} numberOfLines={5}>{note.content}</Text>
-          )}
-
-          {note.photoUrls.length > 0 && (
-            <Image source={{ uri: note.photoUrls[0] }} style={styles.cardPhoto} />
-          )}
-
-          <View style={styles.cardFoot}>
-            {note.kind === 'checklist' && note.items.length > 0 && (
-              <Text style={styles.footTxt}>{done}/{note.items.length}</Text>
-            )}
-            {note.placeName && (
-              <Text style={styles.footTxt} numberOfLines={1}>📍 {note.placeName}</Text>
-            )}
-            {note.pinned && <Text style={styles.footTxt}>📌</Text>}
-          </View>
+        <View style={styles.cardHead}>
+          {note.color ? <View style={[styles.colorDot, { backgroundColor: note.color }]} /> : null}
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {note.title || (note.kind === 'checklist' ? t('nb_card_list_default') : t('nb_card_note_default'))}
+          </Text>
+          <PressableScale onPress={onToggleFavorite} hitSlop={10} scaleTo={0.8}>
+            <Text style={[styles.star, note.favorite && styles.starOn]}>{note.favorite ? '★' : '☆'}</Text>
+          </PressableScale>
         </View>
-      </GlassCard>
+
+        {note.kind === 'checklist' ? (
+          <View style={styles.checkPreview}>
+            {note.items.slice(0, 4).map((i) => (
+              <View key={i.id} style={styles.checkRow}>
+                <CheckDot done={i.done} size={15} />
+                <Text style={[styles.item, i.done && styles.itemDone]} numberOfLines={1}>{i.text}</Text>
+              </View>
+            ))}
+            {total > 4 && (
+              <Text style={styles.more}>{t('nb_others_count').replace('{n}', String(total - 4))}</Text>
+            )}
+            {total > 0 ? <BrandProgress value={done / total} style={styles.progress} /> : null}
+          </View>
+        ) : note.content ? (
+          <Text style={styles.preview} numberOfLines={6}>{note.content}</Text>
+        ) : null}
+
+        {note.photoUrls.length > 0 && (
+          <Image source={{ uri: note.photoUrls[0] }} style={styles.cardPhoto} />
+        )}
+
+        <View style={styles.cardFoot}>
+          <Text style={styles.footTxt}>{shortDate(note.updatedAt, locale)}</Text>
+          {note.kind === 'checklist' && total > 0 && (
+            <Text style={styles.footTxt}>· {done}/{total}</Text>
+          )}
+          {note.placeName && (
+            <Text style={[styles.footTxt, styles.footPlace]} numberOfLines={1}>· 📍 {note.placeName}</Text>
+          )}
+          {note.pinned && <Text style={styles.footPin}>📌</Text>}
+        </View>
+      </View>
     </PressableScale>
   );
 }
@@ -288,10 +385,12 @@ function NoteCard({
 // ── Éditeur ──────────────────────────────────────────────────────────────────
 
 function NoteEditor({
-  visible, initial, onClose, onSave, onDelete,
+  visible, initial, initialKind = 'note', onClose, onSave, onDelete,
 }: {
   visible: boolean;
   initial: Note | null;
+  /** Type d'une nouvelle note (note libre ou liste). */
+  initialKind?: NoteKind;
   onClose: () => void;
   onSave: (draft: NoteDraft) => void;
   onDelete?: () => void;
@@ -312,13 +411,13 @@ function NoteEditor({
     if (!visible) return;
     setTitle(initial?.title ?? '');
     setContent(initial?.content ?? '');
-    setKind(initial?.kind ?? 'note');
+    setKind(initial?.kind ?? initialKind);
     setItems(initial?.items ?? []);
     setColor(initial?.color ?? null);
     setPinned(initial?.pinned ?? false);
     setPhotoUrls(initial?.photoUrls ?? []);
     setNewItem('');
-  }, [visible, initial]);
+  }, [visible, initial, initialKind]);
 
   const addItem = () => {
     const text = newItem.trim();
@@ -360,256 +459,224 @@ function NoteEditor({
 
   const empty = !title.trim() && !content.trim() && items.length === 0;
 
+  const doneCount = items.filter((i) => i.done).length;
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.backdrop}
-      >
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-
-          <View style={styles.sheetHeader}>
-            <PressableScale onPress={onClose} hitSlop={10}>
-              <Text style={styles.cancel}>{t('nb_close')}</Text>
-            </PressableScale>
-            <View style={styles.kindToggle}>
-              {(['note', 'checklist'] as NoteKind[]).map((k) => (
-                <PressableScale key={k} scaleTo={0.94} onPress={() => setKind(k)}>
-                  <View style={[styles.kindBtn, kind === k && styles.kindBtnActive]}>
-                    <Text style={[styles.kindTxt, kind === k && styles.kindTxtActive]}>
-                      {k === 'note' ? t('nb_kind_note') : t('nb_kind_checklist')}
-                    </Text>
-                  </View>
-                </PressableScale>
-              ))}
-            </View>
-            <PressableScale onPress={submit} hitSlop={10} disabled={empty}>
-              <Text style={[styles.save, empty && styles.saveDisabled]}>OK</Text>
-            </PressableScale>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <TextInput
-              style={styles.titleInput}
-              placeholder={t('nb_title_placeholder')}
-              placeholderTextColor={colors.textMuted}
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            {kind === 'note' ? (
-              <TextInput
-                style={styles.contentInput}
-                placeholder={t('nb_write_here_placeholder')}
-                placeholderTextColor={colors.textMuted}
-                value={content}
-                onChangeText={setContent}
-                multiline
-                autoFocus={!initial}
+    <GlassSheet visible={visible} onClose={onClose}>
+      <SheetHeader
+        leftLabel={t('nb_close')}
+        onLeft={onClose}
+        center={(
+          <View style={styles.kindToggle}>
+            {(['note', 'checklist'] as NoteKind[]).map((k) => (
+              <CrystalChip
+                key={k}
+                label={k === 'note' ? t('nb_kind_note') : t('nb_kind_checklist')}
+                active={kind === k}
+                onPress={() => setKind(k)}
+                style={styles.kindChip}
               />
-            ) : (
-              <View style={styles.checklist}>
-                {items.map((i) => (
-                  <View key={i.id} style={styles.itemRow}>
-                    <PressableScale onPress={() => toggleItem(i.id)} hitSlop={8}>
-                      <Text style={styles.checkbox}>{i.done ? '☑' : '☐'}</Text>
-                    </PressableScale>
-                    <Text style={[styles.itemTxt, i.done && styles.itemDone]}>{i.text}</Text>
-                    <PressableScale onPress={() => removeItem(i.id)} hitSlop={8}>
-                      <Text style={styles.itemRemove}>✕</Text>
-                    </PressableScale>
-                  </View>
-                ))}
-                <View style={styles.itemRow}>
-                  <Text style={styles.checkbox}>＋</Text>
-                  <TextInput
-                    style={styles.itemInput}
-                    placeholder={t('nb_add_item_placeholder')}
-                    placeholderTextColor={colors.textMuted}
-                    value={newItem}
-                    onChangeText={setNewItem}
-                    onSubmitEditing={addItem}
-                    returnKeyType="done"
-                    blurOnSubmit={false}
-                  />
-                </View>
+            ))}
+          </View>
+        )}
+        onOk={submit}
+        okDisabled={empty}
+      />
+
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <TextInput
+          style={styles.titleInput}
+          placeholder={t('nb_title_placeholder')}
+          placeholderTextColor={colors.textMuted}
+          value={title}
+          onChangeText={setTitle}
+        />
+
+        {kind === 'note' ? (
+          <TextInput
+            style={styles.contentInput}
+            placeholder={t('nb_write_here_placeholder')}
+            placeholderTextColor={colors.textMuted}
+            value={content}
+            onChangeText={setContent}
+            multiline
+            autoFocus={!initial}
+          />
+        ) : (
+          <View style={styles.checklist}>
+            {items.length > 0 ? (
+              <View style={styles.checkHead}>
+                <BrandProgress value={doneCount / items.length} style={styles.flex1} />
+                <Text style={styles.checkCount}>{doneCount}/{items.length}</Text>
               </View>
-            )}
-
-            {photoUrls.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photos}>
-                {photoUrls.map((url) => (
-                  <PressableScale
-                    key={url}
-                    onPress={() => setPhotoUrls((p) => p.filter((u) => u !== url))}
-                  >
-                    <Image source={{ uri: url }} style={styles.photo} />
-                  </PressableScale>
-                ))}
-              </ScrollView>
-            )}
-
-            <View style={styles.toolbar}>
-              <PressableScale onPress={() => void addPhoto()} style={styles.tool} disabled={uploading}>
-                <Text style={styles.toolTxt}>{uploading ? '⏳' : '🖼️'} {t('nb_photo')}</Text>
-              </PressableScale>
-              <PressableScale onPress={() => setPinned((p) => !p)} style={[styles.tool, pinned && styles.toolActive]}>
-                <Text style={styles.toolTxt}>{t('nb_pin')}</Text>
-              </PressableScale>
-            </View>
-
-            <View style={styles.colors}>
-              {COLORS.map((c) => (
-                <PressableScale key={c ?? 'none'} scaleTo={0.9} onPress={() => setColor(c)}>
-                  <View style={[
-                    styles.colorDot,
-                    c ? { backgroundColor: c } : styles.colorNone,
-                    color === c && styles.colorActive,
-                  ]} />
+            ) : null}
+            {items.map((i) => (
+              <View key={i.id} style={styles.itemRow}>
+                <PressableScale onPress={() => toggleItem(i.id)} hitSlop={8} scaleTo={0.85}>
+                  <CheckDot done={i.done} size={24} />
                 </PressableScale>
-              ))}
+                <Text style={[styles.itemTxt, i.done && styles.itemDone]}>{i.text}</Text>
+                <PressableScale onPress={() => removeItem(i.id)} hitSlop={8}>
+                  <Text style={styles.itemRemove}>✕</Text>
+                </PressableScale>
+              </View>
+            ))}
+            <View style={styles.itemRow}>
+              <View style={styles.addRing}><Text style={styles.addPlus}>＋</Text></View>
+              <TextInput
+                style={styles.itemInput}
+                placeholder={t('nb_add_item_placeholder')}
+                placeholderTextColor={colors.textMuted}
+                value={newItem}
+                onChangeText={setNewItem}
+                onSubmitEditing={addItem}
+                returnKeyType="done"
+                blurOnSubmit={false}
+              />
             </View>
+          </View>
+        )}
 
-            {onDelete && (
-              <PressableScale onPress={onDelete} style={styles.deleteBtn}>
-                <Text style={styles.deleteTxt}>{t('nb_delete_note')}</Text>
+        {photoUrls.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photos}>
+            {photoUrls.map((url) => (
+              <PressableScale
+                key={url}
+                onPress={() => setPhotoUrls((p) => p.filter((u) => u !== url))}
+                style={styles.photoWrap}
+              >
+                <Image source={{ uri: url }} style={styles.photo} />
+                <View style={styles.photoRemove}><Text style={styles.photoRemoveTxt}>✕</Text></View>
               </PressableScale>
-            )}
-
-            <View style={{ height: spacing.xxl }} />
+            ))}
           </ScrollView>
+        )}
+
+        <View style={styles.toolbar}>
+          <CrystalChip
+            label={`${uploading ? '⏳' : '🖼️'} ${t('nb_photo')}`}
+            active={false}
+            onPress={() => { if (!uploading) void addPhoto(); }}
+          />
+          <CrystalChip label={t('nb_pin')} active={pinned} onPress={() => setPinned((p) => !p)} />
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        <View style={styles.colors}>
+          {COLORS.map((c) => (
+            <PressableScale key={c ?? 'none'} scaleTo={0.88} onPress={() => setColor(c)}>
+              <View style={[styles.colorRing, color === c && styles.colorRingOn]}>
+                <View style={[styles.colorSwatch, c ? { backgroundColor: c } : styles.colorNone]} />
+              </View>
+            </PressableScale>
+          ))}
+        </View>
+
+        {onDelete && (
+          <PressableScale onPress={onDelete} style={styles.deleteBtn}>
+            <Text style={styles.deleteTxt}>{t('nb_delete_note')}</Text>
+          </PressableScale>
+        )}
+
+        <View style={{ height: spacing.xxl }} />
+      </ScrollView>
+    </GlassSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  ambient: { position: 'absolute', top: 0, left: 0, right: 0, height: 240 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  screen: { flex: 1, backgroundColor: SPACE_BLACK },
+  flex1: { flex: 1 },
+  loading: { paddingTop: 80, alignItems: 'center' },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
-  },
-  headerBtn: { width: 40 },
-  headerIcon: { fontSize: 24, color: colors.textPrimary, fontWeight: '700' },
-  headerTitle: { ...typography.title, color: colors.textPrimary },
-  contextHint: {
-    ...typography.caption, color: colors.brandSoft,
-    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
-  },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+  hero: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  heroTitle: { fontSize: 38 },
 
-  searchCard: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
-  searchInner: {
+  search: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingVertical: 10,
+    marginHorizontal: spacing.md, marginBottom: spacing.md, borderRadius: radius.pill,
+    paddingHorizontal: spacing.md, height: 46,
   },
   searchIcon: { fontSize: 15 },
   searchInput: { flex: 1, ...typography.body, color: colors.textPrimary, padding: 0 },
   searchClear: { ...typography.body, color: colors.textMuted },
 
-  tabs: {
-    flexDirection: 'row', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
-  },
-  tab: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
-  },
-  tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  tabTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
-  tabTxtActive: { color: '#fff', fontWeight: '700' },
+  tabs: { marginHorizontal: spacing.md, marginBottom: spacing.md },
 
-  list: { paddingHorizontal: spacing.sm },
-  column: { gap: spacing.sm },
-  cardWrap: { flex: 1, marginBottom: spacing.sm },
-  card: { minHeight: 130 },
-  cardInner: { padding: spacing.md, gap: spacing.sm },
-  colorBar: {
-    position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
-    borderTopLeftRadius: radius.md, borderBottomLeftRadius: radius.md,
-  },
-  cardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  cardTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700', flex: 1 },
-  star: { fontSize: 15 },
-  preview: { ...typography.caption, color: colors.textSecondary, lineHeight: 19, gap: 2 },
-  item: { ...typography.caption, color: colors.textSecondary },
+  // ── Mosaïque ──
+  wall: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
+  wallCol: { flex: 1, gap: spacing.sm },
+  cardWrap: {},
+  card: { borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm, overflow: 'hidden' },
+  cardPinned: { borderColor: 'rgba(255,255,255,0.30)' },
+  cardGlow: { position: 'absolute', top: -70, left: -70 },
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  colorDot: { width: 8, height: 8, borderRadius: 4, marginTop: 7 },
+  cardTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '800', flex: 1 },
+  star: { fontSize: 17, color: colors.textMuted, marginTop: -1 },
+  starOn: { color: '#F4F7FB' },
+  preview: { ...typography.caption, color: colors.textSecondary, lineHeight: 19 },
+  checkPreview: { gap: 6 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  item: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   itemDone: { textDecorationLine: 'line-through', color: colors.textMuted },
   more: { ...typography.label, color: colors.textMuted },
-  cardPhoto: { width: '100%', height: 72, borderRadius: radius.sm },
-  cardFoot: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
-  footTxt: { ...typography.label, color: colors.textMuted, flexShrink: 1 },
+  progress: { marginTop: 4 },
+  cardPhoto: { width: '100%', height: 96, borderRadius: radius.md },
+  cardFoot: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  footTxt: { ...typography.label, color: colors.textMuted },
+  footPlace: { flexShrink: 1 },
+  footPin: { fontSize: 11, marginStart: 'auto' },
 
-  empty: { alignItems: 'center', paddingTop: 90, gap: spacing.sm },
-  emptyEmoji: { fontSize: 52 },
-  emptyTxt: {
-    ...typography.body, color: colors.textSecondary,
-    textAlign: 'center', paddingHorizontal: spacing.xl, lineHeight: 21,
-  },
-
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
-    paddingHorizontal: spacing.md, paddingTop: spacing.sm, maxHeight: '92%',
-  },
-  handle: {
-    width: 38, height: 4, borderRadius: 2, backgroundColor: colors.border,
-    alignSelf: 'center', marginBottom: spacing.sm,
-  },
-  sheetHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingBottom: spacing.sm,
-  },
-  cancel: { ...typography.body, color: colors.textMuted },
-  save: { ...typography.body, color: colors.brand, fontWeight: '700' },
-  saveDisabled: { opacity: 0.4 },
-  kindToggle: { flexDirection: 'row', gap: 4 },
-  kindBtn: {
-    paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-  },
-  kindBtnActive: { backgroundColor: colors.surfaceElevated },
-  kindTxt: { ...typography.label, color: colors.textMuted, fontWeight: '600' },
-  kindTxtActive: { color: colors.textPrimary, fontWeight: '700' },
-
+  // ── Éditeur ──
+  kindToggle: { flexDirection: 'row', gap: 6 },
+  kindChip: { height: 32, paddingHorizontal: 10 },
   titleInput: {
-    ...typography.title, color: colors.textPrimary, paddingVertical: spacing.sm,
+    fontSize: 26, fontWeight: '800', letterSpacing: -0.4, color: colors.textPrimary,
+    paddingVertical: spacing.sm,
   },
   contentInput: {
     ...typography.body, color: colors.textPrimary,
-    minHeight: 180, textAlignVertical: 'top', lineHeight: 22,
+    minHeight: 200, textAlignVertical: 'top', lineHeight: 23,
   },
 
-  checklist: { gap: 2 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 7 },
-  checkbox: { fontSize: 19, color: colors.brand, width: 24 },
+  checklist: { gap: 2, marginTop: spacing.xs },
+  checkHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  checkCount: { ...typography.caption, color: colors.textSecondary, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 8 },
   itemTxt: { ...typography.body, color: colors.textPrimary, flex: 1 },
   itemRemove: { ...typography.caption, color: colors.textMuted, paddingHorizontal: 6 },
+  addRing: {
+    width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center',
+  },
+  addPlus: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   itemInput: { ...typography.body, color: colors.textPrimary, flex: 1, padding: 0 },
 
   photos: { marginTop: spacing.md },
-  photo: { width: 92, height: 92, borderRadius: radius.md, marginRight: spacing.sm },
-
-  toolbar: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  tool: {
-    paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+  photoWrap: { marginEnd: spacing.sm },
+  photo: { width: 96, height: 96, borderRadius: radius.md },
+  photoRemove: {
+    position: 'absolute', top: 6, end: 6, width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.3)',
   },
-  toolActive: { backgroundColor: `${colors.brand}33` },
-  toolTxt: { ...typography.caption, color: colors.textSecondary, fontWeight: '600' },
+  photoRemoveTxt: { color: '#fff', fontSize: 11, fontWeight: '900' },
 
-  colors: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  colorDot: { width: 30, height: 30, borderRadius: 15 },
+  toolbar: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+
+  colors: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  colorRing: {
+    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: 'transparent',
+  },
+  colorRingOn: { borderColor: '#F4F7FB' },
+  colorSwatch: { width: 28, height: 28, borderRadius: 14 },
   colorNone: {
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
   },
-  colorActive: { borderWidth: 2, borderColor: colors.textPrimary },
 
   deleteBtn: { marginTop: spacing.lg, paddingVertical: spacing.md, alignItems: 'center' },
-  deleteTxt: { ...typography.body, color: colors.danger, fontWeight: '600' },
+  deleteTxt: { ...typography.body, color: colors.danger, fontWeight: '700' },
 });

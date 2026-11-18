@@ -10,3 +10,4 @@ export { PressableScale } from './PressableScale';
 export { Reveal } from './Reveal';
 export { AnimatedNumber } from './AnimatedNumber';
 export { GradientText } from './GradientText';
+export { CrystalFill } from './CrystalFill';
