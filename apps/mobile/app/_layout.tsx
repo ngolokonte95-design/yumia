@@ -129,7 +129,11 @@ function AuthGate() {
       router.replace('/(tabs)');
     }
     setRouteReady(true);
-  }, [status, user, segments, router]);
+    // deviceLocale doit figurer ici : s'il arrivait après le statut de
+    // connexion (premier lancement après installation, l'AsyncStorage
+    // s'ouvre lentement), l'effet ne repassait jamais et l'app restait sur
+    // le logo (vu sur Android le 19/11).
+  }, [status, user, segments, router, deviceLocale]);
 
   // Cache le splash natif seulement une fois la route finale déterminée (et
   // laissée le temps de peindre), pas dès le premier rendu JS.

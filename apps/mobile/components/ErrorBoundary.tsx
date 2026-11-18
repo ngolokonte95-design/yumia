@@ -5,6 +5,7 @@
  */
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { colors, spacing, typography } from '../theme/tokens';
 import { captureException } from '../lib/sentry';
 import { useAuthSafe } from '../lib/auth-context';
@@ -52,6 +53,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // Une erreur au démarrage arrive avant que le logo soit caché : sans ça,
+    // l'écran de repli restait dessous et l'app semblait figée sur le logo.
+    void SplashScreen.hideAsync().catch(() => null);
     console.error('[ErrorBoundary]', error, info.componentStack);
     captureException(error, { componentStack: info.componentStack ?? undefined });
   }
