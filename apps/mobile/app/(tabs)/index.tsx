@@ -191,8 +191,8 @@ export default function HomeScreen() {
                   {s.key === 'chat' ? (
                     // Messages ET appels passent par cet écran : deux icônes.
                     <View style={styles.shortcutPair}>
-                      <Text style={styles.shortcutEmojiSmall}>{s.emoji}</Text>
                       <Text style={styles.shortcutEmojiSmall}>📞</Text>
+                      <Text style={styles.shortcutEmojiSmall}>{s.emoji}</Text>
                     </View>
                   ) : (
                     <Text style={styles.shortcutEmoji}>{s.emoji}</Text>
