@@ -45,6 +45,7 @@ import { PremiumUpsellModal } from '../../components/PremiumUpsellModal';
 import { universeIcon } from '../../components/icons/universeIcons';
 import { ratingLabel, ratingSuffix } from '../../lib/place-rating';
 import { FeatureTip } from '../../components/FeatureTip';
+import { RadiusChip, RadiusPanel } from '../../components/map/RadiusPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /** Mémorise que l'utilisateur a déjà touché la carte : l'indication disparaît alors. */
@@ -409,15 +410,22 @@ export default function MapScreen() {
     reload(u, radiusKm);
   }, [reload, radiusKm, consumePlaceLoad]);
 
+  // Le panneau se ferme un court instant après le choix : le temps de voir le
+  // curseur glisser et l'onde du radar partir jusqu'au nouveau rayon.
+  const radiusCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (radiusCloseTimer.current) clearTimeout(radiusCloseTimer.current); }, []);
   const selectRadius = useCallback(async (km: number) => {
+    if (radiusCloseTimer.current) clearTimeout(radiusCloseTimer.current);
+    // Même rayon : rien à recharger, inutile de consommer un chargement.
+    if (km === radiusKm) { setRadiusPanelOpen(false); return; }
     // Changer de rayon relance une recherche : c'est un chargement de plus.
     const { allowed, message } = await consumePlaceLoad();
     if (!allowed) { setUpsell(message); setRadiusPanelOpen(false); return; }
     setRadiusKm(km);
-    setRadiusPanelOpen(false);
     fitPending.current = true;
     reload(universe, km);
-  }, [reload, universe, setRadiusKm, consumePlaceLoad]);
+    radiusCloseTimer.current = setTimeout(() => setRadiusPanelOpen(false), 560);
+  }, [reload, universe, radiusKm, setRadiusKm, consumePlaceLoad]);
 
   // Indication « Touche la carte… » : on ne devinait pas qu'un tap sur la
   // carte cherche les lieux de cet endroit. Affichée jusqu'au premier tap.
@@ -761,13 +769,15 @@ export default function MapScreen() {
             <Text style={styles.chipChevron}>{filterPanelOpen ? '▲' : '▾'}</Text>
           </PressableScale>
 
-          <PressableScale
-            style={styles.chip}
-            onPress={() => { setRadiusPanelOpen((o) => !o); setFilterPanelOpen(false); }}
-          >
-            <Text style={styles.chipText} numberOfLines={1}>📏  {radiusKm} km</Text>
-            <Text style={styles.chipChevron}>{radiusPanelOpen ? '▲' : '▾'}</Text>
-          </PressableScale>
+          <RadiusChip
+            km={radiusKm}
+            open={radiusPanelOpen}
+            onPress={() => {
+              if (radiusCloseTimer.current) clearTimeout(radiusCloseTimer.current);
+              setRadiusPanelOpen((o) => !o);
+              setFilterPanelOpen(false);
+            }}
+          />
         </View>
 
         {/* Panneau grille — tous les univers, compact et scrollable */}
@@ -842,21 +852,12 @@ export default function MapScreen() {
 
         {/* Panneau — choix du rayon de recherche autour du point/de toi */}
         {radiusPanelOpen ? (
-          <View style={styles.filterPanel}>
-            <View style={styles.radiusChipRow}>
-              {RADIUS_PRESETS_KM.map((km) => (
-                <Pressable
-                  key={km}
-                  style={[styles.radiusChip, radiusKm === km && styles.radiusChipActive]}
-                  onPress={() => void selectRadius(km)}
-                >
-                  <Text style={[styles.radiusChipText, radiusKm === km && styles.radiusChipTextActive]}>
-                    {km} km
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
+          <RadiusPanel
+            km={radiusKm}
+            presets={RADIUS_PRESETS_KM}
+            title={t('map_radius_title')}
+            onSelect={(km) => void selectRadius(km)}
+          />
         ) : null}
       </View>
 
@@ -1434,23 +1435,6 @@ const styles = StyleSheet.create({
   },
   chipText: { ...typography.caption, color: '#fff', fontWeight: '700' },
   chipChevron: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
-  radiusChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  radiusChip: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  radiusChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  radiusChipText: { ...typography.caption, color: colors.textPrimary, fontWeight: '600' },
-  radiusChipTextActive: { color: '#fff' },
   filterBackdrop: {
     ...StyleSheet.absoluteFill,
     zIndex: 9,
