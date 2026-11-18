@@ -6,10 +6,11 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraMode, CameraType, CameraView, FlashMode, useCameraPermissions } from 'expo-camera';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/auth-context';
-import { colors, radius, spacing } from '../theme/tokens';
+import { colors, gradients, radius, spacing } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import type { TranslationKey } from '../lib/translations';
@@ -116,7 +117,9 @@ function ReviewScreen({
       <View style={[reviewStyles.bottomRow, { paddingBottom: insets.bottom + 20 }]}>
         {/* Enregistrer */}
         <Pressable style={reviewStyles.actionBtn} onPress={handleSave}>
-          <Text style={{ fontSize: 26 }}>{saved ? '✅' : '💾'}</Text>
+          <View style={reviewStyles.actionCircle}>
+            <Text style={{ fontSize: 20 }}>{saved ? '✅' : '💾'}</Text>
+          </View>
           <Text style={reviewStyles.actionLabel}>{saved ? t('camera_saved') : t('camera_memories')}</Text>
         </Pressable>
 
@@ -133,15 +136,31 @@ function ReviewScreen({
 
 const reviewStyles = StyleSheet.create({
   topRow: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-  circleBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  circleBtnTxt: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  filterBadge: { backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
-  filterBadgeTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  // Verre : fond rgba + liseré fin (pas de flou par-dessus l'image).
+  circleBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.38)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.4)',
+  },
+  circleBtnTxt: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  filterBadge: {
+    backgroundColor: 'rgba(0,0,0,0.42)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  filterBadgeTxt: { color: '#fff', fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
   bottomRow: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20 },
-  actionBtn: { alignItems: 'center', gap: 5 },
-  actionLabel: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  nextBtn: { backgroundColor: colors.brand, borderRadius: radius.pill, paddingHorizontal: 28, paddingVertical: 14 },
-  nextBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  actionBtn: { alignItems: 'center', gap: 6 },
+  actionCircle: {
+    width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.4)',
+  },
+  actionLabel: {
+    color: '#fff', fontSize: 11, fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
+  // « Suivant » : blanc, net — la couleur est gardée pour le déclencheur.
+  nextBtn: { backgroundColor: '#fff', borderRadius: radius.pill, paddingHorizontal: 30, paddingVertical: 14 },
+  nextBtnTxt: { color: '#0E0E12', fontWeight: '800', fontSize: 16 },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -562,23 +581,33 @@ export default function CameraScreen() {
           style={styles.shutterSide}
           onPress={() => router.push((mode === 'story' ? '/story/create' : '/post/create') as never)}
         >
-          <Text style={{ fontSize: 30 }}>🖼️</Text>
+          <View style={styles.shutterSideCircle}><Text style={{ fontSize: 22 }}>🖼️</Text></View>
           <Text style={styles.shutterSideLabel}>{t('camera_gallery')}</Text>
         </Pressable>
 
-        <Pressable
-          style={[styles.shutter, captureMode === 'video' && isRecording && styles.shutterRec]}
-          onPress={handleShutter}
-        >
-          {captureMode === 'video' && isRecording
-            ? <View style={styles.shutterStop} />
-            : captureMode === 'video'
-              ? <View style={styles.shutterVideoIcon} />
-              : <View style={styles.shutterPhotoInner} />}
+        <Pressable style={styles.shutterHit} onPress={handleShutter}>
+          {captureMode === 'video' && isRecording ? (
+            // Seul accent de couleur de l'écran : l'anneau du déclencheur
+            // passe au dégradé de marque pendant l'enregistrement. Statique
+            // (aucune animation en boucle par-dessus l'aperçu).
+            <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.shutterRing}>
+              <View style={styles.shutterCore}>
+                <View style={styles.shutterStop} />
+              </View>
+            </LinearGradient>
+          ) : (
+            <View style={[styles.shutterRing, styles.shutterRingIdle]}>
+              <View style={styles.shutterCore}>
+                {captureMode === 'video'
+                  ? <View style={styles.shutterVideoIcon} />
+                  : <View style={styles.shutterPhotoInner} />}
+              </View>
+            </View>
+          )}
         </Pressable>
 
         <Pressable style={styles.shutterSide} onPress={() => setFacing((f) => f === 'back' ? 'front' : 'back')}>
-          <Text style={{ fontSize: 30 }}>🔄</Text>
+          <View style={styles.shutterSideCircle}><Text style={styles.shutterSideGlyph}>↺</Text></View>
           <Text style={styles.shutterSideLabel}>{t('camera_flip')}</Text>
         </Pressable>
       </View>
@@ -586,7 +615,7 @@ export default function CameraScreen() {
       {/* ── ONGLETS MODE ───────────────────────────────────────────────────── */}
       <View style={[styles.modeRow, { bottom: insets.bottom + 60 }]}>
         {BOTTOM_MODES.map((m) => (
-          <Pressable key={m.id} onPress={() => switchMode(m.id)}>
+          <Pressable key={m.id} style={[styles.modePill, bottomMode === m.id && styles.modePillActive]} onPress={() => switchMode(m.id)}>
             <Text style={[styles.modeTxt, bottomMode === m.id && styles.modeTxtActive]}>{t(m.labelKey)}</Text>
           </Pressable>
         ))}
@@ -617,59 +646,108 @@ const styles = StyleSheet.create({
   gridV: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
   gridH: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
 
+  // Verre : fond rgba semi-transparent + liseré fin. Pas de flou par-dessus
+  // l'aperçu de la caméra (coûteux à composer à chaque image).
+
   // Filtre nom badge
-  filterNameBadge: { position: 'absolute', alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 7 },
-  filterNameTxt: { color: '#fff', fontWeight: '700', fontSize: 15, letterSpacing: 0.5 },
+  filterNameBadge: {
+    position: 'absolute', alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.42)', borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 7,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  filterNameTxt: { color: '#fff', fontWeight: '700', fontSize: 13, letterSpacing: 1.4, textTransform: 'uppercase' },
 
   // Countdown
   countdownOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
-  countdownNum: { fontSize: 110, color: '#fff', fontWeight: '900' },
+  countdownNum: { fontSize: 120, color: '#fff', fontWeight: '200' },
 
   // Recording
-  recTimer: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 6 },
+  recTimer: {
+    position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(0,0,0,0.42)', borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 6,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+  },
   recDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF3040' },
-  recTime:  { color: '#fff', fontWeight: '700', fontSize: 14 },
+  recTime:  { color: '#fff', fontWeight: '700', fontSize: 14, fontVariant: ['tabular-nums'] },
 
   // Top bar
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingBottom: 10 },
-  topBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 20 },
-  topBtnTxt: { fontSize: 18, color: '#fff', fontWeight: '700' },
-  timerBadge: { alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 4 },
+  topBtn: {
+    width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.34)', borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.38)',
+  },
+  topBtnTxt: { fontSize: 17, color: '#fff', fontWeight: '700' },
+  timerBadge: {
+    alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.42)', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+  },
   timerBadgeTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
 
   // Right sidebar
-  sideBar: { position: 'absolute', right: 12, alignItems: 'center', gap: 14 },
-  sideBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, overflow: 'visible' },
-  sideBtnOn: { backgroundColor: 'rgba(255,255,255,0.22)' },
-  sideBtnTxt: { fontSize: 17, color: '#fff' },
-  sideStrike: { position: 'absolute', width: 26, height: 2, backgroundColor: '#fff', transform: [{ rotate: '-45deg' }] },
-  sideBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: colors.brand, borderRadius: 8, width: 16, height: 16, fontSize: 10, color: '#fff', textAlign: 'center', lineHeight: 16, fontWeight: '700' },
+  sideBar: { position: 'absolute', right: 12, alignItems: 'center', gap: 12 },
+  sideBtn: {
+    width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.34)', borderRadius: 20, overflow: 'visible',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.38)',
+  },
+  // Réglage actif : pastille claire, sans couleur.
+  sideBtnOn: { backgroundColor: 'rgba(255,255,255,0.28)', borderColor: '#fff' },
+  sideBtnTxt: { fontSize: 16, color: '#fff' },
+  sideStrike: { position: 'absolute', width: 24, height: 1.5, backgroundColor: '#fff', transform: [{ rotate: '-45deg' }] },
+  sideBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#fff', borderRadius: 8, width: 16, height: 16, fontSize: 10, color: '#0E0E12', textAlign: 'center', lineHeight: 16, fontWeight: '800', overflow: 'hidden' },
 
   // Zoom pill
-  zoomPill: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 22, overflow: 'hidden' },
-  zoomBtn: { paddingHorizontal: 16, paddingVertical: 8 },
-  zoomBtnActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
-  zoomTxt: { color: 'rgba(255,255,255,0.55)', fontWeight: '700', fontSize: 14 },
-  zoomTxtActive: { color: '#FFEC40', fontSize: 15 },
+  zoomPill: {
+    position: 'absolute', alignSelf: 'center', flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.38)', borderRadius: 22, overflow: 'hidden', padding: 3, gap: 2,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  zoomBtn: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 18 },
+  zoomBtnActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
+  zoomTxt: { color: 'rgba(255,255,255,0.6)', fontWeight: '700', fontSize: 13 },
+  zoomTxtActive: { color: '#fff' },
 
   // Shutter
   shutterRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: spacing.xl },
-  shutterSide: { width: 60, alignItems: 'center', gap: 4 },
-  shutterSideLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' },
-  shutter: { width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.15)' },
-  shutterRec: { borderColor: '#FF3040', backgroundColor: 'rgba(255,48,64,0.2)' },
-  shutterPhotoInner: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#fff' },
-  shutterVideoIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#FF3040' },
-  shutterStop: { width: 28, height: 28, borderRadius: 5, backgroundColor: '#FF3040' },
+  shutterSide: { width: 64, alignItems: 'center', gap: 5 },
+  shutterSideCircle: {
+    width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.34)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.38)',
+  },
+  shutterSideGlyph: { fontSize: 22, color: '#fff', fontWeight: '700' },
+  shutterSideLabel: {
+    color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
+  // Déclencheur : anneau (blanc au repos, dégradé de marque en enregistrement),
+  // fin interstice sombre, cœur plein.
+  shutterHit: { width: 86, height: 86, alignItems: 'center', justifyContent: 'center' },
+  shutterRing: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
+  shutterRingIdle: { backgroundColor: '#fff' },
+  shutterCore: {
+    width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shutterPhotoInner: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fff' },
+  shutterVideoIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FF3040' },
+  shutterStop: { width: 28, height: 28, borderRadius: 7, backgroundColor: '#fff' },
 
   // Mode tabs
-  modeRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 28 },
-  modeTxt: { color: 'rgba(255,255,255,0.45)', fontWeight: '700', fontSize: 13, letterSpacing: 1 },
+  modeRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  modePill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.pill },
+  modePillActive: {
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.45)',
+  },
+  modeTxt: {
+    color: 'rgba(255,255,255,0.6)', fontWeight: '700', fontSize: 12, letterSpacing: 1.2,
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
   modeTxtActive: { color: '#fff' },
 
   // Swipe hint
   swipeHint: { position: 'absolute', alignSelf: 'center' },
-  swipeHintTxt: { color: 'rgba(255,255,255,0.35)', fontSize: 11, fontWeight: '600' },
+  swipeHintTxt: {
+    color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
 
   // Publish form screen (phase 2)
   publishContainer: { flex: 1, backgroundColor: colors.background },

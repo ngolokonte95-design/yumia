@@ -6,6 +6,7 @@ import {
   type NativeScrollEvent, type NativeSyntheticEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -488,10 +489,16 @@ function ReelCardBase({
     }
   }, [effectiveActive, musicMeta, diskAnim]);
 
+  // Rebond du cœur : réaction ponctuelle au toucher (pilote natif), jamais
+  // une animation continue par-dessus la vidéo.
+  const likeScale = useRef(new Animated.Value(1)).current;
   const handleLike = () => {
     setLiked((v) => !v);
     setLikes((v) => v + (liked ? -1 : 1));
     onLike(item.id);
+    likeScale.stopAnimation();
+    likeScale.setValue(0.8);
+    Animated.spring(likeScale, { toValue: 1, friction: 4, tension: 220, useNativeDriver: true }).start();
   };
 
   const { t } = useI18n();
@@ -599,8 +606,14 @@ function ReelCardBase({
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#111' }]} />
       )}
 
-      {/* Overlay gradient bas */}
-      <View style={styles.reelOverlay} />
+      {/* Voile bas, confiné au bas de la vidéo : lisibilité de l'auteur et de
+          la légende. Statique (aucune animation), ne capte aucun toucher. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.28)', 'rgba(0,0,0,0.62)']}
+        locations={[0, 0.5, 1]}
+        style={styles.reelOverlay}
+      />
 
       {/* Tap au milieu pour mettre pause / relire (façon Instagram) — sur un
           carrousel, c'est chaque page qui le porte (cf. plus haut). */}
@@ -620,7 +633,7 @@ function ReelCardBase({
           {item.user?.photoUrl ? (
             <Image source={{ uri: item.user.photoUrl }} style={styles.reelAvatar} />
           ) : (
-            <View style={[styles.reelAvatar, { backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }]}>
+            <View style={[styles.reelAvatar, styles.reelAvatarFallback]}>
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{item.user?.displayName[0]}</Text>
             </View>
           )}
@@ -631,32 +644,36 @@ function ReelCardBase({
 
         {/* Like */}
         <Pressable style={styles.reelActionBtn} onPress={handleLike}>
-          <Text style={[styles.reelActionIcon, liked && { color: '#FF3040' }]}>♥</Text>
+          <Animated.View style={[styles.actionCircle, { transform: [{ scale: likeScale }] }]}>
+            {/* Seul accent de couleur de l'écran : le cœur aimé. */}
+            <Text style={[styles.reelActionIcon, liked && styles.reelActionIconLiked]}>♥</Text>
+          </Animated.View>
           <Text style={styles.reelActionCount}>{formatCount(likes)}</Text>
         </Pressable>
 
         {/* Commentaire */}
         <Pressable style={styles.reelActionBtn} onPress={() => onComment(item.id)}>
-          <Text style={styles.reelActionIcon}>💬</Text>
+          <View style={styles.actionCircle}><Text style={styles.reelActionIcon}>💬</Text></View>
           <Text style={styles.reelActionCount}>{formatCount(item.commentsCount)}</Text>
         </Pressable>
 
         {/* Repost */}
         <Pressable style={styles.reelActionBtn}>
-          <Text style={styles.reelActionIcon}>🔁</Text>
+          <View style={styles.actionCircle}><Text style={styles.reelActionIcon}>🔁</Text></View>
           <Text style={styles.reelActionCount}>{formatCount(item.repostsCount)}</Text>
         </Pressable>
 
         {/* Vues — information, pas action : pas de Pressable. */}
         <View style={styles.reelActionBtn}>
-          <Text style={styles.reelActionIcon}>👁</Text>
+          <View style={[styles.actionCircle, styles.actionCircleInfo]}><Text style={styles.reelActionIcon}>👁</Text></View>
           <Text style={styles.reelActionCount}>{formatCount(item.viewsCount)}</Text>
         </View>
 
         {/* Partager */}
+        {/* Pas de compteur : l'API ne renvoie pas de nombre de partages (un
+            « 12 » codé en dur s'affichait ici sous toutes les vidéos). */}
         <Pressable style={styles.reelActionBtn} onPress={() => onShare(item)}>
-          <Text style={styles.reelActionIcon}>↗</Text>
-          <Text style={styles.reelActionCount}>12</Text>
+          <View style={styles.actionCircle}><Text style={styles.reelActionIcon}>↗</Text></View>
         </Pressable>
 
         {/* Menu — signalement du contenu. Le bouton existait sans action ;
@@ -666,7 +683,7 @@ function ReelCardBase({
           style={styles.reelActionBtn}
           onPress={() => promptReport({ accessToken, targetType: 'post', targetId: item.id, t })}
         >
-          <Text style={styles.reelActionIcon}>···</Text>
+          <View style={styles.actionCircle}><Text style={styles.reelActionIcon}>···</Text></View>
         </Pressable>
 
         {/* Disque vinyle animé */}
@@ -687,7 +704,7 @@ function ReelCardBase({
         onLayout={(e) => setInfoHeight(e.nativeEvent.layout.height)}
       >
         <Pressable style={styles.reelAuthorRow} onPress={() => item.user && onUserPress(item.user.id)}>
-          <Text style={styles.reelAuthorName}>{item.user?.displayName ?? 'Yumia'}</Text>
+          <Text style={styles.reelAuthorName} numberOfLines={1}>{item.user?.displayName ?? 'Yumia'}</Text>
           {/* Bouton Suivre inline */}
           <Pressable style={styles.reelFollowBtn} onPress={() => item.user && onFollow(item.user.id)}>
             <Text style={styles.reelFollowTxt}>{t('reels_follow')}</Text>
@@ -753,11 +770,11 @@ function ReelCardBase({
           la rendre incoupable n'aurait servi personne. */}
       {!musicMeta && item.videoMuted ? (
         <View style={muteStyle}>
-          <Text style={{ fontSize: 20, color: '#fff' }}>🔇</Text>
+          <Text style={{ fontSize: 16, color: '#fff' }}>🔇</Text>
         </View>
       ) : (
         <Pressable style={muteStyle} onPress={() => setMuted((v) => !v)}>
-          <Text style={{ fontSize: 20, color: '#fff' }}>{muted ? '🔇' : '🔊'}</Text>
+          <Text style={{ fontSize: 16, color: '#fff' }}>{muted ? '🔇' : '🔊'}</Text>
         </Pressable>
       )}
     </View>
@@ -957,20 +974,28 @@ export default function ReelsScreen() {
     >
       {/* Header flottant */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backTxt}>←</Text>
+        {/* Voile haut statique, confiné à l'en-tête : onglets lisibles sur
+            une vidéo claire. */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(0,0,0,0.5)', 'rgba(0,0,0,0)']}
+          style={StyleSheet.absoluteFill}
+        />
+        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={8}>
+          <View style={styles.headerCircle}><Text style={styles.backTxt}>←</Text></View>
         </Pressable>
         <View style={styles.tabsRow}>
-          <Pressable onPress={() => setReelTab('foryou')}>
+          <Pressable style={styles.tabBtn} onPress={() => setReelTab('foryou')}>
             <Text style={[styles.tabTxt, reelTab === 'foryou' && styles.tabTxtActive]}>{tr('reels_tab_foryou')}</Text>
+            <View style={[styles.tabMark, reelTab === 'foryou' && styles.tabMarkActive]} />
           </Pressable>
-          <View style={styles.tabDivider} />
-          <Pressable onPress={() => setReelTab('following')}>
+          <Pressable style={styles.tabBtn} onPress={() => setReelTab('following')}>
             <Text style={[styles.tabTxt, reelTab === 'following' && styles.tabTxtActive]}>{tr('reels_tab_following')}</Text>
+            <View style={[styles.tabMark, reelTab === 'following' && styles.tabMarkActive]} />
           </Pressable>
         </View>
-        <Pressable style={styles.cameraBtn} onPress={() => router.push('/camera?mode=reel' as never)}>
-          <Text style={{ fontSize: 22, color: '#fff' }}>📷</Text>
+        <Pressable style={styles.cameraBtn} onPress={() => router.push('/camera?mode=reel' as never)} hitSlop={8}>
+          <View style={styles.headerCircle}><Text style={{ fontSize: 17, color: '#fff' }}>📷</Text></View>
         </Pressable>
       </View>
 
@@ -1063,79 +1088,112 @@ const styles = StyleSheet.create({
   // flash de noir pur pendant le swipe.
   videoFallbackBg: { backgroundColor: '#1c1c1e' },
 
+  // Verre : fond rgba semi-transparent + liseré fin. Pas de BlurView
+  // par-dessus une vidéo (coûteux à composer à chaque image).
+
   // Header
   header: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingBottom: 12,
+    paddingHorizontal: spacing.md, paddingBottom: 18,
   },
   backBtn: { width: 40, alignItems: 'flex-start' },
-  backTxt: { fontSize: 24, color: '#fff', fontWeight: '700' },
-  tabsRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16 },
-  tabTxt: { fontSize: 16, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
-  tabTxtActive: { color: '#fff', fontWeight: '700', textDecorationLine: 'underline' },
-  tabDivider: { width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.3)' },
+  backTxt: { fontSize: 19, color: '#fff', fontWeight: '700', marginTop: -2 },
+  headerCircle: {
+    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  tabsRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 22 },
+  tabBtn: { alignItems: 'center', gap: 5 },
+  tabTxt: {
+    fontSize: 16, color: 'rgba(255,255,255,0.62)', fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 },
+  },
+  tabTxtActive: { color: '#fff', fontWeight: '800' },
+  // Repère sous l'onglet actif (toujours présent : la hauteur ne bouge pas).
+  tabMark: { width: 18, height: 2.5, borderRadius: 2, backgroundColor: 'transparent' },
+  tabMarkActive: { backgroundColor: '#fff' },
   cameraBtn: { width: 40, alignItems: 'flex-end' },
 
   // Reel card
   reelCard: { width: W, backgroundColor: '#000', position: 'relative' },
-  reelOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 240,
-    // gradient simulé via opacité
-    backgroundColor: 'transparent',
-  },
+  reelOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 280 },
 
   // Actions droite
   reelActions: {
-    position: 'absolute', right: 12, bottom: 100,
-    alignItems: 'center', gap: 20,
+    position: 'absolute', right: 10, bottom: 100,
+    alignItems: 'center', gap: 13,
     // `bottom` ajusté à l'affichage (insets.bottom), cf. reelInfo.
   },
-  reelAvatarWrap: { position: 'relative', marginBottom: 4 },
-  reelAvatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: '#fff' },
+  reelAvatarWrap: { position: 'relative', marginBottom: 8 },
+  reelAvatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: '#fff' },
+  reelAvatarFallback: { backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  // Pastille « + » neutre (blanc) : la couleur est réservée au cœur aimé.
   followBadge: {
     position: 'absolute', bottom: -8, left: '50%',
     width: 20, height: 20, borderRadius: 10,
-    backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#fff',
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
     transform: [{ translateX: -10 }],
   },
-  followBadgeTxt: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 18 },
+  followBadgeTxt: { color: '#0E0E12', fontSize: 14, fontWeight: '800', lineHeight: 17 },
   reelActionBtn: { alignItems: 'center', gap: 3 },
-  reelActionIcon: { fontSize: 28, color: '#fff' },
-  reelActionCount: { fontSize: 13, color: '#fff', fontWeight: '600' },
+  actionCircle: {
+    width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.30)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+  },
+  // Les vues sont une information, pas un bouton : pas de liseré.
+  actionCircleInfo: { borderColor: 'transparent', backgroundColor: 'rgba(0,0,0,0.18)' },
+  reelActionIcon: { fontSize: 20, color: '#fff' },
+  reelActionIconLiked: { color: colors.brand },
+  reelActionCount: {
+    fontSize: 12, color: '#fff', fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
   musicDisk: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.30)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.45)',
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden',
   },
-  musicDiskImg: { width: 44, height: 44, borderRadius: 22 },
-  reelMusicRow: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginBottom: 6 },
+  musicDiskImg: { width: 40, height: 40, borderRadius: 20 },
+  reelMusicRow: {
+    color: 'rgba(255,255,255,0.88)', fontSize: 12, fontWeight: '600', marginBottom: 6,
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 },
+  },
 
   // Infos bas
   reelInfo: {
     position: 'absolute', bottom: 0, left: 0, right: 70,
     padding: spacing.md, paddingBottom: 24,
   },
-  reelAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  reelAuthorName: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  reelAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 7 },
+  reelAuthorName: {
+    color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: -0.2, flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 },
+  },
+  // Suivre : discret, en verre.
   reelFollowBtn: {
-    borderWidth: 1.5, borderColor: '#fff', borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.7)', borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     paddingHorizontal: 12, paddingVertical: 4,
   },
-  reelFollowTxt: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  reelPlaceRow: { alignSelf: 'flex-start', marginBottom: 6 },
+  reelFollowTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  reelPlaceRow: { alignSelf: 'flex-start', marginBottom: 7 },
   // Fond sombre translucide : le nom d'un lieu doit rester lisible sur une
   // vidéo claire, sans alourdir l'image.
   reelPlaceTxt: {
-    color: '#fff', fontSize: 13, fontWeight: '600',
+    color: '#fff', fontSize: 12, fontWeight: '700',
     backgroundColor: 'rgba(0,0,0,0.35)',
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999,
     overflow: 'hidden',
   },
-  reelCaption: { color: '#fff', fontSize: 14, lineHeight: 20, marginBottom: 10 },
+  reelCaption: {
+    color: '#fff', fontSize: 14, lineHeight: 20, marginBottom: 10,
+    textShadowColor: 'rgba(0,0,0,0.55)', textShadowRadius: 5, textShadowOffset: { width: 0, height: 1 },
+  },
   // Zone de saisie : transparente et haute de 22 px, pour attraper un trait
   // de 2 px au doigt. Le trait reste collé en bas de cette zone.
   reelProgressTouch: {
@@ -1161,17 +1219,19 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   pauseIconCircle: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    width: 68, height: 68, borderRadius: 34,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.4)',
     alignItems: 'center', justifyContent: 'center',
   },
-  pauseIconTxt: { fontSize: 28, color: '#fff' },
+  pauseIconTxt: { fontSize: 26, color: '#fff' },
 
   // Mute
   muteBtn: {
     position: 'absolute', bottom: 100, left: 14,
-    backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20,
-    width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.32)', borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.35)',
+    width: 38, height: 38, alignItems: 'center', justifyContent: 'center',
   },
 
   createReelBtn: {
