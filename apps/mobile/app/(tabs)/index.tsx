@@ -313,7 +313,8 @@ function CategorySection({
           <Text style={styles.catMedalEmoji}>{cat.emoji}</Text>
         </LinearGradient>
         <View style={styles.catText}>
-          <GradientText style={styles.catTitle}>{title}</GradientText>
+          {/* Titre en blanc cristal (18/11, demande de l'utilisateur). */}
+          <GradientText style={styles.catTitle} colors={gradients.crystal}>{title}</GradientText>
           <Text style={styles.catCount}>{count}</Text>
         </View>
       </View>

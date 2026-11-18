@@ -85,6 +85,12 @@ export const gradients = {
   /** Tuiles d'Explorer : Boutique (violet profond) et Cadeaux (rose → orange). */
   shop: ['#3B2F9E', '#5C4ECC', '#8B4FD6'] as const,
   gift: ['#9C1C5B', '#D23A6E', '#E8621A'] as const,
+  /**
+   * Blanc cristal : blanc pur traversé de reflets argentés froids, comme une
+   * arête de verre taillé. Titres premium sur fond sombre (catégories de
+   * l'Accueil). À poser en diagonale.
+   */
+  crystal: ['#FFFFFF', '#DCE4F0', '#FFFFFF', '#AEBBD0', '#F4F7FB', '#FFFFFF'] as const,
   /** Voile sombre bas d'écran — lisibilité du texte sur média. */
   scrim: ['transparent', 'rgba(14,14,18,0.85)', '#0E0E12'] as const,
   /**
