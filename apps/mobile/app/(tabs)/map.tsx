@@ -85,13 +85,21 @@ const BOTTOM_SPACE = DRAWER_COLLAPSED + CARD_H + spacing.sm * 2;
 const FILTER_GROUPS: { key: string; universes: Universe[] }[] = (() => {
   const listed = new Set<string>(UNIVERSE_CATEGORIES.flatMap((c) => c.universes));
   const orphans = UNIVERSES.filter((u) => !listed.has(u));
-  return UNIVERSE_CATEGORIES.map((c) => ({
+  const groups = UNIVERSE_CATEGORIES.map((c) => ({
     key: c.key,
     universes: [
       ...(c.universes as Universe[]),
       ...(c.key === 'other' ? orphans : []),
     ],
   }));
+  // Sur la carte, on cherche souvent un service pratique (distributeur,
+  // pharmacie de garde, laverie…) : « Services du quotidien » remonte juste
+  // sous « Bars & Soirées » (18/11/2026, demande de l'utilisateur).
+  const services = groups.find((g) => g.key === 'services');
+  const rest = groups.filter((g) => g.key !== 'services');
+  const after = rest.findIndex((g) => g.key === 'nightlife');
+  if (services && after >= 0) rest.splice(after + 1, 0, services);
+  return services && after < 0 ? [...rest, services] : rest;
 })();
 
 /** Texte comparé sans accents ni majuscules (recherche d'univers). */
