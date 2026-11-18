@@ -16,7 +16,9 @@ import { haptics } from '../lib/useHaptics';
 import { startCallSound, stopCallSound } from '../lib/call-sounds';
 import { restorePlaybackAudio } from '../lib/audio-session';
 import { consumeOutgoingCall } from '../lib/outgoing-call';
-import { dismissIncomingCall, endNativeCall, onNativeCallEvents, setShowWhenLocked } from '../lib/call-ui';
+import {
+  dismissIncomingCall, endNativeCall, onNativeCallEvents, resetCallAudioRoute, setCallSpeaker, setShowWhenLocked,
+} from '../lib/call-ui';
 import { SpaceBackground, SPACE_BLACK } from '../components/space/SpaceBackground';
 import { GlassControl, PulsingAvatar, RoundAction } from '../components/call/CallVisuals';
 
@@ -85,8 +87,11 @@ export default function CallScreen() {
 
   const [callState, setCallState]     = useState<CallState>(isIncoming ? 'ringing' : 'calling');
   const [isMuted, setIsMuted]         = useState(false);
-  const [speakerOn, setSpeakerOn]     = useState(true);
+  // Haut-parleur : allumé d'office en vidéo (on tient le téléphone devant
+  // soi), éteint en vocal (téléphone à l'oreille) — comme les autres apps.
+  const [speakerOn, setSpeakerOn]     = useState(callType === 'video');
   const [videoOn, setVideoOn]         = useState(callType === 'video');
+  const [frontCamera, setFrontCamera] = useState(true);
   const [timer, setTimer]             = useState(0);
   const [callIdState, setCallIdState] = useState<string | null>(existingCallId ?? null);
   const [encrypted, setEncrypted]     = useState(false);
@@ -153,6 +158,7 @@ export default function CallScreen() {
     // (bandeau vert), et Android l'écran d'appel devant le verrouillage.
     endNativeCall(callIdRef.current);
     setShowWhenLocked(false);
+    resetCallAudioRoute();
     // Un appel met la sortie audio en mode micro (WebRTC) : sans ce retour,
     // les vidéos de l'app restaient inaudibles après l'appel.
     restorePlaybackAudio();
@@ -380,6 +386,23 @@ export default function CallScreen() {
     setVideoOn(!videoOn);
   };
 
+  /** Bascule caméra avant ↔ arrière (même piste vidéo : rien à renégocier). */
+  const flipCamera = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const track = localStream?.getVideoTracks()[0] as any;
+    if (!track || typeof track._switchCamera !== 'function') return;
+    try {
+      track._switchCamera();
+      setFrontCamera((front) => !front);
+    } catch { /* caméra unique ou indisponible : on reste sur l'actuelle */ }
+  };
+
+  // Applique la sortie du son dès que l'appel est établi, puis à chaque
+  // appui sur « Haut-parleur ». Avant, le bouton ne changeait que son icône.
+  useEffect(() => {
+    if (callState === 'connected') setCallSpeaker(speakerOn);
+  }, [callState, speakerOn]);
+
   const statusLabel = () => {
     if (callState === 'calling')   return t('call_status_calling');
     if (callState === 'ringing')   return t('call_status_ringing');
@@ -404,7 +427,7 @@ export default function CallScreen() {
 
       {/* Flux vidéo local (coin) */}
       {showVideo && localStream && videoOn && (
-        <RTCView streamURL={localStream.toURL()} style={[styles.localVideo, { top: insets.top + 72 }]} objectFit="cover" zOrder={1} mirror />
+        <RTCView streamURL={localStream.toURL()} style={[styles.localVideo, { top: insets.top + 72 }]} objectFit="cover" zOrder={1} mirror={frontCamera} />
       )}
 
       {/* Badge chiffrement */}
@@ -451,7 +474,11 @@ export default function CallScreen() {
             {callType === 'video' && (
               <GlassControl icon={videoOn ? '📹' : '🚫'} label={videoOn ? t('call_camera') : t('call_camera_off')} active={videoOn} onPress={toggleVideo} />
             )}
-            <GlassControl icon="⌨️" label={t('call_keyboard')} active={false} onPress={() => {}} />
+            {/* « Clavier » retiré : le bouton ne faisait rien. En vidéo, sa
+                place revient au retournement de caméra. */}
+            {callType === 'video' && (
+              <GlassControl icon="🔄" label={t('call_flip_camera')} active={false} onPress={flipCamera} />
+            )}
           </View>
         </View>
       )}

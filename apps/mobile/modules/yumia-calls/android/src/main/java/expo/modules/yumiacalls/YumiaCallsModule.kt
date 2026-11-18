@@ -2,6 +2,8 @@ package expo.modules.yumiacalls
 
 import android.app.NotificationManager
 import android.content.Intent
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -47,6 +49,53 @@ class YumiaCallsModule : Module() {
 
     AsyncFunction("setShowWhenLocked") { show: Boolean ->
       appContext.currentActivity?.let { CallStore.setShowWhenLocked(it, show) }
+    }
+
+    /**
+     * Sortie du son pendant l'appel : haut-parleur, ou sortie « conversation »
+     * (casque filaire / Bluetooth s'il y en a un, sinon l'écouteur). Sans ce
+     * réglage, WebRTC laisse le téléphone en mode média : tout sort par le
+     * haut-parleur et le bouton de l'écran d'appel ne changeait rien.
+     */
+    AsyncFunction("setSpeaker") { on: Boolean ->
+      val audio = context.getSystemService(AudioManager::class.java) ?: return@AsyncFunction
+      audio.mode = AudioManager.MODE_IN_COMMUNICATION
+      if (Build.VERSION.SDK_INT < 31) {
+        @Suppress("DEPRECATION")
+        audio.isSpeakerphoneOn = on
+        return@AsyncFunction
+      }
+      val devices = audio.availableCommunicationDevices
+      val headset = devices.any {
+        it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET || it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+          it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+          it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+      }
+      val target = when {
+        on -> devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+        // Un casque branché : on laisse le système le choisir.
+        headset -> null
+        else -> devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+      }
+      if (target != null) {
+        audio.setCommunicationDevice(target)
+      } else {
+        audio.clearCommunicationDevice()
+      }
+      return@AsyncFunction
+    }
+
+    /** Fin d'appel : le téléphone retrouve son mode audio normal. */
+    AsyncFunction("resetAudioRoute") {
+      val audio = context.getSystemService(AudioManager::class.java) ?: return@AsyncFunction
+      if (Build.VERSION.SDK_INT >= 31) {
+        audio.clearCommunicationDevice()
+      } else {
+        @Suppress("DEPRECATION")
+        audio.isSpeakerphoneOn = false
+      }
+      audio.mode = AudioManager.MODE_NORMAL
+      return@AsyncFunction
     }
 
     /** Android 14+ : l'écran d'appel plein écran demande une autorisation. */

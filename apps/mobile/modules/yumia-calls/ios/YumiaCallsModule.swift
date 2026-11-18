@@ -1,3 +1,4 @@
+import AVFoundation
 import ExpoModulesCore
 
 /** Pont JS ↔ YumiaCallManager (voir lib/call-ui.ts côté app). */
@@ -33,6 +34,17 @@ public class YumiaCallsModule: Module {
 
     AsyncFunction("endCall") { (callId: String) in
       YumiaCallManager.shared.endFromApp(callId)
+    }.runOnQueue(.main)
+
+    // Sortie du son pendant l'appel. WebRTC a déjà mis la session en
+    // lecture + enregistrement : on ne change QUE la sortie. `.none` rend la
+    // main au système (écouteur, casque filaire ou Bluetooth).
+    AsyncFunction("setSpeaker") { (on: Bool) in
+      try? AVAudioSession.sharedInstance().overrideOutputAudioPort(on ? .speaker : .none)
+    }.runOnQueue(.main)
+
+    AsyncFunction("resetAudioRoute") {
+      try? AVAudioSession.sharedInstance().overrideOutputAudioPort(.none)
     }.runOnQueue(.main)
 
     // Propres à Android (notification d'appel, écran verrouillé) : sans objet ici.

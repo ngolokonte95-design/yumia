@@ -35,6 +35,9 @@ interface YumiaCallsModule {
   endCall(callId: string): Promise<void>;
   dismissIncoming(callId: string): Promise<void>;
   setShowWhenLocked(show: boolean): Promise<void>;
+  /** Absents des builds natifs antérieurs au 18/11/2026 : toujours tester leur présence. */
+  setSpeaker?(on: boolean): Promise<void>;
+  resetAudioRoute?(): Promise<void>;
   canUseFullScreenIntent(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<void>;
   addListener(event: 'onVoipToken', cb: (e: { token: string }) => void): Subscription;
@@ -107,6 +110,19 @@ export function dismissIncomingCall(callId: string | null | undefined): void {
 /** Android : l'app passe devant l'écran verrouillé le temps de l'appel, pas plus. */
 export function setShowWhenLocked(show: boolean): void {
   if (native && Platform.OS === 'android') native.setShowWhenLocked(show).catch(() => undefined);
+}
+
+/**
+ * Sortie du son de l'appel : haut-parleur, ou écouteur / casque. Sans effet
+ * dans Expo Go et sur un build natif qui n'a pas encore la fonction.
+ */
+export function setCallSpeaker(on: boolean): void {
+  if (native && typeof native.setSpeaker === 'function') native.setSpeaker(on).catch(() => undefined);
+}
+
+/** Fin d'appel : rend au téléphone sa sortie audio habituelle. */
+export function resetCallAudioRoute(): void {
+  if (native && typeof native.resetAudioRoute === 'function') native.resetAudioRoute().catch(() => undefined);
 }
 
 /** Raccroché ou micro coupé depuis l'écran d'appel du système (iPhone). */
