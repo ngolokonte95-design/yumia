@@ -190,6 +190,12 @@ export class ChatController {
     return this.chat.deleteMessage(id, user.sub);
   }
 
+  /** POST /api/chat/messages/:id/hide — « supprimer pour moi » (message ou appel) */
+  @Post('messages/:id/hide')
+  hideMessage(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {
+    return this.chat.hideMessage(id, user.sub);
+  }
+
   /** POST /api/chat/messages/:id/viewed-once — consommer un média vue unique */
   @Post('messages/:id/viewed-once')
   viewedOnce(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) id: string) {

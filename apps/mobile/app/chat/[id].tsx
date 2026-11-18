@@ -144,7 +144,7 @@ function VideoBubble({ url, onLongPress }: { url: string; onLongPress?: () => vo
 }
 
 // ── Bulle d'événement d'appel ─────────────────────────────────────────────────
-function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => void }) {
+function CallEventBubble({ msg, onCallback, onLongPress }: { msg: Message; onCallback: () => void; onLongPress?: () => void }) {
   const { t, locale } = useI18n();
   const isMissed = msg.callStatus === 'missed';
   const icon = msg.callType === 'video' ? '📹' : '📞';
@@ -154,7 +154,9 @@ function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => 
     : t('chat_call_with_duration').replace('{type}', typeLabel).replace('{duration}', fmtDuration(msg.callDuration ?? 0));
 
   return (
-    <View style={styles.callEvent}>
+    // Appui long : menu « Supprimer pour moi » (un appel se retire de SA vue,
+    // jamais de celle de l'autre).
+    <Pressable style={styles.callEvent} onLongPress={onLongPress} delayLongPress={350}>
       <View style={styles.callEventRow}>
         <View style={[styles.callIconBox, isMissed && styles.callIconBoxMissed]}>
           <Text style={{ fontSize: 18 }}>{icon}</Text>
@@ -173,7 +175,7 @@ function CallEventBubble({ msg, onCallback }: { msg: Message; onCallback: () => 
           <Text style={styles.callbackBtnTxt}>{t('chat_callback')}</Text>
         </Pressable>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -646,6 +648,21 @@ export default function ChatRoomScreen() {
     }
   };
 
+  // ─── Suppression pour moi seulement (tout message, tout appel) ─────────────
+  const hideMessage = async (msg: Message) => {
+    setActionMsg(null);
+    if (!accessToken) return;
+    const res = await fetch(`${API}/chat/messages/${msg.id}/hide`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).catch(() => null);
+    if (res?.ok) {
+      setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+    } else {
+      Alert.alert(t('chat_delete_error_title'), t('chat_delete_error_body'));
+    }
+  };
+
   /**
    * Active, change ou désactive les messages éphémères.
    *
@@ -777,7 +794,7 @@ export default function ChatRoomScreen() {
                 {isCall ? (
                   <Animated.View entering={entering} style={[styles.msgRow, isMe && styles.msgRowMe]}>
                     {isMe && <View style={styles.meBar} />}
-                    <CallEventBubble msg={item} onCallback={callback} />
+                    <CallEventBubble msg={item} onCallback={callback} onLongPress={() => setActionMsg(item)} />
                   </Animated.View>
                 ) : (
                   <Animated.View entering={entering} style={[styles.msgRow, isMe && styles.msgRowMe]}>
@@ -1074,19 +1091,23 @@ export default function ChatRoomScreen() {
       <Modal visible={actionMsg !== null} transparent animationType="fade" onRequestClose={() => setActionMsg(null)}>
         <Pressable style={styles.actionOverlay} onPress={() => setActionMsg(null)}>
           <View style={styles.actionSheet}>
-            <View style={styles.reactionPicker}>
-              {REACTION_EMOJIS.map((e) => (
-                <Pressable key={e} onPress={() => actionMsg && void react(actionMsg, e)} hitSlop={6}>
-                  <Text style={styles.reactionPickerEmoji}>{e}</Text>
+            {actionMsg?.type !== 'call' ? (
+              <>
+                <View style={styles.reactionPicker}>
+                  {REACTION_EMOJIS.map((e) => (
+                    <Pressable key={e} onPress={() => actionMsg && void react(actionMsg, e)} hitSlop={6}>
+                      <Text style={styles.reactionPickerEmoji}>{e}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Pressable
+                  style={styles.actionRow}
+                  onPress={() => { setReplyTo(actionMsg); setActionMsg(null); }}
+                >
+                  <Text style={styles.actionRowTxt}>{t('chat_action_reply')}</Text>
                 </Pressable>
-              ))}
-            </View>
-            <Pressable
-              style={styles.actionRow}
-              onPress={() => { setReplyTo(actionMsg); setActionMsg(null); }}
-            >
-              <Text style={styles.actionRowTxt}>{t('chat_action_reply')}</Text>
-            </Pressable>
+              </>
+            ) : null}
             {actionMsg && (actionMsg.type === 'text' || actionMsg.type === 'encrypted') ? (
               <Pressable
                 style={styles.actionRow}
@@ -1134,19 +1155,38 @@ export default function ChatRoomScreen() {
                 <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('report_content_action')}</Text>
               </Pressable>
             ) : null}
-            {actionMsg?.senderId === myId ? (
+            {actionMsg ? (
               <Pressable
                 style={styles.actionRow}
                 onPress={() => {
                   const msg = actionMsg;
                   setActionMsg(null);
-                  Alert.alert(t('chat_delete_confirm_title'), t('chat_delete_confirm_body'), [
+                  Alert.alert(
+                    t(msg.type === 'call' ? 'chat_delete_call_title' : 'chat_delete_confirm_title'),
+                    t('chat_delete_me_body'),
+                    [
+                      { text: t('chat_cancel'), style: 'cancel' },
+                      { text: t('chat_delete'), style: 'destructive', onPress: () => void hideMessage(msg) },
+                    ],
+                  );
+                }}
+              >
+                <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('chat_action_delete_me')}</Text>
+              </Pressable>
+            ) : null}
+            {actionMsg && actionMsg.senderId === myId && actionMsg.type !== 'call' ? (
+              <Pressable
+                style={styles.actionRow}
+                onPress={() => {
+                  const msg = actionMsg;
+                  setActionMsg(null);
+                  Alert.alert(t('chat_delete_confirm_title'), t('chat_delete_all_body'), [
                     { text: t('chat_cancel'), style: 'cancel' },
                     { text: t('chat_delete'), style: 'destructive', onPress: () => msg && void deleteMessage(msg) },
                   ]);
                 }}
               >
-                <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('chat_action_delete')}</Text>
+                <Text style={[styles.actionRowTxt, { color: colors.danger }]}>{t('chat_action_delete_all')}</Text>
               </Pressable>
             ) : null}
           </View>

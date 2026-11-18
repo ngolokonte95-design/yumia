@@ -33,6 +33,17 @@ function notExpired(): Prisma.MessageWhereInput {
   return { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] };
 }
 
+/** Retire `hiddenFor` d'un message avant de le renvoyer : qui a masqué quoi ne regarde personne. */
+function withoutHidden<T extends object>(message: T): Omit<T, 'hiddenFor'> {
+  const { hiddenFor: _hiddenFor, ...rest } = message as T & { hiddenFor?: unknown };
+  return rest as Omit<T, 'hiddenFor'>;
+}
+
+/** Messages que `userId` n'a pas retirés de sa vue (« Supprimer pour moi »). */
+function visibleTo(userId: string): Prisma.MessageWhereInput {
+  return { NOT: { hiddenFor: { has: userId } } };
+}
+
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
@@ -132,7 +143,8 @@ export class ChatService {
         conversation: {
           include: {
             participants: { where: { userId: { not: userId } } },
-            messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+            // Aperçu : le dernier message que JE vois encore.
+            messages: { where: visibleTo(userId), orderBy: { createdAt: 'desc' }, take: 1 },
           },
         },
       },
@@ -161,7 +173,7 @@ export class ChatService {
         participants: conv.isGroup
           ? conv.participants.map((pp) => userMap[pp.userId] ?? { id: pp.userId, displayName: '?', photoUrl: null })
           : undefined,
-        lastMessage: conv.messages[0] ?? null,
+        lastMessage: conv.messages[0] ? withoutHidden(conv.messages[0]) : null,
         otherUser: !conv.isGroup && otherId ? (userMap[otherId] ?? null) : null,
         lastReadAt: p.lastReadAt,
         updatedAt: conv.updatedAt,
@@ -206,7 +218,7 @@ export class ChatService {
     const messages = await this.prisma.message.findMany({
       where: {
         conversationId,
-        ...notExpired(),
+        AND: [notExpired(), visibleTo(userId)],
         ...(before ? { createdAt: { lt: new Date(before) } } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -225,7 +237,7 @@ export class ChatService {
   async getNewMessages(conversationId: string, userId: string, after: string) {
     await this.assertParticipant(conversationId, userId);
     const messages = await this.prisma.message.findMany({
-      where: { conversationId, ...notExpired(), createdAt: { gt: new Date(after) } },
+      where: { conversationId, AND: [notExpired(), visibleTo(userId)], createdAt: { gt: new Date(after) } },
       orderBy: { createdAt: 'asc' },
     });
     // Conversation ouverte à l'écran : ce qui arrive est lu à l'instant. Sans
@@ -255,6 +267,7 @@ export class ChatService {
           WHERE m."conversationId" = cp."conversationId"
             AND m."senderId" <> ${userId}
             AND (m."expiresAt" IS NULL OR m."expiresAt" > NOW())
+            AND NOT (${userId} = ANY(m."hiddenFor"))
             AND (cp."lastReadAt" IS NULL OR m."createdAt" > cp."lastReadAt")
         )`;
     return Number(rows[0]?.count ?? 0);
@@ -396,6 +409,27 @@ export class ChatService {
     return { ok: true };
   }
 
+  /**
+   * « Supprimer pour moi » : retire un message — le mien, celui d'un autre ou
+   * un événement d'appel — de MA vue de la conversation. Les autres
+   * participants le voient toujours. Idempotent.
+   */
+  async hideMessage(messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { conversationId: true, hiddenFor: true },
+    });
+    if (!message) throw new NotFoundException('Message introuvable');
+    await this.assertParticipant(message.conversationId, userId);
+    if (!message.hiddenFor.includes(userId)) {
+      await this.prisma.message.update({
+        where: { id: messageId },
+        data: { hiddenFor: { push: userId } },
+      });
+    }
+    return { ok: true };
+  }
+
   /** Marque un média « vue unique » comme consommé. */
   async markOneTimeViewed(messageId: string, userId: string) {
     const message = await this.prisma.message.findUnique({
@@ -446,7 +480,7 @@ export class ChatService {
       // Vue unique déjà consommée → on masque le média pour le destinataire.
       const hideMedia = m.oneTime && m.viewedOnceAt !== null && m.senderId !== viewerId;
       return {
-        ...m,
+        ...withoutHidden(m),
         mediaUrl: hideMedia ? null : m.mediaUrl,
         oneTimeConsumed: m.oneTime ? m.viewedOnceAt !== null : undefined,
         reactions: reactionsByMsg.get(m.id) ?? [],

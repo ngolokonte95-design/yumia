@@ -1040,6 +1040,10 @@ model Message {
   /// `null` = message permanent. Posée à l'envoi, d'après le réglage en vigueur :
   /// changer le réglage ne rallonge ni n'écourte les messages déjà envoyés.
   expiresAt      DateTime?
+  /// « Supprimer pour moi » : identifiants des participants qui ont retiré ce
+  /// message (ou cet événement d'appel) de LEUR vue. Le message reste visible
+  /// pour les autres. Jamais renvoyé au client.
+  hiddenFor      String[]          @default([])
   createdAt      DateTime          @default(now())
   conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   reactions      MessageReaction[]
