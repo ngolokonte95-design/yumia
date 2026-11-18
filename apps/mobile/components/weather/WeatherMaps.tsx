@@ -4,7 +4,8 @@ import MapView, { Circle, Marker, UrlTile } from 'react-native-maps';
 import { GlassCard, PressableScale } from '../ui';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { getRadarProvider, type RadarFrame } from '../../lib/services/weather/radar';
-import { formatLocalTime, getWeatherProvider } from '../../lib/services/weather';
+import { getWeatherProvider } from '../../lib/services/weather';
+import { RadarTimeline } from './RadarTimeline';
 import type { AirGridPoint, Coordinates } from '../../lib/services/weather';
 import { useI18n } from '../../lib/useI18n';
 import type { TranslationKey } from '../../lib/translations';
@@ -188,27 +189,17 @@ export function WeatherMaps({
       {/* Pied : timeline radar, ou légende de qualité de l'air */}
       {layer === 'rain' ? (
         <View style={styles.footer}>
-          <PressableScale onPress={() => setPlaying((p) => !p)} hitSlop={10}>
-            <Text style={styles.play}>{playing ? '⏸' : '▶'}</Text>
-          </PressableScale>
-
-          <View style={styles.timeline}>
-            {frames.map((f, i) => (
-              <View
-                key={f.time}
-                style={[
-                  styles.tick,
-                  f.forecast && styles.tickForecast,
-                  i === frameIndex && styles.tickActive,
-                ]}
-              />
-            ))}
-          </View>
-
-          <Text style={styles.frameTime}>
-            {frame ? formatLocalTime(frame.time, utcOffsetSeconds) : '--:--'}
-            {frame?.forecast ? ' ⏭' : ''}
-          </Text>
+          <RadarTimeline
+            frames={frames}
+            index={frameIndex}
+            playing={playing}
+            stepMs={FRAME_MS}
+            utcOffsetSeconds={utcOffsetSeconds}
+            labels={{ now: t('wxm_now'), ago: t('wxm_ago'), in: t('wxm_in') }}
+            onTogglePlay={() => setPlaying((p) => !p)}
+            // Choisir un instant au doigt met la lecture en pause dessus.
+            onScrub={(i) => { setPlaying(false); setFrameIndex(i); }}
+          />
         </View>
       ) : (
         <View style={styles.legend}>
@@ -254,17 +245,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(14,14,18,0.35)',
   },
 
-  footer: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingTop: spacing.sm,
-  },
-  play: { fontSize: 18, color: '#fff', width: 24 },
-  timeline: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
-  tick: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)' },
-  // Les frames de prévision se distinguent des observations passées.
-  tickForecast: { backgroundColor: 'rgba(232,98,26,0.35)' },
-  tickActive: { backgroundColor: '#fff', height: 6 },
-  frameTime: { ...typography.caption, color: '#fff', width: 52, textAlign: 'right' },
+  footer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
 
   legend: {
     flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm,
