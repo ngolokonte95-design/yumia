@@ -1,15 +1,20 @@
 import { useRef, useState } from 'react';
 import {
-  ActivityIndicator, Image, Pressable, ScrollView, Switch,
-  StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, View,
+  type TextInputProps,
 } from 'react-native';
 import type { ScrollViewInstance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { CrystalFill, GradientText, PressableScale, Reveal } from '../components/ui';
+import {
+  AvatarHalo, BACK_ARROW, BrandBadge, QuietRing, SelectChip, TopGlassButton,
+} from '../components/p2b/ProfileVisuals';
+import { GLASS, GlassGroup, SectionLabel, ToggleRow } from '../components/profile/ProfileChrome';
 import { useAuth } from '../lib/auth-context';
 import { uploadAvatarRequest } from '../lib/auth-api';
-import { colors, radius, spacing, typography } from '../theme/tokens';
+import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 import { API_BASE_URL } from '../lib/config';
 import { useI18n } from '../lib/useI18n';
 import { useKeyboardReveal } from '../lib/useKeyboardReveal';
@@ -31,6 +36,13 @@ const INTERESTED_IN: { value: string; labelKey: TranslationKey }[] = [
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
+
+/**
+ * Modifier le profil social — DA du 18/11/2026, sobre comme le profil :
+ * halo argent derrière l'avatar, champs en verre (liseré clair au focus),
+ * choix sertis de cristal, réglages de confidentialité en groupe vitré.
+ * Aucune couleur hormis l'interrupteur actif.
+ */
 
 export default function EditSocialProfileScreen() {
   const { user, accessToken, updateProfile, reloadUser } = useAuth();
@@ -122,258 +134,250 @@ export default function EditSocialProfileScreen() {
     : null;
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={[styles.container, { paddingTop: insets.top }]}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      onScroll={kb.onScroll}
-      scrollEventThrottle={16}
-      contentContainerStyle={{ paddingBottom: kb.bottomInset }}
-    >
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>←</Text></Pressable>
-        <Text style={styles.title}>{t('esp_title')}</Text>
-        <Pressable onPress={save} disabled={saving} style={styles.saveBtn}>
-          {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveTxt}>{t('esp_save')}</Text>}
-        </Pressable>
+    <View style={styles.container}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
+        <TopGlassButton label={BACK_ARROW} onPress={() => router.back()} />
+        <GradientText style={styles.title} colors={gradients.crystal} numberOfLines={1}>{t('esp_title')}</GradientText>
+        <SaveButton label={t('esp_save')} saving={saving} onPress={() => void save()} />
       </View>
 
-      {/* Avatar */}
-      <View style={styles.avatarSection}>
-        <Pressable onPress={pickPhoto} style={styles.avatarWrap}>
-          {uploadingPhoto ? (
-            <ActivityIndicator color={colors.brand} />
-          ) : photoUrl ? (
-            <Image source={{ uri: photoUrl }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatar}><Text style={styles.avatarInitial}>{user?.displayName[0]}</Text></View>
-          )}
-          <View style={styles.cameraIcon}><Text style={{ fontSize: 16 }}>📷</Text></View>
-        </Pressable>
-        <Text style={styles.avatarHint}>{t('esp_avatar_hint')}</Text>
-      </View>
-
-      {/* Nom */}
-      <View style={styles.section}>
-        <Text style={styles.label}>{t('esp_display_name')}</Text>
-        <TextInput
-          style={styles.input}
-          value={displayName}
-          onChangeText={setDisplayName}
-          maxLength={40}
-          placeholder={t('esp_name_placeholder')}
-          placeholderTextColor={colors.textMuted}
-        />
-      </View>
-
-      {/* Bio */}
-      <View style={styles.section}>
-        <Text style={styles.label}>{t('esp_bio')}</Text>
-        <TextInput
-          style={[styles.input, styles.inputMulti]}
-          value={bio}
-          onChangeText={setBio}
-          maxLength={200}
-          multiline
-          numberOfLines={3}
-          placeholder={t('esp_bio_placeholder')}
-          placeholderTextColor={colors.textMuted}
-        />
-        <Text style={styles.counter}>{bio.length}/200</Text>
-      </View>
-
-      {/* Sexe */}
-      <View style={styles.section}>
-        <Text style={styles.label}>{t('esp_i_am')}</Text>
-        <View style={styles.chips}>
-          {GENDERS.map((g) => (
-            <Pressable
-              key={g.value}
-              style={[styles.chip, gender === g.value && styles.chipActive]}
-              onPress={() => setGender(g.value)}
-            >
-              <Text style={[styles.chipText, gender === g.value && styles.chipTextActive]}>{t(g.labelKey)}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* Âge */}
-      <View style={styles.section}>
-        <Text style={styles.label}>{t('esp_birth_year')} {age ? t('esp_years_old').replace('{age}', String(age)) : ''}</Text>
-        {/* Une fois connue, l'année ne change plus (elle ouvre Tind et les
-            Rencontres, réservés aux majeurs) : le serveur la refuse aussi. */}
-        <TextInput
-          style={[styles.input, !!user?.birthYear && { opacity: 0.6 }]}
-          editable={!user?.birthYear}
-          value={birthYear}
-          onChangeText={(v) => setBirthYear(v.replace(/\D/g, '').slice(0, 4))}
-          keyboardType="numeric"
-          maxLength={4}
-          placeholder={t('esp_birth_year_placeholder')}
-          placeholderTextColor={colors.textMuted}
-        />
-      </View>
-
-      {/* Intéressé par */}
-      <View style={styles.section}>
-        <Text style={styles.label}>{t('esp_want_to_meet')}</Text>
-        <View style={styles.chips}>
-          {INTERESTED_IN.map((opt) => (
-            <Pressable
-              key={opt.value}
-              style={[styles.chip, interestedIn === opt.value && styles.chipActive]}
-              onPress={() => setInterestedIn(opt.value)}
-            >
-              <Text style={[styles.chipText, interestedIn === opt.value && styles.chipTextActive]}>{t(opt.labelKey)}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text style={styles.hint}>{t('esp_meet_hint')}</Text>
-      </View>
-
-      {/* Profil privé / public */}
-      <View style={styles.section}>
-        <Text style={styles.label}>{t('esp_account_privacy')}</Text>
-        <View style={styles.toggleRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.toggleTitle}>{isPrivate ? t('esp_private_account') : t('esp_public_account')}</Text>
-            <Text style={styles.toggleSub}>
-              {isPrivate
-                ? t('esp_private_sub')
-                : t('esp_public_sub')}
-            </Text>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScroll={kb.onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: kb.bottomInset + insets.bottom + 40 }}
+      >
+        {/* ── Avatar : halo argent, anneau discret, pastille appareil photo ── */}
+        <Reveal index={0} style={styles.avatarSection}>
+          <View style={styles.avatarStage}>
+            <AvatarHalo size={240} />
+            <PressableScale onPress={() => void pickPhoto()} scaleTo={0.95}>
+              <QuietRing size={112}>
+                {uploadingPhoto ? (
+                  <ActivityIndicator color="#fff" />
+                ) : photoUrl ? (
+                  <Image source={{ uri: photoUrl }} style={styles.avatar} />
+                ) : (
+                  <Text style={styles.avatarInitial}>{user?.displayName[0]?.toUpperCase()}</Text>
+                )}
+              </QuietRing>
+              <BrandBadge label="📷" size={34} style={styles.cameraBadge} onPress={() => void pickPhoto()} />
+            </PressableScale>
           </View>
-          <Switch
-            value={isPrivate}
-            onValueChange={setIsPrivate}
-            trackColor={{ false: colors.border, true: colors.brand }}
-            thumbColor="#fff"
+          <Text style={styles.avatarHint}>{t('esp_avatar_hint')}</Text>
+        </Reveal>
+
+        {/* ── Nom et bio ── */}
+        <Reveal index={1} style={styles.section}>
+          <SectionLabel label={t('esp_display_name')} style={styles.label} />
+          <GlassField
+            value={displayName}
+            onChangeText={setDisplayName}
+            maxLength={40}
+            placeholder={t('esp_name_placeholder')}
           />
-        </View>
 
-        {/* Visites et rencontres : des données de position, donc désactivées
-            tant que l'utilisateur ne les active pas lui-même. */}
-        <View style={[styles.toggleRow, { marginTop: spacing.sm }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.toggleTitle}>{t('esp_visits_title')}</Text>
-            <Text style={styles.toggleSub}>{t('esp_visits_sub')}</Text>
-          </View>
-          <Switch
-            value={shareVisits}
-            onValueChange={setShareVisits}
-            trackColor={{ false: colors.border, true: colors.brand }}
-            thumbColor="#fff"
+          <SectionLabel label={t('esp_bio')} style={styles.label} />
+          <GlassField
+            style={styles.inputMulti}
+            value={bio}
+            onChangeText={setBio}
+            maxLength={200}
+            multiline
+            numberOfLines={3}
+            placeholder={t('esp_bio_placeholder')}
           />
-        </View>
-        <View style={[styles.toggleRow, { marginTop: spacing.sm }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.toggleTitle}>{t('esp_encounters_title')}</Text>
-            <Text style={styles.toggleSub}>{t('esp_encounters_sub')}</Text>
-          </View>
-          <Switch
-            value={shareEncounters}
-            onValueChange={(v) => void toggleEncounters(v)}
-            trackColor={{ false: colors.border, true: colors.brand }}
-            thumbColor="#fff"
-          />
-        </View>
-        {shareEncounters && (
-          <View style={{ marginTop: spacing.sm }}>
-            <Text style={styles.toggleSub}>{t('esp_enc_audience_title')}</Text>
-            <View style={[styles.chips, { marginTop: 6 }]}>
-              {(['everyone', 'female', 'male'] as const).map((a) => (
-                <Pressable
-                  key={a}
-                  style={[styles.chip, encounterAudience === a && styles.chipActive]}
-                  onPress={() => setEncounterAudience(a)}
-                >
-                  <Text style={[styles.chipText, encounterAudience === a && styles.chipTextActive]}>
-                    {t(a === 'everyone' ? 'esp_audience_everyone' : a === 'female' ? 'esp_audience_female' : 'esp_audience_male')}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            {encounterAudience !== 'everyone' && (
-              <Text style={[styles.toggleSub, { marginTop: 6 }]}>{t('esp_enc_audience_note')}</Text>
-            )}
-          </View>
-        )}
+          <Text style={styles.counter}>{bio.length}/200</Text>
+        </Reveal>
 
-        {/* Carte : qui voit ma position quand je la partage. Le serveur
-            applique ce choix, quelle que soit la version de l'app. */}
-        <View style={{ marginTop: spacing.md }}>
-          <Text style={styles.toggleTitle}>{t('esp_map_title')}</Text>
-          <Text style={styles.toggleSub}>{t('esp_map_sub')}</Text>
-          <View style={[styles.chips, { marginTop: 6 }]}>
-            {(['everyone', 'friends'] as const).map((a) => (
-              <Pressable
-                key={a}
-                style={[styles.chip, mapAudience === a && styles.chipActive]}
-                onPress={() => setMapAudience(a)}
-              >
-                <Text style={[styles.chipText, mapAudience === a && styles.chipTextActive]}>
-                  {t(a === 'everyone' ? 'esp_audience_everyone' : 'esp_audience_friends')}
-                </Text>
-              </Pressable>
+        {/* ── Qui je suis ── */}
+        <Reveal index={2} style={styles.section}>
+          <SectionLabel label={t('esp_i_am')} style={styles.label} />
+          <View style={styles.chips}>
+            {GENDERS.map((g) => (
+              <SelectChip key={g.value} fill label={t(g.labelKey)} active={gender === g.value} onPress={() => setGender(g.value)} />
             ))}
           </View>
-        </View>
-      </View>
 
-      <View style={{ height: insets.bottom + 40 }} />
-    </ScrollView>
+          <SectionLabel
+            label={`${t('esp_birth_year')}${age ? ` ${t('esp_years_old').replace('{age}', String(age))}` : ''}`}
+            style={styles.label}
+          />
+          {/* Une fois connue, l'année ne change plus (elle ouvre Tind et les
+              Rencontres, réservés aux majeurs) : le serveur la refuse aussi. */}
+          <GlassField
+            locked={!!user?.birthYear}
+            editable={!user?.birthYear}
+            value={birthYear}
+            onChangeText={(v) => setBirthYear(v.replace(/\D/g, '').slice(0, 4))}
+            keyboardType="numeric"
+            maxLength={4}
+            placeholder={t('esp_birth_year_placeholder')}
+          />
+
+          <SectionLabel label={t('esp_want_to_meet')} style={styles.label} />
+          <View style={styles.chips}>
+            {INTERESTED_IN.map((opt) => (
+              <SelectChip key={opt.value} fill label={t(opt.labelKey)} active={interestedIn === opt.value} onPress={() => setInterestedIn(opt.value)} />
+            ))}
+          </View>
+          <Text style={styles.hint}>{t('esp_meet_hint')}</Text>
+        </Reveal>
+
+        {/* ── Confidentialité ── */}
+        <Reveal index={3} style={styles.section}>
+          <SectionLabel label={t('esp_account_privacy')} style={styles.label} />
+          <GlassGroup>
+            <ToggleRow
+              icon={isPrivate ? '🔒' : '🌍'}
+              label={isPrivate ? t('esp_private_account') : t('esp_public_account')}
+              sublabel={isPrivate ? t('esp_private_sub') : t('esp_public_sub')}
+              value={isPrivate}
+              onValueChange={setIsPrivate}
+            />
+            {/* Visites et rencontres : des données de position, donc
+                désactivées tant que l'utilisateur ne les active pas lui-même. */}
+            <ToggleRow
+              icon="📍"
+              label={t('esp_visits_title')}
+              sublabel={t('esp_visits_sub')}
+              value={shareVisits}
+              onValueChange={setShareVisits}
+            />
+            <ToggleRow
+              icon="✨"
+              label={t('esp_encounters_title')}
+              sublabel={t('esp_encounters_sub')}
+              value={shareEncounters}
+              onValueChange={(v) => void toggleEncounters(v)}
+            />
+          </GlassGroup>
+
+          {shareEncounters && (
+            <View style={styles.subBlock}>
+              <Text style={styles.subTitle}>{t('esp_enc_audience_title')}</Text>
+              <View style={styles.chips}>
+                {(['everyone', 'female', 'male'] as const).map((a) => (
+                  <SelectChip
+                    key={a}
+                    fill
+                    label={t(a === 'everyone' ? 'esp_audience_everyone' : a === 'female' ? 'esp_audience_female' : 'esp_audience_male')}
+                    active={encounterAudience === a}
+                    onPress={() => setEncounterAudience(a)}
+                  />
+                ))}
+              </View>
+              {encounterAudience !== 'everyone' && (
+                <Text style={styles.hint}>{t('esp_enc_audience_note')}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Carte : qui voit ma position quand je la partage. Le serveur
+              applique ce choix, quelle que soit la version de l'app. */}
+          <View style={styles.subBlock}>
+            <Text style={styles.subTitle}>{t('esp_map_title')}</Text>
+            <Text style={styles.subText}>{t('esp_map_sub')}</Text>
+            <View style={styles.chips}>
+              {(['everyone', 'friends'] as const).map((a) => (
+                <SelectChip
+                  key={a}
+                  fill
+                  label={t(a === 'everyone' ? 'esp_audience_everyone' : 'esp_audience_friends')}
+                  active={mapAudience === a}
+                  onPress={() => setMapAudience(a)}
+                />
+              ))}
+            </View>
+          </View>
+        </Reveal>
+
+        {/* Le même bouton en bas : le formulaire est long. */}
+        <Reveal index={4} style={styles.section}>
+          <SaveButton label={t('esp_save')} saving={saving} onPress={() => void save()} wide />
+        </Reveal>
+      </ScrollView>
+    </View>
+  );
+}
+
+/** Bouton « Sauvegarder » serti de cristal ; roue de chargement pendant l'envoi. */
+function SaveButton({ label, saving, onPress, wide = false }: {
+  label: string; saving: boolean; onPress: () => void; wide?: boolean;
+}) {
+  return (
+    <PressableScale
+      style={[styles.saveBtn, wide && styles.saveBtnWide]}
+      onPress={onPress}
+      disabled={saving}
+      scaleTo={0.95}
+    >
+      <CrystalFill />
+      {saving ? (
+        <ActivityIndicator size="small" color="#fff" />
+      ) : (
+        <GradientText style={styles.saveTxt} colors={gradients.crystal} numberOfLines={1}>{label}</GradientText>
+      )}
+    </PressableScale>
+  );
+}
+
+/** Champ en verre : liseré clair quand il a le focus, cadenas s'il est figé. */
+function GlassField({ locked = false, style, ...props }: TextInputProps & { locked?: boolean }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[styles.field, GLASS, focused && styles.fieldFocused, locked && styles.fieldLocked]}>
+      <TextInput
+        {...props}
+        style={[styles.input, style]}
+        placeholderTextColor={colors.textMuted}
+        onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
+        onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
+      />
+      {locked ? <Text style={styles.lock}>🔒</Text> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 12 },
-  back: { fontSize: 22, color: colors.brand, marginRight: spacing.sm },
-  title: { ...typography.h2, color: colors.text, flex: 1 },
-  saveBtn: { backgroundColor: colors.brand, borderRadius: radius.lg, paddingHorizontal: 16, paddingVertical: 8 },
-  saveTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  avatarSection: { alignItems: 'center', paddingVertical: spacing.lg },
-  avatarWrap: { position: 'relative' },
-  avatar: {
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: colors.brand,
+  container: { flex: 1, backgroundColor: colors.bg },
+
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingBottom: spacing.sm,
+  },
+  title: { ...typography.heading, fontWeight: '900', color: '#fff', flex: 1, textAlign: 'center' },
+  saveBtn: {
+    height: 38, minWidth: 96, paddingHorizontal: 14, borderRadius: radius.pill, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: colors.brand + '44',
   },
-  avatarInitial: { fontSize: 36, color: '#fff', fontWeight: '700' },
-  cameraIcon: {
-    position: 'absolute', bottom: 0, right: 0,
-    backgroundColor: colors.surface, borderRadius: 14,
-    width: 28, height: 28, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.border,
-  },
-  avatarHint: { fontSize: 12, color: colors.textMuted, marginTop: 8 },
-  section: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
-  label: { fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: {
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: 14, color: colors.text, fontSize: 15,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  inputMulti: { height: 90, textAlignVertical: 'top' },
-  counter: { fontSize: 11, color: colors.textMuted, textAlign: 'right', marginTop: 4 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: colors.surface, borderRadius: radius.full,
-    borderWidth: 1.5, borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.brand + '22', borderColor: colors.brand },
-  chipText: { color: colors.textMuted, fontWeight: '600', fontSize: 14 },
-  chipTextActive: { color: colors.brand },
-  hint: { fontSize: 12, color: colors.textMuted, marginTop: 10, lineHeight: 17 },
-  toggleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, borderWidth: 1, borderColor: colors.border,
-  },
-  toggleTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 3 },
-  toggleSub: { fontSize: 12, color: colors.textMuted, lineHeight: 16 },
+  saveBtnWide: { height: 50, alignSelf: 'stretch' },
+  saveTxt: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.3 },
+
+  avatarSection: { alignItems: 'center', paddingTop: spacing.lg, paddingBottom: spacing.md },
+  avatarStage: { width: 240, height: 150, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: '100%', height: '100%' },
+  avatarInitial: { fontSize: 40, color: '#fff', fontWeight: '900' },
+  cameraBadge: { position: 'absolute', bottom: 0, end: 0 },
+  avatarHint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
+
+  section: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  label: { marginTop: spacing.lg },
+
+  field: { flexDirection: 'row', alignItems: 'center', borderRadius: radius.lg, paddingHorizontal: spacing.md },
+  fieldFocused: { borderColor: 'rgba(255,255,255,0.40)' },
+  fieldLocked: { opacity: 0.6 },
+  input: { flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: '600', paddingVertical: 14 },
+  inputMulti: { height: 96, textAlignVertical: 'top' },
+  lock: { fontSize: 14, marginStart: spacing.sm },
+  counter: { ...typography.label, color: colors.textMuted, textAlign: 'right', marginTop: 6 },
+
+  chips: { flexDirection: 'row', gap: spacing.sm },
+  hint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 18 },
+
+  subBlock: { marginTop: spacing.lg, gap: spacing.sm },
+  subTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '800' },
+  subText: { ...typography.caption, color: colors.textMuted, lineHeight: 17, marginTop: -4 },
 });
