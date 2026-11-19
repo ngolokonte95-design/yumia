@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "838428154265",
+    "project_id": "yumia-8d727",
+    "storage_bucket": "yumia-8d727.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838428154265:android:c81979cf2ac8a3d3cd9b08",
+        "android_client_info": {
+          "package_name": "com.yumia.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5zJe9oFluK9PONRMtRuOsLma3ZOCIMFw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -197,6 +197,7 @@
         "backgroundColor": "#0E0E12"
       },
       "package": "com.yumia.app",
+      "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyD97vVwbZS-Tq9SV4hdP4TtJRa53gEumaQ"
