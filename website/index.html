@@ -2,147 +2,327 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YUMIA — Vos envies, partout.</title>
-<meta name="description" content="YUMIA est votre copilote IA des expériences du quotidien : découvrez les meilleurs lieux autour de vous, partagez vos moments et rencontrez du monde. Vos envies, partout.">
-<meta property="og:title" content="YUMIA — Vos envies, partout.">
-<meta property="og:description" content="Votre copilote IA des expériences du quotidien.">
-<meta property="og:image" content="/logo.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YUMIA — Dis ton envie, YUMIA trouve. Gratuite sur iPhone et Android</title>
+<meta name="description" content="YUMIA, le copilote IA de tes sorties : l'IA trouve le lieu parfait près de toi, écrit ta journée heure par heure, et un vrai réseau social pour partager. Gratuite, sans pub, sur iPhone et Android.">
+<link rel="canonical" href="https://yumia.eu/">
+<meta name="theme-color" content="#0A0910">
+<meta name="apple-itunes-app" content="app-id=6805407287">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://yumia.eu/">
+<meta property="og:title" content="YUMIA — Dis ton envie, YUMIA trouve.">
+<meta property="og:description" content="Le copilote IA de tes sorties, avec un vrai réseau social. Gratuite, sans pub, sur iPhone et Android.">
+<meta property="og:image" content="https://yumia.eu/img/og-yumia.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/logo.png">
-<link rel="stylesheet" href="/style.css">
+<link rel="apple-touch-icon" href="/logo.png">
+<link rel="preload" as="image" href="/img/accueil.webp">
+<link rel="stylesheet" href="/home.css?v=1">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "MobileApplication",
+  "name": "YUMIA",
+  "alternateName": "YUMIA : Sorties, IA & Vacances",
+  "url": "https://yumia.eu/",
+  "image": "https://yumia.eu/img/og-yumia.jpg",
+  "description": "Le copilote IA de tes sorties : l'IA trouve le lieu parfait près de toi, écrit ta journée, et un réseau social pour partager tes sorties.",
+  "operatingSystem": "iOS, Android",
+  "applicationCategory": "LifestyleApplication",
+  "inLanguage": "fr",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "publisher": { "@type": "Organization", "name": "Novaris Digital" },
+  "sameAs": [
+    "https://apps.apple.com/fr/app/yumia-sorties-ia-vacances/id6805407287",
+    "https://play.google.com/store/apps/details?id=com.yumia.app"
+  ]
+}
+</script>
 </head>
 <body>
 
-<header>
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+<canvas id="stars" aria-hidden="true"></canvas>
+
+<header class="top" id="top">
   <div class="wrap nav">
-    <a href="/" class="brand"><img src="/logo.png" alt="YUMIA"> YUMIA</a>
-    <nav class="nav-links">
-      <a href="#features">Fonctionnalités</a>
-      <a href="#univers">Univers</a>
+    <a href="/" class="brand"><img src="/logo.png" alt="" width="34" height="34"> YUMIA</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#comment">Comment ça marche</a>
+      <a href="#social">Réseau social</a>
+      <a href="#gratuit">Gratuit</a>
       <a href="#boutique">Boutique</a>
-      <a href="/support.html">Support</a>
-      <a href="#download" class="btn">Télécharger</a>
     </nav>
+    <a href="#telecharger" class="btn small">Télécharger</a>
   </div>
 </header>
 
 <main>
-  <section class="wrap hero">
-    <img src="/logo.png" alt="YUMIA" class="logo-big">
-    <h1>Vos envies,<br><span class="grad-text">partout.</span></h1>
-    <p class="tagline">YUMIA est votre copilote IA des expériences du quotidien. Trouvez les meilleurs lieux autour de vous, partagez vos moments et rencontrez du monde.</p>
-    <div class="cta-row">
-      <a href="#download" class="btn">Télécharger l'app</a>
-      <a href="#features" class="btn ghost">En savoir plus</a>
+
+  <!-- ============================================================ HÉROS -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <a class="eyebrow reveal" href="#social"><span class="dot"></span> Nouveau : appels vidéo gratuits</a>
+        <h1 class="reveal d1"><span class="line">Dis ton envie.</span><span class="line grad">YUMIA trouve.</span></h1>
+        <p class="lead reveal d2">Le copilote IA de tes sorties : resto, rooftop, balade, spa, escape game… YUMIA trouve le lieu parfait, au bon moment, près de toi. Et tu partages tout avec tes amis.</p>
+        <div class="search reveal d2" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D8D6E6" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+          <span class="typed" id="typed">J'ai faim, quoi de bon ?</span><span class="caret"></span>
+          <span class="go">→</span>
+        </div>
+        <div class="stores reveal d3">
+          <a class="as" href="https://apps.apple.com/fr/app/yumia-sorties-ia-vacances/id6805407287" target="_blank" rel="noopener">
+            <img src="https://toolbox.marketingtools.apple.com/api/badges/download-on-the-app-store/black/fr-fr?size=250x83" alt="Télécharger dans l'App Store" width="168" height="56">
+          </a>
+          <a class="gp" href="https://play.google.com/store/apps/details?id=com.yumia.app" target="_blank" rel="noopener">
+            <img src="https://play.google.com/intl/fr/badges/static/images/badges/fr_badge_web_generic.png" alt="Disponible sur Google Play" width="214" height="83">
+          </a>
+        </div>
+        <ul class="trust reveal d3">
+          <li>Gratuite</li><li>Sans pub</li><li>Sans carte bancaire</li>
+        </ul>
+      </div>
+
+      <div class="hero-stage" id="stage">
+        <div class="stage-inner">
+          <div class="phone p-left"><img src="/img/carte-rayon.webp" alt="La carte de YUMIA et le rayon de recherche, de 1 à 50 km" width="720" height="1565"></div>
+          <div class="phone p-center"><img src="/img/accueil.webp" alt="L'accueil de YUMIA : « Dis-moi ton envie »" width="720" height="1565"></div>
+          <div class="phone p-right"><img src="/img/itineraire.webp" alt="Une journée à Phuket écrite par l'IA de YUMIA" width="720" height="1565"></div>
+          <img class="float card f1" src="/img/c-etapes.webp" alt="" width="640" height="108">
+          <img class="float card f2" src="/img/c-sauvegarder.webp" alt="" width="640" height="86">
+          <img class="float card f3" src="/img/c-question.webp" alt="" width="460" height="75">
+          <span class="float sticker">GRATUIT</span>
+          <span class="float xp grad">+ XP</span>
+        </div>
+      </div>
+    </div>
+    <a class="scroll-hint" href="#comment" aria-label="Descendre"></a>
+  </section>
+
+  <!-- ============================================================ UNIVERS -->
+  <section class="univers" aria-label="Les univers de YUMIA">
+    <h2>Plus de 100 univers, pour toutes tes envies</h2>
+    <div class="fade-x">
+      <div class="marquee"><span>🍽️ Restaurants &amp; Fast-food</span><span>☕ Cafés</span><span>🍹 Bars</span><span>🥐 Boulangeries</span><span>🥞 Brunch &amp; Petit-déjeuner</span><span>🍰 Desserts</span><span>🎧 Night-clubs</span><span>🍺 Pubs</span><span>🍦 Glaciers</span><span>🍫 Chocolatiers</span><span>🍷 Caves à vin</span><span>🫖 Salons de thé</span><span>🥤 Jus &amp; Smoothies</span><span>🚐 Food Trucks &amp; Street food</span><span>🥩 Boucheries</span><span>💨 Bars à chicha</span><span>🎵 Musique Live</span><span>🌇 Rooftops</span><span>🎤 Karaoké</span><span>😂 Comedy Club &amp; Stand-up</span><span>🎬 Cinémas</span><span>🏛️ Musées &amp; Galeries</span><span>🔐 Escape Games</span><span>🎳 Bowling</span><span>🔫 Laser Game &amp; Paintball</span><span>🏎️ Karting &amp; Course</span><span>🗿 Monuments &amp; Sites</span><span>🎡 Activités touristiques</span><span>🎭 Sorties culturelles</span><span>🦁 Zoo &amp; Aquarium</span><span>📸 Spots photo &amp; Panoramas</span><span>🌿 Parcs &amp; Nature</span><span>🏖️ Plages &amp; Vacances</span><span>🥾 Randonnée</span><span>🏔️ Sites naturels</span><span>💧 Points d\</span><span>⛺ Camping &amp; Bivouac</span><span>🌺 Jardins botaniques</span><span>🧺 Aires de pique-nique</span><span>🏃 Sport &amp; Fitness</span><span>🏋️ Salles de sport</span><span>🏊 Piscines &amp; Aquatique</span><span>🚤 Jet ski &amp; Nautisme</span><span>🏍️ Quad &amp; Off-road</span><span>🎰 Casinos</span><span>🛹 Skateparks &amp; Sports urbains</span><span>🍃 Coffee shops</span><span>🎯 Armureries &amp; Stands de tir</span><span>🧖 Spa &amp; Bien-être</span><span>💆‍♀️ Massage &amp; Détente</span><span>💇‍♀️ Coiffure &amp; Beauté</span><span>💈 Barbiers</span><span>💅 Ongleries</span><span>👁️ Cils &amp; Sourcils</span><span>✨ Esthétique &amp; Soins</span><span>🖋️ Tatouage &amp; Piercing</span><span>🧘 Yoga &amp; Pilates</span><span>🌞 Bronzage &amp; UV</span><span>💄 Maquillage &amp; Relooking</span><span>💐 Fleuristes</span><span>🛍️ Shopping &amp; Mode</span><span>🍽️ Restaurants &amp; Fast-food</span><span>☕ Cafés</span><span>🍹 Bars</span><span>🥐 Boulangeries</span><span>🥞 Brunch &amp; Petit-déjeuner</span><span>🍰 Desserts</span><span>🎧 Night-clubs</span><span>🍺 Pubs</span><span>🍦 Glaciers</span><span>🍫 Chocolatiers</span><span>🍷 Caves à vin</span><span>🫖 Salons de thé</span><span>🥤 Jus &amp; Smoothies</span><span>🚐 Food Trucks &amp; Street food</span><span>🥩 Boucheries</span><span>💨 Bars à chicha</span><span>🎵 Musique Live</span><span>🌇 Rooftops</span><span>🎤 Karaoké</span><span>😂 Comedy Club &amp; Stand-up</span><span>🎬 Cinémas</span><span>🏛️ Musées &amp; Galeries</span><span>🔐 Escape Games</span><span>🎳 Bowling</span><span>🔫 Laser Game &amp; Paintball</span><span>🏎️ Karting &amp; Course</span><span>🗿 Monuments &amp; Sites</span><span>🎡 Activités touristiques</span><span>🎭 Sorties culturelles</span><span>🦁 Zoo &amp; Aquarium</span><span>📸 Spots photo &amp; Panoramas</span><span>🌿 Parcs &amp; Nature</span><span>🏖️ Plages &amp; Vacances</span><span>🥾 Randonnée</span><span>🏔️ Sites naturels</span><span>💧 Points d\</span><span>⛺ Camping &amp; Bivouac</span><span>🌺 Jardins botaniques</span><span>🧺 Aires de pique-nique</span><span>🏃 Sport &amp; Fitness</span><span>🏋️ Salles de sport</span><span>🏊 Piscines &amp; Aquatique</span><span>🚤 Jet ski &amp; Nautisme</span><span>🏍️ Quad &amp; Off-road</span><span>🎰 Casinos</span><span>🛹 Skateparks &amp; Sports urbains</span><span>🍃 Coffee shops</span><span>🎯 Armureries &amp; Stands de tir</span><span>🧖 Spa &amp; Bien-être</span><span>💆‍♀️ Massage &amp; Détente</span><span>💇‍♀️ Coiffure &amp; Beauté</span><span>💈 Barbiers</span><span>💅 Ongleries</span><span>👁️ Cils &amp; Sourcils</span><span>✨ Esthétique &amp; Soins</span><span>🖋️ Tatouage &amp; Piercing</span><span>🧘 Yoga &amp; Pilates</span><span>🌞 Bronzage &amp; UV</span><span>💄 Maquillage &amp; Relooking</span><span>💐 Fleuristes</span><span>🛍️ Shopping &amp; Mode</span></div>
+      <div class="marquee rev"><span>🏬 Centres commerciaux</span><span>📚 Librairies</span><span>💍 Bijouteries</span><span>🌸 Parfums &amp; Cosmétiques</span><span>👙 Lingerie &amp; Mode intime</span><span>👗 Vintage &amp; Seconde main</span><span>💎 Boutiques de luxe</span><span>🚕 Taxi &amp; VTC</span><span>🚉 Gares &amp; Transports</span><span>✈️ Aéroports</span><span>🅿️ Parkings</span><span>🏨 Hôtels &amp; Séjours</span><span>🚗 Location de voitures</span><span>🏕️ Campings &amp; Glamping</span><span>⚓ Ports &amp; Marinas</span><span>🏧 Distributeurs ATM</span><span>💱 Bureaux de change</span><span>🏦 Banques &amp; Agences</span><span>🔑 Serruriers &amp; Dépannage</span><span>📱 Téléphonie &amp; Réparation mobile</span><span>💊 Pharmacies</span><span>⛽ Stations service &amp; Bornes électriques</span><span>🧺 Laveries automatiques</span><span>💻 Coworking &amp; Bureaux</span><span>🏪 Tabac &amp; Presse</span><span>📬 La Poste &amp; Envoi colis</span><span>🩺 Médecins &amp; Dentistes</span><span>🏥 Hôpitaux &amp; Urgences</span><span>🐾 Vétérinaires</span><span>👓 Opticiens</span><span>🧠 Psychologues &amp; Thérapeutes</span><span>🔬 Laboratoires d\</span><span>🌿 Médecines douces &amp; Naturopathie</span><span>🔧 Garages &amp; Mécanique</span><span>🫧 Stations de lavage</span><span>🚘 Concessionnaires auto</span><span>🔩 Centres de pneus</span><span>🏍️ Moto &amp; Scooter</span><span>🔌 Bornes de recharge électrique</span><span>🔋 Pièces auto &amp; Accessoires</span><span>📋 Contrôle technique</span><span>🛐 Lieux de culte</span><span>📖 Bibliothèques</span><span>🚔 Commissariats &amp; Police</span><span>🎪 Événements &amp; Spectacles</span><span>🧳 Agences de voyage &amp; Vacances</span><span>🛒 Supermarchés</span><span>🥫 Épiceries &amp; Alimentation</span><span>🐾 Animaleries</span><span>🏸 Sport &amp; Équipement</span><span>🏛️ Mairies &amp; Services publics</span><span>🚒 Casernes de pompiers</span><span>🎟️ Théâtres</span><span>🍽️ Restaurants &amp; Fast-food</span><span>🏃 Sport &amp; Fitness</span><span>🛍️ Shopping &amp; Mode</span><span>🍹 Bars</span><span>🎧 Night-clubs</span><span>🏛️ Musées &amp; Galeries</span><span>🥩 Boucheries</span><span>☕ Cafés</span><span>🏬 Centres commerciaux</span><span>📚 Librairies</span><span>💍 Bijouteries</span><span>🌸 Parfums &amp; Cosmétiques</span><span>👙 Lingerie &amp; Mode intime</span><span>👗 Vintage &amp; Seconde main</span><span>💎 Boutiques de luxe</span><span>🚕 Taxi &amp; VTC</span><span>🚉 Gares &amp; Transports</span><span>✈️ Aéroports</span><span>🅿️ Parkings</span><span>🏨 Hôtels &amp; Séjours</span><span>🚗 Location de voitures</span><span>🏕️ Campings &amp; Glamping</span><span>⚓ Ports &amp; Marinas</span><span>🏧 Distributeurs ATM</span><span>💱 Bureaux de change</span><span>🏦 Banques &amp; Agences</span><span>🔑 Serruriers &amp; Dépannage</span><span>📱 Téléphonie &amp; Réparation mobile</span><span>💊 Pharmacies</span><span>⛽ Stations service &amp; Bornes électriques</span><span>🧺 Laveries automatiques</span><span>💻 Coworking &amp; Bureaux</span><span>🏪 Tabac &amp; Presse</span><span>📬 La Poste &amp; Envoi colis</span><span>🩺 Médecins &amp; Dentistes</span><span>🏥 Hôpitaux &amp; Urgences</span><span>🐾 Vétérinaires</span><span>👓 Opticiens</span><span>🧠 Psychologues &amp; Thérapeutes</span><span>🔬 Laboratoires d\</span><span>🌿 Médecines douces &amp; Naturopathie</span><span>🔧 Garages &amp; Mécanique</span><span>🫧 Stations de lavage</span><span>🚘 Concessionnaires auto</span><span>🔩 Centres de pneus</span><span>🏍️ Moto &amp; Scooter</span><span>🔌 Bornes de recharge électrique</span><span>🔋 Pièces auto &amp; Accessoires</span><span>📋 Contrôle technique</span><span>🛐 Lieux de culte</span><span>📖 Bibliothèques</span><span>🚔 Commissariats &amp; Police</span><span>🎪 Événements &amp; Spectacles</span><span>🧳 Agences de voyage &amp; Vacances</span><span>🛒 Supermarchés</span><span>🥫 Épiceries &amp; Alimentation</span><span>🐾 Animaleries</span><span>🏸 Sport &amp; Équipement</span><span>🏛️ Mairies &amp; Services publics</span><span>🚒 Casernes de pompiers</span><span>🎟️ Théâtres</span><span>🍽️ Restaurants &amp; Fast-food</span><span>🏃 Sport &amp; Fitness</span><span>🛍️ Shopping &amp; Mode</span><span>🍹 Bars</span><span>🎧 Night-clubs</span><span>🏛️ Musées &amp; Galeries</span><span>🥩 Boucheries</span><span>☕ Cafés</span></div>
+    </div>
+    <div class="wrap">
+      <div class="stats">
+        <div class="stat reveal"><b><span data-count="100">0</span>+</b><span>univers de sorties</span></div>
+        <div class="stat reveal d1"><b>1 à <span data-count="50">0</span> km</b><span>autour de toi</span></div>
+        <div class="stat reveal d2"><b><span data-count="170">0</span>+</b><span>pays</span></div>
+        <div class="stat reveal d3"><b class="grad">0 €</b><span>pour l'utiliser</span></div>
+      </div>
     </div>
   </section>
 
-  <section class="wrap block" id="features">
-    <h2 class="section-title">Tout ce que vous voulez vivre</h2>
-    <p class="section-sub">Une seule app pour explorer, partager et connecter — où que vous soyez dans le monde.</p>
-    <div class="grid">
-      <div class="card">
-        <span class="ic">🗺️</span>
-        <h3>Découverte intelligente</h3>
-        <p>Une carte mondiale des meilleurs lieux, filtrée par des dizaines d'univers : restos, bars, activités, bien-être, nature…</p>
+  <!-- ============================================================ COMMENT ÇA MARCHE -->
+  <section class="story" id="comment">
+    <div class="wrap">
+      <div class="story-head center reveal">
+        <span class="kicker">Comment ça marche</span>
+        <h2 class="h2">Ta sortie parfaite,<br><span class="grad">en quelques secondes.</span></h2>
       </div>
-      <div class="card">
-        <span class="ic">🤖</span>
-        <h3>Copilote IA</h3>
-        <p>Un assistant qui comprend vos envies et vous crée des itinéraires sur mesure, adaptés à votre profil et votre humeur.</p>
-      </div>
-      <div class="card">
-        <span class="ic">📸</span>
-        <h3>Partage social</h3>
-        <p>Publiez vos moments, stories et vidéos. Suivez vos amis et découvrez leurs bons plans en temps réel.</p>
-      </div>
-      <div class="card">
-        <span class="ic">✨</span>
-        <h3>Rencontres & sorties</h3>
-        <p>Croisez des personnes qui partagent vos centres d'intérêt et organisez des sorties près de chez vous.</p>
-      </div>
-      <div class="card">
-        <span class="ic">🌍</span>
-        <h3>Couverture mondiale</h3>
-        <p>Que vous soyez à Paris, Tokyo ou New York, YUMIA vous accompagne partout, en temps réel.</p>
-      </div>
-      <div class="card">
-        <span class="ic">🎯</span>
-        <h3>Personnalisé pour vous</h3>
-        <p>L'app s'adapte à votre profil et n'affiche que ce qui compte vraiment pour vous.</p>
+      <div class="story-grid">
+        <div class="story-phone" aria-hidden="true">
+          <div class="glowring"></div>
+          <div class="progress"><i id="progress"></i></div>
+          <div class="phone"><div class="screen">
+            <img class="on" src="/img/accueil.webp" alt="" data-screen="0">
+            <img src="/img/carte-rayon.webp" alt="" data-screen="1" loading="lazy">
+            <img src="/img/itineraire.webp" alt="" data-screen="2" loading="lazy">
+            <img src="/img/fiche-lieu.webp" alt="" data-screen="3" loading="lazy">
+            <img src="/img/passeport.webp" alt="" data-screen="4" loading="lazy">
+          </div></div>
+        </div>
+        <div class="steps">
+          <article class="step" data-step="0">
+            <span class="num">01</span>
+            <h3>Dis ton envie.</h3>
+            <p>« J'ai faim », « je m'ennuie », « surprends-moi » : écris ton envie comme elle vient. L'IA croise ton humeur, l'heure, la météo et tes goûts pour te proposer les meilleurs lieux autour de toi.</p>
+            <img class="pop" src="/img/c-question.webp" alt="" loading="lazy">
+            <div class="phone mini"><img src="/img/accueil.webp" alt="L'accueil de YUMIA" loading="lazy"></div>
+          </article>
+          <article class="step" data-step="1">
+            <span class="num">02</span>
+            <h3>Tout autour de toi.</h3>
+            <p>Restos, bars, spas, escape games, criques, musées : la carte montre tout ce qu'il y a près de toi, dans plus de 100 univers. Tu choisis ton rayon, de 1 à 50 km.</p>
+            <img class="pop" src="/img/c-rayon.webp" alt="" loading="lazy">
+            <div class="phone mini"><img src="/img/carte-rayon.webp" alt="La carte de YUMIA" loading="lazy"></div>
+          </article>
+          <article class="step" data-step="2">
+            <span class="num">03</span>
+            <h3>Ta journée, <span class="grad">écrite par l'IA.</span></h3>
+            <p>Une soirée, un week-end, une semaine : dis avec qui tu sors et ton budget. YUMIA écrit un programme heure par heure, avec de vrais lieux et leurs photos.</p>
+            <img class="pop" src="/img/c-etapes.webp" alt="" loading="lazy">
+            <div class="phone mini"><img src="/img/itineraire.webp" alt="Un itinéraire écrit par l'IA" loading="lazy"></div>
+          </article>
+          <article class="step" data-step="3">
+            <span class="num">04</span>
+            <h3>Chaque lieu, en détail.</h3>
+            <p>Photos, horaires, distance, itinéraire et agenda : tout est sur la fiche. Un geste pour sauvegarder tes coups de cœur.</p>
+            <img class="pop" src="/img/c-sauvegarder.webp" alt="" loading="lazy">
+            <div class="phone mini"><img src="/img/fiche-lieu.webp" alt="La fiche d'un lieu" loading="lazy"></div>
+          </article>
+          <article class="step" data-step="4">
+            <span class="num">05</span>
+            <h3>Chaque sortie <span class="grad">te fait gagner.</span></h3>
+            <p>Gagne de l'XP, monte de niveau, débloque des badges et collectionne les tampons des pays visités : ton passeport garde la trace de tout ce que tu vis.</p>
+            <img class="pop" src="/img/c-passeport.webp" alt="" loading="lazy">
+            <div class="phone mini"><img src="/img/passeport.webp" alt="Le passeport YUMIA" loading="lazy"></div>
+          </article>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="wrap block" id="univers">
-    <h2 class="section-title">Des dizaines d'univers</h2>
-    <p class="section-sub">Chaque envie a son univers. Explorez-les tous.</p>
-    <div class="chips">
-      <span class="chip">🍽️ Restaurants</span>
-      <span class="chip">☕ Cafés</span>
-      <span class="chip">🍹 Bars</span>
-      <span class="chip">🎧 Night-clubs</span>
-      <span class="chip">🏖️ Plages</span>
-      <span class="chip">🥾 Randonnée</span>
-      <span class="chip">🧖 Spa & Bien-être</span>
-      <span class="chip">🎭 Culture</span>
-      <span class="chip">🛍️ Shopping</span>
-      <span class="chip">🏋️ Sport</span>
-      <span class="chip">🎡 Activités</span>
-      <span class="chip">🌇 Rooftops</span>
-      <span class="chip">🎰 Casinos</span>
-      <span class="chip">💈 Beauté</span>
-      <span class="chip">⛺ Camping</span>
-      <span class="chip">…et bien plus</span>
+  <!-- ============================================================ RÉSEAU SOCIAL -->
+  <section class="social" id="social">
+    <div class="wrap social-grid">
+      <div class="social-copy">
+        <span class="kicker reveal">Réseau social</span>
+        <h2 class="h2 reveal d1">Et un vrai <span class="grad">réseau social.</span></h2>
+        <p class="sub reveal d2">Partage tes sorties en photos, reels et stories, suis tes amis et organisez-vous en groupe. Ici, pas de course aux likes : on parle d'endroits où aller.</p>
+        <ul class="chips reveal d2">
+          <li>Fil d'actu</li><li class="hot">Reels</li><li>Stories</li><li>Messages</li>
+          <li class="hot">Appels audio et vidéo</li><li>Sorties de groupe</li><li>Rencontres (18 ans et +)</li>
+        </ul>
+        <p class="free-line reveal d3">Messages et appels : <span class="grad">gratuits.</span></p>
+      </div>
+      <div class="social-stage" id="socialStage">
+        <div class="phone s-profil"><img src="/img/profil.webp" alt="Un profil sur YUMIA" loading="lazy"></div>
+        <div class="phone s-fil"><img src="/img/fil.webp" alt="Le fil du réseau social de YUMIA" loading="lazy"></div>
+        <span class="heart" style="left:22%;top:430px">♥</span>
+        <span class="heart" style="left:30%;top:470px">♥</span>
+        <span class="heart" style="left:16%;top:500px">♥</span>
+        <div class="bubble l">On sort ce soir ?</div>
+        <div class="bubble r">Grave ! Le rooftop à 800 m ?</div>
+        <div class="callcard">
+          <span class="av">L</span>
+          <div><b>Léa</b><small>Appel vidéo…</small></div>
+          <div class="btns"><i class="no">✕</i><i class="yes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="#fff" d="M3 7.5A2.5 2.5 0 0 1 5.5 5h8A2.5 2.5 0 0 1 16 7.5v1.6l3.6-2.3c.6-.4 1.4 0 1.4.8v8.8c0 .8-.8 1.2-1.4.8L16 14.9v1.6a2.5 2.5 0 0 1-2.5 2.5h-8A2.5 2.5 0 0 1 3 16.5z"/></svg></i></div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- Boutique. Section indispensable : un examinateur Stripe ou un client qui
-       ouvre yumia.eu doit comprendre en quelques secondes que nous vendons des
-       produits physiques, ce que nous vendons, et sous quelles conditions. -->
-  <section class="wrap block" id="boutique">
-    <h2 class="section-title">La boutique <span class="grad-text">YUMIA</span></h2>
-    <p class="section-sub">Plus de 1 700 articles choisis pour accompagner vos envies : voyage, plage, randonnée, cuisine, beauté, sport, animaux, loisirs créatifs… Répartis en 32 rayons, directement dans l'application.</p>
-
-    <div class="chips">
-      <span class="chip">🧳 Voyage</span>
-      <span class="chip">🏖️ Plage &amp; vacances</span>
-      <span class="chip">🥾 Randonnée</span>
-      <span class="chip">⛺ Camping</span>
-      <span class="chip">🍳 Cuisine</span>
-      <span class="chip">💇 Coiffure &amp; beauté</span>
-      <span class="chip">💅 Onglerie</span>
-      <span class="chip">🐾 Animalerie</span>
-      <span class="chip">🎨 Loisirs créatifs</span>
-      <span class="chip">🧁 Cake design</span>
-      <span class="chip">💻 Bureau</span>
-      <span class="chip">🎁 Jouets &amp; cadeaux</span>
-    </div>
-
-    <div class="grid">
-      <div class="card">
-        <h3>Paiement sécurisé</h3>
-        <p>Les paiements sont traités par Stripe. Nous n'avons jamais accès à vos données bancaires.</p>
+  <!-- ============================================================ FILM -->
+  <section class="film">
+    <div class="wrap film-grid">
+      <div>
+        <span class="kicker reveal">En vidéo</span>
+        <h2 class="h2 reveal d1">YUMIA en<br><span class="grad">20 secondes.</span></h2>
+        <p class="sub reveal d2">L'envie, la carte, l'itinéraire, le passeport et le réseau social, en un coup d'œil.</p>
       </div>
-      <div class="card">
-        <h3>Livraison 11 à 23 jours ouvrés</h3>
-        <p>Nos articles sont expédiés par nos partenaires fournisseurs, situés hors de l'Union européenne. Nous l'annonçons avant l'achat plutôt qu'après.</p>
-      </div>
-      <div class="card">
-        <h3>14 jours pour changer d'avis</h3>
-        <p>Droit de rétractation sans justification, et prise en charge complète en cas d'article défectueux. <a href="/retours.html">Voir notre politique de retour</a>.</p>
+      <div class="reel reveal d2">
+        <video id="film" muted playsinline loop preload="none" poster="/img/yumia-en-20-secondes.webp" width="540" height="960">
+          <source data-src="/img/yumia-en-20-secondes.mp4" type="video/mp4">
+        </video>
+        <button class="sound" id="sound" type="button">🔊 Activer le son</button>
       </div>
     </div>
-
-    <p class="note">YUMIA est le vendeur de ces articles et assure le service client, les retours et les remboursements. Conditions détaillées dans nos <a href="/cgv.html">conditions générales de vente</a>.</p>
   </section>
 
-  <section class="wrap" id="download">
-    <div class="cta-final">
-      <h2>Prêt à vivre vos envies ?</h2>
-      <p>YUMIA arrive bientôt sur l'App Store et Google Play. Restez connecté.</p>
-      <a href="mailto:contact@yumia.eu" class="btn">Être prévenu du lancement</a>
+  <!-- ============================================================ GRATUIT -->
+  <section class="free" id="gratuit">
+    <div class="wrap">
+      <div class="zero" id="zero">
+        <span class="kicker">Gratuit</span><br>
+        <span class="big">0 €</span>
+        <p>C'est le prix pour utiliser YUMIA.</p>
+      </div>
+      <div class="free-cards">
+        <div class="fcard reveal"><div class="ico">🚫</div><h3>Sans pub</h3><p>Aucune publicité dans l'appli. Tu cherches, tu trouves, tu sors.</p></div>
+        <div class="fcard reveal d1"><div class="ico">💳</div><h3>Sans carte bancaire</h3><p>Tu crées ton compte et tu utilises YUMIA sans donner le moindre moyen de paiement.</p></div>
+        <div class="fcard reveal d2"><div class="ico">👑</div><h3>Gold offert 7 jours</h3><p>À l'inscription, tu profites des limites Gold pendant 7 jours. Ensuite, retour automatique au gratuit, sauf si tu choisis de t'abonner.</p></div>
+      </div>
+
+      <div class="center reveal">
+        <h2 class="h2" style="font-size:clamp(30px,4vw,48px)">Envie de plus ? <span class="grad">C'est toi qui choisis.</span></h2>
+        <p class="sub">Le gratuit suffit pour sortir tous les jours. Gold et Diamond augmentent les limites quotidiennes.</p>
+      </div>
+      <div class="plans" style="margin-top:44px">
+        <div class="plan free-plan reveal">
+          <span class="tag">POUR TOUT LE MONDE</span>
+          <h3>Gratuit</h3>
+          <div class="price">0 €</div>
+          <ul>
+            <li>Messages à l'assistant IA <b>10 / jour</b></li>
+            <li>Réponses « Dis ton envie » <b>6 / jour</b></li>
+            <li>Itinéraires, par mode <b>3 / jour</b></li>
+            <li>« Surprends-moi » <b>5 / jour</b></li>
+            <li>Réseau social, messages et appels <b>✓</b></li>
+            <li>Carte sociale <b class="no">—</b></li>
+          </ul>
+        </div>
+        <div class="plan reveal d1">
+          <h3>Gold</h3>
+          <div class="price">4,99 € <small>/ mois</small></div>
+          <ul>
+            <li>Messages à l'assistant IA <b>30 / jour</b></li>
+            <li>Réponses « Dis ton envie » <b>20 / jour</b></li>
+            <li>Itinéraires, par mode <b>10 / jour</b></li>
+            <li>« Surprends-moi » <b>20 / jour</b></li>
+            <li>Réseau social, messages et appels <b>✓</b></li>
+            <li>Carte sociale <b>✓</b></li>
+          </ul>
+        </div>
+        <div class="plan reveal d2">
+          <h3>Diamond</h3>
+          <div class="price">9,99 € <small>/ mois</small></div>
+          <ul>
+            <li>Messages à l'assistant IA <b>50 / jour</b></li>
+            <li>Réponses « Dis ton envie » <b>40 / jour</b></li>
+            <li>Itinéraires, par mode <b>15 / jour</b></li>
+            <li>« Surprends-moi » <b>40 / jour</b></li>
+            <li>Réseau social, messages et appels <b>✓</b></li>
+            <li>Carte sociale <b>✓</b></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fine">Abonnements mensuels sans engagement, résiliables à tout moment depuis l'App Store ou Google Play.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ BOUTIQUE
+       Section indispensable : un examinateur Stripe ou un client qui ouvre yumia.eu doit comprendre
+       en quelques secondes que nous vendons des produits physiques, et sous quelles conditions. -->
+  <section class="shop" id="boutique">
+    <div class="wrap">
+      <div class="shop-box reveal">
+        <span class="kicker">Boutique</span>
+        <h2 class="h2" style="font-size:clamp(30px,4vw,50px)">La boutique <span class="grad">YUMIA.</span></h2>
+        <p class="sub">Des milliers d'articles pour accompagner tes envies, répartis en plus de 30 rayons : voyage, plage, randonnée, cuisine, beauté, sport, animaux, loisirs créatifs… directement dans l'application.</p>
+        <div class="shop-cards">
+          <div><h3>Paiement sécurisé</h3><p>Les paiements sont traités par Stripe. Nous n'avons jamais accès à tes données bancaires.</p></div>
+          <div><h3>Livraison en 11 à 23 jours ouvrés</h3><p>Les articles sont expédiés par nos fournisseurs partenaires, situés hors de l'Union européenne. Nous l'annonçons avant l'achat.</p></div>
+          <div><h3>14 jours pour changer d'avis</h3><p>Droit de rétractation sans justification, et prise en charge complète d'un article défectueux. <a href="/retours.html">Politique de retour</a>.</p></div>
+        </div>
+        <p class="shop-note">YUMIA est le vendeur de ces articles et assure le service client, les retours et les remboursements. Conditions détaillées dans nos <a href="/cgv.html">conditions générales de vente</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ TÉLÉCHARGER -->
+  <section class="final" id="telecharger">
+    <div class="wrap">
+      <div class="final-box reveal">
+        <img class="logo" src="/logo.png" alt="" width="120" height="120">
+        <h2 class="h2">Télécharge YUMIA.<br><span class="grad">C'est gratuit.</span></h2>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Sur iPhone et Android, dans plus de 170 pays. Sans pub, sans carte bancaire.</p>
+        <div class="stores">
+          <a class="as" href="https://apps.apple.com/fr/app/yumia-sorties-ia-vacances/id6805407287" target="_blank" rel="noopener">
+            <img src="https://toolbox.marketingtools.apple.com/api/badges/download-on-the-app-store/black/fr-fr?size=250x83" alt="Télécharger dans l'App Store" width="168" height="56" loading="lazy">
+          </a>
+          <a class="gp" href="https://play.google.com/store/apps/details?id=com.yumia.app" target="_blank" rel="noopener">
+            <img src="https://play.google.com/intl/fr/badges/static/images/badges/fr_badge_web_generic.png" alt="Disponible sur Google Play" width="214" height="83" loading="lazy">
+          </a>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -151,21 +331,21 @@
   <div class="wrap">
     <div class="foot">
       <div>
-        <a href="/" class="brand"><img src="/logo.png" alt="YUMIA" style="width:30px;height:30px;"> YUMIA</a>
-        <p>Votre copilote IA des expériences du quotidien. Vos envies, partout.</p>
+        <a href="/" class="brand"><img src="/logo.png" alt="" width="30" height="30"> YUMIA</a>
+        <p>Le copilote IA de tes sorties. Tes envies, partout.</p>
       </div>
       <div class="foot-links">
         <div class="foot-col">
-          <h4>Produit</h4>
-          <a href="#features">Fonctionnalités</a>
-          <a href="#univers">Univers</a>
-          <a href="#boutique">Boutique</a>
-          <a href="#download">Télécharger</a>
+          <h4>Appli</h4>
+          <a href="#comment">Comment ça marche</a>
+          <a href="#social">Réseau social</a>
+          <a href="#gratuit">Gratuit et forfaits</a>
+          <a href="#telecharger">Télécharger</a>
         </div>
         <div class="foot-col">
           <h4>Boutique</h4>
           <a href="/cgv.html">Conditions de vente</a>
-          <a href="/retours.html">Retours &amp; remboursements</a>
+          <a href="/retours.html">Retours et remboursements</a>
           <a href="/support.html">Suivi de commande</a>
         </div>
         <div class="foot-col">
@@ -173,6 +353,7 @@
           <a href="/mentions-legales.html">Mentions légales</a>
           <a href="/privacy.html">Confidentialité</a>
           <a href="/terms.html">Conditions d'utilisation</a>
+          <a href="/child-safety.html">Sécurité des enfants</a>
           <a href="/delete-account.html">Supprimer mon compte</a>
         </div>
         <div class="foot-col">
@@ -182,9 +363,10 @@
         </div>
       </div>
     </div>
-    <div class="copyright">© 2026 YUMIA. Tous droits réservés.</div>
+    <div class="copyright">© 2026 YUMIA · Édité par Novaris Digital</div>
   </div>
 </footer>
 
+<script src="/home.js?v=1" defer></script>
 </body>
 </html>
