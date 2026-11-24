@@ -45,7 +45,7 @@ export class AnthropicProvider implements AiProvider {
   }
 
   async complete(prompt: string, options: AiCompletionOptions): Promise<string> {
-    const maxTokens = withHeadroom(options.maxTokens ?? this.config.maxTokens);
+    const maxTokens = withHeadroom(options.maxTokens ?? this.config.maxTokens, this.effort(options.tier));
     const response = await this.client.messages.create(
       {
         model: this.model(options.tier),
@@ -64,7 +64,7 @@ export class AnthropicProvider implements AiProvider {
     prompt: string,
     options: AiCompletionOptions & { jsonSchema: Record<string, unknown> },
   ): Promise<T> {
-    const maxTokens = withHeadroom(options.maxTokens ?? this.config.maxTokens);
+    const maxTokens = withHeadroom(options.maxTokens ?? this.config.maxTokens, this.effort(options.tier));
     const response = await this.client.messages.create(
       {
         model: this.model(options.tier),

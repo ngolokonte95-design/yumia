@@ -30,11 +30,27 @@ export function claudeTuning(effort: ClaudeEffort): Record<string, unknown> {
 }
 
 /**
- * Plafond de jetons élargi : place pour la réflexion et pour le nouveau
- * découpage (~30 % de jetons en plus pour le même texte).
+ * Place réservée à la réflexion, EN PLUS de la réponse attendue.
+ *
+ * La réflexion compte dans `max_tokens`. Le plafond d'origine (×1,5 seulement)
+ * ne lui laissait presque rien : en effort `medium`, elle consommait le budget
+ * et la réponse s'arrêtait sur `stop_reason: "max_tokens"` avant la fin du
+ * JSON. L'appel était alors rejeté, et la fonction servait son repli sans rien
+ * dire — constaté le 24/11/2026 sur les itinéraires (trame « touriste »
+ * servie à la place de l'IA, après 15 s d'attente).
+ *
+ * Ce plafond ne coûte rien en lui-même : seuls les jetons réellement produits
+ * sont facturés, et le temps de réponse suit le texte produit, pas le plafond.
  */
-export function withHeadroom(maxTokens: number): number {
-  return Math.ceil(maxTokens * 1.5);
+const THINKING_ROOM: Record<ClaudeEffort, number> = { low: 2000, medium: 6000, high: 12000 };
+
+/**
+ * Plafond de jetons d'un appel : la réponse attendue, élargie de moitié pour
+ * le nouveau découpage (~30 % de jetons en plus pour le même texte), plus la
+ * place de la réflexion selon l'effort demandé.
+ */
+export function withHeadroom(maxTokens: number, effort: ClaudeEffort = 'medium'): number {
+  return Math.ceil(maxTokens * 1.5) + THINKING_ROOM[effort];
 }
 
 /** Texte de la réponse : tous les blocs `text`, dans l'ordre (les blocs `thinking` sont ignorés). */

@@ -2,10 +2,21 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { assertUsable, CLAUDE_MODEL, claudeTuning, responseText, withHeadroom } from '../ai/claude-model';
+import type { ClaudeEffort } from '../ai/claude-model';
 import type { Universe } from '@yumia/shared';
 import type { AppConfig } from '../../config/configuration';
 import { PlacesService } from '../places/places.service';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+
+/**
+ * Effort de réflexion des appels d'itinéraire.
+ *
+ * `low` : l'utilisateur attend devant l'écran « YUMIA IA réfléchit… ». En
+ * `medium`, la réflexion mangeait tout le plafond de jetons : la réponse
+ * arrivait coupée au bout de 15 s, était rejetée, et la trame de repli
+ * partait à la place de l'itinéraire écrit par l'IA (24/11/2026).
+ */
+const ITINERARY_EFFORT: ClaudeEffort = 'low';
 
 export interface ItineraryRequest {
   mood: string;           // 'date' | 'amis' | 'famille' | 'solo' | 'touriste'
@@ -256,6 +267,53 @@ export function isGenericName(name: string): boolean {
   // majuscule du mot suivant est le seul indice qui les sépare, et se tromper
   // ne coûte qu'une résolution par nom au clic — pas une carte mensongère.
   return head[2] === head[2].toLowerCase();
+}
+
+/**
+ * Types de lieu (Google) que l'on ne propose JAMAIS de soi-même.
+ *
+ * Quand une étape ne nomme qu'un genre (« Un monument incontournable »), on la
+ * comble avec un lieu de l'univers correspondant. Or ces univers ramassent ce
+ * que le fournisseur y range : à Las Terrenas, l'univers « monument »
+ * contenait le cimetière municipal, et « point de vue » une station-service
+ * et une quincaillerie. Le 24/11/2026, un itinéraire s'ouvrait ainsi sur
+ * « Cementerio Municipal — Commence par un lieu emblématique de la ville ».
+ *
+ * La liste ne vise que le choix PAR DÉFAUT. Un lieu que l'IA nomme
+ * expressément (le Père-Lachaise, un cimetière qui se visite) reste rattaché
+ * par son nom : c'est alors une décision, pas un hasard de classement.
+ */
+const UNFIT_TAGS = new Set([
+  'atm',
+  'bank',
+  'car_dealer',
+  'car_repair',
+  'car_wash',
+  'cemetery',
+  'courthouse',
+  'dentist',
+  'doctor',
+  'funeral_home',
+  'gas_station',
+  'general_contractor',
+  'hardware_store',
+  'hospital',
+  'insurance_agency',
+  'parking',
+  'pharmacy',
+  'police',
+  'real_estate_agency',
+  'storage',
+]);
+
+/** Second filet, pour un lieu importé sans types : le nom dit parfois tout. */
+const UNFIT_NAME =
+  /\b(cementerio|cimetiere|cemetery|friedhof|cimitero|cemiterio|funeraire|funeraria|funeral|tanatorio)\b/;
+
+/** `false` pour un lieu qu'on ne doit pas proposer comme étape par défaut. */
+export function isFitForItinerary(place: { name: string; tags?: string[] | null }): boolean {
+  if ((place.tags ?? []).some((tag) => UNFIT_TAGS.has(tag))) return false;
+  return !UNFIT_NAME.test(normalizeWord(place.name));
 }
 
 /** Un lieu tel que renvoyé par PlacesService — dérivé pour ne pas diverger. */
@@ -552,7 +610,9 @@ ${isWeek
         moments: s.moments?.map((m) => ({ ...m })),
       }));
       if (!summary) {
-        summary = `Un itinéraire ${req.duration} à ${city} pensé pour un moment ${req.mood}. Chaque étape est un vrai lieu près de toi.`;
+        // « de la ville », pas « près de toi » : en mode Voyage, la ville
+        // demandée peut être à des milliers de kilomètres de l'utilisateur.
+        summary = `Un itinéraire ${req.duration} à ${city} pensé pour un moment ${req.mood}. Chaque étape est un vrai lieu de la ville.`;
       }
     }
 
@@ -616,7 +676,18 @@ ${isWeek
       const candidates = await candidatesFor(universe);
       if (candidates.length === 0) return {};
 
-      const byName = candidates.find((p) => namesMatch(name, p.name, city));
+      // Un intitulé générique d'ÉTAPE (« Une spécialité locale ») ne désigne
+      // aucun endroit : on ne le rapproche donc pas d'un lieu par son nom. Le
+      // faire accrochait l'étape au premier établissement partageant un mot —
+      // « Jenny's Bubble – spécialité Bubble Waffle » pour « Une spécialité
+      // locale » — et, le lieu étant « trouvé par son nom », le titre
+      // générique restait affiché sur la photo d'un commerce précis
+      // (24/11/2026). Ces étapes-là passent par le choix par défaut plus bas,
+      // qui adopte le nom du lieu.
+      const generic = isGenericName(name);
+      const byName = generic && allowSubstitute
+        ? undefined
+        : candidates.find((p) => namesMatch(name, p.name, city));
       // Un lieu trouvé par son nom n'avance pas le curseur : il est légitime
       // qu'il revienne plusieurs fois si l'itinéraire y repasse vraiment.
       if (byName) return toResolved(byName);
@@ -626,11 +697,15 @@ ${isWeek
       // carte de se contredire : titre, photo, note et lien désignent tous le
       // même endroit. Un nom propre non trouvé, lui, ne reçoit rien : l'écran
       // le résoudra à la demande, au clic.
-      if (!allowSubstitute || !isGenericName(name)) return {};
+      if (!allowSubstitute || !generic) return {};
 
+      // Le choix par défaut écarte ce qu'on ne propose jamais de soi-même
+      // (cimetière, station-service… voir UNFIT_TAGS).
+      const fit = candidates.filter(isFitForItinerary);
+      if (fit.length === 0) return {};
       const index = used.get(universe) ?? 0;
       used.set(universe, index + 1);
-      const pick = candidates[index % candidates.length];
+      const pick = fit[index % fit.length];
       return { ...toResolved(pick), placeName: pick.name };
     };
 
@@ -673,7 +748,9 @@ ${isWeek
       // sa photo — la même règle que pour une substitution depuis la base.
       // Sans ça, une ville encore absente de la base laissait toutes ces
       // cartes sans image.
-      if (isGenericName(name)) return { ...toResolved(found), placeName: found.name };
+      if (isGenericName(name)) {
+        return isFitForItinerary(found) ? { ...toResolved(found), placeName: found.name } : {};
+      }
 
       this.logger.debug(`« ${name} » : le fournisseur a répondu « ${found.name} », écarté.`);
       return {};
@@ -800,12 +877,12 @@ ${isWeek
    */
   private async askJson<T>(prompt: string, maxTokens: number): Promise<T> {
     // Plafond élargi : réflexion de Haiku 5.5 + ~30 % de jetons en plus.
-    const budget = withHeadroom(maxTokens);
+    const budget = withHeadroom(maxTokens, ITINERARY_EFFORT);
     const response = await this.ai!.messages.create({
       model: this.model,
       max_tokens: budget,
       messages: [{ role: 'user', content: prompt }],
-      ...claudeTuning('medium'),
+      ...claudeTuning(ITINERARY_EFFORT),
     } as Anthropic.Messages.MessageCreateParamsNonStreaming);
 
     // Une réponse coupée par la limite de jetons produit un JSON tronqué,

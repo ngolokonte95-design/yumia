@@ -108,7 +108,7 @@ export class ChatbotService {
     ];
 
     try {
-      const maxTokens = withHeadroom(700);
+      const maxTokens = withHeadroom(700, 'low');
       const response = await this.ai.messages.create({
         model: CLAUDE_MODEL,
         max_tokens: maxTokens,
