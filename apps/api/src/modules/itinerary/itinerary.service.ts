@@ -358,6 +358,13 @@ interface ResolvedPlace {
   placePhoto?: string;
   placeLat?: number;
   placeLng?: number;
+  /**
+   * Le nom du lieu rattaché. Le titre de l'étape est celui du modèle
+   * (« Déjeuner caribéen au bord de l'eau ») : sans ce nom, la carte ne
+   * disait pas où aller, et la fiche ouverte depuis l'étape portait le
+   * titre de l'étape au lieu du nom du restaurant (24/11/2026).
+   */
+  placeName?: string;
 }
 
 /**
@@ -381,6 +388,12 @@ export interface ItineraryMoment extends ResolvedPlace {
    * Usage interne : retiré avant de répondre à l'app.
    */
   place?: string;
+  /**
+   * `true` quand le modèle a dit que l'étape n'est pas un lieu précis
+   * (flânerie dans un quartier…) : l'app n'y propose pas « Voir ce lieu »,
+   * qui aurait cherché — et payé — un lieu au nom de la balade.
+   */
+  noPlace?: true;
 }
 
 export interface ItineraryStep extends ResolvedPlace {
@@ -393,6 +406,8 @@ export interface ItineraryStep extends ResolvedPlace {
   tips?: string;
   /** Voir `ItineraryMoment.place`. */
   place?: string;
+  /** Voir `ItineraryMoment.noPlace`. */
+  noPlace?: true;
   /** Découpage de la journée — mode semaine uniquement. */
   moments?: ItineraryMoment[];
 }
@@ -503,20 +518,56 @@ const KNOWN_PLACES_PER_UNIVERSE = 12;
  */
 export function knownPlacesBlock(
   city: string,
-  lists: Array<{ universe: Universe; places: Array<{ name: string }> }>,
+  lists: Array<{ universe: Universe; places: Array<{ name: string; address?: string | null }> }>,
 ): string {
+  const entry = (p: { name: string; address?: string | null }): string => {
+    const where = shortAddress(p.address, city);
+    return where ? `${p.name} [${where}]` : p.name;
+  };
   const lines = lists
     .filter((l) => l.places.length > 0)
-    .map((l) => `- ${UNIVERSE_STEP_TYPE[l.universe] ?? l.universe} : ${l.places.map((p) => p.name).join(' ; ')}`);
+    .map((l) => `- ${UNIVERSE_STEP_TYPE[l.universe] ?? l.universe} : ${l.places.map(entry).join(' ; ')}`);
   if (lines.length === 0) return '';
-  return `LIEUX RÉELS de ${city}, tirés de notre base (chacun a sa fiche et ses photos) :
+  return `LIEUX RÉELS de ${city}, tirés de notre base (chacun a sa fiche et ses photos). Entre crochets, la rue ou le quartier :
 ${lines.join('\n')}
 
 Règles pour le champ "place" :
-- Une étape qui se passe dans un établissement (restaurant, café, bar, glacier, boutique, activité…) le choisit DANS CETTE LISTE et recopie son nom EXACT dans "place".
+- Une étape qui se passe dans un établissement (restaurant, café, bar, glacier, boutique, activité…) le choisit DANS CETTE LISTE et recopie son nom EXACT dans "place", sans les crochets.
 - Une plage, un site naturel ou un monument célèbre absent de la liste : tu peux le mettre dans "place" seulement si tu es CERTAIN qu'il existe sous ce nom.
 - Une étape qui n'est pas un lieu précis (flânerie dans un quartier…) : "place" vaut "".
-- N'invente JAMAIS un nom d'établissement.`;
+- N'invente JAMAIS un nom d'établissement.
+
+Pour la description d'un lieu de la liste : ne le situe (près d'une plage, dans un quartier, face à la mer) que d'après ses crochets, et ne lui prête rien de précis (sa cuisine, ses plats, sa vue) que son nom ou ses crochets ne disent pas.`;
+}
+
+/** Retire l'adresse entre crochets que le modèle recopie parfois avec le nom. */
+export function withoutAddress(place: string): string {
+  return place.replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+}
+
+/**
+ * La rue ou le quartier d'un lieu, tirés de son adresse complète :
+ * « Calle Duarte » pour « Calle Duarte, Las Terrenas 32000, République
+ * dominicaine ». Le modèle ne connaissait que les noms, et situait les
+ * lieux au jugé (« près de la plage de Cosón », 24/11/2026).
+ */
+export function shortAddress(address: string | null | undefined, city: string): string {
+  if (!address) return '';
+  const cityKey = flatName(city);
+  const kept: string[] = [];
+  for (const raw of address.split(',')) {
+    // Un Plus Code (« 8MRC+X2 Playa Cosón ») ne dit rien à un lecteur : on
+    // garde ce qui le suit.
+    const part = raw.trim().replace(/^[0-9A-Z]{4,}\+[0-9A-Z]{2,}\s*/, '');
+    if (!part) continue;
+    // La ville, le code postal et le pays n'apprennent rien de plus.
+    if (cityKey && flatName(part).includes(cityKey)) break;
+    if (/\d{4,}/.test(part)) break;
+    kept.push(part);
+    if (kept.length === 2) break;
+  }
+  const out = kept.join(', ');
+  return out.length > 48 ? `${out.slice(0, 47)}…` : out;
 }
 
 /**
@@ -753,7 +804,7 @@ ${isWeek
     // `place` vient du modèle : n'en garder qu'une chaîne, sans quoi un `null`
     // passerait pour « pas de lieu précis » ou pour un nom.
     const cleanPlace = (target: { place?: unknown }): void => {
-      if (typeof target.place === 'string') target.place = target.place.trim();
+      if (typeof target.place === 'string') target.place = withoutAddress(target.place.trim());
       else delete target.place;
     };
     for (const step of steps) {
@@ -801,6 +852,7 @@ ${isWeek
       placePhoto: place.photoUrls[0] ?? undefined,
       placeLat: place.lat,
       placeLng: place.lng,
+      placeName: place.name,
     });
 
     /**
@@ -818,7 +870,7 @@ ${isWeek
       type: string,
       allowSubstitute: boolean,
       place?: string,
-    ): Promise<ResolvedPlace & { placeName?: string }> => {
+    ): Promise<ResolvedPlace & { adoptName?: string }> => {
       // Le modèle a dit que l'étape n'est pas un lieu précis : lui en
       // attacher un serait mentir sur la photo.
       if (place === '') return {};
@@ -867,7 +919,7 @@ ${isWeek
       const index = used.get(universe) ?? 0;
       used.set(universe, index + 1);
       const pick = fit[index % fit.length];
-      return { ...toResolved(pick), placeName: pick.name };
+      return { ...toResolved(pick), adoptName: pick.name };
     };
 
     /**
@@ -889,7 +941,7 @@ ${isWeek
     const resolveByProvider = async (
       name: string,
       type: string,
-    ): Promise<ResolvedPlace & { placeName?: string }> => {
+    ): Promise<ResolvedPlace & { adoptName?: string }> => {
       if (importBudget <= 0) return {};
       const universe = stepTypeToUniverse(type);
       importBudget -= 1;
@@ -917,7 +969,7 @@ ${isWeek
       // Sans ça, une ville encore absente de la base laissait toutes ces
       // cartes sans image.
       if (isGenericName(name)) {
-        return isFitForItinerary(found) ? { ...toResolved(found), placeName: found.name } : {};
+        return isFitForItinerary(found) ? { ...toResolved(found), adoptName: found.name } : {};
       }
 
       this.logger.debug(`« ${name} » : le fournisseur a répondu « ${found.name} », écarté.`);
@@ -959,15 +1011,15 @@ ${isWeek
       const isDay = (step.moments?.length ?? 0) > 0;
 
       if (!isDay) {
-        const { placeName, ...resolved } = await resolvePlace(step.name, step.type, true, step.place);
+        const { adoptName, ...resolved } = await resolvePlace(step.name, step.type, true, step.place);
         Object.assign(step, resolved);
-        if (placeName) step.name = placeName;
+        if (adoptName) step.name = adoptName;
       }
 
       for (const moment of step.moments ?? []) {
-        const { placeName, ...resolved } = await resolvePlace(moment.name, moment.type, false, moment.place);
+        const { adoptName, ...resolved } = await resolvePlace(moment.name, moment.type, false, moment.place);
         Object.assign(moment, resolved);
-        if (placeName) moment.name = placeName;
+        if (adoptName) moment.name = adoptName;
       }
     }
 
@@ -987,9 +1039,9 @@ ${isWeek
     ): Promise<void> => {
       // « Pas un lieu précis » : rien à demander, ni à payer.
       if (target.place === '') return;
-      const { placeName, ...fromProvider } = await resolveByProvider(target.place || target.name, target.type);
+      const { adoptName, ...fromProvider } = await resolveByProvider(target.place || target.name, target.type);
       Object.assign(target, fromProvider);
-      if (placeName) target.name = placeName;
+      if (adoptName) target.name = adoptName;
     };
 
     // Étapes simples : chacune veut son propre lieu, aucune ne dépend d'une
@@ -1035,10 +1087,15 @@ ${isWeek
       }
     }
 
-    // `place` ne sert qu'au rattachement : l'app ne le connaît pas.
+    // `place` ne sert qu'au rattachement : l'app ne le connaît pas. Elle
+    // apprend seulement qu'une étape n'est pas un lieu.
+    const finish = (target: ItineraryStep | ItineraryMoment): void => {
+      if (target.place === '' && !target.placeId) target.noPlace = true;
+      delete target.place;
+    };
     for (const step of steps) {
-      delete step.place;
-      for (const moment of step.moments ?? []) delete moment.place;
+      finish(step);
+      for (const moment of step.moments ?? []) finish(moment);
     }
 
     return { itinerary: summary, steps };

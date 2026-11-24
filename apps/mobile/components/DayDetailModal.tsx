@@ -13,6 +13,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, motion, radius, spacing, typography } from '../theme/tokens';
 import { Reveal } from './ui/Reveal';
+import { placeLabel } from './itinerary/ItineraryTimeline';
 
 export interface DayMoment {
   time: string;
@@ -26,6 +27,8 @@ export interface DayMoment {
   placePhoto?: string;
   placeLat?: number;
   placeLng?: number;
+  placeName?: string;
+  noPlace?: boolean;
 }
 
 interface Props {
@@ -146,6 +149,9 @@ export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, res
                   </View>
 
                   <Text style={styles.momentName}>{m.name}</Text>
+                  {placeLabel(m) ? (
+                    <Text style={[styles.momentPlace, { color: accent }]} numberOfLines={1}>📍 {placeLabel(m)}</Text>
+                  ) : null}
                   <Text style={styles.momentDesc}>{m.description}</Text>
 
                   {m.placeRating ? (
@@ -158,8 +164,10 @@ export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, res
                     </View>
                   ) : null}
 
-                  {/* Toujours proposé, même sans lieu déjà rattaché : le nom
-                      du moment suffit à retrouver l'endroit au moment du clic. */}
+                  {/* Proposé même sans lieu déjà rattaché : le nom du moment
+                      suffit à retrouver l'endroit au clic. Sauf pour un moment
+                      qui n'est pas un lieu (flânerie…). */}
+                  {m.noPlace ? null : (
                   <Pressable
                     style={[styles.placeBtn, { borderColor: accent }, opening === i && styles.placeBtnBusy]}
                     onPress={() => void open(m, i)}
@@ -171,6 +179,7 @@ export function DayDetailModal({ visible, onClose, day, accent, onOpenPlace, res
                       <Text style={[styles.placeBtnTxt, { color: accent }]}>{seePlaceLabel}</Text>
                     )}
                   </Pressable>
+                  )}
                 </View>
               </Reveal>
             ))}
@@ -231,6 +240,7 @@ const styles = StyleSheet.create({
   timeChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
   timeTxt: { ...typography.label, fontSize: 11 },
   momentName: { ...typography.h3, fontSize: 16, color: colors.textPrimary },
+  momentPlace: { fontSize: 13, fontWeight: '800', marginTop: -2 },
   momentDesc: { ...typography.body, color: colors.textSecondary },
   rating: { fontSize: 13, color: colors.textMuted },
   tip: {

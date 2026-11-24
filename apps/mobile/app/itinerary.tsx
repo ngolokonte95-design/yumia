@@ -55,6 +55,8 @@ interface Step {
   placePhoto?: string;
   placeLat?: number;
   placeLng?: number;
+  placeName?: string;
+  noPlace?: boolean;
   moments?: DayMoment[];
 }
 
@@ -134,6 +136,7 @@ export default function ItineraryScreen() {
           // cosy »), le serveur propose un vrai endroit, et titre et photo
           // doivent désigner le même.
           name: f.name,
+          placeName: f.name,
           placeId: f.id,
           placeRating: f.rating,
           placePhoto: f.photoUrls[0],
@@ -261,6 +264,7 @@ export default function ItineraryScreen() {
       }
       navigateToPlace({
         ...step,
+        placeName: found.name,
         placeId: found.id,
         placeRating: found.rating,
         placePhoto: found.photoUrls[0],
@@ -277,7 +281,7 @@ export default function ItineraryScreen() {
     placeStore.set({
       place: {
         id: step.placeId,
-        name: step.name,
+        name: step.placeName || step.name,
         universe: step.type as never,
         location: { lat: step.placeLat ?? 0, lng: step.placeLng ?? 0 },
         city: city || 'Paris',
@@ -538,7 +542,9 @@ export default function ItineraryScreen() {
                   {/* Journée de séjour (mode semaine) : ce n'est pas un lieu,
                       on n'en propose pas — « voir la journée complète » mène à
                       ses moments, qui eux en sont. */}
-                  {!step.moments?.length ? (
+                  {/* Une balade dans un quartier n'est pas un lieu : chercher
+                      un lieu à son nom ouvrait une fiche au hasard. */}
+                  {!step.moments?.length && !step.noPlace ? (
                     <PressableScale
                       style={[styles.placeBtn, openingStep !== null && { opacity: 0.6 }]}
                       onPress={() => void openStepPlace(step)}
@@ -615,6 +621,7 @@ export default function ItineraryScreen() {
             }
             target = {
               ...(moment as Step),
+              placeName: found.name,
               placeId: found.id,
               placeRating: found.rating,
               placePhoto: found.photoUrls[0],

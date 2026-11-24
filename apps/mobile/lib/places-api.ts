@@ -161,6 +161,8 @@ export function fetchPlaceById(id: string): Promise<NearbyPlace & { openNow?: bo
 
 /** Ce que la fiche d'un lieu charge à son ouverture (`GET /places/:id/details`). */
 export interface PlaceDetails {
+  /** Le vrai nom du lieu. Absent sur une ancienne API. */
+  name?: string;
   photoUrls: string[];
   openingHours: string[];
   /** Moyenne des avis YUMIA, 0 si personne n'a noté. */

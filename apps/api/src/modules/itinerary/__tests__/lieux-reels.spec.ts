@@ -10,7 +10,7 @@
  * et l'étape « Marché local (Mercado Municipal) » montrait la photo de la
  * mairie, « Ayuntamiento Municipal Las Terrenas ».
  */
-import { ItineraryService, knownPlacesBlock, namesMatch } from '../itinerary.service';
+import { ItineraryService, knownPlacesBlock, namesMatch, shortAddress, withoutAddress } from '../itinerary.service';
 import type { PlacesService } from '../../places/places.service';
 import type { PrismaService } from '../../../infra/prisma/prisma.service';
 import type { ConfigService } from '@nestjs/config';
@@ -229,5 +229,78 @@ describe('le marché n’est plus confondu avec la mairie', () => {
   it('reconnaît toujours deux noms identiques, même faits de mots ignorés', () => {
     expect(namesMatch('Mercado Municipal', 'Mercado Municipal')).toBe(true);
     expect(namesMatch('Mercado Municipal', 'mercado municipal')).toBe(true);
+  });
+});
+
+describe('le nom du lieu et son adresse (constats du 24/11/2026, second essai)', () => {
+  // Second itinéraire Las Terrenas : chaque étape-lieu avait sa photo, mais
+  // la carte ne disait pas OÙ aller (« Déjeuner caribéen au bord de l'eau »),
+  // la fiche ouverte portait ce titre au lieu du nom du restaurant, et le
+  // modèle situait les lieux au jugé (« près de la plage de Cosón »).
+
+  it('réduit une adresse à sa rue ou son quartier', () => {
+    expect(shortAddress('Calle Duarte, Las Terrenas 32000, República Dominicana', 'Las Terrenas')).toBe('Calle Duarte');
+    expect(shortAddress('Playa Bonita, Calle Fran Aldo, Las Terrenas', 'Las Terrenas')).toBe('Playa Bonita, Calle Fran Aldo');
+    expect(shortAddress('8MRC+X2 Playa Cosón, Las Terrenas, Dominican Republic', 'Las Terrenas')).toBe('Playa Cosón');
+  });
+
+  it("ne garde rien quand l'adresse ne dit que la ville", () => {
+    expect(shortAddress('Las Terrenas, Dominican Republic', 'Las Terrenas')).toBe('');
+    expect(shortAddress('8MRC+X2 Las Terrenas, Dominican Republic', 'Las Terrenas')).toBe('');
+    expect(shortAddress(null, 'Las Terrenas')).toBe('');
+  });
+
+  it("donne au modèle la rue de chaque lieu, entre crochets, et la règle de ne situer qu'avec elle", () => {
+    const block = knownPlacesBlock('Las Terrenas', [
+      { universe: 'restaurant', places: [{ name: 'El Cayuco de la Bonita', address: 'Playa Bonita, Las Terrenas 32000' }] },
+    ]);
+    expect(block).toContain('El Cayuco de la Bonita [Playa Bonita]');
+    expect(block).toMatch(/sans les crochets/);
+    expect(block).toMatch(/ne le situe/);
+  });
+
+  it('retire les crochets que le modèle recopie avec le nom, sans toucher aux parenthèses', () => {
+    expect(withoutAddress('El Cayuco de la Bonita [Playa Bonita]')).toBe('El Cayuco de la Bonita');
+    expect(withoutAddress('Marché local (Mercado Municipal)')).toBe('Marché local (Mercado Municipal)');
+  });
+
+  it('rattache le lieu même recopié avec ses crochets, sans recherche payante', async () => {
+    const { service, places } = makeService();
+    fakeModel(service, {
+      summary: 'S.',
+      steps: [step({ name: 'Déjeuner au bord de l’eau', place: 'El Cayuco de la Bonita [Playa Bonita]' })],
+    });
+
+    const { steps } = await service.generate('u1', voyage);
+
+    expect(steps[0].placeId).toBe('r1');
+    expect(places.findOrImportByName).not.toHaveBeenCalled();
+  });
+
+  it('renvoie le nom du lieu à côté du titre écrit par le modèle', async () => {
+    const { service } = makeService();
+    fakeModel(service, { summary: 'S.', steps: [step({ name: 'Déjeuner caribéen', place: 'El Cayuco de la Bonita' })] });
+
+    const { steps } = await service.generate('u1', voyage);
+
+    expect(steps[0].name).toBe('Déjeuner caribéen');
+    expect(steps[0].placeName).toBe('El Cayuco de la Bonita');
+    expect(steps[0]).not.toHaveProperty('adoptName');
+  });
+
+  it("marque l'étape qui n'est pas un lieu, pour que l'app n'y propose pas « Voir ce lieu »", async () => {
+    const { service } = makeService();
+    fakeModel(service, {
+      summary: 'S.',
+      steps: [
+        step({ type: 'balade', name: 'Flânerie street art', place: '' }),
+        step({ name: 'Déjeuner', place: 'El Cayuco de la Bonita' }),
+      ],
+    });
+
+    const { steps } = await service.generate('u1', voyage);
+
+    expect(steps[0].noPlace).toBe(true);
+    expect(steps[1]).not.toHaveProperty('noPlace');
   });
 });

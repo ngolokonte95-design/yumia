@@ -26,6 +26,18 @@ export interface TimelineStep {
   tips?: string;
   placePhoto?: string;
   placeRating?: number;
+  /** Nom du lieu rattaché, montré sous le titre de l'étape s'il en diffère. */
+  placeName?: string;
+}
+
+/**
+ * Le nom du lieu à montrer sous le titre, ou `null` quand le titre le porte
+ * déjà (étape générique remplacée par le lieu, ou titre identique).
+ */
+export function placeLabel(step: { name: string; placeName?: string }): string | null {
+  const place = step.placeName?.trim();
+  if (!place) return null;
+  return place.toLowerCase() === step.name.trim().toLowerCase() ? null : place;
 }
 
 /** Délai entre l'apparition de deux étapes (la ligne suit le même rythme). */
@@ -149,6 +161,9 @@ function TimelineRow({
             ) : null}
           </View>
           <Text style={styles.name}>{step.name}</Text>
+          {placeLabel(step) ? (
+            <Text style={styles.place} numberOfLines={2}>📍 {placeLabel(step)}</Text>
+          ) : null}
           <Text style={styles.desc}>{step.description}</Text>
 
           {step.placeRating ? (
@@ -246,6 +261,7 @@ const styles = StyleSheet.create({
   },
   durationText: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
   name: { color: colors.textPrimary, fontSize: 18, fontWeight: '900', letterSpacing: -0.3 },
+  place: { color: colors.brand, fontSize: 14, fontWeight: '800', marginTop: -2 },
   // Texte généré par l'IA : en clair pour rester lisible sur le fond sombre.
   desc: { color: colors.textPrimary, fontSize: 14, lineHeight: 20, opacity: 0.92 },
   ratingPill: {

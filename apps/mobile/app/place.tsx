@@ -256,6 +256,9 @@ export default function PlaceScreen() {
   const place = live
     ? {
         ...listed,
+        // Ouverte depuis un itinéraire, la fiche ne portait que le titre de
+        // l'étape (« Déjeuner caribéen au bord de l'eau »).
+        name: live.name || listed.name,
         photoUrls: live.photoUrls.length > 0 ? live.photoUrls : listed.photoUrls,
         openingHours: live.openingHours.length > 0 ? live.openingHours : listed.openingHours,
         rating: live.rating,

@@ -91,7 +91,7 @@ export default function SavedItineraryDetailScreen() {
     placeStore.set({
       place: {
         id: step.placeId,
-        name: step.name,
+        name: step.placeName || step.name,
         universe: step.type as never,
         location: { lat: step.placeLat ?? 0, lng: step.placeLng ?? 0 },
         city: item.city,

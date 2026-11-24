@@ -16,6 +16,10 @@ export interface ItineraryMoment {
   placePhoto?: string;
   placeLat?: number;
   placeLng?: number;
+  /** Nom du lieu rattaché (le titre est celui de l'étape). */
+  placeName?: string;
+  /** L'étape n'est pas un lieu précis : pas de « Voir ce lieu ». */
+  noPlace?: boolean;
 }
 
 export interface ItineraryStep {
@@ -31,6 +35,10 @@ export interface ItineraryStep {
   placePhoto?: string;
   placeLat?: number;
   placeLng?: number;
+  /** Nom du lieu rattaché (le titre est celui de l'étape). */
+  placeName?: string;
+  /** L'étape n'est pas un lieu précis : pas de « Voir ce lieu ». */
+  noPlace?: boolean;
   /** Découpage de la journée — présent seulement en mode semaine. */
   moments?: ItineraryMoment[];
 }

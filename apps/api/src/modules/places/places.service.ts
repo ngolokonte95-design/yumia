@@ -298,6 +298,7 @@ export class PlacesService {
     const known = placeMeta(place).photoAttributions ?? {};
     const refs = place.photoUrls.map(photoRefOf);
     return {
+      name: place.name,
       photoUrls: place.photoUrls,
       openingHours,
       rating: place.rating,
@@ -1197,6 +1198,8 @@ async function probePhotoUrl(url: string): Promise<boolean | null> {
 
 /** Réponse de `GET /places/:id/details`. */
 export interface PlaceDetailsResult {
+  /** Le vrai nom : une fiche ouverte depuis un itinéraire n'en avait que le titre d'étape. */
+  name: string;
   photoUrls: string[];
   openingHours: string[];
   rating: number;
