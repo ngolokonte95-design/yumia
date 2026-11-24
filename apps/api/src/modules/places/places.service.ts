@@ -947,6 +947,13 @@ export class PlacesService {
     name: string;
     city: string;
     universe?: Universe;
+    /**
+     * Critère de l'appelant pour choisir parmi les réponses du fournisseur.
+     * Sans lui, seule la première comptait : quand le lieu demandé arrivait
+     * deuxième, l'appelant recevait un voisin, le refusait, et l'étape
+     * restait sans photo.
+     */
+    prefer?: (place: Place) => boolean;
   }): Promise<Place | null> {
     const name = params.name.trim();
     if (name.length < 3) return null;
@@ -975,7 +982,7 @@ export class PlacesService {
       const saved = await this.persistProviderPlaces(found);
       // Le fournisseur classe par pertinence : son premier résultat pour
       // « <nom> <ville> » est le bon dans l'immense majorité des cas.
-      const best = saved[0] ?? null;
+      const best = (params.prefer ? saved.find(params.prefer) : undefined) ?? saved[0] ?? null;
       if (best) this.logger.log(`Lieu « ${name} » (${params.city}) importé à la demande.`);
       return best;
     } catch (err) {

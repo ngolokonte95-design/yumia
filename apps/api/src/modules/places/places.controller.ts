@@ -180,6 +180,7 @@ export class PlacesController {
       name: name.trim(),
       city: (city ?? '').trim(),
       universe: universe as Parameters<typeof this.places.findOrImportByName>[0]['universe'],
+      prefer: verify === '1' ? (p) => namesMatch(name, p.name, city) : undefined,
     });
     if (!place) throw new NotFoundException('Aucun lieu trouvé pour ce nom.');
     if (verify === '1' && !namesMatch(name, place.name, city) && !isGenericName(name)) {

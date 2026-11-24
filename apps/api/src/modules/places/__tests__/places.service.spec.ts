@@ -31,6 +31,7 @@ const makePlace = (overrides: Partial<any> = {}): any => ({
 
 const makePrisma = () => ({
   place: {
+    findFirst: jest.fn().mockResolvedValue(null),
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -520,6 +521,40 @@ describe('PlacesService', () => {
         [row],
         expect.any(Number),
       );
+    });
+  });
+
+  // ── findOrImportByName ───────────────────────────────────────────────────────
+
+  describe('findOrImportByName — choix parmi les réponses du fournisseur', () => {
+    // 24/11/2026 : seule la PREMIÈRE réponse comptait. Quand le lieu demandé
+    // arrivait deuxième, l'itinéraire recevait un voisin, le refusait, et
+    // l'étape restait sans photo.
+    const voisin = makePlace({ id: 'v', name: 'Bodega Bonita', city: 'Las Terrenas' });
+    const bon = makePlace({ id: 'b', name: 'Cascada El Limón', city: 'Las Terrenas' });
+
+    beforeEach(() => {
+      (provider as any).isEnabled = true;
+      (provider as any).searchByText = jest.fn().mockResolvedValue([{}, {}]);
+      jest.spyOn(service as any, 'persistProviderPlaces').mockResolvedValue([voisin, bon]);
+    });
+
+    it('rend la réponse qui satisfait le critère de l’appelant, même deuxième', async () => {
+      const found = await service.findOrImportByName({
+        name: 'Cascade El Limón',
+        city: 'Las Terrenas',
+        prefer: (p) => p.name.includes('Limón'),
+      });
+      expect(found?.id).toBe('b');
+    });
+
+    it('sans critère, ou si aucune ne le satisfait, rend la première comme avant', async () => {
+      expect((await service.findOrImportByName({ name: 'Cascade El Limón', city: 'Las Terrenas' }))?.id).toBe('v');
+      expect((await service.findOrImportByName({
+        name: 'Cascade El Limón',
+        city: 'Las Terrenas',
+        prefer: () => false,
+      }))?.id).toBe('v');
     });
   });
 });

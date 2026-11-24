@@ -138,7 +138,30 @@ const PLACE_GENRES = new Set([
   'waterfall',
 ]);
 
-const NAME_NOISE = new Set([...STOP_WORDS, ...PLACE_GENRES]);
+/**
+ * Qualificatifs administratifs : ils disent QUI tient le lieu, pas lequel.
+ *
+ * « Mercado Municipal » et « Ayuntamiento Municipal » ne partagent que
+ * « municipal » : compté, il rapprochait le marché de la mairie, et une
+ * étape « Marché local » s'est affichée sur la photo de l'hôtel de ville de
+ * Las Terrenas (24/11/2026).
+ */
+const ADMIN_QUALIFIERS = new Set([
+  'municipal', 'municipale', 'municipalidad', 'municipio',
+  'nacional', 'national', 'nationale', 'publico', 'publica', 'public', 'publique',
+]);
+
+const NAME_NOISE = new Set([...STOP_WORDS, ...PLACE_GENRES, ...ADMIN_QUALIFIERS]);
+
+/** Le nom entier, sans accents ni ponctuation — pour l'égalité stricte. */
+function flatName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
 
 function nameTokens(value: string): Set<string> {
   return new Set(
@@ -165,8 +188,14 @@ function headSegment(name: string): string {
 }
 
 export function namesMatch(a: string, b: string, city?: string): boolean {
+  // Deux noms identiques désignent le même lieu, même quand ils ne sont faits
+  // que de mots ignorés plus bas (« Mercado Municipal »).
+  const flatA = flatName(a);
+  if (flatA && flatA === flatName(b)) return true;
+
   const ta = nameTokens(a);
   const tb = nameTokens(b);
+  const head = nameTokens(headSegment(a));
 
   // Tous les candidats viennent d'une recherche DANS cette ville : son nom n'y
   // distingue donc rien, par construction. Sans cette coupe, « Musée
@@ -177,6 +206,10 @@ export function namesMatch(a: string, b: string, city?: string): boolean {
     for (const w of nameTokens(city)) {
       ta.delete(w);
       tb.delete(w);
+      // La tête aussi : sans ça, elle gardait « terrenas » quand le nom
+      // complet l'avait perdu, les deux tailles se trouvaient égales par
+      // hasard, et le contrôle de la tête plus bas était sauté.
+      head.delete(w);
     }
   }
 
@@ -195,7 +228,6 @@ export function namesMatch(a: string, b: string, city?: string): boolean {
   //
   // On exige donc que la correspondance touche la tete de l'intitule, pas
   // seulement le complement de lieu qui la suit.
-  const head = nameTokens(headSegment(a));
   if (head.size > 0 && head.size !== ta.size) {
     let touchesHead = false;
     for (const w of head) if (tb.has(w)) touchesHead = true;
@@ -342,6 +374,13 @@ export interface ItineraryMoment extends ResolvedPlace {
   description: string;
   emoji: string;
   tips?: string;
+  /**
+   * Le lieu que le modèle a choisi, sous son nom EXACT (voir
+   * `knownPlacesBlock`). `""` : l'étape n'est pas un lieu précis. Absent :
+   * trame de repli ou ancienne réponse, le titre sert alors à la recherche.
+   * Usage interne : retiré avant de répondre à l'app.
+   */
+  place?: string;
 }
 
 export interface ItineraryStep extends ResolvedPlace {
@@ -352,6 +391,8 @@ export interface ItineraryStep extends ResolvedPlace {
   duration: string;
   emoji: string;
   tips?: string;
+  /** Voir `ItineraryMoment.place`. */
+  place?: string;
   /** Découpage de la journée — mode semaine uniquement. */
   moments?: ItineraryMoment[];
 }
@@ -412,6 +453,70 @@ const STEP_TYPE_TO_UNIVERSE: Record<string, Universe> = {
 function stepTypeToUniverse(type: string): Universe | null {
   const key = type.toLowerCase().trim();
   return STEP_TYPE_TO_UNIVERSE[key] ?? null;
+}
+
+/**
+ * Univers dont les lieux sont montrés au modèle AVANT qu'il écrive.
+ *
+ * Sans liste, il nommait les établissements de mémoire — et, pour une petite
+ * ville, il en inventait : « Café Bonito » et « Rancho Pelo Malo » à Las
+ * Terrenas (24/11/2026), absents de notre base comme de Google. Leurs cartes
+ * restaient sans photo et envoyaient le voyageur vers une adresse qui
+ * n'existe pas. Ce sont, à peu de chose près, les univers que la trame de
+ * repli du même mood interroge déjà : la liste ne coûte presque aucune
+ * recherche de plus, et ce qui est trouvé sert ensuite au rattachement.
+ */
+const MOOD_UNIVERSES: Record<string, Universe[]> = {
+  touriste: ['monument', 'museum', 'restaurant', 'cafe', 'photo_spot', 'tourist_activity'],
+  date: ['restaurant', 'bar', 'photo_spot', 'dessert', 'cafe'],
+  amis: ['brunch', 'restaurant', 'bar', 'tourist_activity', 'nightclub'],
+  famille: ['tourist_activity', 'restaurant', 'park', 'ice_cream', 'museum'],
+  solo: ['cafe', 'museum', 'restaurant', 'park', 'bakery'],
+};
+const DEFAULT_UNIVERSES: Universe[] = ['restaurant', 'cafe', 'bar', 'monument', 'photo_spot', 'tourist_activity'];
+
+/** Le type d'étape, dans le vocabulaire du modèle, qui désigne chaque univers. */
+const UNIVERSE_STEP_TYPE: Partial<Record<Universe, string>> = {
+  restaurant: 'restaurant',
+  brunch: 'brunch',
+  cafe: 'cafe',
+  bar: 'bar',
+  museum: 'musée',
+  monument: 'monument',
+  photo_spot: 'photo',
+  tourist_activity: 'activité',
+  park: 'parc',
+  ice_cream: 'glace',
+  dessert: 'dessert',
+  bakery: 'boulangerie',
+  nightclub: 'nightclub',
+};
+
+/** Lieux montrés par univers : assez pour choisir, peu pour le coût. */
+const KNOWN_PLACES_PER_UNIVERSE = 12;
+
+/**
+ * Le bloc de consigne qui donne au modèle les vrais lieux de la ville.
+ *
+ * Vide quand la base ne connaît rien de la ville : le modèle écrit alors
+ * comme avant, et la résolution par le fournisseur prend le relais.
+ */
+export function knownPlacesBlock(
+  city: string,
+  lists: Array<{ universe: Universe; places: Array<{ name: string }> }>,
+): string {
+  const lines = lists
+    .filter((l) => l.places.length > 0)
+    .map((l) => `- ${UNIVERSE_STEP_TYPE[l.universe] ?? l.universe} : ${l.places.map((p) => p.name).join(' ; ')}`);
+  if (lines.length === 0) return '';
+  return `LIEUX RÉELS de ${city}, tirés de notre base (chacun a sa fiche et ses photos) :
+${lines.join('\n')}
+
+Règles pour le champ "place" :
+- Une étape qui se passe dans un établissement (restaurant, café, bar, glacier, boutique, activité…) le choisit DANS CETTE LISTE et recopie son nom EXACT dans "place".
+- Une plage, un site naturel ou un monument célèbre absent de la liste : tu peux le mettre dans "place" seulement si tu es CERTAIN qu'il existe sous ce nom.
+- Une étape qui n'est pas un lieu précis (flânerie dans un quartier…) : "place" vaut "".
+- N'invente JAMAIS un nom d'établissement.`;
 }
 
 /**
@@ -545,79 +650,7 @@ export class ItineraryService {
 
     const isWeek = req.duration === 'semaine';
 
-    const prompt = `${moodCtx}
-
-Génère un itinéraire ${req.duration} à ${city} pour ${req.mood}${req.groupSize ? ` (${req.groupSize} personnes)` : ''}.
-Budget : ${req.budget}.
-${req.interests?.length ? `Centres d'intérêt : ${req.interests.join(', ')}.` : ''}
-${req.startTime ? `Heure de départ : ${req.startTime}.` : ''}
-${req.constraints ? `Contraintes importantes : ${req.constraints}.` : ''}
-
-Réponds UNIQUEMENT avec un objet JSON valide (sans markdown, sans backticks, sans commentaires) :
-{
-  "summary": "Description courte et enthousiaste de l'itinéraire (1-2 phrases, donne envie)",
-  "steps": [
-    {
-      "time": "19h00",
-      "type": "restaurant",
-      "name": "Nom du lieu ou type de lieu",
-      "description": "Ce qu'on y fait, pourquoi c'est parfait pour ce mood",
-      "duration": "1h30",
-      "emoji": "🍽️",
-      "tips": "Conseil pratique"
-    }
-  ]
-}
-
-Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub, monument, glace, boulangerie, balade, activité, photo, brunch, cocktail, dessert.
-${isWeek
-  ? ''
-  : 'Génère 4-6 étapes bien enchaînées et réalistes.'}`;
-
-    let steps: ItineraryStep[] = [];
-    let summary = '';
-
-    // Tentative IA — seulement si un client est configuré (clé présente).
-    // Toute panne (pas de crédit, quota, timeout, JSON invalide…) bascule sur
-    // le repli déterministe : la fonctionnalité reste utilisable en permanence.
-    if (this.ai) {
-      try {
-        if (isWeek) {
-          const week = await this.generateWeek(req, city);
-          summary = week.summary;
-          steps = week.steps;
-        } else {
-          const parsed = await this.askJson<{ summary: string; steps: ItineraryStep[] }>(prompt, 1500);
-          summary = parsed.summary ?? '';
-          steps = parsed.steps ?? [];
-        }
-      } catch (err) {
-        this.logger.warn(`[itinerary] IA indisponible, repli déterministe : ${String(err)}`);
-      }
-    }
-
-    // Repli : aucune étape IA (pas de clé, plus de crédit, erreur…) → trame
-    // pré-définie adaptée au mood, tronquée selon la durée demandée.
-    if (steps.length === 0) {
-      const sequence = isWeek ? WEEK_FALLBACK : (FALLBACK_SEQUENCES[req.mood] ?? FALLBACK_SEQUENCES.amis);
-      // Copie EN PROFONDEUR : `{ ...s }` laissait le tableau `moments`
-      // partagé avec la constante globale. La résolution écrivant ses
-      // `placeId` et ses photos dans ces objets, la trame se polluait au
-      // premier repli — et la génération suivante, dans une autre ville,
-      // héritait des lieux de la précédente sans jamais les rechercher.
-      steps = sequence.slice(0, stepCountForDuration(req.duration)).map((s) => ({
-        ...s,
-        moments: s.moments?.map((m) => ({ ...m })),
-      }));
-      if (!summary) {
-        // « de la ville », pas « près de toi » : en mode Voyage, la ville
-        // demandée peut être à des milliers de kilomètres de l'utilisateur.
-        summary = `Un itinéraire ${req.duration} à ${city} pensé pour un moment ${req.mood}. Chaque étape est un vrai lieu de la ville.`;
-      }
-    }
-
-    // Enrichissement : rattacher un vrai lieu de la base à chaque étape ET à
-    // chaque moment de journée.
+    // Lieux de la ville, par univers.
     //
     // Deux précautions absentes de la version d'origine, qui interrogeait la
     // base une fois par étape et retenait toujours le premier résultat :
@@ -648,6 +681,120 @@ ${isWeek
       return ranked;
     };
 
+    // Les vrais lieux de la ville, montrés au modèle avant qu'il écrive :
+    // il choisit dedans au lieu d'inventer (voir MOOD_UNIVERSES). Les mêmes
+    // listes servent ensuite au rattachement, sans nouvelle requête.
+    let known = '';
+    if (this.ai) {
+      const offered = MOOD_UNIVERSES[req.mood] ?? DEFAULT_UNIVERSES;
+      const lists = await Promise.all(
+        offered.map(async (universe) => ({
+          universe,
+          places: (await candidatesFor(universe))
+            .filter(isFitForItinerary)
+            .slice(0, KNOWN_PLACES_PER_UNIVERSE),
+        })),
+      );
+      known = knownPlacesBlock(city, lists);
+    }
+
+    const prompt = `${moodCtx}
+
+Génère un itinéraire ${req.duration} à ${city} pour ${req.mood}${req.groupSize ? ` (${req.groupSize} personnes)` : ''}.
+Budget : ${req.budget}.
+${req.interests?.length ? `Centres d'intérêt : ${req.interests.join(', ')}.` : ''}
+${req.startTime ? `Heure de départ : ${req.startTime}.` : ''}
+${req.constraints ? `Contraintes importantes : ${req.constraints}.` : ''}
+${known ? `\n${known}\n` : ''}
+Réponds UNIQUEMENT avec un objet JSON valide (sans markdown, sans backticks, sans commentaires) :
+{
+  "summary": "Description courte et enthousiaste de l'itinéraire (1-2 phrases, donne envie)",
+  "steps": [
+    {
+      "time": "19h00",
+      "type": "restaurant",
+      "name": "Titre de l'étape",
+      "place": "Nom EXACT du lieu, ou \\"\\" si l'étape n'est pas un lieu précis",
+      "description": "Ce qu'on y fait, pourquoi c'est parfait pour ce mood",
+      "duration": "1h30",
+      "emoji": "🍽️",
+      "tips": "Conseil pratique"
+    }
+  ]
+}
+
+Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub, monument, glace, boulangerie, balade, activité, photo, brunch, cocktail, dessert.
+${isWeek
+  ? ''
+  : 'Génère 4-6 étapes bien enchaînées et réalistes.'}`;
+
+    let steps: ItineraryStep[] = [];
+    let summary = '';
+
+    // Tentative IA — seulement si un client est configuré (clé présente).
+    // Toute panne (pas de crédit, quota, timeout, JSON invalide…) bascule sur
+    // le repli déterministe : la fonctionnalité reste utilisable en permanence.
+    if (this.ai) {
+      try {
+        if (isWeek) {
+          const week = await this.generateWeek(req, city, known);
+          summary = week.summary;
+          steps = week.steps;
+        } else {
+          const parsed = await this.askJson<{ summary: string; steps: ItineraryStep[] }>(prompt, 1500);
+          summary = parsed.summary ?? '';
+          steps = parsed.steps ?? [];
+        }
+      } catch (err) {
+        this.logger.warn(`[itinerary] IA indisponible, repli déterministe : ${String(err)}`);
+      }
+    }
+
+    // `place` vient du modèle : n'en garder qu'une chaîne, sans quoi un `null`
+    // passerait pour « pas de lieu précis » ou pour un nom.
+    const cleanPlace = (target: { place?: unknown }): void => {
+      if (typeof target.place === 'string') target.place = target.place.trim();
+      else delete target.place;
+    };
+    for (const step of steps) {
+      cleanPlace(step);
+      for (const moment of step.moments ?? []) cleanPlace(moment);
+    }
+
+    // Repli : aucune étape IA (pas de clé, plus de crédit, erreur…) → trame
+    // pré-définie adaptée au mood, tronquée selon la durée demandée.
+    if (steps.length === 0) {
+      const sequence = isWeek ? WEEK_FALLBACK : (FALLBACK_SEQUENCES[req.mood] ?? FALLBACK_SEQUENCES.amis);
+      // Copie EN PROFONDEUR : `{ ...s }` laissait le tableau `moments`
+      // partagé avec la constante globale. La résolution écrivant ses
+      // `placeId` et ses photos dans ces objets, la trame se polluait au
+      // premier repli — et la génération suivante, dans une autre ville,
+      // héritait des lieux de la précédente sans jamais les rechercher.
+      steps = sequence.slice(0, stepCountForDuration(req.duration)).map((s) => ({
+        ...s,
+        moments: s.moments?.map((m) => ({ ...m })),
+      }));
+      if (!summary) {
+        // « de la ville », pas « près de toi » : en mode Voyage, la ville
+        // demandée peut être à des milliers de kilomètres de l'utilisateur.
+        summary = `Un itinéraire ${req.duration} à ${city} pensé pour un moment ${req.mood}. Chaque étape est un vrai lieu de la ville.`;
+      }
+    }
+
+    // Enrichissement : rattacher un vrai lieu de la base à chaque étape ET à
+    // chaque moment de journée (cache et curseur par univers : plus haut).
+
+    /** Le lieu de la base qui porte EXACTEMENT ce nom, tous univers confondus. */
+    const byExactName = (place: string): PlaceCandidate | undefined => {
+      const key = flatName(place);
+      if (!key) return undefined;
+      for (const list of byUniverse.values()) {
+        const hit = list.find((p) => flatName(p.name) === key);
+        if (hit) return hit;
+      }
+      return undefined;
+    };
+
     const toResolved = (place: PlaceCandidate): ResolvedPlace => ({
       placeId: place.id,
       placeRating: place.rating,
@@ -667,10 +814,24 @@ ${isWeek
      *    lieu du bon univers est exactement ce qui est attendu.
      */
     const resolvePlace = async (
-      name: string,
+      title: string,
       type: string,
       allowSubstitute: boolean,
+      place?: string,
     ): Promise<ResolvedPlace & { placeName?: string }> => {
+      // Le modèle a dit que l'étape n'est pas un lieu précis : lui en
+      // attacher un serait mentir sur la photo.
+      if (place === '') return {};
+      // Un lieu de la liste, recopié tel quel : c'est le cas visé. Le titre
+      // de l'étape (« Petit-déjeuner au … ») reste celui du modèle.
+      if (place) {
+        const exact = byExactName(place);
+        if (exact) return toResolved(exact);
+      }
+      // Sinon on cherche par le nom du lieu s'il est donné, par le titre
+      // pour la trame de repli et les réponses sans champ `place`.
+      const name = place || title;
+
       const universe = stepTypeToUniverse(type);
       if (!universe) return {};
       const candidates = await candidatesFor(universe);
@@ -733,7 +894,14 @@ ${isWeek
       const universe = stepTypeToUniverse(type);
       importBudget -= 1;
       const found = await this.places
-        .findOrImportByName({ name, city, universe: universe ?? undefined })
+        // Les cinq réponses du fournisseur sont comparées, pas seulement la
+        // première : le bon lieu arrive parfois deuxième.
+        .findOrImportByName({
+          name,
+          city,
+          universe: universe ?? undefined,
+          prefer: (p) => namesMatch(name, p.name, city),
+        })
         .catch(() => null);
       if (!found) return {};
 
@@ -791,13 +959,13 @@ ${isWeek
       const isDay = (step.moments?.length ?? 0) > 0;
 
       if (!isDay) {
-        const { placeName, ...resolved } = await resolvePlace(step.name, step.type, true);
+        const { placeName, ...resolved } = await resolvePlace(step.name, step.type, true, step.place);
         Object.assign(step, resolved);
         if (placeName) step.name = placeName;
       }
 
       for (const moment of step.moments ?? []) {
-        const { placeName, ...resolved } = await resolvePlace(moment.name, moment.type, false);
+        const { placeName, ...resolved } = await resolvePlace(moment.name, moment.type, false, moment.place);
         Object.assign(moment, resolved);
         if (placeName) moment.name = placeName;
       }
@@ -817,7 +985,9 @@ ${isWeek
     const applyProvider = async (
       target: ItineraryStep | ItineraryMoment,
     ): Promise<void> => {
-      const { placeName, ...fromProvider } = await resolveByProvider(target.name, target.type);
+      // « Pas un lieu précis » : rien à demander, ni à payer.
+      if (target.place === '') return;
+      const { placeName, ...fromProvider } = await resolveByProvider(target.place || target.name, target.type);
       Object.assign(target, fromProvider);
       if (placeName) target.name = placeName;
     };
@@ -842,7 +1012,7 @@ ${isWeek
     // sur le moment qu'il résout, donc un filtre recalculé au second tour
     // sauterait le moment suivant au lieu de l'essayer.
     const candidates = new Map<ItineraryStep, ItineraryMoment[]>(
-      days.map((day) => [day, (day.moments ?? []).filter((m) => !m.placeId)]),
+      days.map((day) => [day, (day.moments ?? []).filter((m) => !m.placeId && m.place !== '')]),
     );
 
     for (const round of [0, 1]) {
@@ -863,6 +1033,12 @@ ${isWeek
       if (!day.placePhoto) {
         day.placePhoto = day.moments?.find((m) => m.placePhoto)?.placePhoto;
       }
+    }
+
+    // `place` ne sert qu'au rattachement : l'app ne le connaît pas.
+    for (const step of steps) {
+      delete step.place;
+      for (const moment of step.moments ?? []) delete moment.place;
     }
 
     return { itinerary: summary, steps };
@@ -919,6 +1095,7 @@ ${isWeek
   private async generateWeek(
     req: ItineraryRequest,
     city: string,
+    known = '',
   ): Promise<{ summary: string; steps: ItineraryStep[] }> {
     const moodCtx = MOOD_CONTEXT[req.mood] ?? MOOD_CONTEXT.amis;
 
@@ -970,15 +1147,15 @@ Types valides : restaurant, cafe, bar, musée, parc, shopping, cinema, nightclub
 Séjour d'une semaine à ${city}, budget ${req.budget}. Programme complet : ${themes}.
 
 Détaille UNIQUEMENT cette journée : « ${base.name} » (${base.time}).
-
+${known ? `\n${known}\n` : ''}
 Réponds UNIQUEMENT avec un objet JSON valide :
 {
   "description": "Ce qu'on fait ce jour-là, 2-3 phrases concrètes et donnant envie",
   "tips": "Un conseil pratique (transport, horaire, tarif)",
   "moments": [
-    { "time": "Matin", "type": "monument", "name": "Nom PRÉCIS du lieu", "description": "Ce qu'on y fait", "emoji": "🏰", "tips": "Conseil" },
-    { "time": "Après-midi", "type": "restaurant", "name": "...", "description": "...", "emoji": "🍽️", "tips": "..." },
-    { "time": "Soir", "type": "bar", "name": "...", "description": "...", "emoji": "🍷", "tips": "..." }
+    { "time": "Matin", "type": "monument", "name": "Nom PRÉCIS du lieu", "place": "Nom EXACT du lieu, ou \\"\\"", "description": "Ce qu'on y fait", "emoji": "🏰", "tips": "Conseil" },
+    { "time": "Après-midi", "type": "restaurant", "name": "...", "place": "...", "description": "...", "emoji": "🍽️", "tips": "..." },
+    { "time": "Soir", "type": "bar", "name": "...", "place": "...", "description": "...", "emoji": "🍷", "tips": "..." }
   ]
 }
 
