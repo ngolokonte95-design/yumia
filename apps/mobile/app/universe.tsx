@@ -99,6 +99,13 @@ export default function UniverseScreen() {
   // passage à Plus.
   const places = allPlaces.slice(0, displayCap(from === 'weather' ? 'weatherUniversePlaces' : 'universePlaces'));
 
+  // Tant que la position ou le quota ne sont pas connus, la recherche n'a pas
+  // commencé : c'est « YUMIA cherche… », pas « Aucun lieu ». Sur Android, la
+  // position met parfois plusieurs secondes, et la page affichait à tort
+  // l'état vide pendant ce temps (24/11/2026).
+  const waiting = (!hasFixedPoint && resolving) || quotaOk === null;
+  const searching = (loading || waiting) && places.length === 0;
+
   /** Rafraîchir consomme un chargement de plus — c'en est un. */
   const reloadWithQuota = async () => {
     if (!universe) return;
@@ -193,7 +200,7 @@ export default function UniverseScreen() {
   const subtitle = placeParam
     ? `${t('uv_at')} ${placeParam}`
     : categoryKey ? t(`category_${categoryKey}` as TranslationKey) : '';
-  const showCount = !(loading && places.length === 0) && !error;
+  const showCount = !searching && !error;
 
   const header = (
     <Animated.View style={[styles.hero, { height: heroTotal, paddingTop: insets.top + BAR_HEIGHT }, heroContentStyle]}>
@@ -216,7 +223,7 @@ export default function UniverseScreen() {
     </Animated.View>
   );
 
-  const emptyState = loading && places.length === 0 ? (
+  const emptyState = searching ? (
     <View style={styles.stateBlock}>
       <View style={styles.searchingRow}>
         <ActivityIndicator color={grad[1]} />

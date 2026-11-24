@@ -64,7 +64,12 @@ async function readPosition(): Promise<Location.LocationObject> {
       timeout,
     ]);
   } catch (err) {
-    const last = await Location.getLastKnownPositionAsync({ maxAge: LAST_KNOWN_MAX_AGE_MS });
+    // Même la dernière position connue peut se faire attendre sur certains
+    // Android : on la borne aussi, sinon l'écran restait « en recherche ».
+    const last = await Promise.race([
+      Location.getLastKnownPositionAsync({ maxAge: LAST_KNOWN_MAX_AGE_MS }),
+      new Promise<null>((r) => setTimeout(() => r(null), LAST_KNOWN_TIMEOUT_MS)),
+    ]);
     if (last) return last;
     throw err;
   } finally {
@@ -72,11 +77,30 @@ async function readPosition(): Promise<Location.LocationObject> {
   }
 }
 
+const LAST_KNOWN_TIMEOUT_MS = 3_000;
+
+/**
+ * Dernière position obtenue, partagée par tous les écrans.
+ *
+ * Chaque écran a son propre `useLocation` : sans ce partage, rouvrir un
+ * univers relançait tout (permission, GPS, ville). Sur Android cela prend
+ * plusieurs secondes, et la page affichait « Aucun lieu » pendant ce temps
+ * (24/11/2026). Une position de moins de {@link SHARED_FIX_MAX_AGE_MS} est
+ * reprise telle quelle, puis relue en silence.
+ */
+const SHARED_FIX_MAX_AGE_MS = 10 * 60 * 1000;
+let sharedFix: { coords: Coordinates; city: string | null; at: number } | null = null;
+
+function freshSharedFix() {
+  return sharedFix && Date.now() - sharedFix.at < SHARED_FIX_MAX_AGE_MS ? sharedFix : null;
+}
+
 export function useLocation(): LocationState {
-  const [coords, setCoords] = useState<Coordinates>(DEFAULT_LOCATION);
-  const [resolving, setResolving] = useState(true);
-  const [status, setStatus] = useState<LocationStatus>('loading');
-  const [city, setCity] = useState<string | null>(null);
+  const [initialFix] = useState(freshSharedFix);
+  const [coords, setCoords] = useState<Coordinates>(initialFix?.coords ?? DEFAULT_LOCATION);
+  const [resolving, setResolving] = useState(!initialFix);
+  const [status, setStatus] = useState<LocationStatus>(initialFix ? 'granted' : 'loading');
+  const [city, setCity] = useState<string | null>(initialFix?.city ?? null);
   const coordsRef = useRef(coords);
   coordsRef.current = coords;
 
@@ -99,29 +123,37 @@ export function useLocation(): LocationState {
       }
       const pos = await readPosition();
       const { latitude, longitude } = pos.coords;
-      setCoords({ lat: latitude, lng: longitude });
+      const next = { lat: latitude, lng: longitude };
+      setCoords(next);
       setStatus('granted');
-
-      // Géocodage inverse best-effort — ne jamais bloquer l'UX.
-      try {
-        const [geo] = await Location.reverseGeocodeAsync({ latitude, longitude });
-        if (geo) {
-          setCity(geo.city ?? geo.district ?? geo.region ?? null);
-        }
-      } catch {
-        // ignored
-      }
+      sharedFix = { coords: next, city: sharedFix?.city ?? null, at: Date.now() };
+      // La position suffit aux écrans : on ne les fait plus attendre le nom de
+      // la ville. Sur Android, le géocodeur du système met parfois longtemps
+      // (voire ne répond pas), et tout l'écran restait bloqué derrière.
+      setResolving(false);
+      void lookupCity(latitude, longitude);
     } catch {
       setCoords(DEFAULT_LOCATION);
       setStatus('fallback');
     } finally {
       setResolving(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    void resolve();
-  }, [resolve]);
+  /** Géocodage inverse best-effort, en arrière-plan. */
+  const lookupCity = useCallback(async (latitude: number, longitude: number) => {
+    try {
+      const [geo] = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const name = geo ? geo.city ?? geo.district ?? geo.region ?? null : null;
+      if (name) {
+        setCity(name);
+        if (sharedFix) sharedFix = { ...sharedFix, city: name };
+      }
+    } catch {
+      // ignored
+    }
+  }, []);
 
   const refreshIfMoved = useCallback(async (minMeters = 500) => {
     try {
@@ -129,18 +161,26 @@ export function useLocation(): LocationState {
       if (perm !== 'granted') return;
       const pos = await readPosition();
       const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      if (metersBetween(coordsRef.current, next) < minMeters) return;
+      const moved = metersBetween(coordsRef.current, next) >= minMeters;
+      sharedFix = { coords: moved ? next : coordsRef.current, city: sharedFix?.city ?? null, at: Date.now() };
+      if (!moved) return;
       setCoords(next);
       setStatus('granted');
-      try {
-        const [geo] = await Location.reverseGeocodeAsync({ latitude: next.lat, longitude: next.lng });
-        if (geo) setCity(geo.city ?? geo.district ?? geo.region ?? null);
-      } catch {
-        // ignored
-      }
+      void lookupCity(next.lat, next.lng);
     } catch {
       // Position indisponible : on garde la précédente.
     }
+  }, [lookupCity]);
+
+  useEffect(() => {
+    // Position récente déjà connue : affichée tout de suite, relue en silence.
+    if (initialFix) {
+      void refreshIfMoved(300);
+      return;
+    }
+    void resolve();
+  // Une seule fois à l'ouverture de l'écran (les deux fonctions sont stables).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
