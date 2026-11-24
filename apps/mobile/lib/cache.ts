@@ -10,7 +10,13 @@
  * flagged as stale so callers can decide whether to re-fetch.
  */
 
-let AsyncStorage: { getItem(k: string): Promise<string | null>; setItem(k: string, v: string): Promise<void>; removeItem(k: string): Promise<void> } | null = null;
+let AsyncStorage: {
+  getItem(k: string): Promise<string | null>;
+  setItem(k: string, v: string): Promise<void>;
+  removeItem(k: string): Promise<void>;
+  getAllKeys?(): Promise<readonly string[]>;
+  multiRemove?(keys: string[]): Promise<void>;
+} | null = null;
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -42,11 +48,33 @@ function key(ns: string): string {
 export async function cacheSet<T>(ns: string, data: T, ttlMs = 5 * 60_000): Promise<void> {
   if (!AsyncStorage) return;
   const entry: CacheEntry<T> = { data, expiresAt: Date.now() + ttlMs, cachedAt: Date.now() };
+  let payload: string;
   try {
-    await AsyncStorage.setItem(key(ns), JSON.stringify(entry));
+    payload = JSON.stringify(entry);
   } catch {
-    // Storage quota or serialisation error — ignore, app still works online.
+    return; // non sérialisable : rien à mettre en cache
   }
+  try {
+    await AsyncStorage.setItem(key(ns), payload);
+  } catch {
+    // Stockage plein : Android plafonne AsyncStorage à 6 Mo, et rien ne
+    // supprimait les anciennes entrées (une par univers et par position).
+    // Le cache est jetable : on le vide et on réessaie une fois.
+    try {
+      await cachePurge();
+      await AsyncStorage.setItem(key(ns), payload);
+    } catch {
+      // Toujours impossible : l'app fonctionne sans cache.
+    }
+  }
+}
+
+/** Supprime toutes les entrées du cache (et elles seules). */
+export async function cachePurge(): Promise<void> {
+  if (!AsyncStorage?.getAllKeys || !AsyncStorage.multiRemove) return;
+  const all = await AsyncStorage.getAllKeys();
+  const mine = all.filter((k) => k.startsWith(PREFIX));
+  if (mine.length > 0) await AsyncStorage.multiRemove(mine);
 }
 
 /**

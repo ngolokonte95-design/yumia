@@ -139,7 +139,12 @@ export function usePlanLimits() {
       if (period === 'none') return; // compté via currentCount, pas de compteur local
       const pk = periodKey(period);
       const used = await readCount(feature, period, scope);
-      await AsyncStorage.setItem(usageKey(feature, scope), JSON.stringify({ pk, count: used + 1 }));
+      try {
+        await AsyncStorage.setItem(usageKey(feature, scope), JSON.stringify({ pk, count: used + 1 }));
+      } catch {
+        // Stockage plein ou indisponible (Android plafonne AsyncStorage à
+        // 6 Mo) : l'usage n'est pas compté, mais l'écran continue.
+      }
     },
     [],
   );

@@ -77,10 +77,17 @@ export default function UniverseScreen() {
     if (!universe) return;
     let active = true;
     void (async () => {
-      const { allowed, message } = await consumePlaceLoad();
-      if (!active) return;
-      if (!allowed) { setQuotaOk(false); setUpsell(message); return; }
-      setQuotaOk(true);
+      try {
+        const { allowed, message } = await consumePlaceLoad();
+        if (!active) return;
+        if (!allowed) { setQuotaOk(false); setUpsell(message); return; }
+        setQuotaOk(true);
+      } catch {
+        // Compteur illisible (stockage du téléphone plein, par ex.) : on
+        // laisse passer. Mieux vaut un chargement non compté qu'une page
+        // qui reste vide pour toujours.
+        if (active) setQuotaOk(true);
+      }
     })();
     return () => { active = false; };
   }, [universe, consumePlaceLoad]);

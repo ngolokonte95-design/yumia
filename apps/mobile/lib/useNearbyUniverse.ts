@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchNearby, type NearbyPlace } from './places-api';
 import type { Universe } from '@yumia/shared';
-import { cacheGet, cacheKey, cacheSet } from './cache';
+import { cacheDel, cacheGet, cacheKey, cacheSet } from './cache';
 import { useNetworkStatus } from './useNetworkStatus';
 
 const CACHE_TTL = 5 * 60_000;
@@ -21,6 +21,10 @@ export function useNearbyUniverse(params: {
   const [loading, setLoading] = useState(universe !== null);
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
+  /** Clé de la dernière recherche TERMINÉE (avec ou sans résultat). */
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  /** Numéro de la recherche en cours : une réponse tardive d'une recherche dépassée est ignorée. */
+  const runRef = useRef(0);
 
   const ck = cacheKey('nearby-universe', {
     lat: lat.toFixed(3),
@@ -32,41 +36,51 @@ export function useNearbyUniverse(params: {
 
   const load = useCallback(async () => {
     if (!universe) return;
+    const run = ++runRef.current;
+    const current = () => run === runRef.current;
     setLoading(true);
     setError(null);
 
     const cached = await cacheGet<NearbyPlace[]>(ck);
-    if (cached) {
+    if (!current()) return;
+    // Une liste VIDE gardée en mémoire n'est pas une réponse : l'afficher
+    // disait « Aucun lieu » pendant que le serveur, lui, en renvoyait
+    // (24/11/2026). On ne montre le cache que s'il contient des lieux.
+    const hasCached = cached !== null && cached.data.length > 0;
+    if (hasCached) {
       setPlaces(cached.data);
       setFromCache(true);
       setLoading(false);
-      if (!isOnline) return;
-      try {
-        const fresh = await fetchNearby({ lat, lng, radius, universe, limit });
-        setPlaces(fresh);
-        setFromCache(false);
-        void cacheSet(ck, fresh, CACHE_TTL);
-      } catch {
-        // keep stale
+      setSettledKey(ck);
+    }
+
+    if (!isOnline) {
+      if (!hasCached) {
+        setError('Aucune connexion réseau.');
+        setLoading(false);
+        setSettledKey(ck);
       }
       return;
     }
 
-    if (!isOnline) {
-      setError('Aucune connexion réseau.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const data = await fetchNearby({ lat, lng, radius, universe, limit });
-      setPlaces(data);
+      const fresh = await fetchNearby({ lat, lng, radius, universe, limit });
+      if (!current()) return;
+      setPlaces(fresh);
       setFromCache(false);
-      void cacheSet(ck, data, CACHE_TTL);
+      // Un résultat vide n'est jamais mis en cache (voir plus haut).
+      if (fresh.length > 0) void cacheSet(ck, fresh, CACHE_TTL);
+      else void cacheDel(ck);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      if (!current()) return;
+      // Des lieux déjà affichés (cache) restent à l'écran ; sinon on dit la
+      // panne, avec « Réessayer », plutôt qu'un faux « Aucun lieu ».
+      if (!hasCached) setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
-      setLoading(false);
+      if (current()) {
+        setLoading(false);
+        setSettledKey(ck);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng, universe, radius, limit, ck, isOnline]);
@@ -80,5 +94,9 @@ export function useNearbyUniverse(params: {
     void load();
   }, [load, enabled]);
 
-  return { places, loading, error, fromCache, reload: () => void load() };
+  // Activé mais recherche pas encore aboutie pour CES paramètres : c'est du
+  // chargement, même pendant l'instant où l'effet n'a pas encore démarré.
+  const pending = enabled && universe !== null && settledKey !== ck;
+
+  return { places, loading: loading || pending, error, fromCache, reload: () => void load() };
 }

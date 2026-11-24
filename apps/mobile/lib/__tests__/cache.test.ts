@@ -74,4 +74,44 @@ describe('cache', () => {
       expect(await cacheGet('k')).toBeNull();
     });
   });
+
+  // ── stockage plein (Android plafonne AsyncStorage à 6 Mo) ─────────────────
+
+  describe('stockage plein', () => {
+    it('vide le cache puis réécrit, sans toucher aux autres clés de l\'app', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const store = require('../../test/mocks/async-storage').default;
+      await cacheSet('ancien', { v: 1 }, 60_000);
+      await store.setItem('usage:placeLoadsPerDay', '{"pk":"x","count":3}');
+
+      // Tant que le cache contient l'ancienne entrée, l'écriture échoue.
+      const realSet = store.setItem;
+      store.setItem = async (k: string, v: string) => {
+        const keys: string[] = await store.getAllKeys();
+        if (keys.includes('@yumia/cache/ancien')) throw new Error('database or disk is full');
+        return realSet(k, v);
+      };
+      try {
+        await cacheSet('nouveau', { v: 2 }, 60_000);
+      } finally {
+        store.setItem = realSet;
+      }
+
+      expect(await cacheGet('ancien')).toBeNull();
+      expect((await cacheGet<{ v: number }>('nouveau'))!.data).toEqual({ v: 2 });
+      expect(await store.getItem('usage:placeLoadsPerDay')).toBe('{"pk":"x","count":3}');
+    });
+
+    it('ne lève jamais, même si rien ne peut être écrit', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const store = require('../../test/mocks/async-storage').default;
+      const realSet = store.setItem;
+      store.setItem = async () => { throw new Error('database or disk is full'); };
+      try {
+        await expect(cacheSet('k', { v: 1 }, 60_000)).resolves.toBeUndefined();
+      } finally {
+        store.setItem = realSet;
+      }
+    });
+  });
 });

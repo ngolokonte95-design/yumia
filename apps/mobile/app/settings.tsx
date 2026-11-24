@@ -18,6 +18,7 @@ import {
   Share,
 } from 'react-native';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { File, Paths } from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -44,6 +45,25 @@ const PLAN_NAME: Record<Plan, string> = {
 
 /** Version réelle du binaire (app.json → expoConfig), plus de numéro écrit en dur. */
 const APP_VERSION = Constants.expoConfig?.version ?? '';
+
+/**
+ * Mise à jour en cours d'exécution, pour le support : « 24/11 15:02 · production ».
+ * Sert à savoir si un correctif envoyé à distance est bien arrivé sur le
+ * téléphone, et sur quel canal l'app écoute (production = installée depuis
+ * le store ; preview = version de test).
+ */
+function updateLabel(): string {
+  try {
+    if (!Updates.isEnabled) return '';
+    const d = Updates.createdAt;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const when = d ? `${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+    return [when, Updates.channel ?? ''].filter(Boolean).join(' · ');
+  } catch {
+    return '';
+  }
+}
+const UPDATE_LABEL = updateLabel();
 
 /**
  * Écrit l'export dans un fichier JSON puis ouvre la feuille de partage : la
@@ -290,6 +310,7 @@ export default function SettingsScreen() {
         <Text style={styles.version}>
           {APP_VERSION ? `YUMIA v${APP_VERSION}` : 'YUMIA'}{user?.email ? ` • ${user.email}` : ''}
         </Text>
+        {UPDATE_LABEL ? <Text style={[styles.version, styles.versionUpdate]}>{UPDATE_LABEL}</Text> : null}
       </ScrollView>
     </View>
   );
@@ -340,4 +361,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
   },
+  // Ligne « mise à jour » : collée sous la version.
+  versionUpdate: { paddingTop: 0, marginTop: -spacing.md, opacity: 0.75 },
 });
