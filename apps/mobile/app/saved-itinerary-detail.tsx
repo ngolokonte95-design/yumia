@@ -155,7 +155,7 @@ export default function SavedItineraryDetailScreen() {
             steps={item.steps}
             renderActions={(step) => (step.placeId ? (
               <PressableScale style={styles.placeBtn} onPress={() => navigateToPlace(step)}>
-                <Text style={styles.placeBtnText}>{t('itin_see_place')}  →</Text>
+                <Text style={styles.placeBtnText}>{t('itin_see_place')}</Text>
               </PressableScale>
             ) : null)}
           />

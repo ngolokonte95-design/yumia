@@ -547,7 +547,7 @@ export default function ItineraryScreen() {
                       {openingStep === `${step.time}-${step.name}` ? (
                         <ActivityIndicator size="small" color={colors.brand} />
                       ) : (
-                        <Text style={styles.placeBtnText}>{tr('itin_see_place')}  →</Text>
+                        <Text style={styles.placeBtnText}>{tr('itin_see_place')}</Text>
                       )}
                     </PressableScale>
                   ) : null}
